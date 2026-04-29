@@ -19,9 +19,12 @@ function getGreeting() {
 
 export default function HiCard() {
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
+	const { cardStyles, siteContent } = useConfigStore()
 	const greeting = getGreeting()
 	const styles = cardStyles.hiCard
+	const username = siteContent.meta.title || 'My Blog'
+	const intro = siteContent.home?.intro || '我是'
+	const outro = siteContent.home?.outro || '欢迎来到我的博客！'
 
 	const x = styles.offsetX !== null ? center.x + styles.offsetX : center.x - styles.width / 2
 	const y = styles.offsetY !== null ? center.y + styles.offsetY : center.y - styles.height / 2
@@ -31,7 +34,9 @@ export default function HiCard() {
 			<Card order={styles.order} width={styles.width} height={styles.height} x={x} y={y} className='text-center max-sm:static max-sm:translate-0'>
 				<img src='/images/avatar.png' className='mx-auto rounded-full' style={{ width: 120, height: 120, boxShadow: ' 0 16px 32px -5px #E2D9CE' }} />
 				<h1 className='font-averia mt-3 text-2xl'>
-					{greeting}！<br />我是 <span className='text-linear text-[32px]'>{username}</span>，<br />欢迎来到我的博客！
+					{greeting}！<br />
+					{intro} <span className='text-linear text-[32px]'>{username}</span>，<br />
+					{outro}
 				</h1>
 			</Card>
 		</HomeDraggableLayer>

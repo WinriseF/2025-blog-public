@@ -1,5 +1,5 @@
 {
-	"title": "关于本站",
-	"description": "一个基于 Github 的现代化博客系统",
-	"content": "📦网站基于 Github 仓库完全存储，所有内容版本可控\n\n🚀无后端，无 serverless function，纯静态站点\n\n✏️文章通过可视化 UI 直接编辑并提交到 Github 仓库\n\n🔑所有用户都可以编辑，提交需要 Owner 的 Private Key\n\n## 技术栈\n\n- Next.js\n- React\n- TypeScript\n- Tailwind CSS\n- Motion\n- Github API"
+	"title": "About WinriseF",
+	"description": "WinriseF 的个人站点",
+	"content": "这里将逐步替换为 WinriseF 的个人介绍、经历与长期内容。\n\n## 当前状态\n\n- 站点正在从模板内容迁移\n- 文章、项目与图片内容会逐步补齐\n- 所有展示信息将以 WinriseF 为准"
 }

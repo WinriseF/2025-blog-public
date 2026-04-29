@@ -1,7 +1,11 @@
 {
 	"meta": {
 		"title": "WinriseF",
-		"description": "WinriseF的个人博客，记录前端开发、探索笔记。前端 UI 更新代码仓库。"
+		"description": "WinriseF 的个人博客，记录项目、文章与持续更新中的个人内容。"
+	},
+	"home": {
+		"intro": "我是",
+		"outro": "欢迎来到我的博客！"
 	},
 	"theme": {
 		"colorBrand": "#DC4AEE",
@@ -21,15 +25,11 @@
 	],
 	"artImages": [
 		{
-			"id": "cat",
-			"url": "/images/art/cat.png"
-		},
-		{
-			"id": "a46372ff45bc5524",
-			"url": "/images/art/a46372ff45bc5524.jpg"
+			"id": "winrisef-avatar",
+			"url": "/images/avatar.png"
 		}
 	],
-	"currentArtImageId": "a46372ff45bc5524",
+	"currentArtImageId": "winrisef-avatar",
 	"backgroundImages": [
 		{
 			"id": "",

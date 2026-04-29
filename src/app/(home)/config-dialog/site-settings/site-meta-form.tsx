@@ -29,6 +29,26 @@ export function SiteMetaForm({ formData, setFormData }: SiteMetaFormProps) {
 					className='bg-secondary/10 w-full rounded-lg border px-4 py-2 text-sm'
 				/>
 			</div>
+
+			<div>
+				<label className='mb-2 block text-sm font-medium'>首页文案前缀</label>
+				<input
+					type='text'
+					value={formData.home?.intro || ''}
+					onChange={e => setFormData({ ...formData, home: { ...formData.home, intro: e.target.value, outro: formData.home?.outro || '' } })}
+					className='bg-secondary/10 w-full rounded-lg border px-4 py-2 text-sm'
+				/>
+			</div>
+
+			<div>
+				<label className='mb-2 block text-sm font-medium'>首页文案后缀</label>
+				<input
+					type='text'
+					value={formData.home?.outro || ''}
+					onChange={e => setFormData({ ...formData, home: { ...formData.home, intro: formData.home?.intro || '', outro: e.target.value } })}
+					className='bg-secondary/10 w-full rounded-lg border px-4 py-2 text-sm'
+				/>
+			</div>
 		</>
 	)
 }

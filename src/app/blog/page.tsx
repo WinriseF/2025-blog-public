@@ -9,7 +9,6 @@ import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import ShortLineSVG from '@/svgs/short-line.svg'
 import { useBlogIndex, type BlogIndexItem } from '@/hooks/use-blog-index'
 import { useReadArticles } from '@/hooks/use-read-articles'
-import JuejinSVG from '@/svgs/juejin.svg'
 import { useAuthStore } from '@/hooks/use-auth'
 import { readFileAsText } from '@/lib/file-utils'
 import { cn } from '@/lib/utils'
@@ -230,21 +229,6 @@ export default function BlogPage() {
 							</div>
 						</motion.div>
 					))}
-					{items.length > 0 && (
-						<div className='text-center'>
-							<motion.a
-								initial={{ opacity: 0, scale: 0.6 }}
-								animate={{ opacity: 1, scale: 1 }}
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								href='https://juejin.cn/user/2427311675422382/posts'
-								target='_blank'
-								className='card text-secondary static inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs'>
-								<JuejinSVG className='h-4 w-4' />
-								更多
-							</motion.a>
-						</div>
-					)}
 					{!loading && items.length === 0 && <div className='text-secondary py-6 text-center text-sm'>暂无文章</div>}
 					{loading && <div className='text-secondary py-6 text-center text-sm'>加载中...</div>}
 				</>
