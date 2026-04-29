@@ -31,7 +31,7 @@ export default function HiCard() {
 			<Card order={styles.order} width={styles.width} height={styles.height} x={x} y={y} className='text-center max-sm:static max-sm:translate-0'>
 				<img src='/images/avatar.png' className='mx-auto rounded-full' style={{ width: 120, height: 120, boxShadow: ' 0 16px 32px -5px #E2D9CE' }} />
 				<h1 className='font-averia mt-3 text-2xl'>
-					{greeting} <br /> I'm <span className='text-linear text-[32px]'>WinriseF</span> , Nice to <br /> meet you!
+					{greeting}！<br />我是 <span className='text-linear text-[32px]'>{username}</span>，<br />欢迎来到我的博客！
 				</h1>
 			</Card>
 		</HomeDraggableLayer>
