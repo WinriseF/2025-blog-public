@@ -4,22 +4,20 @@
 		"description": "WinriseF的个人博客，记录前端开发、探索笔记。前端 UI 更新代码仓库。"
 	},
 	"theme": {
-		"colorBrand": "#de4331",
-		"colorPrimary": "#4E3F42",
+		"colorBrand": "#DC4AEE",
+		"colorPrimary": "#334f52",
 		"colorSecondary": "#7b888e",
-		"colorBrandSecondary": "#FCC841",
+		"colorBrandSecondary": "#1fc9e7",
 		"colorBg": "#eeeeee",
 		"colorBorder": "#ffffff",
 		"colorCard": "#ffffff66",
 		"colorArticle": "#ffffffcc"
 	},
 	"backgroundColors": [
-		"#FCC841",
-		"#DFEFFC",
-		"#DEDE92",
-		"#DE4331",
-		"#FE9750",
-		"#FCC841"
+		"#334E0F",
+		"#CEDB2C",
+		"#B3AC83",
+		"#9E23D3"
 	],
 	"artImages": [
 		{
