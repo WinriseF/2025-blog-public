@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import { ChevronLeft, Orbit, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getAlmanacDay } from '@/lib/calendar/almanac'
 
 dayjs.locale('zh-cn')
 
@@ -88,6 +89,7 @@ export default function CalendarPage() {
 	const monthCells = [...new Array(firstDayWeekday).fill(null), ...new Array(daysInMonth).fill(0).map((_, index) => index + 1)]
 	const weekStart = getWeekStartMonday(now)
 	const lunarToday = lunarFullFormatter.format(now.toDate()).replace(/\s+/g, '')
+	const almanac = getAlmanacDay(now.toDate())
 	const solarTerms = buildSolarTerms(year)
 	const allSolarTerms = [...solarTerms, ...buildSolarTerms(year + 1)]
 	const nextSolarTerm = allSolarTerms.find(term => term.date.isAfter(now, 'day')) || allSolarTerms[0]
@@ -96,7 +98,7 @@ export default function CalendarPage() {
 	const dayOfYear = now.diff(now.startOf('year'), 'day') + 1
 	const thisWeek = new Array(7).fill(0).map((_, index) => weekStart.add(index, 'day'))
 	const summaryItems = [
-		{ label: '农历', value: lunarToday },
+		{ label: '农历', value: almanac.lunarDate },
 		{ label: '年进度', value: `${dayOfYear} / ${isLeapYear(year) ? 366 : 365}` },
 		{ label: '月余', value: `${daysInMonth - currentDate} 天` },
 		{ label: '周段', value: `${weekStart.format('M/D')} - ${weekStart.add(6, 'day').format('M/D')}` }
@@ -168,6 +170,68 @@ export default function CalendarPage() {
 									</motion.div>
 								)
 							})}
+						</div>
+
+						<div className='mt-6 grid gap-4 border-t pt-5 lg:grid-cols-[0.8fr_1.2fr_0.9fr]'>
+							<div className='rounded-[30px] border bg-white/30 p-4'>
+								<div className='text-secondary text-xs'>{now.format('YYYY/M/D ddd')}</div>
+								<div className='mt-3 flex items-end gap-3'>
+									<div className='text-6xl leading-none font-semibold tracking-normal max-sm:text-5xl'>{now.format('D')}</div>
+									<div className='pb-1'>
+										<div className='text-base font-medium'>{almanac.lunarDate}</div>
+										<div className='text-secondary mt-1 text-xs'>
+											{almanac.ganzhiYear}年 {almanac.shengXiao}
+										</div>
+									</div>
+								</div>
+								<div className='text-secondary mt-4 text-xs leading-5'>
+									{almanac.ganzhiMonth}月 · {almanac.ganzhiDay}日
+								</div>
+							</div>
+
+							<div className='grid gap-3'>
+								<div className='rounded-[26px] border bg-white/25 p-3'>
+									<div className='mb-2 flex items-center gap-2 text-sm font-medium'>
+										<span className='bg-linear flex h-6 w-6 items-center justify-center rounded-full text-xs'>宜</span>
+										<span>今日宜</span>
+									</div>
+									<div className='flex flex-wrap gap-2'>
+										{almanac.yi.map(item => (
+											<span key={item} className='rounded-full border bg-white/35 px-3 py-1 text-xs'>
+												{item}
+											</span>
+										))}
+									</div>
+								</div>
+
+								<div className='rounded-[26px] border bg-white/20 p-3'>
+									<div className='mb-2 flex items-center gap-2 text-sm font-medium'>
+										<span className='text-secondary flex h-6 w-6 items-center justify-center rounded-full border bg-white/35 text-xs'>忌</span>
+										<span>今日忌</span>
+									</div>
+									<div className='flex flex-wrap gap-2'>
+										{almanac.ji.map(item => (
+											<span key={item} className='text-secondary rounded-full border bg-white/25 px-3 py-1 text-xs'>
+												{item}
+											</span>
+										))}
+									</div>
+								</div>
+							</div>
+
+							<div className='grid grid-cols-2 gap-3 lg:grid-cols-1'>
+								{[
+									{ label: '冲煞', value: `${almanac.chong} · 煞${almanac.sha}` },
+									{ label: '星宿', value: `${almanac.xiu}宿 · ${almanac.xiuLuck}` },
+									{ label: '纳音', value: almanac.naYin },
+									{ label: '节气', value: `${almanac.prevJieQi.name}后 · ${almanac.nextJieQi.name}前` }
+								].map(item => (
+									<div key={item.label} className='rounded-2xl border bg-white/25 px-3 py-2.5'>
+										<div className='text-secondary text-[11px]'>{item.label}</div>
+										<div className='mt-1 text-sm font-medium'>{item.value}</div>
+									</div>
+								))}
+							</div>
 						</div>
 					</motion.section>
 

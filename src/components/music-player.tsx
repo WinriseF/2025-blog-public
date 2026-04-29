@@ -238,34 +238,81 @@ export function MusicProgress({ className }: { className?: string }) {
 
 function FloatingMusicPlayer({ visible }: { visible: boolean }) {
 	const { currentMusic, currentTime, duration, hasMusic, isPlaying, loadError, togglePlayback } = useMusicPlayer()
+	const [expandedWidth, setExpandedWidth] = useState(320)
+	const playerTransition = { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const }
+
+	useEffect(() => {
+		const updateWidth = () => {
+			setExpandedWidth(Math.min(320, window.innerWidth - 32))
+		}
+
+		updateWidth()
+		window.addEventListener('resize', updateWidth)
+		return () => window.removeEventListener('resize', updateWidth)
+	}, [])
 
 	return (
 		<AnimatePresence>
 			{visible && (
 				<motion.div
-					initial={{ opacity: 0, scale: 0.86, y: 18, filter: 'blur(6px)' }}
-					animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+					initial={{ opacity: 0, scale: 0.86, y: 18, filter: 'blur(6px)', width: 56, height: 56 }}
+					animate={{
+						opacity: 1,
+						scale: 1,
+						y: 0,
+						filter: 'blur(0px)',
+						width: isPlaying ? expandedWidth : 56,
+						height: isPlaying ? 66 : 56,
+						borderRadius: isPlaying ? 28 : 999,
+						padding: isPlaying ? 12 : 8
+					}}
 					exit={{ opacity: 0, scale: 0.94, y: 10, filter: 'blur(4px)' }}
-					transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
-					className='bg-card fixed right-6 bottom-6 z-50 flex w-[320px] origin-bottom-right items-center gap-3 rounded-[28px] border p-3 shadow-lg backdrop-blur-md max-sm:right-4 max-sm:bottom-4 max-sm:w-[calc(100vw-32px)]'>
-					<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border bg-white/45'>
-						<Music2 className='text-brand h-5 w-5' />
-					</div>
-					<div className='min-w-0 flex-1'>
-						<div className='truncate text-sm font-medium'>{currentMusic?.name || '随机音乐'}</div>
-						<MusicProgress className='mt-1' />
-						<div className='text-secondary mt-1 truncate text-[11px]'>
-							{loadError ? '音频资源加载失败' : hasMusic ? `${formatMusicTime(currentTime)} / ${formatMusicTime(duration)}` : '还没有添加音乐'}
+					transition={playerTransition}
+					className='bg-card fixed right-6 bottom-6 z-50 origin-bottom-right overflow-hidden border shadow-lg backdrop-blur-md max-sm:right-4 max-sm:bottom-4'>
+					<motion.div
+						animate={{
+							opacity: isPlaying ? 1 : 0,
+							x: isPlaying ? 0 : 12,
+							scale: isPlaying ? 1 : 0.98
+						}}
+						transition={{ duration: isPlaying ? 0.24 : 0.14, delay: isPlaying ? 0.12 : 0, ease: [0.22, 1, 0.36, 1] }}
+						className='flex h-full w-full items-center gap-3'
+						style={{ pointerEvents: isPlaying ? 'auto' : 'none' }}>
+						<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border bg-white/45'>
+							<Music2 className='text-brand h-5 w-5' />
 						</div>
-					</div>
-					<button
+						<div className='min-w-0 flex-1'>
+							<div className='truncate text-sm font-medium'>{currentMusic?.name || '随机音乐'}</div>
+							<MusicProgress className='mt-1' />
+							<div className='text-secondary mt-1 truncate text-[11px]'>
+								{loadError ? '音频资源加载失败' : hasMusic ? `${formatMusicTime(currentTime)} / ${formatMusicTime(duration)}` : '还没有添加音乐'}
+							</div>
+						</div>
+						<button
+							type='button'
+							disabled={!hasMusic}
+							onClick={togglePlayback}
+							className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white/70 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'
+							aria-label='暂停音乐'>
+							<Pause className='text-brand h-4 w-4' />
+						</button>
+					</motion.div>
+
+					<motion.button
 						type='button'
 						disabled={!hasMusic}
 						onClick={togglePlayback}
-						className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white/70 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'
-						aria-label={isPlaying ? '暂停音乐' : '播放音乐'}>
-						{isPlaying ? <Pause className='text-brand h-4 w-4' /> : <PlaySVG className='text-brand ml-1 h-4 w-4' />}
-					</button>
+						animate={{
+							opacity: isPlaying ? 0 : 1,
+							scale: isPlaying ? 0.72 : 1,
+							rotate: isPlaying ? -12 : 0
+						}}
+						transition={{ duration: isPlaying ? 0.12 : 0.22, delay: isPlaying ? 0 : 0.12, ease: [0.22, 1, 0.36, 1] }}
+						className='absolute inset-2 flex items-center justify-center rounded-full bg-white/70 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'
+						style={{ pointerEvents: isPlaying ? 'none' : 'auto' }}
+						aria-label='播放音乐'>
+						<PlaySVG className='text-brand ml-1 h-4 w-4' />
+					</motion.button>
 				</motion.div>
 			)}
 		</AnimatePresence>
