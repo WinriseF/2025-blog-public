@@ -27,9 +27,13 @@
 		{
 			"id": "winrisef-avatar",
 			"url": "/images/avatar.png"
+		},
+		{
+			"id": "9ddebe7099f29735",
+			"url": "/images/art/9ddebe7099f29735.png"
 		}
 	],
-	"currentArtImageId": "winrisef-avatar",
+	"currentArtImageId": "9ddebe7099f29735",
 	"backgroundImages": [
 		{
 			"id": "",
