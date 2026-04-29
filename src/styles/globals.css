@@ -15,6 +15,9 @@
 	html {
 		@apply text-primary bg-bg h-full leading-tight;
 		scroll-behavior: smooth;
+		transition:
+			background-color 600ms ease,
+			color 600ms ease;
 	}
 
 	body {
@@ -22,6 +25,11 @@
 	}
 	* {
 		@apply border-border;
+		transition:
+			border-color 600ms ease,
+			background-color 600ms ease,
+			color 600ms ease,
+			box-shadow 600ms ease;
 	}
 
 	input:focus,

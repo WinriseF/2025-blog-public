@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import Layout from '@/layout'
 import Head from '@/layout/head'
 import siteContent from '@/config/site-content.json'
+import { getTimeThemeInitScript } from '@/lib/time-theme'
 
 const {
 	meta: { title, description },
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 			<Head />
 
 			<body>
+				<script dangerouslySetInnerHTML={{ __html: getTimeThemeInitScript() }} />
 				<script
 					dangerouslySetInnerHTML={{
 						__html: `

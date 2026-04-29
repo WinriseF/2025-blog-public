@@ -8,12 +8,15 @@ import { useRouter } from 'next/navigation'
 import { useSize } from '@/hooks/use-size'
 import DotsSVG from '@/svgs/dots.svg'
 import { HomeDraggableLayer } from './home-draggable-layer'
+import { useTimeTheme } from '@/components/time-theme-provider'
+import { Moon, Sunrise, Sunset, SunMedium } from 'lucide-react'
 
 export default function WriteButton() {
 	const center = useCenterStore()
 	const { cardStyles, setConfigDialogOpen } = useConfigStore()
 	const { maxSM } = useSize()
 	const router = useRouter()
+	const { theme, cycleTheme } = useTimeTheme()
 	const styles = cardStyles.writeButtons
 	const hiCardStyles = cardStyles.hiCard
 	const clockCardStyles = cardStyles.clockCard
@@ -30,6 +33,12 @@ export default function WriteButton() {
 
 	const x = styles.offsetX !== null ? center.x + styles.offsetX : center.x + CARD_SPACING + hiCardStyles.width / 2
 	const y = styles.offsetY !== null ? center.y + styles.offsetY : center.y - clockCardStyles.offset - styles.height - CARD_SPACING / 2 - clockCardStyles.height
+	const ThemeIcon = {
+		dawn: Sunrise,
+		noon: SunMedium,
+		sunset: Sunset,
+		night: Moon
+	}[theme.name]
 
 	return (
 		<HomeDraggableLayer cardKey='writeButtons' x={x} y={y} width={styles.width} height={styles.height}>
@@ -44,6 +53,17 @@ export default function WriteButton() {
 					className='brand-btn whitespace-nowrap'>
 					<PenSVG />
 					<span>写文章</span>
+				</motion.button>
+				<motion.button
+					type='button'
+					initial={{ opacity: 0, scale: 0.6 }}
+					animate={{ opacity: 1, scale: 1 }}
+					whileHover={{ scale: 1.05 }}
+					whileTap={{ scale: 0.95 }}
+					onClick={cycleTheme}
+					className='bg-card flex h-10 w-10 items-center justify-center rounded-full border shadow backdrop-blur-md'
+					aria-label='切换时间主题'>
+					<ThemeIcon className='text-brand h-5 w-5' />
 				</motion.button>
 				<motion.button
 					initial={{ opacity: 0, scale: 0.6 }}

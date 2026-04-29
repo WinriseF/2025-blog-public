@@ -11,6 +11,8 @@ import type { SiteContent, CardStyles } from '../stores/config-store'
 import { SiteSettings, type FileItem, type ArtImageUploads, type BackgroundImageUploads } from './site-settings'
 import { ColorConfig } from './color-config'
 import { HomeLayout } from './home-layout'
+import { useTimeTheme } from '@/components/time-theme-provider'
+import { applyTimeTheme } from '@/lib/time-theme'
 
 interface ConfigDialogProps {
 	open: boolean
@@ -22,6 +24,7 @@ type TabType = 'site' | 'color' | 'layout'
 export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent, setSiteContent, cardStyles, setCardStyles, regenerateBubbles } = useConfigStore()
+	const { theme: timeTheme } = useTimeTheme()
 	const [formData, setFormData] = useState<SiteContent>(siteContent)
 	const [cardStylesData, setCardStylesData] = useState<CardStyles>(cardStyles)
 	const [originalData, setOriginalData] = useState<SiteContent>(siteContent)
@@ -117,6 +120,7 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 			setSiteContent(formData)
 			setCardStyles(cardStylesData)
 			updateThemeVariables(formData.theme)
+			restoreTimeTheme()
 			setFaviconItem(null)
 			setAvatarItem(null)
 			setArtImageUploads({})
@@ -161,6 +165,7 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 			}
 		}
 		updateThemeVariables(originalData.theme)
+		restoreTimeTheme()
 		setFaviconItem(null)
 		setAvatarItem(null)
 		setArtImageUploads({})
@@ -200,8 +205,14 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 			}
 		}
 		updateThemeVariables(formData.theme)
+		restoreTimeTheme()
 
 		onClose()
+	}
+
+	const restoreTimeTheme = () => {
+		if (typeof document === 'undefined') return
+		applyTimeTheme(timeTheme, document.documentElement)
 	}
 
 	const buttonText = isAuth ? '保存' : '导入密钥'

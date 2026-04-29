@@ -9,12 +9,22 @@ import { useSize, useSizeInit } from '@/hooks/use-size'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
 import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
+import { TimeThemeProvider, useTimeTheme } from '@/components/time-theme-provider'
 
 export default function Layout({ children }: PropsWithChildren) {
+	return (
+		<TimeThemeProvider>
+			<ThemedLayout>{children}</ThemedLayout>
+		</TimeThemeProvider>
+	)
+}
+
+function ThemedLayout({ children }: PropsWithChildren) {
 	useCenterInit()
 	useSizeInit()
 	const { siteContent, regenerateKey } = useConfigStore()
 	const { maxSM, init } = useSize()
+	const { theme: timeTheme } = useTimeTheme()
 
 	const backgroundImages = (siteContent.backgroundImages ?? []) as Array<{ id: string; url: string }>
 	const currentBackgroundImageId = siteContent.currentBackgroundImageId
@@ -50,7 +60,7 @@ export default function Layout({ children }: PropsWithChildren) {
 					}}
 				/>
 			)}
-			<BlurredBubblesBackground colors={siteContent.backgroundColors} regenerateKey={regenerateKey} />
+			<BlurredBubblesBackground colors={timeTheme.colors.bubbles} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
 			<main className='relative z-10 h-full'>
 				{children}
 				<NavCard />
