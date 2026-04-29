@@ -4,9 +4,8 @@ export type MusicItem = {
 }
 
 export const list: MusicItem[] = [
-	// Example:
-	// {
-	// 	name: 'WinriseF Theme',
-	// 	src: '/audio/winrisef-theme.mp3'
-	// }
+	{
+		name: '风居住的街道',
+		src: '/api/audio/kaze-no-sumika'
+	}
 ]

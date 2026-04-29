@@ -41,19 +41,19 @@
 		appearance: none;
 		height: 6px;
 		border-radius: 9999px;
-		background: linear-gradient(90deg, var(--color-brand) 0%, color-mix(in srgb, var(--color-brand) 50%, transparent) 100%);
+		background: linear-gradient(90deg, var(--color-brand) 0 var(--range-progress, 0%), rgba(255, 255, 255, 0.6) var(--range-progress, 0%) 100%);
 	}
 
 	.range-track::-webkit-slider-runnable-track {
 		height: 6px;
 		border-radius: 9999px;
-		background: linear-gradient(90deg, 0%, color-mix(in srgb, var(--color-brand) 50%, transparent) 100%);
+		background: linear-gradient(90deg, var(--color-brand) 0 var(--range-progress, 0%), rgba(255, 255, 255, 0.6) var(--range-progress, 0%) 100%);
 	}
 
 	.range-track::-moz-range-track {
 		height: 6px;
 		border-radius: 9999px;
-		background: linear-gradient(90deg, var(--color-brand) 0%, color-mix(in srgb, var(--color-brand) 50%, transparent) 100%);
+		background: linear-gradient(90deg, var(--color-brand) 0 var(--range-progress, 0%), rgba(255, 255, 255, 0.6) var(--range-progress, 0%) 100%);
 	}
 
 	.range-track::-webkit-slider-thumb {
