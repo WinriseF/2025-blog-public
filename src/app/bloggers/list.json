@@ -65,7 +65,7 @@
 	{
 		"name": "enpitsulin 铅笔",
 		"url": "https://enpitsulin.xyz/",
-		"avatar": "https://enpitsulin.xyz/favicon.svg",
+		"avatar": "https://enpitsulin.dev/favicon.svg",
 		"description": "很简洁的blog网站，像 nanda。只不过很久没内容了。他现在的头像一时让我想不起他是谁了，突然发现它过去可爱头像，我想起来这家伙了。",
 		"stars": 2
 	},
@@ -133,13 +133,6 @@
 		"stars": 4
 	},
 	{
-		"name": "Cassie Evans's Blog",
-		"url": "https://www.cassie.codes/",
-		"avatar": "https://www.cassie.codes/images/avatar2.jpg",
-		"description": "彩色网站，真的很酷。并且还是位女士，真的很少见。GASP、SVG、动画很精美，但是没几篇内容，也算是高级 blog 的一种诅咒。在 Twitter 上也是名人。",
-		"stars": 4
-	},
-	{
 		"name": "Niracler 的博物志",
 		"url": "https://niracler.com/",
 		"avatar": "https://niracler.com/favicon.svg",
@@ -176,7 +169,7 @@
 	},
 	{
 		"name": "Ivan Kapunac",
-		"avatar": "https://media.licdn.com/dms/image/v2/D4D03AQHD1EtuIeXxDQ/profile-displayphoto-scale_400_400/B4DZnI8lKCHsAg-/0/1760012950053?e=1764806400&v=beta&t=eDxdpmvMVG90RGvTHcDmcz44kWbx3LeiyUnTcHGi52c",
+		"avatar": "https://ivankapunac.com/assets/img/favicon-Bj8R2p6S.ico",
 		"url": "https://ivankapunac.com/",
 		"description": "3D 个人介绍网站，看上去会惊讶一下。但交互的还是缺失的。如果建模是自己原创的话，还是挺厉害的。",
 		"stars": 3
@@ -232,7 +225,7 @@
 	},
 	{
 		"name": "ElysiumStack",
-		"avatar": "https://www.elysium-stack.cn/upload/b4136969-e1a1-44b9-833f-36e54392f018.png",
+		"avatar": "https://elysium-stack.cn/upload/AdeleNaumann-avatar.webp",
 		"url": "https://www.elysium-stack.cn/",
 		"description": "UI 设计师 blogger，少见，blog 设计的很棒。一股游戏感铺面而来，25 年开始的内容。",
 		"stars": 3
