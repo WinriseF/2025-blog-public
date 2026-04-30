@@ -7,5 +7,13 @@ export const list: MusicItem[] = [
 	{
 		name: '风居住的街道',
 		src: '/audio/kaze-no-sumika.mp3'
+	},
+	{
+		name: 'DayLight',
+		src: '/audio/DayLight.flac'
+	},
+	{
+		name: "It's You",
+		src: '/audio/Its-You.mp3'
 	}
 ]
