@@ -44,7 +44,9 @@ export function formatMusicTime(seconds: number) {
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
 	const audioRef = useRef<HTMLAudioElement | null>(null)
-	const currentMusic = list[0]
+	const currentSrcRef = useRef<string | null>(null)
+	const [randomIndex] = useState(() => Math.floor(Math.random() * list.length))
+	const currentMusic = list[randomIndex]
 	const hasMusic = Boolean(currentMusic?.src)
 	const [isPlaying, setIsPlaying] = useState(false)
 	const [currentTime, setCurrentTime] = useState(0)
@@ -116,7 +118,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 	const togglePlaybackCore = useCallback(
 		async (showPlayerImmediately: boolean) => {
 			const audio = audioRef.current
-			if (!audio || !hasMusic) return
+			if (!audio || !currentMusic?.src) return
+
+			if (currentSrcRef.current !== currentMusic.src) {
+				audio.src = currentMusic.src
+				currentSrcRef.current = currentMusic.src
+			}
 
 			if (audio.paused) {
 				try {
@@ -136,7 +143,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 			audio.pause()
 			setIsPlaying(false)
 		},
-		[hasMusic, syncDuration]
+		[currentMusic, syncDuration]
 	)
 
 	const togglePlayback = useCallback(async () => {
@@ -203,7 +210,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 	return (
 		<MusicPlayerContext.Provider value={value}>
 			{children}
-			<audio ref={audioRef} preload='metadata' src={currentMusic?.src} />
+			<audio ref={audioRef} preload='none' />
 			<FlyingMusicNote animation={flightAnimation} onDone={() => setFlightAnimation(null)} />
 			<FloatingMusicPlayer visible={(hasStarted || isPlaying) && showFloatingPlayer} />
 		</MusicPlayerContext.Provider>
