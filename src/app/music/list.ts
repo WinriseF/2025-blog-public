@@ -15,5 +15,9 @@ export const list: MusicItem[] = [
 	{
 		name: 'Canopy of Light',
 		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777613973/Canopy_of_Light_vqstx0.mp3'
+	},
+	{
+		name: 'Paper Lantern Rain',
+		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777633310/Paper_Lantern_Rain_acq4xj.mp3'
 	}
 ]
