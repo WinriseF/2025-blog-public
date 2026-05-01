@@ -8,6 +8,7 @@ import { useCenterStore } from '@/hooks/use-center'
 import { useConfigStore } from './stores/config-store'
 import { CARD_SPACING } from '@/consts'
 import { cn } from '@/lib/utils'
+import { getCalendarFestival, isHolidayOffDay } from '@/lib/calendar/festivals'
 import { HomeDraggableLayer } from './home-draggable-layer'
 
 dayjs.locale('zh-cn')
@@ -55,8 +56,19 @@ export default function CalendarCard() {
 						{new Array(daysInMonth).fill(0).map((_, index) => {
 							const day = index + 1
 							const isToday = day === currentDate
+							const date = now.date(day).toDate()
+							const festival = getCalendarFestival(date)
+							const isOffDay = isHolidayOffDay(date)
 							return (
-								<li key={day} className={cn('flex items-center justify-center rounded-lg', isToday && 'bg-linear border font-medium')}>
+								<li
+									key={day}
+									className={cn(
+										'relative flex items-center justify-center rounded-lg border border-transparent transition-colors',
+										isOffDay && !isToday && 'border-[var(--color-brand)]/15 bg-[var(--color-brand)]/10 text-brand',
+										festival?.type === 'solar' && !isOffDay && !isToday && 'border-[#e85d75]/15 bg-[#e85d75]/10 text-[#b73c55]',
+										festival?.type === 'lunar' && !isOffDay && !isToday && 'border-[#d08a00]/20 bg-[#d08a00]/12 text-[#a76600]',
+										isToday && 'bg-linear border font-medium text-white'
+									)}>
 									{day}
 								</li>
 							)

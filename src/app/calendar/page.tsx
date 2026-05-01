@@ -5,9 +5,9 @@ import { motion } from 'motion/react'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import { ChevronLeft, Orbit, Sparkles } from 'lucide-react'
-import { HolidayUtil, Solar } from 'lunar-typescript'
 import { cn } from '@/lib/utils'
 import { getAlmanacDay } from '@/lib/calendar/almanac'
+import { getCalendarFestival, isHolidayOffDay } from '@/lib/calendar/festivals'
 
 dayjs.locale('zh-cn')
 
@@ -54,30 +54,6 @@ const lunarDayFormatter = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
 	day: 'numeric'
 })
 
-const compactFestivalNames: Record<string, string> = {
-	国际劳动妇女节: '妇女节',
-	中国植树节: '植树节',
-	劳动节: '劳动节',
-	青年节: '青年节',
-	儿童节: '儿童节',
-	中国共产党诞辰纪念日: '建党节',
-	中国人民解放军建军节: '建军节',
-	教师节: '教师节',
-	国庆节: '国庆节',
-	圣诞节: '圣诞节',
-	情人节: '情人节',
-	母亲节: '母亲节',
-	父亲节: '父亲节',
-	春节: '春节',
-	元宵节: '元宵',
-	端午节: '端午',
-	七夕节: '七夕',
-	中秋节: '中秋',
-	重阳节: '重阳',
-	腊八节: '腊八',
-	除夕: '除夕'
-}
-
 function getWeekStartMonday(date: dayjs.Dayjs) {
 	const weekday = (date.day() + 6) % 7
 	return date.subtract(weekday, 'day')
@@ -88,27 +64,6 @@ function getLunarDayLabel(date: Date) {
 	const month = parts.find(part => part.type === 'month')?.value || ''
 	const day = parts.find(part => part.type === 'day')?.value || ''
 	return day === '初一' ? month : day
-}
-
-function getFestivalLabel(date: Date) {
-	const solar = Solar.fromDate(date)
-	const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay())
-
-	if (holiday && !holiday.isWork() && holiday.getDay() === holiday.getTarget()) {
-		const holidayName = holiday.getName()
-		return compactFestivalNames[holidayName] || holidayName
-	}
-
-	const festival = [...solar.getFestivals(), ...solar.getLunar().getFestivals()].find(name => compactFestivalNames[name])
-	return festival ? compactFestivalNames[festival] : ''
-}
-
-function getHolidayStatus(date: Date) {
-	const solar = Solar.fromDate(date)
-	const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay())
-
-	if (!holiday) return ''
-	return holiday.isWork() ? '班' : '休'
 }
 
 function buildSolarTerms(year: number) {
@@ -143,10 +98,10 @@ export default function CalendarPage() {
 	const termPairs = solarTerms.filter(term => term.date.month() === now.month()).slice(0, 2)
 	const dayOfYear = now.diff(now.startOf('year'), 'day') + 1
 	const thisWeek = new Array(7).fill(0).map((_, index) => weekStart.add(index, 'day'))
-	const todayFestival = getFestivalLabel(now.toDate())
+	const todayFestival = getCalendarFestival(now.toDate())
 	const summaryItems = [
 		{ label: '农历', value: almanac.lunarDate },
-		{ label: '节日', value: todayFestival || '无' },
+		{ label: '节日', value: todayFestival?.label || '无' },
 		{ label: '年进度', value: `${dayOfYear} / ${isLeapYear(year) ? 366 : 365}` },
 		{ label: '月余', value: `${daysInMonth - currentDate} 天` },
 		{ label: '周段', value: `${weekStart.format('M/D')} - ${weekStart.add(6, 'day').format('M/D')}` }
@@ -198,8 +153,9 @@ export default function CalendarPage() {
 								const date = now.date(day)
 								const isCurrent = day === currentDate
 								const isWeekend = [5, 6].includes((date.day() + 6) % 7)
-								const festivalLabel = getFestivalLabel(date.toDate())
-								const holidayStatus = getHolidayStatus(date.toDate())
+								const festival = getCalendarFestival(date.toDate())
+								const festivalLabel = festival?.label || ''
+								const isOffDay = isHolidayOffDay(date.toDate())
 								const secondaryLabel = festivalLabel || getLunarDayLabel(date.toDate())
 
 								return (
@@ -212,27 +168,23 @@ export default function CalendarPage() {
 											'relative h-20 rounded-3xl border p-3 transition-all max-sm:h-16 max-sm:rounded-2xl max-sm:p-2',
 											isCurrent
 												? 'bg-linear border-transparent text-white shadow-[0_18px_30px_-22px_var(--color-brand)]'
-												: holidayStatus === '休'
+												: isOffDay
 													? 'border-[var(--color-brand)]/20 bg-[var(--color-brand)]/10 hover:bg-[var(--color-brand)]/15'
 													: 'bg-white/35 hover:bg-white/55',
 											isWeekend && !isCurrent && 'text-brand'
 										)}>
-										{holidayStatus ? (
-											<span
-												className={cn(
-													'absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium',
-													isCurrent ? 'bg-white/25 text-white' : holidayStatus === '休' ? 'bg-[var(--color-brand)]/12 text-brand' : 'bg-secondary/10 text-secondary'
-												)}>
-												{holidayStatus}
-											</span>
-										) : (
-											isCurrent && <span className='absolute top-3 right-3 h-1.5 w-1.5 rounded-full bg-white/80' />
-										)}
+										{isCurrent && <span className='absolute top-3 right-3 h-1.5 w-1.5 rounded-full bg-white/80' />}
 										<div className={cn('text-lg leading-none font-semibold max-sm:text-base', !isCurrent && 'text-primary')}>{day}</div>
 										<div
 											className={cn(
 												'mt-6 whitespace-nowrap text-xs leading-none max-sm:mt-4',
-												isCurrent ? 'text-white/85' : festivalLabel ? 'text-brand font-medium' : 'text-secondary'
+												isCurrent
+													? 'text-white/85'
+													: festival?.type === 'lunar'
+														? 'font-medium text-[#b56a00]'
+														: festivalLabel
+															? 'text-brand font-medium'
+															: 'text-secondary'
 											)}>
 											{secondaryLabel}
 										</div>
