@@ -10,7 +10,7 @@ export type BlogIndexItem = {
 }
 
 const fetcher = async (url: string) => {
-	const res = await fetch(url, { cache: 'no-store' })
+	const res = await fetch(url, { cache: 'force-cache' })
 	if (!res.ok) {
 		throw new Error('Failed to load blog index')
 	}
@@ -21,7 +21,9 @@ const fetcher = async (url: string) => {
 export function useBlogIndex() {
 	const { data, error, isLoading } = useSWR<BlogIndexItem[]>('/blogs/index.json', fetcher, {
 		revalidateOnFocus: false,
-		revalidateOnReconnect: true
+		revalidateOnReconnect: false,
+		dedupingInterval: 5 * 60 * 1000,
+		keepPreviousData: true
 	})
 
 	return {

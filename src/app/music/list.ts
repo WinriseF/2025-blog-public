@@ -5,15 +5,15 @@ export type MusicItem = {
 
 export const list: MusicItem[] = [
 	{
-		name: '风居住的街道',
-		src: '/audio/kaze-no-sumika.mp3'
-	},
-	{
 		name: 'DayLight',
-		src: '/audio/DayLight.flac'
+		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777614897/DayLight_c0elek.flac'
 	},
 	{
 		name: "It's You",
-		src: '/audio/Its-You.mp3'
+		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777614878/It_s_You_fnta5j.mp3'
+	},
+	{
+		name: 'Canopy of Light',
+		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777613973/Canopy_of_Light_vqstx0.mp3'
 	}
 ]

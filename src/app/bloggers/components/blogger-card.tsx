@@ -81,6 +81,8 @@ export function BloggerCard({ blogger, isEditMode = false, onUpdate, onDelete }:
 						<img
 							src={localBlogger.avatar}
 							alt={localBlogger.name}
+							loading='lazy'
+							decoding='async'
 							className={cn('h-16 w-16 rounded-full object-cover', canEdit && 'cursor-pointer')}
 							onClick={() => canEdit && setShowAvatarDialog(true)}
 						/>

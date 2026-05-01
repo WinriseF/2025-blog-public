@@ -97,6 +97,8 @@ export function ShareCard({ share, isEditMode = false, onUpdate, onDelete }: Sha
 						<img
 							src={localShare.logo}
 							alt={localShare.name}
+							loading='lazy'
+							decoding='async'
 							className={cn('h-16 w-16 rounded-xl object-cover', canEdit && 'cursor-pointer')}
 							onClick={() => canEdit && setShowLogoDialog(true)}
 						/>

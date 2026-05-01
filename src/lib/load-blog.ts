@@ -13,6 +13,8 @@ export type LoadedBlog = {
 	cover?: string
 }
 
+const blogCache = new Map<string, LoadedBlog>()
+
 /**
  * Load blog data from public/blogs/{slug}
  * Used by both view page and edit page
@@ -22,9 +24,12 @@ export async function loadBlog(slug: string): Promise<LoadedBlog> {
 		throw new Error('Slug is required')
 	}
 
+	const cached = blogCache.get(slug)
+	if (cached) return cached
+
 	// Load config.json
 	let config: BlogConfig = {}
-	const configRes = await fetch(`/blogs/${encodeURIComponent(slug)}/config.json`)
+	const configRes = await fetch(`/blogs/${encodeURIComponent(slug)}/config.json`, { cache: 'force-cache' })
 	if (configRes.ok) {
 		try {
 			config = await configRes.json()
@@ -34,16 +39,19 @@ export async function loadBlog(slug: string): Promise<LoadedBlog> {
 	}
 
 	// Load index.md
-	const mdRes = await fetch(`/blogs/${encodeURIComponent(slug)}/index.md`)
+	const mdRes = await fetch(`/blogs/${encodeURIComponent(slug)}/index.md`, { cache: 'force-cache' })
 	if (!mdRes.ok) {
 		throw new Error('Blog not found')
 	}
 	const markdown = await mdRes.text()
 
-	return {
+	const blog = {
 		slug,
 		config,
 		markdown,
 		cover: config.cover
 	}
+	blogCache.set(slug, blog)
+
+	return blog
 }
