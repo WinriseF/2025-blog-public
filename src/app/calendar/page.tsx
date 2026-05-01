@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import { ChevronLeft, Orbit, Sparkles } from 'lucide-react'
+import { HolidayUtil, Solar } from 'lunar-typescript'
 import { cn } from '@/lib/utils'
 import { getAlmanacDay } from '@/lib/calendar/almanac'
 
@@ -53,6 +54,30 @@ const lunarDayFormatter = new Intl.DateTimeFormat('zh-CN-u-ca-chinese', {
 	day: 'numeric'
 })
 
+const compactFestivalNames: Record<string, string> = {
+	国际劳动妇女节: '妇女节',
+	中国植树节: '植树节',
+	劳动节: '劳动节',
+	青年节: '青年节',
+	儿童节: '儿童节',
+	中国共产党诞辰纪念日: '建党节',
+	中国人民解放军建军节: '建军节',
+	教师节: '教师节',
+	国庆节: '国庆节',
+	圣诞节: '圣诞节',
+	情人节: '情人节',
+	母亲节: '母亲节',
+	父亲节: '父亲节',
+	春节: '春节',
+	元宵节: '元宵',
+	端午节: '端午',
+	七夕节: '七夕',
+	中秋节: '中秋',
+	重阳节: '重阳',
+	腊八节: '腊八',
+	除夕: '除夕'
+}
+
 function getWeekStartMonday(date: dayjs.Dayjs) {
 	const weekday = (date.day() + 6) % 7
 	return date.subtract(weekday, 'day')
@@ -63,6 +88,27 @@ function getLunarDayLabel(date: Date) {
 	const month = parts.find(part => part.type === 'month')?.value || ''
 	const day = parts.find(part => part.type === 'day')?.value || ''
 	return day === '初一' ? month : day
+}
+
+function getFestivalLabel(date: Date) {
+	const solar = Solar.fromDate(date)
+	const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay())
+
+	if (holiday && !holiday.isWork() && holiday.getDay() === holiday.getTarget()) {
+		const holidayName = holiday.getName()
+		return compactFestivalNames[holidayName] || holidayName
+	}
+
+	const festival = [...solar.getFestivals(), ...solar.getLunar().getFestivals()].find(name => compactFestivalNames[name])
+	return festival ? compactFestivalNames[festival] : ''
+}
+
+function getHolidayStatus(date: Date) {
+	const solar = Solar.fromDate(date)
+	const holiday = HolidayUtil.getHoliday(solar.getYear(), solar.getMonth(), solar.getDay())
+
+	if (!holiday) return ''
+	return holiday.isWork() ? '班' : '休'
 }
 
 function buildSolarTerms(year: number) {
@@ -97,8 +143,10 @@ export default function CalendarPage() {
 	const termPairs = solarTerms.filter(term => term.date.month() === now.month()).slice(0, 2)
 	const dayOfYear = now.diff(now.startOf('year'), 'day') + 1
 	const thisWeek = new Array(7).fill(0).map((_, index) => weekStart.add(index, 'day'))
+	const todayFestival = getFestivalLabel(now.toDate())
 	const summaryItems = [
 		{ label: '农历', value: almanac.lunarDate },
+		{ label: '节日', value: todayFestival || '无' },
 		{ label: '年进度', value: `${dayOfYear} / ${isLeapYear(year) ? 366 : 365}` },
 		{ label: '月余', value: `${daysInMonth - currentDate} 天` },
 		{ label: '周段', value: `${weekStart.format('M/D')} - ${weekStart.add(6, 'day').format('M/D')}` }
@@ -150,6 +198,9 @@ export default function CalendarPage() {
 								const date = now.date(day)
 								const isCurrent = day === currentDate
 								const isWeekend = [5, 6].includes((date.day() + 6) % 7)
+								const festivalLabel = getFestivalLabel(date.toDate())
+								const holidayStatus = getHolidayStatus(date.toDate())
+								const secondaryLabel = festivalLabel || getLunarDayLabel(date.toDate())
 
 								return (
 									<motion.div
@@ -159,59 +210,78 @@ export default function CalendarPage() {
 										transition={{ delay: day * 0.01 }}
 										className={cn(
 											'relative h-20 rounded-3xl border p-3 transition-all max-sm:h-16 max-sm:rounded-2xl max-sm:p-2',
-											isCurrent ? 'bg-linear border-transparent text-white shadow-[0_18px_30px_-22px_var(--color-brand)]' : 'bg-white/35 hover:bg-white/55',
+											isCurrent
+												? 'bg-linear border-transparent text-white shadow-[0_18px_30px_-22px_var(--color-brand)]'
+												: holidayStatus === '休'
+													? 'border-[var(--color-brand)]/20 bg-[var(--color-brand)]/10 hover:bg-[var(--color-brand)]/15'
+													: 'bg-white/35 hover:bg-white/55',
 											isWeekend && !isCurrent && 'text-brand'
 										)}>
-										{isCurrent && <span className='absolute top-3 right-3 h-1.5 w-1.5 rounded-full bg-white/80' />}
+										{holidayStatus ? (
+											<span
+												className={cn(
+													'absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium',
+													isCurrent ? 'bg-white/25 text-white' : holidayStatus === '休' ? 'bg-[var(--color-brand)]/12 text-brand' : 'bg-secondary/10 text-secondary'
+												)}>
+												{holidayStatus}
+											</span>
+										) : (
+											isCurrent && <span className='absolute top-3 right-3 h-1.5 w-1.5 rounded-full bg-white/80' />
+										)}
 										<div className={cn('text-lg leading-none font-semibold max-sm:text-base', !isCurrent && 'text-primary')}>{day}</div>
-										<div className={cn('mt-6 truncate text-xs max-sm:mt-4', isCurrent ? 'text-white/85' : 'text-secondary')}>
-											{getLunarDayLabel(date.toDate())}
+										<div
+											className={cn(
+												'mt-6 whitespace-nowrap text-xs leading-none max-sm:mt-4',
+												isCurrent ? 'text-white/85' : festivalLabel ? 'text-brand font-medium' : 'text-secondary'
+											)}>
+											{secondaryLabel}
 										</div>
 									</motion.div>
 								)
 							})}
 						</div>
 
-						<div className='mt-6 grid gap-4 border-t pt-5 lg:grid-cols-[0.8fr_1.2fr_0.9fr]'>
-							<div className='rounded-[30px] border bg-white/30 p-4'>
-								<div className='text-secondary text-xs'>{now.format('YYYY/M/D ddd')}</div>
-								<div className='mt-3 flex items-end gap-3'>
-									<div className='text-6xl leading-none font-semibold tracking-normal max-sm:text-5xl'>{now.format('D')}</div>
-									<div className='pb-1'>
-										<div className='text-base font-medium'>{almanac.lunarDate}</div>
-										<div className='text-secondary mt-1 text-xs'>
+						<div className='mt-6 grid gap-4 border-t pt-5 lg:grid-cols-[0.85fr_1.3fr_1fr]'>
+							<div className='relative overflow-hidden rounded-[34px] border bg-[linear-gradient(160deg,rgba(255,255,255,0.58),rgba(255,255,255,0.18))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] max-sm:rounded-[28px]'>
+								<div className='absolute -right-10 -bottom-10 h-32 w-32 rounded-full bg-[var(--color-brand)]/10 blur-2xl' />
+								<div className='relative text-secondary text-xs'>{now.format('YYYY/M/D ddd')}</div>
+								<div className='relative mt-8 flex items-end gap-4 max-sm:mt-5'>
+									<div className='text-[5rem] leading-[0.78] font-semibold tracking-normal text-primary max-sm:text-6xl'>{now.format('D')}</div>
+									<div className='pb-1.5'>
+										<div className='text-2xl leading-tight font-medium max-sm:text-xl'>{almanac.lunarDate}</div>
+										<div className='text-secondary mt-2 text-sm'>
 											{almanac.ganzhiYear}年 {almanac.shengXiao}
 										</div>
 									</div>
 								</div>
-								<div className='text-secondary mt-4 text-xs leading-5'>
+								<div className='relative mt-8 rounded-2xl border bg-white/25 px-4 py-3 text-sm text-secondary max-sm:mt-5'>
 									{almanac.ganzhiMonth}月 · {almanac.ganzhiDay}日
 								</div>
 							</div>
 
-							<div className='grid gap-3'>
-								<div className='rounded-[26px] border bg-white/25 p-3'>
-									<div className='mb-2 flex items-center gap-2 text-sm font-medium'>
-										<span className='bg-linear flex h-6 w-6 items-center justify-center rounded-full text-xs'>宜</span>
+							<div className='grid gap-4'>
+								<div className='rounded-[30px] border bg-[linear-gradient(145deg,rgba(255,255,255,0.62),rgba(255,255,255,0.24))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] max-sm:rounded-[26px] max-sm:p-4'>
+									<div className='mb-4 flex items-center gap-3 text-base font-medium'>
+										<span className='bg-linear flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm text-white shadow-[0_12px_24px_-18px_var(--color-brand)]'>宜</span>
 										<span>今日宜</span>
 									</div>
-									<div className='flex flex-wrap gap-2'>
+									<div className='flex flex-wrap gap-2.5'>
 										{almanac.yi.map(item => (
-											<span key={item} className='rounded-full border bg-white/35 px-3 py-1 text-xs'>
+											<span key={item} className='rounded-full border border-[var(--color-brand)]/20 bg-[var(--color-brand)]/8 px-3.5 py-1.5 text-xs font-medium text-primary'>
 												{item}
 											</span>
 										))}
 									</div>
 								</div>
 
-								<div className='rounded-[26px] border bg-white/20 p-3'>
-									<div className='mb-2 flex items-center gap-2 text-sm font-medium'>
-										<span className='text-secondary flex h-6 w-6 items-center justify-center rounded-full border bg-white/35 text-xs'>忌</span>
+								<div className='rounded-[30px] border bg-white/20 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] max-sm:rounded-[26px] max-sm:p-4'>
+									<div className='mb-4 flex items-center gap-3 text-base font-medium'>
+										<span className='text-secondary flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white/35 text-sm'>忌</span>
 										<span>今日忌</span>
 									</div>
-									<div className='flex flex-wrap gap-2'>
+									<div className='flex flex-wrap gap-2.5'>
 										{almanac.ji.map(item => (
-											<span key={item} className='text-secondary rounded-full border bg-white/25 px-3 py-1 text-xs'>
+											<span key={item} className='text-secondary rounded-full border bg-white/25 px-3.5 py-1.5 text-xs'>
 												{item}
 											</span>
 										))}
@@ -219,16 +289,20 @@ export default function CalendarPage() {
 								</div>
 							</div>
 
-							<div className='grid grid-cols-2 gap-3 lg:grid-cols-1'>
+							<div className='grid gap-3'>
 								{[
 									{ label: '冲煞', value: `${almanac.chong} · 煞${almanac.sha}` },
 									{ label: '星宿', value: `${almanac.xiu}宿 · ${almanac.xiuLuck}` },
 									{ label: '纳音', value: almanac.naYin },
 									{ label: '节气', value: `${almanac.prevJieQi.name}后 · ${almanac.nextJieQi.name}前` }
-								].map(item => (
-									<div key={item.label} className='rounded-2xl border bg-white/25 px-3 py-2.5'>
+								].map((item, index) => (
+									<div
+										key={item.label}
+										className='group relative overflow-hidden rounded-[24px] border bg-white/22 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] transition-colors hover:bg-white/35'>
+										<div className='absolute inset-y-4 left-0 w-1 rounded-r-full bg-[var(--color-brand)]/35 opacity-70 group-hover:opacity-100' />
 										<div className='text-secondary text-[11px]'>{item.label}</div>
-										<div className='mt-1 text-sm font-medium'>{item.value}</div>
+										<div className='mt-1.5 text-base leading-snug font-medium max-sm:text-sm'>{item.value}</div>
+										<div className='absolute top-3 right-3 text-[10px] text-secondary/40'>{String(index + 1).padStart(2, '0')}</div>
 									</div>
 								))}
 							</div>
