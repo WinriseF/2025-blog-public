@@ -1,5 +1,6 @@
 import { useCenterStore } from '@/hooks/use-center'
 import GithubSVG from '@/svgs/github.svg'
+import Link from 'next/link'
 import { ANIMATION_DELAY, CARD_SPACING } from '@/consts'
 import { useConfigStore } from './stores/config-store'
 import JuejinSVG from '@/svgs/juejin.svg'
@@ -11,6 +12,7 @@ import { useSize } from '@/hooks/use-size'
 import { HomeDraggableLayer } from './home-draggable-layer'
 
 type SocialButtonType = 'github' | 'juejin' | 'email' | 'link'
+const SPHERE_ENTRY_WIDTH = 64
 
 interface SocialButtonConfig {
 	id: string
@@ -49,9 +51,17 @@ export default function SocialButtons() {
 		setTimeout(() => {
 			setShowStates(prev => ({ ...prev, container: true }))
 		}, baseDelay)
+
+		setTimeout(
+			() => {
+				setShowStates(prev => ({ ...prev, sphereEntry: true }))
+			},
+			baseDelay + sortedButtons.length * delay
+		)
 	}, [order, delay, sortedButtons])
 
-	const x = styles.offsetX !== null ? center.x + styles.offsetX : center.x + hiCardStyles.width / 2 - styles.width
+	const width = styles.width + SPHERE_ENTRY_WIDTH
+	const x = styles.offsetX !== null ? center.x + styles.offsetX : center.x + hiCardStyles.width / 2 - width
 	const y = styles.offsetY !== null ? center.y + styles.offsetY : center.y + hiCardStyles.height / 2 + CARD_SPACING
 
 	if (!showStates.container) return null
@@ -127,10 +137,25 @@ export default function SocialButtons() {
 	}
 
 	return (
-		<HomeDraggableLayer cardKey='socialButtons' x={x} y={y} width={styles.width} height={styles.height}>
+		<HomeDraggableLayer cardKey='socialButtons' x={x} y={y} width={width} height={styles.height}>
 			<motion.div className='absolute max-sm:static' animate={{ left: x, top: y }} initial={{ left: x, top: y }}>
-				<div className='absolute top-0 left-0 flex flex-row-reverse items-center gap-3 max-sm:static' style={{ width: styles.width }}>
+				<div className='absolute top-0 left-0 flex flex-row-reverse items-center gap-3 max-sm:static' style={{ width }}>
 					{sortedButtons.map(button => renderButton(button))}
+					{showStates.sphereEntry && (
+						<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+							<Link
+								href='/home'
+								aria-label='打开 3D 卡片球'
+								title='3D 卡片球'
+								className='card group relative flex h-12 w-[52px] items-center justify-center overflow-hidden rounded-xl p-0'>
+								<span className='absolute inset-1.5 rounded-lg border border-white/70 bg-white/20' />
+								<span className='relative h-6 w-6 rounded-full border border-white bg-linear shadow-sm'>
+									<span className='absolute top-1/2 left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-[6px] border border-white/80 bg-white/35 shadow-sm' />
+									<span className='absolute top-1/2 left-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-white' />
+								</span>
+							</Link>
+						</motion.div>
+					)}
 				</div>
 			</motion.div>
 		</HomeDraggableLayer>
