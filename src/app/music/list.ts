@@ -25,3 +25,10 @@ export const list: MusicItem[] = [
 		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777726149/Quiet_Starfall_f9p0zd.mp3'
 	}
 ]
+
+export const ambientMusic = {
+	rain: {
+		name: 'Rain ambience',
+		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777734387/rain_zuo0ok.m4a'
+	}
+} satisfies Record<string, MusicItem>

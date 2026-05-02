@@ -161,3 +161,13 @@
 		animation: heartbeat-frame 0.8s ease-in-out;
 	}
 }
+
+@media (prefers-reduced-motion: reduce) {
+	[data-time-atmosphere],
+	[data-time-atmosphere] * {
+		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 1ms !important;
+	}
+}

@@ -13,6 +13,19 @@ export type TimeTheme = {
 		article: string
 		bubbles: string[]
 	}
+	atmosphere: {
+		background: string[]
+		glows: string[]
+		glowOpacity: number
+		noiseOpacity: number
+		starOpacity: number
+		bubbleCount: number
+		minRadius: number
+		maxRadius: number
+		bottomBandStart: number
+		speed: number
+		targetFps: number
+	}
 }
 
 export const timeThemes: Record<TimeThemeName, TimeTheme> = {
@@ -28,6 +41,19 @@ export const timeThemes: Record<TimeThemeName, TimeTheme> = {
 			card: '#FFFFFF72',
 			article: '#FFFFFFD6',
 			bubbles: ['#B8D7FF', '#F6CAD8', '#DCE7C7', '#B4C6E8']
+		},
+		atmosphere: {
+			background: ['#EAF7F7', '#FFF3D6', '#F7FAFF'],
+			glows: ['#BEEAF0', '#F8DFA8', '#FFFFFF', '#C8DAFF'],
+			glowOpacity: 0.46,
+			noiseOpacity: 0.035,
+			starOpacity: 0,
+			bubbleCount: 5,
+			minRadius: 280,
+			maxRadius: 460,
+			bottomBandStart: 0.48,
+			speed: 0.08,
+			targetFps: 6
 		}
 	},
 	noon: {
@@ -42,6 +68,19 @@ export const timeThemes: Record<TimeThemeName, TimeTheme> = {
 			card: '#FFFFFF72',
 			article: '#FFFFFFD8',
 			bubbles: ['#B7E6D4', '#F3E58F', '#BDE7FF', '#C7D889']
+		},
+		atmosphere: {
+			background: ['#F4F8FA', '#E8F1F6', '#EEF5F1'],
+			glows: ['#BDE7FF', '#B7E6D4', '#FFFFFF', '#35BFAB'],
+			glowOpacity: 0.36,
+			noiseOpacity: 0.028,
+			starOpacity: 0,
+			bubbleCount: 6,
+			minRadius: 260,
+			maxRadius: 430,
+			bottomBandStart: 0.58,
+			speed: 0.07,
+			targetFps: 6
 		}
 	},
 	sunset: {
@@ -56,6 +95,19 @@ export const timeThemes: Record<TimeThemeName, TimeTheme> = {
 			card: '#FFFFFF66',
 			article: '#FFF7EBD8',
 			bubbles: ['#F4B65F', '#F06C8F', '#B98BE8', '#F5D083']
+		},
+		atmosphere: {
+			background: ['#FFF0E4', '#F3E7FF', '#FFE7EF'],
+			glows: ['#F4B65F', '#F06C8F', '#B98BE8', '#FFD6A5'],
+			glowOpacity: 0.54,
+			noiseOpacity: 0.04,
+			starOpacity: 0,
+			bubbleCount: 7,
+			minRadius: 300,
+			maxRadius: 520,
+			bottomBandStart: 0.42,
+			speed: 0.1,
+			targetFps: 8
 		}
 	},
 	night: {
@@ -70,6 +122,19 @@ export const timeThemes: Record<TimeThemeName, TimeTheme> = {
 			card: '#182326A8',
 			article: '#182326D8',
 			bubbles: ['#243A70', '#4E2A72', '#123E42', '#2D3D57']
+		},
+		atmosphere: {
+			background: ['#0E171A', '#14212B', '#101827'],
+			glows: ['#243A70', '#4E2A72', '#123E42', '#39D4C8'],
+			glowOpacity: 0.38,
+			noiseOpacity: 0.06,
+			starOpacity: 0.55,
+			bubbleCount: 6,
+			minRadius: 220,
+			maxRadius: 420,
+			bottomBandStart: 0.5,
+			speed: 0.055,
+			targetFps: 5
 		}
 	}
 }

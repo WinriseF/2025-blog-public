@@ -123,7 +123,7 @@ const SiteLogo = memo(function SiteLogo({ url }: { url: string }) {
 		let cancelled = false
 		setSrc(logoCache.get(url) ?? null)
 		resolveLogo(url).then(candidate => {
-			if (!cancelled) setSrc(candidate)
+			if (!cancelled) setSrc(candidate ?? null)
 		})
 
 		return () => {

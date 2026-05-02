@@ -4,8 +4,7 @@ import { GITHUB_CONFIG } from '@/consts'
 import { toast } from 'sonner'
 import { fileToBase64NoPrefix } from '@/lib/file-utils'
 import type { SiteContent, CardStyles } from '../stores/config-store'
-import type { FileItem, ArtImageUploads } from '../config-dialog/site-settings'
-import type { BackgroundImageUploads } from '../config-dialog/home-layout'
+import type { FileItem, ArtImageUploads, BackgroundImageUploads } from '../config-dialog/site-settings'
 
 type ArtImageConfig = SiteContent['artImages'][number]
 type BackgroundImageConfig = SiteContent['backgroundImages'][number]

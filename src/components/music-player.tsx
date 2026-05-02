@@ -15,9 +15,21 @@ type MusicPlayerContextValue = {
 	isPlaying: boolean
 	loadError: boolean
 	progress: number
+	playMusic: (music: MusicItem, options?: PlayMusicOptions) => Promise<void>
 	seek: (value: number) => void
 	togglePlayback: () => Promise<void>
 	togglePlaybackFrom: (rect?: DOMRect) => Promise<void>
+}
+
+type PlayMusicOptions = {
+	fadeInMs?: number
+	loop?: boolean
+	showPlayer?: boolean
+}
+
+type PendingPlayRequest = {
+	music: MusicItem
+	options: PlayMusicOptions
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null)
@@ -45,8 +57,10 @@ export function formatMusicTime(seconds: number) {
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
 	const audioRef = useRef<HTMLAudioElement | null>(null)
 	const currentSrcRef = useRef<string | null>(null)
+	const fadeTimerRef = useRef<number | null>(null)
 	const [randomIndex] = useState(() => Math.floor(Math.random() * list.length))
-	const currentMusic = list[randomIndex]
+	const [currentMusic, setCurrentMusic] = useState<MusicItem>(() => list[randomIndex])
+	const [loop, setLoop] = useState(false)
 	const hasMusic = Boolean(currentMusic?.src)
 	const [isPlaying, setIsPlaying] = useState(false)
 	const [currentTime, setCurrentTime] = useState(0)
@@ -55,7 +69,34 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 	const [hasStarted, setHasStarted] = useState(false)
 	const [showFloatingPlayer, setShowFloatingPlayer] = useState(false)
 	const [flightAnimation, setFlightAnimation] = useState<FlightAnimation | null>(null)
+	const [pendingPlayRequest, setPendingPlayRequest] = useState<PendingPlayRequest | null>(null)
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
+	const clearFadeTimer = useCallback(() => {
+		if (fadeTimerRef.current !== null) {
+			window.clearInterval(fadeTimerRef.current)
+			fadeTimerRef.current = null
+		}
+	}, [])
+
+	const fadeVolumeIn = useCallback(
+		(audio: HTMLAudioElement, fadeInMs: number) => {
+			clearFadeTimer()
+			if (fadeInMs <= 0) {
+				audio.volume = 1
+				return
+			}
+
+			const startedAt = performance.now()
+			audio.volume = 0
+			fadeTimerRef.current = window.setInterval(() => {
+				const progress = Math.min((performance.now() - startedAt) / fadeInMs, 1)
+				audio.volume = progress
+				if (progress >= 1) clearFadeTimer()
+			}, 100)
+		},
+		[clearFadeTimer]
+	)
 
 	const syncDuration = useCallback(() => {
 		const audio = audioRef.current
@@ -102,18 +143,81 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
 	useEffect(() => {
 		const audio = audioRef.current
-		setIsPlaying(false)
-		setCurrentTime(0)
-		setDuration(0)
-		setLoadError(false)
-		setHasStarted(false)
-		setShowFloatingPlayer(false)
-		setFlightAnimation(null)
 		if (audio) {
-			audio.pause()
-			audio.load()
+			audio.loop = loop
 		}
-	}, [currentMusic?.src])
+	}, [loop])
+
+	useEffect(() => {
+		return () => clearFadeTimer()
+	}, [clearFadeTimer])
+
+	const playMusic = useCallback(
+		async (music: MusicItem, options: PlayMusicOptions = {}) => {
+			const audio = audioRef.current
+			if (!audio || !music.src) return
+
+			const showPlayer = options.showPlayer ?? true
+			const nextLoop = options.loop ?? false
+
+			clearFadeTimer()
+			setCurrentMusic(music)
+			setLoop(nextLoop)
+			audio.loop = nextLoop
+
+			if (currentSrcRef.current !== music.src) {
+				audio.pause()
+				audio.src = music.src
+				currentSrcRef.current = music.src
+				setCurrentTime(0)
+				setDuration(0)
+			}
+
+			try {
+				fadeVolumeIn(audio, options.fadeInMs ?? 0)
+				await audio.play()
+				setIsPlaying(true)
+				setHasStarted(true)
+				if (showPlayer) setShowFloatingPlayer(true)
+				setLoadError(false)
+				syncDuration()
+				setPendingPlayRequest(null)
+			} catch (error) {
+				audio.volume = 1
+				setIsPlaying(false)
+				const blockedByAutoplay = error instanceof DOMException && error.name === 'NotAllowedError'
+				if (blockedByAutoplay) {
+					setHasStarted(true)
+					if (showPlayer) setShowFloatingPlayer(true)
+					setLoadError(false)
+					setPendingPlayRequest({ music, options })
+					return
+				}
+				setLoadError(true)
+			}
+		},
+		[clearFadeTimer, fadeVolumeIn, syncDuration]
+	)
+
+	useEffect(() => {
+		if (!pendingPlayRequest) return
+
+		const retry = () => {
+			const request = pendingPlayRequest
+			setPendingPlayRequest(null)
+			void playMusic(request.music, request.options)
+		}
+
+		window.addEventListener('pointerdown', retry, { once: true })
+		window.addEventListener('keydown', retry, { once: true })
+		window.addEventListener('touchstart', retry, { once: true, passive: true })
+
+		return () => {
+			window.removeEventListener('pointerdown', retry)
+			window.removeEventListener('keydown', retry)
+			window.removeEventListener('touchstart', retry)
+		}
+	}, [pendingPlayRequest, playMusic])
 
 	const togglePlaybackCore = useCallback(
 		async (showPlayerImmediately: boolean) => {
@@ -127,6 +231,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
 			if (audio.paused) {
 				try {
+					clearFadeTimer()
+					audio.volume = 1
+					audio.loop = loop
 					await audio.play()
 					setIsPlaying(true)
 					setHasStarted(true)
@@ -140,10 +247,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 				return
 			}
 
+			clearFadeTimer()
 			audio.pause()
 			setIsPlaying(false)
 		},
-		[currentMusic, syncDuration]
+		[clearFadeTimer, currentMusic, loop, syncDuration]
 	)
 
 	const togglePlayback = useCallback(async () => {
@@ -200,11 +308,12 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 			isPlaying,
 			loadError,
 			progress,
+			playMusic,
 			seek,
 			togglePlayback,
 			togglePlaybackFrom
 		}),
-		[currentMusic, currentTime, duration, hasMusic, isPlaying, loadError, progress, seek, togglePlayback, togglePlaybackFrom]
+		[currentMusic, currentTime, duration, hasMusic, isPlaying, loadError, playMusic, progress, seek, togglePlayback, togglePlaybackFrom]
 	)
 
 	return (

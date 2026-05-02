@@ -1,7 +1,7 @@
 'use client'
 import { PropsWithChildren } from 'react'
 import { useCenterInit } from '@/hooks/use-center'
-import BlurredBubblesBackground from './backgrounds/blurred-bubbles'
+import TimeAtmosphereBackground from './backgrounds/time-atmosphere-background'
 import NavCard from '@/components/nav-card'
 import { Toaster } from 'sonner'
 import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from 'lucide-react'
@@ -49,18 +49,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 					} as React.CSSProperties
 				}
 			/>
-			{currentBackgroundImage && (
-				<div
-					className='fixed inset-0 z-0 overflow-hidden'
-					style={{
-						backgroundImage: `url(${currentBackgroundImage.url})`,
-						backgroundSize: 'cover',
-						backgroundPosition: 'center',
-						backgroundRepeat: 'no-repeat'
-					}}
-				/>
-			)}
-			<BlurredBubblesBackground colors={timeTheme.colors.bubbles} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
+			<TimeAtmosphereBackground theme={timeTheme} backgroundImage={currentBackgroundImage?.url} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
 			<main className='relative z-10 h-full'>
 				{children}
 				<NavCard />
