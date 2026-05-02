@@ -19,5 +19,9 @@ export const list: MusicItem[] = [
 	{
 		name: 'Paper Lantern Rain',
 		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777633310/Paper_Lantern_Rain_acq4xj.mp3'
+	},
+	{
+		name: 'Quiet Starfall',
+		src: 'https://res.cloudinary.com/dydedzayn/video/upload/v1777726149/Quiet_Starfall_f9p0zd.mp3'
 	}
 ]
