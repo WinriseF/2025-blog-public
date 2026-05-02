@@ -292,6 +292,8 @@ const FloatingImage = ({
 				)}>
 				<motion.img
 					src={url}
+					loading='lazy'
+					decoding='async'
 					onLoad={event => {
 						const img = event.currentTarget
 						setOriginalSize({ width: img.naturalWidth, height: img.naturalHeight })

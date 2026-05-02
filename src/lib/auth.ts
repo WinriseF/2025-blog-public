@@ -1,4 +1,3 @@
-import { createInstallationToken, getInstallationId, signAppJwt } from './github-client'
 import { GITHUB_CONFIG } from '@/consts'
 import { useAuthStore } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -60,7 +59,8 @@ export async function getAuthToken(): Promise<string> {
 	}
 
 	toast.info('正在签发 JWT...')
-	const jwt = signAppJwt(GITHUB_CONFIG.APP_ID, privateKey)
+	const { createInstallationToken, getInstallationId, signAppJwt } = await import('./github-client')
+	const jwt = await signAppJwt(GITHUB_CONFIG.APP_ID, privateKey)
 
 	toast.info('正在获取安装信息...')
 	const installationId = await getInstallationId(jwt, GITHUB_CONFIG.OWNER, GITHUB_CONFIG.REPO)

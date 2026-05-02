@@ -4,9 +4,9 @@
 	"private": true,
 	"packageManager": "pnpm@9.15.9",
 	"scripts": {
-		"dev": "next dev --turbopack -p 2025",
+		"dev": "node --require ./scripts/suppress-baseline-warning.cjs ./node_modules/next/dist/bin/next dev --turbopack -p 2025",
 		"svg": "node scripts/gen-svgs-index.js",
-		"build": "next build --turbopack",
+		"build": "node --require ./scripts/suppress-baseline-warning.cjs ./node_modules/next/dist/bin/next build --turbopack",
 		"start": "next start",
 		"format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\" \"*.{ts,js,json}\""
 	},
@@ -39,6 +39,7 @@
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"babel-plugin-react-compiler": "1.0.0",
+		"baseline-browser-mapping": "^2.10.25",
 		"code-inspector-plugin": "^1.2.10",
 		"prettier": "^3.6.2",
 		"prettier-plugin-tailwindcss": "^0.7.1",
