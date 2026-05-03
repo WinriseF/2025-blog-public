@@ -212,5 +212,16 @@
 			"Icons"
 		],
 		"stars": 3
+	},
+	{
+		"name": "DPDF 去水印",
+		"url": "https://www.dpdf.com/zh/remove-watermark",
+		"logo": "https://www.dpdf.com/favicon.ico",
+		"description": "在线 PDF 去水印工具，支持批量处理，操作简单，无需注册。",
+		"tags": [
+			"PDF",
+			"工具"
+		],
+		"stars": 4
 	}
 ]
