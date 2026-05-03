@@ -212,23 +212,27 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
 	const [effect, setEffect] = useState<AmbientEffectName>('none')
+	const [effectReady, setEffectReady] = useState(false)
 	const { playMusic } = useMusicPlayer()
+	const visualEffect = reducedMotion ? 'none' : effect
+	const rainActive = visualEffect === 'rain' && effectReady
 
 	useEffect(() => {
 		setEffect(pickAmbientEffect(themeName))
 	}, [themeName])
 
 	useEffect(() => {
-		if (effect !== 'rain' || reducedMotion) return
+		if (!rainActive) return
 		void playMusic(ambientMusic.rain, {
 			fadeInMs: 5000,
 			loop: true,
 			showPlayer: true
 		})
-	}, [effect, playMusic, reducedMotion])
+	}, [playMusic, rainActive])
 
 	useEffect(() => {
-		if (effect === 'none' || reducedMotion) return
+		setEffectReady(false)
+		if (visualEffect === 'none') return
 
 		const canvas = canvasRef.current
 		if (!canvas) return
@@ -239,14 +243,32 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 
 		let { width, height } = resize()
 		const mobile = window.innerWidth < 640
-		const targetFps = effect === 'rain' ? (mobile ? 24 : 30) : mobile ? 24 : 30
+		const targetFps = visualEffect === 'rain' ? (mobile ? 24 : 30) : mobile ? 24 : 30
 		const frameInterval = 1000 / targetFps
-		const rainDrops = effect === 'rain' ? createRainDrops(mobile ? 72 : 148, width, height, themeName) : []
+		let rainDrops = visualEffect === 'rain' ? createRainDrops(mobile ? 72 : 148, width, height, themeName) : []
 		const meteors: Meteor[] = []
 		let animationFrame = 0
 		let lastTime = 0
 		let accumulatedTime = 0
 		let resizeTimer: number | null = null
+
+		function prepareFrame() {
+			const size = resize()
+			width = size.width
+			height = size.height
+			if (width <= 1 || height <= 1) return false
+
+			if (visualEffect === 'rain') {
+				rainDrops = createRainDrops(mobile ? 72 : 148, width, height, themeName)
+				drawRain(ctx, rainDrops, width, height, frameInterval / 1000, themeName)
+			} else {
+				meteors.splice(0)
+				drawMeteors(ctx, meteors, width, height, frameInterval / 1000, mobile)
+			}
+
+			setEffectReady(true)
+			return true
+		}
 
 		function draw(t: number) {
 			const deltaMs = lastTime ? Math.min(t - lastTime, 80) : frameInterval
@@ -266,7 +288,7 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 			const deltaSeconds = accumulatedTime / 1000
 			accumulatedTime = 0
 
-			if (effect === 'rain') {
+			if (visualEffect === 'rain') {
 				drawRain(ctx, rainDrops, width, height, deltaSeconds, themeName)
 			} else {
 				drawMeteors(ctx, meteors, width, height, deltaSeconds, mobile)
@@ -278,34 +300,32 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 		const resizeObserver = new ResizeObserver(() => {
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeTimer = window.setTimeout(() => {
-				const size = resize()
-				width = size.width
-				height = size.height
-				if (effect === 'rain') {
-					rainDrops.splice(0, rainDrops.length, ...createRainDrops(mobile ? 72 : 148, width, height, themeName))
-				} else {
-					meteors.splice(0)
+				if (prepareFrame() && !animationFrame) {
+					animationFrame = requestAnimationFrame(draw)
 				}
 				resizeTimer = null
 			}, 250)
 		})
 
 		resizeObserver.observe(canvas)
-		animationFrame = requestAnimationFrame(draw)
+		if (prepareFrame()) {
+			animationFrame = requestAnimationFrame(draw)
+		}
 
 		return () => {
 			if (animationFrame) cancelAnimationFrame(animationFrame)
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeObserver.disconnect()
 			ctx.clearRect(0, 0, width, height)
+			setEffectReady(false)
 		}
-	}, [effect, reducedMotion, themeName])
+	}, [themeName, visualEffect])
 
-	if (effect === 'none' || reducedMotion) return null
+	if (visualEffect === 'none') return null
 
 	return (
 		<>
-			{effect === 'rain' && (
+			{rainActive && (
 				<div
 					className='absolute inset-0'
 					style={{
@@ -315,7 +335,7 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 					}}
 				/>
 			)}
-			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={effect} />
+			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} />
 		</>
 	)
 }
