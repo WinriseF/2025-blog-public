@@ -1,1 +1,10 @@
-[]
+[
+	{
+		"slug": "yolo-apple-disease-detection",
+		"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+		"tags": ["YOLO", "计算机视觉", "目标检测", "比赛复盘"],
+		"date": "2024-11-01",
+		"summary": "一次围绕苹果常见病害检测做的比赛项目复盘：从 YOLOv8 基线、迁移到 YOLO11，到数据标注、类别取舍和省赛一等奖。",
+		"cover": "/images/project/yolo-apple-disease-detection.png"
+	}
+]

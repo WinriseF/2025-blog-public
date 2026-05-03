@@ -1,1 +1,28 @@
-[]
+[
+	{
+		"name": "CtxRun",
+		"year": 2025,
+		"description": "一个给自己日常开发用的桌面工具箱。最早的重点是把项目文件整理成适合丢给大模型的上下文，后来慢慢加了提示词库、Git Diff 和补丁应用、全局 Spotlight、剪贴板历史、局域网传输、文件预览、OCR、命令执行沙箱这些东西。它不是单一功能的小工具，更像是把写代码时经常切来切去的几个动作收在一个 Tauri 应用里。",
+		"image": "https://raw.githubusercontent.com/WinriseF/CtxRun/main/images/banner.png",
+		"url": "https://github.com/WinriseF/CtxRun/releases",
+		"tags": ["Tauri", "Rust", "React", "TypeScript", "Developer Tool"],
+		"github": "https://github.com/WinriseF/CtxRun"
+	},
+	{
+		"name": "Color Replacement",
+		"year": 2025,
+		"description": "一个本地运行的图片去水印工具。思路其实很直接：很多水印本身和图片主体不是同一种颜色，所以可以先点选水印颜色，再通过容差把接近的颜色一起替换掉，必要时直接改成透明。为了避免误伤，也加了选区内/选区外处理、扩散填充和边缘平滑；用来处理浅色水印、纯色背景抠图、局部换色这类图片会比较顺手。",
+		"image": "/images/project/color-replacement.png",
+		"url": "https://github.com/WinriseF/Color-replacement/releases",
+		"tags": ["Python", "Tkinter", "Pillow", "Image Processing", "Desktop Tool"],
+		"github": "https://github.com/WinriseF/Color-replacement"
+	},
+	{
+		"name": "苹果病虫害检测系统",
+		"year": 2024,
+		"description": "一个从 YOLOv8 基线迁移到 YOLO11 的苹果病虫害检测比赛项目，也是我们拿到全球人工智能算法精英大赛西南赛区一等奖的作品。项目主要识别苹果叶片上的常见病害区域，用检测框和置信度把结果标出来。源码没有公开，这里更适合放一篇复盘文章，记录数据标注、类别取舍、训练调参和比赛展示过程。",
+		"image": "/images/project/yolo-apple-disease-detection.png",
+		"url": "/blog/yolo-apple-disease-detection",
+		"tags": ["YOLO11", "Computer Vision", "Object Detection", "Deep Learning", "Competition"]
+	}
+]

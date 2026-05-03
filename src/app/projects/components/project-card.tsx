@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { useSize } from '@/hooks/use-size'
 import ImageUploadDialog, { type ImageItem } from './image-upload-dialog'
 
 export interface Project {
@@ -27,7 +26,6 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }: ProjectCardProps) {
 	const [isEditing, setIsEditing] = useState(false)
-	const { maxSM } = useSize()
 	const [localProject, setLocalProject] = useState(project)
 	const [showImageDialog, setShowImageDialog] = useState(false)
 	const [imageItem, setImageItem] = useState<ImageItem | null>(null)
@@ -61,12 +59,13 @@ export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }:
 	}
 
 	const canEdit = isEditMode && isEditing
+	const primaryLinkLabel = localProject.url.startsWith('/blog/') ? '文章' : 'Website'
 
 	return (
 		<motion.div
 			initial={{ opacity: 0, scale: 0.9 }}
-			{...(maxSM ? { animate: { opacity: 1, scale: 1 } } : { whileInView: { opacity: 1, scale: 1 } })}
-			className='card relative flex flex-col gap-4'>
+			animate={{ opacity: 1, scale: 1 }}
+			className='bg-card relative flex flex-col gap-4 rounded-[40px] border p-6 shadow-[0_40px_50px_-32px_rgba(0,0,0,0.05)] backdrop-blur'>
 			{isEditMode && (
 				<div className='absolute top-3 right-3 z-10 flex gap-2'>
 					{isEditing ? (
@@ -182,10 +181,10 @@ export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }:
 					<>
 						<Link
 							href={localProject.url}
-							target='_blank'
-							rel='noopener noreferrer'
+							target={localProject.url.startsWith('/') ? undefined : '_blank'}
+							rel={localProject.url.startsWith('/') ? undefined : 'noopener noreferrer'}
 							className='bg-card hover:bg-bg rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors'>
-							Website
+							{primaryLinkLabel}
 						</Link>
 						{localProject.github && (
 							<Link
