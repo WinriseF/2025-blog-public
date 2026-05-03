@@ -93,3 +93,15 @@
 对我来说，收获最大的地方是重新认识了“训练模型”这件事。不是把数据扔进去跑 500 轮就结束了，真正影响结果的，经常是那些看起来不高级的事情：标注是否干净、类别是否真的能分开、错误样例有没有认真看、展示流程能不能稳定复现。
 
 这也是这个项目比较有价值的地方。
+
+## 相关 CSDN 记录
+
+这个项目过程中也顺手整理过一些 CSDN 文章。它们不完全是比赛复盘，更像是当时训练、部署和调环境时留下的问题记录：
+
+- [深度学习 No module named 'torchvision.transforms.functional_tensor' 问题解决](https://blog.csdn.net/2301_79442295/article/details/142788495)
+- [从 0 到 1 的 conda 环境变量配置](https://blog.csdn.net/2301_79442295/article/details/143457299)
+- [如何租 GPU，在租用的 GPU 上快速传输文件](https://blog.csdn.net/2301_79442295/article/details/143725126)
+- [YOLOv8 注意力热图生成](https://blog.csdn.net/2301_79442295/article/details/143862489)
+- [YOLO 标注格式转换 xml -> txt](https://blog.csdn.net/2301_79442295/article/details/144020652)
+- [YOLO11 环境部署 || 从检测到训练](https://blog.csdn.net/2301_79442295/article/details/145414103)
+- [YOLOv11 实时目标检测 | 摄像头视频图片文件检测](https://blog.csdn.net/2301_79442295/article/details/145461825)
