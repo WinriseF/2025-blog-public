@@ -43,18 +43,13 @@ function parseMarkdownHtml(html: string): ReactElement {
 	const options: HTMLReactParserOptions = {
 		replace(domNode: DOMNode) {
 			if (domNode instanceof Element && domNode.name === 'a') {
-				const { href, ...rest } = domNode.attribs
+				const { href } = domNode.attribs
 				const isExternal = href && (href.startsWith('http://') || href.startsWith('https://'))
-				return (
-					<a
-						href={href}
-						target={isExternal ? '_blank' : undefined}
-						rel={isExternal ? 'noopener noreferrer' : undefined}
-						{...rest}
-					>
-						{parse(domNode.children as string, options)}
-					</a>
-				)
+				if (isExternal) {
+					domNode.attribs.target = '_blank'
+					domNode.attribs.rel = 'noopener noreferrer'
+				}
+				return
 			}
 
 			if (domNode instanceof Element && domNode.name === 'img') {
