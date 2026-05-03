@@ -8,6 +8,11 @@ declare module '*.svg?url' {
 	export default content
 }
 
+declare module 'tz-lookup' {
+	function tzLookup(lat: number, lon: number): string
+	export default tzLookup
+}
+
 declare type NullableNumber = string | number | null
 declare type NullableObject = Record<string, any> | null
 declare type NullableArray = Record<string, any>[] | null

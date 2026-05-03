@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
 import { useConfigStore } from './stores/config-store'
@@ -8,6 +9,7 @@ import { CARD_SPACING } from '@/consts'
 import { HomeDraggableLayer } from './home-draggable-layer'
 
 export default function ClockCard() {
+	const router = useRouter()
 	const center = useCenterStore()
 	const { cardStyles } = useConfigStore()
 	const [time, setTime] = useState(new Date())
@@ -31,13 +33,17 @@ export default function ClockCard() {
 	return (
 		<HomeDraggableLayer cardKey='clockCard' x={x} y={y} width={styles.width} height={styles.height}>
 			<Card order={styles.order} width={styles.width} height={styles.height} x={x} y={y} className='p-2'>
-				<div className='bg-secondary/20 flex h-full w-full items-center justify-center gap-1.5 rounded-4xl'>
+				<button
+					type='button'
+					aria-label='打开世界时钟'
+					onClick={() => router.push('/world-clock')}
+					className='bg-secondary/20 flex h-full w-full items-center justify-center gap-1.5 rounded-4xl'>
 					<SevenSegmentDigit value={parseInt(hours[0])} />
 					<SevenSegmentDigit value={parseInt(hours[1])} />
 					<Colon />
 					<SevenSegmentDigit value={parseInt(minutes[0])} />
 					<SevenSegmentDigit value={parseInt(minutes[1])} />
-				</div>
+				</button>
 			</Card>
 		</HomeDraggableLayer>
 	)

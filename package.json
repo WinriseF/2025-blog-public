@@ -28,7 +28,9 @@
 		"swr": "^2.3.6",
 		"tailwind-merge": "^3.3.1",
 		"tailwindcss-animate": "^1.0.7",
+		"three": "^0.184.0",
 		"ts-debounce": "^4.0.0",
+		"tz-lookup": "^6.1.25",
 		"zustand": "^5.0.8"
 	},
 	"devDependencies": {
@@ -38,6 +40,7 @@
 		"@types/node": "^20",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
+		"@types/three": "^0.184.0",
 		"babel-plugin-react-compiler": "1.0.0",
 		"baseline-browser-mapping": "^2.10.25",
 		"code-inspector-plugin": "^1.2.10",
