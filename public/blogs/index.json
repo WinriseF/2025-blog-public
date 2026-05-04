@@ -6,5 +6,12 @@
 		"date": "2024-11-01",
 		"summary": "一次围绕苹果常见病害检测做的比赛项目复盘：从 YOLOv8 基线、迁移到 YOLO11，到数据标注、类别取舍和省赛一等奖。",
 		"cover": "/images/project/yolo-apple-disease-detection.png"
+	},
+	{
+		"slug": "practical-machine-learning-limu",
+		"title": "斯坦福 21 秋季：实用机器学习中文版",
+		"tags": ["机器学习", "李沐", "课程笔记", "实用机器学习"],
+		"date": "2024-07-24",
+		"summary": "《斯坦福 21 秋季：实用机器学习中文版》的音频转写逐字去噪校正版，覆盖课程介绍、数据获取、特征工程、模型评估、调参、迁移学习等章节。"
 	}
 ]
