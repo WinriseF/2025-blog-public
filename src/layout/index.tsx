@@ -1,5 +1,5 @@
 'use client'
-import { PropsWithChildren } from 'react'
+import { PropsWithChildren, useLayoutEffect, useState, type CSSProperties } from 'react'
 import { useCenterInit } from '@/hooks/use-center'
 import TimeAtmosphereBackground from './backgrounds/time-atmosphere-background'
 import NavCard from '@/components/nav-card'
@@ -10,6 +10,23 @@ import { useConfigStore } from '@/app/(home)/stores/config-store'
 import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
 import { TimeThemeProvider, useTimeTheme } from '@/components/time-theme-provider'
+import { usePathname } from 'next/navigation'
+
+const HOME_FIT_DESIGN_WIDTH = 2048
+const HOME_FIT_DESIGN_HEIGHT = 1152
+const HOME_FIT_SCALE_BOOST = 1.35
+const HOME_MOBILE_BREAKPOINT = 640
+
+function getInitialHomeFitScale() {
+	const viewport = window.visualViewport
+	const width = viewport?.width || window.innerWidth
+	const height = viewport?.height || window.innerHeight
+
+	if (width < HOME_MOBILE_BREAKPOINT) return 1
+
+	const fitScale = Math.min(width / HOME_FIT_DESIGN_WIDTH, height / HOME_FIT_DESIGN_HEIGHT)
+	return Math.min(1, fitScale * HOME_FIT_SCALE_BOOST)
+}
 
 export default function Layout({ children }: PropsWithChildren) {
 	return (
@@ -25,11 +42,33 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const { siteContent, regenerateKey } = useConfigStore()
 	const { maxSM, init } = useSize()
 	const { theme: timeTheme } = useTimeTheme()
+	const pathname = usePathname()
+	const homeFitActive = pathname === '/' && !maxSM
+	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 
 	const backgroundImages = (siteContent.backgroundImages ?? []) as Array<{ id: string; url: string }>
 	const currentBackgroundImageId = siteContent.currentBackgroundImageId
 	const currentBackgroundImage =
 		currentBackgroundImageId && currentBackgroundImageId.trim() ? backgroundImages.find(item => item.id === currentBackgroundImageId) : null
+	const mainStyle: CSSProperties | undefined = homeFitActive
+		? {
+				opacity: homeFit.ready ? 1 : 0,
+				transform: `scale(${homeFit.scale})`,
+				transformOrigin: 'center center'
+			}
+		: undefined
+
+	useLayoutEffect(() => {
+		if (pathname !== '/') {
+			setHomeFit({ ready: true, scale: 1 })
+			return
+		}
+
+		setHomeFit({
+			ready: true,
+			scale: getInitialHomeFitScale()
+		})
+	}, [pathname])
 
 	return (
 		<MusicPlayerProvider>
@@ -50,7 +89,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 				}
 			/>
 			<TimeAtmosphereBackground theme={timeTheme} backgroundImage={currentBackgroundImage?.url} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
-			<main className='relative z-10 h-full'>
+			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
 				<NavCard />
 			</main>
