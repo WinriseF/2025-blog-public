@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronLeft, Clock3, LocateFixed, MapPin, RotateCcw, SunMedium } from 'lucide-react'
+import { ChevronLeft, Clock3, LocateFixed, MapPin, Pause, Play, RotateCcw, SunMedium } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -14,8 +14,14 @@ import {
 	vectorToCoordinates,
 	type Coordinates
 } from '@/lib/world-clock/solar'
+import { buildSolarTermPoints, formatSolarTermDate, type SolarTermPoint } from '@/lib/world-clock/solar-terms'
 
 const EARTH_RADIUS = 2.2
+const SURFACE_MARKER_OFFSET = 0.008
+const SUBSOLAR_TRACK_OFFSET = 0.012
+const DAY_MS = 86_400_000
+const SOLAR_TERM_OFFSET = 0.026
+const INITIAL_RENDER_DATE = new Date(Date.UTC(2026, 0, 1, 0, 0, 0))
 const INITIAL_VIEW: Coordinates = { lat: 18, lon: 108 }
 const INITIAL_SELECTION: Coordinates = { lat: 31.23, lon: 121.47 }
 const BASE_MAPS = [
@@ -23,6 +29,70 @@ const BASE_MAPS = [
 	{ key: 'winter-high', label: '冬季高清', src: '/world-clock/earth-winter-8192.jpg' },
 	{ key: 'summer-high', label: '夏季高清', src: '/world-clock/earth-summer-8192.jpg' }
 ] as const
+
+function getBaseMapKeyForDate(date: Date) {
+	return getSubsolarPoint(date).lat >= 0 ? 'summer-high' : 'winter-high'
+}
+
+interface AnnualSubsolarPoint extends Coordinates {
+	date: Date
+}
+
+const visibleSolarTermLabels = new Set(['立春', '春分', '立夏', '夏至', '立秋', '秋分', '立冬', '冬至'])
+
+function getDaysInUtcYear(year: number) {
+	return Math.round((Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / DAY_MS)
+}
+
+function getUtcDayIndex(date: Date) {
+	return Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 1)) / DAY_MS)
+}
+
+function createAnnualSubsolarTrack(sampleTime: Date) {
+	const year = sampleTime.getUTCFullYear()
+	const days = getDaysInUtcYear(year)
+	const utcHour = sampleTime.getUTCHours()
+	const utcMinute = sampleTime.getUTCMinutes()
+
+	return Array.from({ length: days }, (_, dayIndex) => {
+		const date = new Date(Date.UTC(year, 0, dayIndex + 1, utcHour, utcMinute, 0))
+		return {
+			...getSubsolarPoint(date),
+			date
+		}
+	})
+}
+
+function formatTrackDate(date: Date) {
+	return `${date.getUTCMonth() + 1}月${date.getUTCDate()}日`
+}
+
+function getNearestSolarTerm(date: Date | undefined, terms: SolarTermPoint[]) {
+	if (!date || terms.length === 0) return null
+
+	let nearest = terms[0]
+	let nearestDistance = Math.abs(terms[0].sampleDate.getTime() - date.getTime())
+	for (const term of terms.slice(1)) {
+		const distance = Math.abs(term.sampleDate.getTime() - date.getTime())
+		if (distance < nearestDistance) {
+			nearest = term
+			nearestDistance = distance
+		}
+	}
+
+	return nearest
+}
+
+function createSolarTermMarker(term: SolarTermPoint) {
+	const color = term.kind === 'cardinal' ? 0xfff0a6 : term.kind === 'season-start' ? 0x8ff6d2 : 0xffd36a
+	const marker =
+		term.kind === 'minor'
+			? new THREE.Mesh(new THREE.SphereGeometry(0.019, 16, 12), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92 }))
+			: new THREE.Mesh(new THREE.TorusGeometry(term.kind === 'cardinal' ? 0.052 : 0.041, 0.006, 12, 36), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 }))
+
+	placeSurfaceMarker(marker, term, EARTH_RADIUS + SOLAR_TERM_OFFSET)
+	return marker
+}
 
 function createSolidTexture(color: string) {
 	const canvas = document.createElement('canvas')
@@ -107,7 +177,7 @@ function createStarField() {
 	)
 }
 
-function placeSurfaceMarker(marker: THREE.Object3D, coordinates: Coordinates, radius = EARTH_RADIUS + 0.055) {
+function placeSurfaceMarker(marker: THREE.Object3D, coordinates: Coordinates, radius = EARTH_RADIUS + SURFACE_MARKER_OFFSET) {
 	const normal = toThreeVector(coordinates, 1).normalize()
 	marker.position.copy(normal.clone().multiplyScalar(radius))
 	marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
@@ -152,16 +222,59 @@ export default function WorldClockClient() {
 	const controlsRef = useRef<OrbitControls | null>(null)
 	const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
 	const selectedRef = useRef<Coordinates>(INITIAL_SELECTION)
+	const trackCursorRef = useRef(getUtcDayIndex(INITIAL_RENDER_DATE))
+	const showSubsolarRef = useRef(true)
+	const showSolarTermsRef = useRef(true)
+	const activeSolarTermRef = useRef<SolarTermPoint | null>(null)
+	const baseMapTouchedRef = useRef(false)
+	const solarTermLabelRefs = useRef<Record<string, HTMLDivElement | null>>({})
 	const [selected, setSelected] = useState<Coordinates>(INITIAL_SELECTION)
-	const [now, setNow] = useState(() => new Date())
-	const [baseMapKey, setBaseMapKey] = useState<(typeof BASE_MAPS)[number]['key']>('winter-high')
+	const [now, setNow] = useState(() => INITIAL_RENDER_DATE)
+	const [trackSampleTime, setTrackSampleTime] = useState(() => INITIAL_RENDER_DATE)
+	const [trackPlaying, setTrackPlaying] = useState(false)
+	const [trackCursor, setTrackCursor] = useState(() => getUtcDayIndex(INITIAL_RENDER_DATE))
+	const [showSubsolar, setShowSubsolar] = useState(true)
+	const [showSolarTerms, setShowSolarTerms] = useState(true)
+	const [baseMapKey, setBaseMapKey] = useState<(typeof BASE_MAPS)[number]['key']>(() => getBaseMapKeyForDate(INITIAL_RENDER_DATE))
 	const currentBaseMap = useMemo(() => BASE_MAPS.find(item => item.key === baseMapKey) || BASE_MAPS[0], [baseMapKey])
+	const annualTrack = useMemo(() => createAnnualSubsolarTrack(trackSampleTime), [trackSampleTime])
+	const solarTerms = useMemo(() => buildSolarTermPoints(trackSampleTime.getUTCFullYear(), trackSampleTime), [trackSampleTime])
+	const activeTrackPoint = annualTrack[Math.min(trackCursor, annualTrack.length - 1)] || annualTrack[0]
+	const activeSolarTerm = useMemo(() => getNearestSolarTerm(activeTrackPoint?.date, solarTerms), [activeTrackPoint, solarTerms])
 
 	useEffect(() => {
 		selectedRef.current = selected
 	}, [selected])
 
 	useEffect(() => {
+		trackCursorRef.current = trackCursor
+	}, [trackCursor])
+
+	useEffect(() => {
+		showSubsolarRef.current = showSubsolar
+	}, [showSubsolar])
+
+	useEffect(() => {
+		showSolarTermsRef.current = showSolarTerms
+	}, [showSolarTerms])
+
+	useEffect(() => {
+		activeSolarTermRef.current = activeSolarTerm
+	}, [activeSolarTerm])
+
+	useEffect(() => {
+		const syncCurrentTime = () => {
+			const nextNow = new Date()
+			setNow(nextNow)
+			setTrackSampleTime(nextNow)
+			const nextCursor = getUtcDayIndex(nextNow)
+			trackCursorRef.current = nextCursor
+			setTrackCursor(nextCursor)
+			if (!baseMapTouchedRef.current) setBaseMapKey(getBaseMapKeyForDate(nextNow))
+		}
+
+		syncCurrentTime()
+
 		const timer = window.setInterval(() => {
 			setNow(new Date())
 		}, 1000)
@@ -170,6 +283,20 @@ export default function WorldClockClient() {
 	}, [])
 
 	const reading = useMemo(() => getWorldClockReading(now, selected), [now, selected])
+
+	useEffect(() => {
+		if (!trackPlaying) return
+
+		const timer = window.setInterval(() => {
+			setTrackCursor(value => {
+				const next = (value + 1) % annualTrack.length
+				trackCursorRef.current = next
+				return next
+			})
+		}, 70)
+
+		return () => window.clearInterval(timer)
+	}, [annualTrack.length, trackPlaying])
 
 	useEffect(() => {
 		const container = containerRef.current
@@ -249,8 +376,34 @@ export default function WorldClockClient() {
 		)
 		scene.add(sunMarker)
 
-		const selectedMarker = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 12, 36), new THREE.MeshBasicMaterial({ color: 0xff6a95 }))
+		const selectedMarker = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.006, 12, 36), new THREE.MeshBasicMaterial({ color: 0xff6a95 }))
 		scene.add(selectedMarker)
+
+		const annualTrackGeometry = new THREE.BufferGeometry().setFromPoints(annualTrack.map(point => toThreeVector(point, EARTH_RADIUS + SUBSOLAR_TRACK_OFFSET)))
+		const annualTrackLine = new THREE.Line(
+			annualTrackGeometry,
+			new THREE.LineBasicMaterial({
+				color: 0xffd36a,
+				transparent: true,
+				opacity: 0.72,
+				depthWrite: false
+			})
+		)
+		scene.add(annualTrackLine)
+
+		const annualTrackMarker = new THREE.Mesh(
+			new THREE.TorusGeometry(0.036, 0.0055, 12, 36),
+			new THREE.MeshBasicMaterial({ color: 0x86d7ff, transparent: true, opacity: 0.95 })
+		)
+		scene.add(annualTrackMarker)
+
+		const solarTermMarkers = solarTerms.map(term => ({
+			term,
+			marker: createSolarTermMarker(term)
+		}))
+		const solarTermGroup = new THREE.Group()
+		solarTermMarkers.forEach(({ marker }) => solarTermGroup.add(marker))
+		scene.add(solarTermGroup)
 
 		const controls = new OrbitControls(camera, renderer.domElement)
 		controls.enablePan = false
@@ -300,14 +453,65 @@ export default function WorldClockClient() {
 		renderer.domElement.addEventListener('pointerdown', handlePointerDown)
 		renderer.domElement.addEventListener('pointerup', handlePointerUp)
 
+		const hideSolarTermLabels = () => {
+			Object.values(solarTermLabelRefs.current).forEach(label => {
+				if (label) label.style.opacity = '0'
+			})
+		}
+
+		const updateSolarTermLabels = () => {
+			if (!showSolarTermsRef.current) {
+				hideSolarTermLabels()
+				return
+			}
+
+			const activeName = activeSolarTermRef.current?.name
+			const width = renderer.domElement.clientWidth
+			const height = renderer.domElement.clientHeight
+			const cameraNormal = camera.position.clone().normalize()
+
+			for (const term of solarTerms) {
+				const label = solarTermLabelRefs.current[term.name]
+				if (!label) continue
+
+				const surfaceNormal = toThreeVector(term, 1).normalize()
+				const visible = surfaceNormal.dot(cameraNormal) > 0.12
+				if (!visible) {
+					label.style.opacity = '0'
+					continue
+				}
+
+				const projected = surfaceNormal.clone().multiplyScalar(EARTH_RADIUS + 0.2).project(camera)
+				const x = (projected.x * 0.5 + 0.5) * width
+				const y = (-projected.y * 0.5 + 0.5) * height
+				const isActive = activeName === term.name
+				label.style.opacity = isActive ? '1' : '0.78'
+				label.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${isActive ? 1.04 : 1})`
+			}
+		}
+
 		let frame = 0
 		const animate = () => {
+			const showSubsolarLayer = showSubsolarRef.current
+			const showSolarTermLayer = showSolarTermsRef.current
 			const subsolar = getSubsolarPoint(new Date())
 			const sunDirection = toThreeVector(subsolar, 1).normalize()
 			earthMaterial.uniforms.sunDirection.value.copy(sunDirection)
-			sunMarker.position.copy(sunDirection.clone().multiplyScalar(EARTH_RADIUS + 0.15))
+			sunMarker.visible = showSubsolarLayer
+			annualTrackLine.visible = showSubsolarLayer
+			annualTrackMarker.visible = showSubsolarLayer
+			solarTermGroup.visible = showSolarTermLayer
+			if (showSubsolarLayer) sunMarker.position.copy(sunDirection.clone().multiplyScalar(EARTH_RADIUS + 0.045))
 			placeSurfaceMarker(selectedMarker, selectedRef.current)
+			const trackPoint = annualTrack[trackCursorRef.current]
+			if (showSubsolarLayer && trackPoint) placeSurfaceMarker(annualTrackMarker, trackPoint, EARTH_RADIUS + SUBSOLAR_TRACK_OFFSET)
+			const activeTermName = activeSolarTermRef.current?.name
+			const pulse = 1 + Math.sin(Date.now() / 160) * 0.08
+			for (const { term, marker } of solarTermMarkers) {
+				marker.scale.setScalar(activeTermName === term.name ? 1.32 * pulse : 1)
+			}
 			controls.update()
+			updateSolarTermLabels()
 			renderer.render(scene, camera)
 			frame = window.requestAnimationFrame(animate)
 		}
@@ -317,6 +521,7 @@ export default function WorldClockClient() {
 			disposed = true
 			window.cancelAnimationFrame(frame)
 			resizeObserver.disconnect()
+			hideSolarTermLabels()
 			renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
 			renderer.domElement.removeEventListener('pointerup', handlePointerUp)
 			controls.dispose()
@@ -334,7 +539,7 @@ export default function WorldClockClient() {
 			renderer.dispose()
 			renderer.domElement.remove()
 		}
-	}, [currentBaseMap.src])
+	}, [annualTrack, currentBaseMap.src, solarTerms])
 
 	const resetView = () => {
 		const camera = cameraRef.current
@@ -345,11 +550,38 @@ export default function WorldClockClient() {
 		controlsRef.current?.update()
 	}
 
+	const handleTrackCursorChange = (value: number) => {
+		setTrackPlaying(false)
+		trackCursorRef.current = value
+		setTrackCursor(value)
+	}
+
 	return (
 		<div className='relative h-dvh overflow-hidden bg-[#071623] text-white'>
 			<div ref={containerRef} className='absolute inset-0' />
 			<div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_48%_50%,transparent_0%,transparent_44%,rgba(6,18,30,0.24)_68%,rgba(4,10,18,0.72)_100%)]' />
 			<div className='pointer-events-none absolute inset-x-0 top-0 h-32 bg-linear-to-b from-[#06111e]/75 to-transparent' />
+			<div className='pointer-events-none absolute inset-0 z-10'>
+				{solarTerms
+					.filter(term => visibleSolarTermLabels.has(term.name))
+					.map(term => (
+						<div
+							key={term.name}
+							ref={node => {
+								solarTermLabelRefs.current[term.name] = node
+							}}
+							className={`absolute top-0 left-0 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap shadow-[0_10px_24px_-18px_rgba(0,0,0,0.8)] backdrop-blur-md transition-[opacity,background-color,border-color,color] ${
+								activeSolarTerm?.name === term.name
+									? 'border-[#ffd36a]/60 bg-[#ffd36a]/22 text-white'
+									: term.kind === 'season-start'
+										? 'border-[#8ff6d2]/32 bg-[#071623]/48 text-[#bffbe9]'
+										: 'border-[#ffd36a]/32 bg-[#071623]/48 text-[#ffe2a3]'
+							}`}
+							style={{ opacity: 0 }}>
+							{term.name}
+						</div>
+					))}
+			</div>
 
 			<div className='absolute top-24 right-6 z-20 flex items-center gap-3 max-sm:top-22 max-sm:right-4'>
 				<Link
@@ -374,7 +606,10 @@ export default function WorldClockClient() {
 					<button
 						key={item.key}
 						type='button'
-						onClick={() => setBaseMapKey(item.key)}
+						onClick={() => {
+							baseMapTouchedRef.current = true
+							setBaseMapKey(item.key)
+						}}
 						className={`rounded-full px-3.5 py-2 transition-colors ${baseMapKey === item.key ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'}`}>
 						{item.label}
 					</button>
@@ -386,7 +621,69 @@ export default function WorldClockClient() {
 				<div className='mt-3 text-sm text-white/68'>标准时间 / 太阳时</div>
 			</section>
 
-			<aside className='absolute top-1/2 right-6 z-10 w-[360px] -translate-y-1/2 rounded-[32px] border border-white/18 bg-[#071623]/58 p-5 text-white shadow-[0_28px_70px_-34px_rgba(0,0,0,0.85)] backdrop-blur-xl max-lg:top-auto max-lg:right-4 max-lg:bottom-5 max-lg:left-4 max-lg:w-auto max-lg:translate-y-0 max-sm:rounded-[26px] max-sm:p-4'>
+			<div className='absolute bottom-4 left-5 z-20 w-[min(420px,calc(100%-2rem))] rounded-2xl border border-white/12 bg-[#071623]/52 px-4 py-3 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md max-lg:bottom-[260px] max-sm:bottom-[230px] max-sm:left-4 max-sm:w-[calc(100%-2rem)] max-sm:px-3 max-sm:py-2.5'>
+				<div className='flex items-center justify-between gap-4'>
+					<div>
+						<div className='text-xs font-medium text-white/58'>地表太阳标注</div>
+						<div className='mt-1 text-[11px] leading-relaxed text-white/46'>
+							<span className='text-[#ffd36a]'>黄线/蓝圈</span> 为直射轨迹，
+							<span className='text-[#8ff6d2]'>节气点</span> 标在地表
+						</div>
+					</div>
+					<button
+						type='button'
+						title={trackPlaying ? '暂停' : '播放'}
+						aria-label={trackPlaying ? '暂停太阳直射点年度动画' : '播放太阳直射点年度动画'}
+						onClick={() => setTrackPlaying(value => !value)}
+						className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 transition-colors hover:bg-white/18'>
+						{trackPlaying ? <Pause className='h-4.5 w-4.5 text-[#ffd36a]' /> : <Play className='h-4.5 w-4.5 text-[#ffd36a]' />}
+					</button>
+				</div>
+				<div className='mt-3 flex gap-2 text-xs font-medium'>
+					<button
+						type='button'
+						onClick={() => setShowSubsolar(value => !value)}
+						className={`rounded-full border px-3 py-1.5 transition-colors ${
+							showSubsolar ? 'border-[#ffd36a]/40 bg-[#ffd36a]/16 text-[#ffe2a3]' : 'border-white/12 bg-white/6 text-white/42 hover:bg-white/10 hover:text-white/68'
+						}`}>
+						直射点
+					</button>
+					<button
+						type='button'
+						onClick={() => setShowSolarTerms(value => !value)}
+						className={`rounded-full border px-3 py-1.5 transition-colors ${
+							showSolarTerms ? 'border-[#8ff6d2]/36 bg-[#8ff6d2]/14 text-[#bffbe9]' : 'border-white/12 bg-white/6 text-white/42 hover:bg-white/10 hover:text-white/68'
+						}`}>
+						节气
+					</button>
+				</div>
+				<div className='mt-3 flex items-center gap-3'>
+					<div className='w-15 shrink-0 text-xs font-medium text-white/70'>{activeTrackPoint ? formatTrackDate(activeTrackPoint.date) : ''}</div>
+					<input
+						type='range'
+						min={0}
+						max={Math.max(annualTrack.length - 1, 0)}
+						value={trackCursor}
+						aria-label='选择太阳直射点年度轨迹日期'
+						onChange={event => handleTrackCursorChange(Number(event.currentTarget.value))}
+						className='range-track min-w-0 flex-1'
+						style={{ '--range-progress': `${annualTrack.length > 1 ? (trackCursor / (annualTrack.length - 1)) * 100 : 0}%` } as React.CSSProperties}
+					/>
+				</div>
+				{activeTrackPoint && (
+					<div className='mt-2 text-[11px] leading-relaxed text-white/46'>
+						直射动画点 {formatCoordinate(activeTrackPoint.lat, 'N', 'S')} · {formatCoordinate(activeTrackPoint.lon, 'E', 'W')}
+						{activeSolarTerm && (
+							<>
+								<br />
+								最近节气 <span className='text-[#ffd36a]'>{activeSolarTerm.name}</span> · {formatSolarTermDate(activeSolarTerm.date)}
+							</>
+						)}
+					</div>
+				)}
+			</div>
+
+			<aside className='scrollbar-none absolute top-1/2 right-6 z-10 max-h-[calc(100dvh-10rem)] w-[360px] -translate-y-1/2 overflow-y-auto rounded-[32px] border border-white/18 bg-[#071623]/58 p-5 text-white shadow-[0_28px_70px_-34px_rgba(0,0,0,0.85)] backdrop-blur-xl max-lg:top-auto max-lg:right-4 max-lg:bottom-5 max-lg:left-4 max-lg:max-h-[calc(100dvh-8rem)] max-lg:w-auto max-lg:translate-y-0 max-sm:rounded-[26px] max-sm:p-4'>
 				<div className='flex items-start justify-between gap-5'>
 					<div>
 						<div className='text-xs font-medium text-white/54'>选中位置</div>
@@ -444,7 +741,7 @@ export default function WorldClockClient() {
 				</div>
 			</aside>
 
-			<div className='absolute bottom-4 left-5 z-10 max-w-[420px] rounded-2xl border border-white/12 bg-[#071623]/48 px-4 py-3 text-[11px] leading-relaxed text-white/52 backdrop-blur-md max-lg:hidden'>
+			<div className='absolute right-5 bottom-4 z-10 max-w-[420px] rounded-2xl border border-white/12 bg-[#071623]/48 px-4 py-3 text-[11px] leading-relaxed text-white/52 backdrop-blur-md max-lg:hidden'>
 				无国界自然影像底图；夜侧使用城市灯光贴图，仅用于昼夜和时间交互展示。
 			</div>
 		</div>
