@@ -621,11 +621,11 @@ export default function WorldClockClient() {
 				<div className='mt-3 text-sm text-white/68'>标准时间 / 太阳时</div>
 			</section>
 
-			<div className='absolute bottom-4 left-5 z-20 w-[min(420px,calc(100%-2rem))] rounded-2xl border border-white/12 bg-[#071623]/52 px-4 py-3 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md max-lg:bottom-[260px] max-sm:bottom-[230px] max-sm:left-4 max-sm:w-[calc(100%-2rem)] max-sm:px-3 max-sm:py-2.5'>
-				<div className='flex items-center justify-between gap-4'>
+			<div className='absolute bottom-4 left-5 z-20 w-[min(320px,calc(100%-2rem))] rounded-xl border border-white/12 bg-[#071623]/52 px-3 py-2.5 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md max-lg:bottom-[220px] max-sm:bottom-[210px] max-sm:left-4 max-sm:w-[min(300px,calc(100%-2rem))]'>
+				<div className='flex items-center justify-between gap-3'>
 					<div>
 						<div className='text-xs font-medium text-white/58'>地表太阳标注</div>
-						<div className='mt-1 text-[11px] leading-relaxed text-white/46'>
+						<div className='mt-1 text-[10px] leading-relaxed text-white/46'>
 							<span className='text-[#ffd36a]'>黄线/蓝圈</span> 为直射轨迹，
 							<span className='text-[#8ff6d2]'>节气点</span> 标在地表
 						</div>
@@ -635,15 +635,15 @@ export default function WorldClockClient() {
 						title={trackPlaying ? '暂停' : '播放'}
 						aria-label={trackPlaying ? '暂停太阳直射点年度动画' : '播放太阳直射点年度动画'}
 						onClick={() => setTrackPlaying(value => !value)}
-						className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 transition-colors hover:bg-white/18'>
-						{trackPlaying ? <Pause className='h-4.5 w-4.5 text-[#ffd36a]' /> : <Play className='h-4.5 w-4.5 text-[#ffd36a]' />}
+						className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 transition-colors hover:bg-white/18'>
+						{trackPlaying ? <Pause className='h-4 w-4 text-[#ffd36a]' /> : <Play className='h-4 w-4 text-[#ffd36a]' />}
 					</button>
 				</div>
-				<div className='mt-3 flex gap-2 text-xs font-medium'>
+				<div className='mt-2.5 flex gap-1.5 text-[11px] font-medium'>
 					<button
 						type='button'
 						onClick={() => setShowSubsolar(value => !value)}
-						className={`rounded-full border px-3 py-1.5 transition-colors ${
+						className={`rounded-full border px-2.5 py-1 transition-colors ${
 							showSubsolar ? 'border-[#ffd36a]/40 bg-[#ffd36a]/16 text-[#ffe2a3]' : 'border-white/12 bg-white/6 text-white/42 hover:bg-white/10 hover:text-white/68'
 						}`}>
 						直射点
@@ -651,14 +651,14 @@ export default function WorldClockClient() {
 					<button
 						type='button'
 						onClick={() => setShowSolarTerms(value => !value)}
-						className={`rounded-full border px-3 py-1.5 transition-colors ${
+						className={`rounded-full border px-2.5 py-1 transition-colors ${
 							showSolarTerms ? 'border-[#8ff6d2]/36 bg-[#8ff6d2]/14 text-[#bffbe9]' : 'border-white/12 bg-white/6 text-white/42 hover:bg-white/10 hover:text-white/68'
 						}`}>
 						节气
 					</button>
 				</div>
-				<div className='mt-3 flex items-center gap-3'>
-					<div className='w-15 shrink-0 text-xs font-medium text-white/70'>{activeTrackPoint ? formatTrackDate(activeTrackPoint.date) : ''}</div>
+				<div className='mt-2.5 flex items-center gap-2'>
+					<div className='w-13 shrink-0 text-[11px] font-medium text-white/70'>{activeTrackPoint ? formatTrackDate(activeTrackPoint.date) : ''}</div>
 					<input
 						type='range'
 						min={0}
@@ -671,7 +671,7 @@ export default function WorldClockClient() {
 					/>
 				</div>
 				{activeTrackPoint && (
-					<div className='mt-2 text-[11px] leading-relaxed text-white/46'>
+					<div className='mt-1.5 text-[10px] leading-relaxed text-white/46'>
 						直射动画点 {formatCoordinate(activeTrackPoint.lat, 'N', 'S')} · {formatCoordinate(activeTrackPoint.lon, 'E', 'W')}
 						{activeSolarTerm && (
 							<>
@@ -683,56 +683,56 @@ export default function WorldClockClient() {
 				)}
 			</div>
 
-			<aside className='scrollbar-none absolute top-1/2 right-6 z-10 max-h-[calc(100dvh-10rem)] w-[360px] -translate-y-1/2 overflow-y-auto rounded-[32px] border border-white/18 bg-[#071623]/58 p-5 text-white shadow-[0_28px_70px_-34px_rgba(0,0,0,0.85)] backdrop-blur-xl max-lg:top-auto max-lg:right-4 max-lg:bottom-5 max-lg:left-4 max-lg:max-h-[calc(100dvh-8rem)] max-lg:w-auto max-lg:translate-y-0 max-sm:rounded-[26px] max-sm:p-4'>
-				<div className='flex items-start justify-between gap-5'>
+			<aside className='scrollbar-none absolute top-1/2 right-5 z-10 max-h-[calc(100dvh-8rem)] w-[220px] -translate-y-1/2 overflow-y-auto rounded-[20px] border border-white/18 bg-[#071623]/58 p-3 text-white shadow-[0_24px_60px_-34px_rgba(0,0,0,0.85)] backdrop-blur-xl max-lg:top-auto max-lg:right-4 max-lg:bottom-4 max-lg:max-h-[calc(100dvh-9rem)] max-lg:w-[min(260px,calc(100%-2rem))] max-lg:translate-y-0'>
+				<div className='flex items-start justify-between gap-3'>
 					<div>
 						<div className='text-xs font-medium text-white/54'>选中位置</div>
-						<div className='mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm font-medium text-white'>
+						<div className='mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1 text-sm font-medium text-white'>
 							<span>{formatCoordinate(reading.coordinates.lat, 'N', 'S')}</span>
 							<span>{formatCoordinate(reading.coordinates.lon, 'E', 'W')}</span>
 						</div>
 					</div>
-					<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10'>
-						<MapPin className='h-4.5 w-4.5 text-[#ff87a8]' />
+					<div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10'>
+						<MapPin className='h-3.5 w-3.5 text-[#ff87a8]' />
 					</div>
 				</div>
 
-				<div className='mt-5 space-y-4 border-t border-white/12 pt-5'>
+				<div className='mt-3.5 space-y-3 border-t border-white/12 pt-3.5'>
 					<div>
 						<div className='flex items-center gap-2 text-xs font-medium text-white/56'>
 							<Clock3 className='h-4 w-4 text-[#86d7ff]' />
 							标准时间
 						</div>
-						<div className='mt-2 text-4xl leading-none font-semibold tracking-normal tabular-nums max-sm:text-3xl'>{reading.standardTime}</div>
-						<div className='mt-2 text-xs leading-relaxed text-white/58'>
+						<div className='mt-1.5 text-2xl leading-none font-semibold tracking-normal tabular-nums'>{reading.standardTime}</div>
+						<div className='mt-1.5 text-xs leading-relaxed text-white/58'>
 							{reading.standardDate} · {reading.utcOffset}
 						</div>
 					</div>
 
-					<div className='border-t border-white/10 pt-4'>
+					<div className='border-t border-white/10 pt-3'>
 						<div className='flex items-center gap-2 text-xs font-medium text-white/56'>
 							<SunMedium className='h-4 w-4 text-[#ffd36a]' />
 							真太阳时
 						</div>
-						<div className='mt-2 text-4xl leading-none font-semibold tracking-normal text-[#ffd996] tabular-nums max-sm:text-3xl'>{reading.solarTime}</div>
-						<div className='mt-2 text-xs leading-relaxed text-white/58'>
+						<div className='mt-1.5 text-2xl leading-none font-semibold tracking-normal text-[#ffd996] tabular-nums'>{reading.solarTime}</div>
+						<div className='mt-1.5 text-xs leading-relaxed text-white/58'>
 							{reading.solarDate} · 均时差 {formatSignedMinutes(reading.equationOfTimeMinutes)}
 						</div>
 					</div>
 				</div>
 
-				<div className='mt-5 grid grid-cols-2 gap-3 border-t border-white/12 pt-5'>
-					<div className='rounded-[20px] border border-white/12 bg-white/8 px-3 py-3'>
+				<div className='mt-3.5 grid gap-2 border-t border-white/12 pt-3.5'>
+					<div className='rounded-xl border border-white/12 bg-white/8 px-2.5 py-2.5'>
 						<div className='flex items-center gap-2 text-[11px] font-medium text-white/52'>
 							<LocateFixed className='h-3.5 w-3.5' />
 							日照
 						</div>
-						<div className='mt-2 text-sm font-medium'>{reading.daylightLabel}</div>
+						<div className='mt-1.5 text-sm font-medium'>{reading.daylightLabel}</div>
 						<div className='mt-1 text-xs text-white/50'>{reading.sunAltitude.toFixed(1)}°</div>
 					</div>
-					<div className='rounded-[20px] border border-white/12 bg-white/8 px-3 py-3'>
+					<div className='rounded-xl border border-white/12 bg-white/8 px-2.5 py-2.5'>
 						<div className='text-[11px] font-medium text-white/52'>太阳直射点</div>
-						<div className='mt-2 text-xs leading-relaxed text-white/76'>
+						<div className='mt-1.5 text-xs leading-relaxed text-white/76'>
 							{formatCoordinate(reading.subsolar.lat, 'N', 'S')}
 							<br />
 							{formatCoordinate(reading.subsolar.lon, 'E', 'W')}
