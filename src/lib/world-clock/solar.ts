@@ -134,9 +134,28 @@ export function getDaylightLabel(altitude: number) {
 	return '夜晚'
 }
 
+const CHINA_STANDARD_TIME_ZONES = new Set(['Asia/Shanghai', 'Asia/Urumqi', 'Asia/Kashgar', 'Asia/Chongqing', 'Asia/Harbin'])
+const CHINA_STANDARD_TIME_COORDINATE_REGIONS = [
+	{ minLat: 15.6, maxLat: 17.4, minLon: 111, maxLon: 113.4 },
+	{ minLat: 14.7, maxLat: 15.6, minLon: 117.2, maxLon: 118.2 },
+	{ minLat: 7, maxLat: 12.2, minLon: 111, maxLon: 116.8 },
+	{ minLat: 3.5, maxLat: 4.5, minLon: 111.8, maxLon: 112.8 }
+]
+
+function normalizeStandardTimeZone(timeZone: string) {
+	// China uses one legal standard time nationwide, even where IANA keeps historical/local zones.
+	return CHINA_STANDARD_TIME_ZONES.has(timeZone) ? 'Asia/Shanghai' : timeZone
+}
+
+function isChinaStandardTimeCoordinate({ lat, lon }: Coordinates) {
+	return CHINA_STANDARD_TIME_COORDINATE_REGIONS.some(region => lat >= region.minLat && lat <= region.maxLat && lon >= region.minLon && lon <= region.maxLon)
+}
+
 function getTimeZoneAt({ lat, lon }: Coordinates) {
+	if (isChinaStandardTimeCoordinate({ lat, lon })) return 'Asia/Shanghai'
+
 	try {
-		return tzLookup(lat, lon)
+		return normalizeStandardTimeZone(tzLookup(lat, lon))
 	} catch {
 		const offset = clamp(Math.round(lon / 15), -12, 14)
 		if (offset === 0) return 'Etc/UTC'
