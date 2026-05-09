@@ -1,5 +1,13 @@
 [
 	{
+		"slug": "ai-large-model-access-intro-1",
+		"title": "AI 大模型接入入门——1",
+		"tags": ["AI 大模型", "模型接入", "Spring AI", "LangChain4j"],
+		"date": "2025-04-30",
+		"summary": "面向开发者的大模型接入入门：理解大模型生态、模型分类、应用开发工作流、模型选型，以及通过平台、客户端和代码接入大模型的常见方式。",
+		"cover": "/blogs/ai-large-model-access-intro-1/2.png"
+	},
+	{
 		"slug": "yolo-apple-disease-detection",
 		"title": "基于大小模型协同的苹果病虫害检测系统复盘",
 		"tags": ["YOLO", "计算机视觉", "目标检测", "比赛复盘"],
