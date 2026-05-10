@@ -5,6 +5,9 @@
 	"packageManager": "pnpm@9.15.9",
 	"scripts": {
 		"dev": "node --require ./scripts/suppress-baseline-warning.cjs ./node_modules/next/dist/bin/next dev --turbopack -p 2025",
+		"predev": "pnpm generate:word-cloud",
+		"generate:word-cloud": "node scripts/generate-word-cloud.cjs",
+		"prebuild": "pnpm generate:word-cloud",
 		"svg": "node scripts/gen-svgs-index.js",
 		"build": "node --require ./scripts/suppress-baseline-warning.cjs ./node_modules/next/dist/bin/next build --turbopack",
 		"start": "next start",
@@ -13,6 +16,7 @@
 	"dependencies": {
 		"@types/jsrsasign": "^10.5.15",
 		"clsx": "^2.1.1",
+		"d3-cloud": "^1.2.9",
 		"dayjs": "^1.11.18",
 		"html-react-parser": "^5.2.8",
 		"jsrsasign": "^11.1.0",
@@ -37,6 +41,7 @@
 		"@netlify/plugin-nextjs": "^5.15.10",
 		"@svgr/webpack": "^8.1.0",
 		"@tailwindcss/postcss": "^4",
+		"@types/d3-cloud": "^1.2.9",
 		"@types/node": "^20",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",

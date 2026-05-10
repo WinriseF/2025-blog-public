@@ -1,0 +1,4457 @@
+{
+	"years": [
+		{
+			"year": "2025",
+			"articleCount": 1,
+			"words": [
+				{
+					"text": "模型",
+					"weight": 1,
+					"count": 144,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 144
+						}
+					]
+				},
+				{
+					"text": "应用",
+					"weight": 0.8002,
+					"count": 53,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 53
+						}
+					]
+				},
+				{
+					"text": "ai",
+					"weight": 0.7945,
+					"count": 51,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 51
+						}
+					]
+				},
+				{
+					"text": "能力",
+					"weight": 0.7417,
+					"count": 39,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 39
+						}
+					]
+				},
+				{
+					"text": "开发",
+					"weight": 0.7261,
+					"count": 36,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 36
+						}
+					]
+				},
+				{
+					"text": "智能",
+					"weight": 0.6905,
+					"count": 30,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 30
+						}
+					]
+				},
+				{
+					"text": "工具",
+					"weight": 0.6627,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 26
+						}
+					]
+				},
+				{
+					"text": "服务",
+					"weight": 0.6472,
+					"count": 24,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 24
+						}
+					]
+				},
+				{
+					"text": "代码",
+					"weight": 0.626,
+					"count": 22,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 22
+						}
+					]
+				},
+				{
+					"text": "平台",
+					"weight": 0.626,
+					"count": 22,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 22
+						}
+					]
+				},
+				{
+					"text": "数据",
+					"weight": 0.6215,
+					"count": 21,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 21
+						}
+					]
+				},
+				{
+					"text": "成本",
+					"weight": 0.6122,
+					"count": 20,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 20
+						}
+					]
+				},
+				{
+					"text": "知识",
+					"weight": 0.6024,
+					"count": 19,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 19
+						}
+					]
+				},
+				{
+					"text": "langchain4j",
+					"weight": 0.6024,
+					"count": 19,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 19
+						}
+					]
+				},
+				{
+					"text": "部署",
+					"weight": 0.5921,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "生成",
+					"weight": 0.5812,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 17
+						}
+					]
+				},
+				{
+					"text": "适合",
+					"weight": 0.5812,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 17
+						}
+					]
+				},
+				{
+					"text": "学习",
+					"weight": 0.5697,
+					"count": 16,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 16
+						}
+					]
+				},
+				{
+					"text": "api",
+					"weight": 0.5697,
+					"count": 16,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 16
+						}
+					]
+				},
+				{
+					"text": "场景",
+					"weight": 0.5575,
+					"count": 15,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 15
+						}
+					]
+				},
+				{
+					"text": "业务",
+					"weight": 0.5575,
+					"count": 15,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 15
+						}
+					]
+				},
+				{
+					"text": "工作",
+					"weight": 0.5377,
+					"count": 14,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 14
+						}
+					]
+				},
+				{
+					"text": "通过",
+					"weight": 0.5377,
+					"count": 14,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 14
+						}
+					]
+				},
+				{
+					"text": "处理",
+					"weight": 0.5306,
+					"count": 13,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 13
+						}
+					]
+				},
+				{
+					"text": "复杂",
+					"weight": 0.5306,
+					"count": 13,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 13
+						}
+					]
+				},
+				{
+					"text": "阿里",
+					"weight": 0.5157,
+					"count": 12,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 12
+						}
+					]
+				},
+				{
+					"text": "安全",
+					"weight": 0.5157,
+					"count": 12,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 12
+						}
+					]
+				},
+				{
+					"text": "spring",
+					"weight": 0.5157,
+					"count": 12,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 12
+						}
+					]
+				},
+				{
+					"text": "内容",
+					"weight": 0.4997,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 11
+						}
+					]
+				},
+				{
+					"text": "理解",
+					"weight": 0.4911,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 11
+						}
+					]
+				},
+				{
+					"text": "生态",
+					"weight": 0.4911,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 11
+						}
+					]
+				},
+				{
+					"text": "框架",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "上下文",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "问题",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "选择",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "支持",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "mcp",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "prompt",
+					"weight": 0.4822,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "分类",
+					"weight": 0.4728,
+					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 10
+						}
+					]
+				},
+				{
+					"text": "包括",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "厂商",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "流程",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "配置",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "任务",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "输出",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "通常",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "文本",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "训练",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "要求",
+					"weight": 0.463,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "常见",
+					"weight": 0.4527,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "编排",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "模型接入",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "企业",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "说明",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "速度",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "完成",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "项目",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "优先",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "ai 大模型",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "sdk",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "spring ai",
+					"weight": 0.4418,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "方式",
+					"weight": 0.4303,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "本地",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "核心",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "可能",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "私有",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "提示",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "问答",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "行业",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "用户",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "dashscope",
+					"weight": 0.4181,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "客户",
+					"weight": 0.4051,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "入门",
+					"weight": 0.4051,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "对话",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "管理",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "简单",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "提供",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "稳定",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "助手",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "rag",
+					"weight": 0.3913,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "创建",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "定制",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "分析",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "功能",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "规划",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "节点",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "快速",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "类型",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "明确",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "判断",
+					"weight": 0.3603,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 5
+						}
+					]
+				}
+			]
+		},
+		{
+			"year": "2024",
+			"articleCount": 2,
+			"words": [
+				{
+					"text": "模型",
+					"weight": 1,
+					"count": 1056,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 1017
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 39
+						}
+					]
+				},
+				{
+					"text": "数据",
+					"weight": 0.8891,
+					"count": 1192,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 1176
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 16
+						}
+					]
+				},
+				{
+					"text": "训练",
+					"weight": 0.8854,
+					"count": 612,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 590
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 22
+						}
+					]
+				},
+				{
+					"text": "图片",
+					"weight": 0.7542,
+					"count": 256,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 243
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 13
+						}
+					]
+				},
+				{
+					"text": "类别",
+					"weight": 0.7186,
+					"count": 71,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 46
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 25
+						}
+					]
+				},
+				{
+					"text": "结果",
+					"weight": 0.7148,
+					"count": 89,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 70
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 19
+						}
+					]
+				},
+				{
+					"text": "问题",
+					"weight": 0.7137,
+					"count": 196,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 185
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 11
+						}
+					]
+				},
+				{
+					"text": "检测",
+					"weight": 0.7102,
+					"count": 56,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 36
+						},
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 20
+						}
+					]
+				},
+				{
+					"text": "目标",
+					"weight": 0.6232,
+					"count": 51,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 38
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 13
+						}
+					]
+				},
+				{
+					"text": "稳定",
+					"weight": 0.5901,
+					"count": 43,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 32
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 11
+						}
+					]
+				},
+				{
+					"text": "容易",
+					"weight": 0.5789,
+					"count": 48,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 39
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "样本",
+					"weight": 0.5749,
+					"count": 221,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 218
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "大小",
+					"weight": 0.5749,
+					"count": 64,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 57
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "常见",
+					"weight": 0.5524,
+					"count": 68,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 62
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "效果",
+					"weight": 0.5519,
+					"count": 77,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 72
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "复杂",
+					"weight": 0.5354,
+					"count": 128,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 125
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "输出",
+					"weight": 0.5276,
+					"count": 197,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 195
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "学习",
+					"weight": 0.5262,
+					"count": 418,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 417
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "特征",
+					"weight": 0.5217,
+					"count": 182,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 180
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "参数",
+					"weight": 0.5207,
+					"count": 179,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 177
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "简单",
+					"weight": 0.5195,
+					"count": 176,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 174
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "计算",
+					"weight": 0.5187,
+					"count": 68,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 64
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "比赛",
+					"weight": 0.5144,
+					"count": 21,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 15
+						},
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "质量",
+					"weight": 0.5054,
+					"count": 57,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 53
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "算法",
+					"weight": 0.4993,
+					"count": 133,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 131
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "指标",
+					"weight": 0.4955,
+					"count": 50,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 46
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "判断",
+					"weight": 0.4905,
+					"count": 28,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 22
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "验证",
+					"weight": 0.485,
+					"count": 109,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 107
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "情况",
+					"weight": 0.4795,
+					"count": 101,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 99
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "选择",
+					"weight": 0.4773,
+					"count": 98,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 96
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "实际",
+					"weight": 0.4758,
+					"count": 96,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 94
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "相关",
+					"weight": 0.4708,
+					"count": 53,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 50
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "输入",
+					"weight": 0.4696,
+					"count": 88,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 86
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "系统",
+					"weight": 0.4683,
+					"count": 16,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 11
+						},
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "基于",
+					"weight": 0.4646,
+					"count": 21,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 15
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "完整",
+					"weight": 0.4629,
+					"count": 25,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 20
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "本身",
+					"weight": 0.4586,
+					"count": 45,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 42
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "方向",
+					"weight": 0.4586,
+					"count": 45,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 42
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "作为",
+					"weight": 0.456,
+					"count": 73,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 71
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "好的",
+					"weight": 0.4544,
+					"count": 153,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 152
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "还有",
+					"weight": 0.453,
+					"count": 70,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 68
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "任务",
+					"weight": 0.4515,
+					"count": 147,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 146
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "重新",
+					"weight": 0.4504,
+					"count": 28,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 24
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "东西",
+					"weight": 0.4499,
+					"count": 542,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 542
+						}
+					]
+				},
+				{
+					"text": "部分",
+					"weight": 0.4498,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 12
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "展示",
+					"weight": 0.4494,
+					"count": 16,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 14
+						},
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "相对",
+					"weight": 0.4485,
+					"count": 141,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 140
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "发现",
+					"weight": 0.4433,
+					"count": 131,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 130
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "信息",
+					"weight": 0.4422,
+					"count": 129,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 128
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "事情",
+					"weight": 0.4393,
+					"count": 124,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 123
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "明显",
+					"weight": 0.4378,
+					"count": 16,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 10
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "真正",
+					"weight": 0.4375,
+					"count": 34,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 31
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "拿到",
+					"weight": 0.4355,
+					"count": 55,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 53
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "一张",
+					"weight": 0.4352,
+					"count": 33,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 30
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "可能",
+					"weight": 0.4346,
+					"count": 437,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 437
+						}
+					]
+				},
+				{
+					"text": "视觉",
+					"weight": 0.4339,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 13
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "我的",
+					"weight": 0.4339,
+					"count": 433,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 433
+						}
+					]
+				},
+				{
+					"text": "做了",
+					"weight": 0.4328,
+					"count": 53,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 51
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "而是",
+					"weight": 0.4286,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 12
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "时间",
+					"weight": 0.4275,
+					"count": 105,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 104
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "工具",
+					"weight": 0.4253,
+					"count": 29,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 26
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "流程",
+					"weight": 0.4235,
+					"count": 14,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 8
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "上面",
+					"weight": 0.4218,
+					"count": 97,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 96
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "下来",
+					"weight": 0.4203,
+					"count": 95,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 94
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "部署",
+					"weight": 0.4192,
+					"count": 44,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 42
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "别的",
+					"weight": 0.4188,
+					"count": 93,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 92
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "识别",
+					"weight": 0.4169,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 23
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "考虑",
+					"weight": 0.414,
+					"count": 41,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 39
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "区域",
+					"weight": 0.409,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 13
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "分类",
+					"weight": 0.4089,
+					"count": 81,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 80
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "最大",
+					"weight": 0.4085,
+					"count": 38,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 36
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "影响",
+					"weight": 0.4074,
+					"count": 23,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 20
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "是有",
+					"weight": 0.4062,
+					"count": 78,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 77
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "项目",
+					"weight": 0.406,
+					"count": 14,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 13
+						},
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "一层",
+					"weight": 0.4025,
+					"count": 74,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 73
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "尽量",
+					"weight": 0.4024,
+					"count": 35,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 33
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "界面",
+					"weight": 0.4024,
+					"count": 13,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 8
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "预测",
+					"weight": 0.4008,
+					"count": 272,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 272
+						}
+					]
+				},
+				{
+					"text": "过程",
+					"weight": 0.3981,
+					"count": 33,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 31
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "场景",
+					"weight": 0.398,
+					"count": 15,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 11
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "迁移",
+					"weight": 0.3971,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 14
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "几个",
+					"weight": 0.3964,
+					"count": 68,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 67
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "进去",
+					"weight": 0.3964,
+					"count": 20,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 17
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "重要",
+					"weight": 0.3954,
+					"count": 67,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 66
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "整体",
+					"weight": 0.3945,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 6
+						},
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "深度",
+					"weight": 0.3932,
+					"count": 65,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 64
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "假设",
+					"weight": 0.3922,
+					"count": 241,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 241
+						}
+					]
+				},
+				{
+					"text": "病害",
+					"weight": 0.392,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 17
+						}
+					]
+				},
+				{
+					"text": "环境",
+					"weight": 0.3917,
+					"count": 14,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 10
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "自己",
+					"weight": 0.391,
+					"count": 63,
+					"articles": [
+						{
+							"slug": "practical-machine-learning-limu",
+							"title": "斯坦福 21 秋季：实用机器学习中文版",
+							"count": 62
+						},
+						{
+							"slug": "yolo-apple-disease-detection",
+							"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+							"count": 1
+						}
+					]
+				}
+			]
+		}
+	],
+	"all": {
+		"year": "all",
+		"articleCount": 3,
+		"words": [
+			{
+				"text": "模型",
+				"weight": 1,
+				"count": 1200,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1017
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 144
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 39
+					}
+				]
+			},
+			{
+				"text": "数据",
+				"weight": 0.7993,
+				"count": 1213,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1176
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 21
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "训练",
+				"weight": 0.7436,
+				"count": 621,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 590
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 22
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					}
+				]
+			},
+			{
+				"text": "问题",
+				"weight": 0.636,
+				"count": 206,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 185
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 11
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 10
+					}
+				]
+			},
+			{
+				"text": "图片",
+				"weight": 0.5946,
+				"count": 259,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 243
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 13
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "结果",
+				"weight": 0.5835,
+				"count": 93,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 70
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 19
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "学习",
+				"weight": 0.5408,
+				"count": 434,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 417
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 16
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "复杂",
+				"weight": 0.5338,
+				"count": 141,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 125
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 13
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "稳定",
+				"weight": 0.5234,
+				"count": 49,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 32
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 11
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 6
+					}
+				]
+			},
+			{
+				"text": "常见",
+				"weight": 0.5189,
+				"count": 77,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 62
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 6
+					}
+				]
+			},
+			{
+				"text": "输出",
+				"weight": 0.5059,
+				"count": 206,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 195
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "工具",
+				"weight": 0.505,
+				"count": 55,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 26
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 26
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "目标",
+				"weight": 0.4882,
+				"count": 53,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 38
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 13
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "选择",
+				"weight": 0.4789,
+				"count": 108,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 96
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 10
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "容易",
+				"weight": 0.4782,
+				"count": 51,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 39
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 9
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "类别",
+				"weight": 0.4774,
+				"count": 71,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 46
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 25
+					}
+				]
+			},
+			{
+				"text": "部署",
+				"weight": 0.4772,
+				"count": 62,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 42
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 18
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "简单",
+				"weight": 0.4765,
+				"count": 182,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 174
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 6
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "检测",
+				"weight": 0.4718,
+				"count": 56,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 36
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 20
+					}
+				]
+			},
+			{
+				"text": "应用",
+				"weight": 0.4637,
+				"count": 113,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 60
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 53
+					}
+				]
+			},
+			{
+				"text": "任务",
+				"weight": 0.4554,
+				"count": 156,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 146
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "参数",
+				"weight": 0.4546,
+				"count": 183,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 177
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "场景",
+				"weight": 0.4515,
+				"count": 30,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 15
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 11
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "判断",
+				"weight": 0.4468,
+				"count": 33,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 22
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 6
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 5
+					}
+				]
+			},
+			{
+				"text": "生成",
+				"weight": 0.4388,
+				"count": 62,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 44
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 17
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "流程",
+				"weight": 0.4367,
+				"count": 23,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 6
+					}
+				]
+			},
+			{
+				"text": "系统",
+				"weight": 0.4321,
+				"count": 21,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 11
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 5
+					}
+				]
+			},
+			{
+				"text": "分类",
+				"weight": 0.4304,
+				"count": 91,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 80
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 10
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "质量",
+				"weight": 0.4293,
+				"count": 60,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 53
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "可能",
+				"weight": 0.4291,
+				"count": 444,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 437
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 7
+					}
+				]
+			},
+			{
+				"text": "适合",
+				"weight": 0.4236,
+				"count": 33,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 17
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 14
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "输入",
+				"weight": 0.4206,
+				"count": 92,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 86
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "项目",
+				"weight": 0.418,
+				"count": 22,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 13
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "效果",
+				"weight": 0.4135,
+				"count": 78,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 72
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "通过",
+				"weight": 0.4115,
+				"count": 143,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 129
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 14
+					}
+				]
+			},
+			{
+				"text": "包括",
+				"weight": 0.4112,
+				"count": 67,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 57
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "代码",
+				"weight": 0.4037,
+				"count": 80,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 58
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 22
+					}
+				]
+			},
+			{
+				"text": "指标",
+				"weight": 0.4033,
+				"count": 52,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 46
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "通常",
+				"weight": 0.4006,
+				"count": 183,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 174
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					}
+				]
+			},
+			{
+				"text": "验证",
+				"weight": 0.3964,
+				"count": 111,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 107
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "而是",
+				"weight": 0.3934,
+				"count": 21,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 12
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "成本",
+				"weight": 0.3921,
+				"count": 70,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 50
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 20
+					}
+				]
+			},
+			{
+				"text": "处理",
+				"weight": 0.3884,
+				"count": 96,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 83
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 13
+					}
+				]
+			},
+			{
+				"text": "能力",
+				"weight": 0.3834,
+				"count": 55,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 39
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "理解",
+				"weight": 0.3826,
+				"count": 37,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 25
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 11
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "样本",
+				"weight": 0.382,
+				"count": 221,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 218
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "大小",
+				"weight": 0.3819,
+				"count": 64,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 57
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 7
+					}
+				]
+			},
+			{
+				"text": "方向",
+				"weight": 0.3788,
+				"count": 47,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 42
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "算法",
+				"weight": 0.3785,
+				"count": 134,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 131
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "相对",
+				"weight": 0.3721,
+				"count": 143,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 140
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "信息",
+				"weight": 0.3679,
+				"count": 131,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 128
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "格式",
+				"weight": 0.3664,
+				"count": 22,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 15
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "情况",
+				"weight": 0.3653,
+				"count": 102,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 99
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "智能",
+				"weight": 0.3646,
+				"count": 33,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 30
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "实际",
+				"weight": 0.3629,
+				"count": 97,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 94
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "视频",
+				"weight": 0.3603,
+				"count": 46,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 40
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 5
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "相关",
+				"weight": 0.3596,
+				"count": 54,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 50
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "完整",
+				"weight": 0.3543,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 20
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "环境",
+				"weight": 0.3538,
+				"count": 17,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 10
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "服务",
+				"weight": 0.3488,
+				"count": 39,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 24
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 15
+					}
+				]
+			},
+			{
+				"text": "好的",
+				"weight": 0.3486,
+				"count": 154,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 152
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "特征",
+				"weight": 0.3466,
+				"count": 182,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 180
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "计算",
+				"weight": 0.3446,
+				"count": 68,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 64
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "用户",
+				"weight": 0.3434,
+				"count": 78,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 71
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 7
+					}
+				]
+			},
+			{
+				"text": "开发",
+				"weight": 0.3424,
+				"count": 43,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 36
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 7
+					}
+				]
+			},
+			{
+				"text": "比赛",
+				"weight": 0.3417,
+				"count": 21,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 15
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 6
+					}
+				]
+			},
+			{
+				"text": "增强",
+				"weight": 0.3416,
+				"count": 13,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 5
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "文本",
+				"weight": 0.3382,
+				"count": 55,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 46
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 9
+					}
+				]
+			},
+			{
+				"text": "核心",
+				"weight": 0.3379,
+				"count": 24,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 7
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "重要",
+				"weight": 0.3368,
+				"count": 69,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 66
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "关注",
+				"weight": 0.3362,
+				"count": 36,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 31
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "平台",
+				"weight": 0.3354,
+				"count": 35,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 22
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 13
+					}
+				]
+			},
+			{
+				"text": "深度",
+				"weight": 0.3354,
+				"count": 67,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 64
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "设计",
+				"weight": 0.3348,
+				"count": 29,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 23
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 5
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "知识",
+				"weight": 0.3338,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 19
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 15
+					}
+				]
+			},
+			{
+				"text": "根据",
+				"weight": 0.3317,
+				"count": 43,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 39
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "工作",
+				"weight": 0.3272,
+				"count": 35,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 21
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 14
+					}
+				]
+			},
+			{
+				"text": "多个",
+				"weight": 0.3229,
+				"count": 52,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 49
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "考虑",
+				"weight": 0.3218,
+				"count": 42,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 39
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "能够",
+				"weight": 0.3217,
+				"count": 185,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 183
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "搜索",
+				"weight": 0.3189,
+				"count": 87,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 83
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "ai",
+				"weight": 0.3188,
+				"count": 53,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 51
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "解决",
+				"weight": 0.3186,
+				"count": 24,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 20
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "也可以",
+				"weight": 0.3168,
+				"count": 46,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 43
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "界面",
+				"weight": 0.3141,
+				"count": 14,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "控制",
+				"weight": 0.3115,
+				"count": 23,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 18
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "过程",
+				"weight": 0.3113,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 31
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "迁移",
+				"weight": 0.3106,
+				"count": 19,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 14
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "测试",
+				"weight": 0.3094,
+				"count": 28,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 24
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "整体",
+				"weight": 0.3089,
+				"count": 12,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 6
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			}
+		]
+	}
+}
