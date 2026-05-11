@@ -226,7 +226,7 @@ export default function BlogPage() {
 									) : wordCloudLoading ? (
 										<div className='text-secondary flex h-[300px] items-center justify-center rounded-2xl border bg-white/35 text-sm'>生成中...</div>
 									) : (
-										<YearWordCloud words={cloud?.words || []} height={300} maxWords={72} />
+										<YearWordCloud words={cloud?.words || []} height={300} maxWords={90} />
 									)}
 								</motion.div>
 							)

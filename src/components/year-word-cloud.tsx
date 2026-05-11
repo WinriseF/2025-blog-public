@@ -16,6 +16,7 @@ type CloudDatum = {
 	text: string
 	count: number
 	weight: number
+	rank: number
 	size: number
 	fontWeight: number
 	color: string
@@ -25,6 +26,11 @@ type CloudDatum = {
 }
 
 type PlacedWord = Required<Pick<CloudDatum, 'text' | 'count' | 'weight' | 'size' | 'fontWeight' | 'color' | 'rotate' | 'x' | 'y'>>
+type CloudBounds = [{ x: number; y: number }, { x: number; y: number }]
+type WordCloudLayout = {
+	words: PlacedWord[]
+	bounds: CloudBounds | null
+}
 
 const COLORS = [
 	'var(--color-brand)',
@@ -53,20 +59,49 @@ function createSeededRandom(seed: string) {
 }
 
 function toCloudWords(words: BlogWordCloudWord[], maxWords: number, width: number): CloudDatum[] {
-	const minFontSize = width < 520 ? 13 : 15
-	const maxFontSize = width < 520 ? 38 : 58
+	const minFontSize = width < 520 ? 8 : 10
+	const maxFontSize = width < 520 ? 36 : 56
+	const visibleWords = words.filter(word => word.weight > 0).slice(0, maxWords)
+	const lastIndex = Math.max(visibleWords.length - 1, 1)
 
-	return words
-		.filter(word => word.weight > 0)
-		.slice(0, maxWords)
-		.map((word, index) => ({
+	return visibleWords.map((word, index) => {
+		const rankProgress = index / lastIndex
+		const rankCurve = Math.pow(1 - rankProgress, 2.7)
+		const weightCurve = Math.pow(word.weight, 1.7)
+		const emphasis = Math.min(1, rankCurve * 0.58 + weightCurve * 0.42)
+		const baseSize = minFontSize + emphasis * (maxFontSize - minFontSize)
+		const size = index === 0 ? maxFontSize : index < 3 ? Math.max(baseSize, maxFontSize * 0.78) : index < 8 ? Math.max(baseSize, maxFontSize * 0.58) : baseSize
+
+		return {
 			text: word.text,
 			count: word.count,
 			weight: word.weight,
-			size: Math.round(minFontSize + Math.pow(word.weight, 0.58) * (maxFontSize - minFontSize)),
-			fontWeight: word.weight > 0.76 ? 800 : word.weight > 0.48 ? 700 : 550,
+			rank: index,
+			size: Math.round(size),
+			fontWeight: index < 4 ? 800 : word.weight > 0.62 ? 750 : word.weight > 0.42 ? 650 : 520,
 			color: COLORS[index % COLORS.length]
-		}))
+		}
+	})
+}
+
+function getCloudTransform(bounds: CloudBounds | null, width: number, height: number) {
+	if (!bounds) return { offsetX: 0, offsetY: 0, scale: 1 }
+
+	const cloudWidth = Math.max(bounds[1].x - bounds[0].x, 1)
+	const cloudHeight = Math.max(bounds[1].y - bounds[0].y, 1)
+	const margin = width < 520 ? 8 : 10
+	const availableWidth = Math.max(width - margin * 2, 1)
+	const availableHeight = Math.max(height - margin * 2, 1)
+	const maxScale = width < 520 ? 1.16 : 1.24
+	const scale = Math.min(availableWidth / cloudWidth, availableHeight / cloudHeight, maxScale)
+	const centerX = (bounds[0].x + bounds[1].x) / 2 - width / 2
+	const centerY = (bounds[0].y + bounds[1].y) / 2 - height / 2
+
+	return {
+		offsetX: -centerX * scale,
+		offsetY: -centerY * scale,
+		scale
+	}
 }
 
 export function YearWordCloud({ words, height = 220, maxWords = 54, className }: YearWordCloudProps) {
@@ -74,7 +109,7 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 	const svgId = useMemo(() => rawId.replace(/[^a-zA-Z0-9_-]/g, ''), [rawId])
 	const rootRef = useRef<HTMLDivElement>(null)
 	const [width, setWidth] = useState(0)
-	const [placedWords, setPlacedWords] = useState<PlacedWord[] | null>(null)
+	const [layout, setLayout] = useState<WordCloudLayout | null>(null)
 
 	useEffect(() => {
 		const element = rootRef.current
@@ -93,35 +128,39 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 
 	useEffect(() => {
 		if (width <= 0 || height <= 0 || cloudWords.length === 0) {
-			setPlacedWords([])
+			setLayout({ words: [], bounds: null })
 			return
 		}
 
 		let cancelled = false
-		setPlacedWords(null)
+		setLayout(null)
 
 		const random = createSeededRandom(cloudWords.map(word => `${word.text}:${word.count}`).join('|'))
 		const layout = cloud<CloudDatum>()
 			.size([width, height])
 			.words(cloudWords)
-			.padding(word => (word.weight > 0.76 ? 6 : width < 520 ? 2 : 4))
-			.rotate((_, index) => {
-				if (index < 8) return 0
-				if (index % 15 === 0) return -14
-				if (index % 19 === 0) return 14
+			.padding(word => (word.rank < 3 ? 2 : word.rank < 12 ? 1 : 0.35))
+			.rotate((word, index) => {
+				if (index < 10) return 0
+				if (word.text.length > 5) return 0
+				if (index % 17 === 0) return 90
+				if (index % 23 === 0) return -90
+				if (index % 11 === 0) return -12
+				if (index % 13 === 0) return 12
 				return 0
 			})
 			.font('PingFang SC, Microsoft YaHei, sans-serif')
 			.fontWeight(word => word.fontWeight)
 			.fontSize(word => word.size)
-			.spiral('archimedean')
+			.spiral('rectangular')
 			.random(random)
 			.canvas(() => document.createElement('canvas'))
-			.on('end', tags => {
+			.on('end', (tags, bounds) => {
 				if (cancelled) return
-				setPlacedWords(
-					tags.filter((word): word is PlacedWord => Boolean(word.text && word.x !== undefined && word.y !== undefined && word.rotate !== undefined))
-				)
+				setLayout({
+					words: tags.filter((word): word is PlacedWord => Boolean(word.text && word.x !== undefined && word.y !== undefined && word.rotate !== undefined)),
+					bounds: bounds?.length === 2 ? (bounds as CloudBounds) : null
+				})
 			})
 
 		layout.start()
@@ -136,25 +175,29 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 		<div
 			ref={rootRef}
 			className={cn(
-				'relative w-full overflow-hidden rounded-2xl border bg-white/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_24px_60px_-42px_rgba(0,0,0,0.35)]',
+				'relative w-full overflow-hidden rounded-2xl border bg-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_24px_60px_-42px_rgba(0,0,0,0.35)]',
 				className
 			)}
 			style={{ height }}
 			aria-label='年度文章词云图'>
 			<div
-				className='pointer-events-none absolute inset-0 opacity-60'
+				className='pointer-events-none absolute inset-0 opacity-80'
 				style={{
 					backgroundImage:
-						'linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255,255,255,0.28)), linear-gradient(rgba(255,255,255,0.36) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.28) 1px, transparent 1px)',
-					backgroundSize: '100% 100%, 42px 42px, 42px 42px'
+						'radial-gradient(circle at 44% 42%, rgba(255,255,255,0.96), rgba(255,255,255,0.72) 46%, rgba(255,255,255,0.42)), linear-gradient(135deg, rgba(255,255,255,0.72), rgba(255,255,255,0.24))'
 				}}
 			/>
 			<div className='pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent' />
 
-			{width === 0 || placedWords === null ? (
+			{width === 0 || layout === null ? (
 				<div className='text-secondary relative z-10 flex h-full items-center justify-center text-sm'>生成中...</div>
-			) : placedWords.length > 0 ? (
-				<svg className='relative z-10 block h-full w-full' viewBox={`0 0 ${width} ${height}`} role='img' aria-label='年度文章词云图'>
+			) : layout.words.length > 0 ? (
+				<svg
+					className='relative z-10 block h-full w-full'
+					viewBox={`0 0 ${width} ${height}`}
+					role='img'
+					aria-label='年度文章词云图'
+					textRendering='geometricPrecision'>
 					<defs>
 						<linearGradient id={`${svgId}-brand`} x1='0%' y1='0%' x2='100%' y2='100%'>
 							<stop offset='0%' stopColor='var(--color-brand)' />
@@ -168,22 +211,27 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 							<feDropShadow dx='0' dy='5' stdDeviation='4' floodColor='rgba(0,0,0,0.16)' />
 						</filter>
 					</defs>
-					<g transform={`translate(${width / 2}, ${height / 2})`}>
-						{placedWords.map((word, index) => (
-							<text
-								key={`${word.text}-${word.x}-${word.y}`}
-								textAnchor='middle'
-								transform={`translate(${word.x}, ${word.y}) rotate(${word.rotate})`}
-								fill={index === 0 ? `url(#${svgId}-brand)` : index < 4 ? `url(#${svgId}-ink)` : word.color}
-								fontSize={word.size}
-								fontWeight={word.fontWeight}
-								filter={index < 3 ? `url(#${svgId}-soft-shadow)` : undefined}
-								opacity={0.72 + word.weight * 0.28}>
-								<title>{`${word.text} · ${word.count} 次`}</title>
-								{word.text}
-							</text>
-						))}
-					</g>
+					{(() => {
+						const transform = getCloudTransform(layout.bounds, width, height)
+						return (
+							<g transform={`translate(${width / 2 + transform.offsetX}, ${height / 2 + transform.offsetY}) scale(${transform.scale})`}>
+								{layout.words.map((word, index) => (
+									<text
+										key={`${word.text}-${word.x}-${word.y}`}
+										textAnchor='middle'
+										transform={`translate(${word.x}, ${word.y}) rotate(${word.rotate})`}
+										fill={index === 0 ? `url(#${svgId}-brand)` : index < 4 ? `url(#${svgId}-ink)` : word.color}
+										fontSize={word.size}
+										fontWeight={word.fontWeight}
+										filter={index < 3 ? `url(#${svgId}-soft-shadow)` : undefined}
+										opacity={0.78 + word.weight * 0.22}>
+										<title>{`${word.text} · ${word.count} 次`}</title>
+										{word.text}
+									</text>
+								))}
+							</g>
+						)
+					})()}
 				</svg>
 			) : (
 				<div className='text-secondary relative z-10 flex h-full items-center justify-center text-sm'>暂无词云数据</div>
