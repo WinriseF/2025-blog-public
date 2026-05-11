@@ -41,7 +41,10 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 			try {
 				const html = await codeToHtml(originalCode, {
 					lang: codeToken.lang || 'text',
-					theme: 'one-light'
+					themes: {
+						light: 'one-light',
+						dark: 'github-dark'
+					}
 				})
 				const key = `__SHIKI_CODE_${codeBlockMap.size}__`
 				codeBlockMap.set(key, { html, original: originalCode })

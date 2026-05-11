@@ -79,16 +79,23 @@
 /* Lists */
 .prose ul,
 .prose ol {
-	margin: 0.75em 0 0.75em 1.25em;
+	margin: 0.75em 0;
+	padding-left: 1.6em;
 }
 .prose ul {
 	list-style-type: square;
 }
 .prose ol {
-	list-style-type: lower-roman;
+	list-style-type: decimal;
 }
 .prose li {
 	margin: 0.35em 0;
+	padding-left: 0.25em;
+}
+
+.prose li::marker {
+	color: var(--color-secondary);
+	font-weight: 600;
 }
 
 /* Task Lists */
@@ -125,6 +132,29 @@
 	width: 100%;
 	display: block;
 }
+
+.prose .shiki {
+	background-color: color-mix(in srgb, var(--color-article) 82%, #fff) !important;
+}
+
+html[data-time-theme='night'] .prose code {
+	border-color: rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-time-theme='night'] .prose pre,
+html[data-time-theme='night'] .prose .shiki {
+	border-color: rgba(255, 255, 255, 0.12);
+	background-color: var(--shiki-dark-bg, #10191d) !important;
+}
+
+html[data-time-theme='night'] .prose .shiki span {
+	color: var(--shiki-dark, inherit) !important;
+	font-style: var(--shiki-dark-font-style, inherit) !important;
+	font-weight: var(--shiki-dark-font-weight, inherit) !important;
+	text-decoration: var(--shiki-dark-text-decoration, inherit) !important;
+}
+
 .prose pre code {
 	background: transparent !important;
 	border: 0;
@@ -171,6 +201,17 @@
 	border-color: rgba(0, 0, 0, 0.15);
 }
 
+html[data-time-theme='night'] .prose .code-block-copy-btn {
+	color: var(--color-primary);
+	border-color: rgba(255, 255, 255, 0.14);
+	background: rgba(16, 25, 29, 0.86);
+}
+
+html[data-time-theme='night'] .prose .code-block-copy-btn:hover {
+	background: rgba(25, 38, 44, 0.96);
+	border-color: rgba(255, 255, 255, 0.22);
+}
+
 .prose .code-block-copy-btn:active {
 	transform: scale(0.95);
 }
@@ -191,8 +232,25 @@
 	border-left: 3px solid var(--color-brand);
 	background: rgba(0, 0, 0, 0.03);
 	margin: 1em 0;
-	padding: 0.75em 1em;
-	border-radius: 8px;
+	padding: 0.65em 0.95em;
+	border-radius: 0 10px 10px 0;
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.prose blockquote p {
+	margin: 0;
+}
+
+.prose blockquote p + p {
+	margin-top: 0.65em;
+}
+
+html[data-time-theme='night'] .prose blockquote {
+	border-left-color: color-mix(in srgb, var(--color-brand) 82%, #fff);
+	background: rgba(255, 255, 255, 0.055);
+	box-shadow:
+		inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+		0 12px 28px rgba(0, 0, 0, 0.12);
 }
 
 /* HR */
