@@ -1,6 +1,492 @@
 {
 	"years": [
 		{
+			"year": "2026",
+			"articleCount": 1,
+			"words": [
+				{
+					"text": "claude",
+					"weight": 1,
+					"count": 29,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 29
+						}
+					]
+				},
+				{
+					"text": "ai",
+					"weight": 0.9981,
+					"count": 29,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 29
+						}
+					]
+				},
+				{
+					"text": "codex",
+					"weight": 0.8196,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 26
+						}
+					]
+				},
+				{
+					"text": "skill",
+					"weight": 0.8196,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 26
+						}
+					]
+				},
+				{
+					"text": "系统",
+					"weight": 0.7388,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 11
+						}
+					]
+				},
+				{
+					"text": "智能体",
+					"weight": 0.7322,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "ai agent",
+					"weight": 0.7322,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "mcp",
+					"weight": 0.6512,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "代码",
+					"weight": 0.6448,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "智能",
+					"weight": 0.6448,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "prompt",
+					"weight": 0.6448,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "模型",
+					"weight": 0.6174,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "能力",
+					"weight": 0.6174,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "agent",
+					"weight": 0.5464,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "输出",
+					"weight": 0.5158,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "知识",
+					"weight": 0.5158,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "api",
+					"weight": 0.5158,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "开发",
+					"weight": 0.4723,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "上下文",
+					"weight": 0.4723,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "数据",
+					"weight": 0.4723,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "平台",
+					"weight": 0.4211,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "验证",
+					"weight": 0.4211,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "openai",
+					"weight": 0.4211,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "生态",
+					"weight": 0.3591,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "分类",
+					"weight": 0.2804,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "服务",
+					"weight": 0.2804,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "图片",
+					"weight": 0.2804,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "样本",
+					"weight": 0.2804,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "应用",
+					"weight": 0.2804,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "cursor",
+					"weight": 0.2804,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "参数",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "成本",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "回归",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "架构",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "迁移",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "输入",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "网络",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "学习",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "gemini",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "sdk",
+					"weight": 0.1725,
+					"count": 1,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						}
+					]
+				}
+			]
+		},
+		{
 			"year": "2025",
 			"articleCount": 2,
 			"words": [
@@ -2298,12 +2784,12 @@
 	],
 	"all": {
 		"year": "all",
-		"articleCount": 4,
+		"articleCount": 5,
 		"words": [
 			{
 				"text": "模型",
 				"weight": 1,
-				"count": 94,
+				"count": 101,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -2324,13 +2810,18 @@
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 7
 					}
 				]
 			},
 			{
 				"text": "数据",
-				"weight": 0.8331,
-				"count": 41,
+				"weight": 0.8223,
+				"count": 45,
 				"articles": [
 					{
 						"slug": "yolo-apple-disease-detection",
@@ -2351,13 +2842,18 @@
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 7
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 4
 					}
 				]
 			},
 			{
 				"text": "代码",
-				"weight": 0.7408,
-				"count": 29,
+				"weight": 0.7977,
+				"count": 37,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -2370,16 +2866,75 @@
 						"count": 8
 					},
 					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 8
+					}
+				]
+			},
+			{
+				"text": "ai",
+				"weight": 0.7675,
+				"count": 63,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 32
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 29
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "系统",
+				"weight": 0.7563,
+				"count": 38,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 14
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 11
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 5
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
 					}
 				]
 			},
 			{
 				"text": "平台",
-				"weight": 0.7408,
-				"count": 29,
+				"weight": 0.7297,
+				"count": 32,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -2395,12 +2950,39 @@
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
+					}
+				]
+			},
+			{
+				"text": "计算",
+				"weight": 0.7063,
+				"count": 23,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 7
 					}
 				]
 			},
 			{
 				"text": "检测",
-				"weight": 0.7396,
+				"weight": 0.7011,
 				"count": 37,
 				"articles": [
 					{
@@ -2416,80 +2998,9 @@
 				]
 			},
 			{
-				"text": "计算",
-				"weight": 0.7275,
-				"count": 23,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 7
-					}
-				]
-			},
-			{
-				"text": "成本",
-				"weight": 0.6883,
-				"count": 23,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 7
-					}
-				]
-			},
-			{
-				"text": "系统",
-				"weight": 0.6735,
-				"count": 27,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 14
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 5
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 4
-					}
-				]
-			},
-			{
 				"text": "api",
-				"weight": 0.6575,
-				"count": 21,
+				"weight": 0.6908,
+				"count": 26,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -2505,12 +3016,71 @@
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 6
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 5
+					}
+				]
+			},
+			{
+				"text": "上下文",
+				"weight": 0.6644,
+				"count": 24,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 6
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 6
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "能力",
+				"weight": 0.6282,
+				"count": 25,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 7
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 2
 					}
 				]
 			},
 			{
 				"text": "目标检测",
-				"weight": 0.6515,
+				"weight": 0.6176,
 				"count": 26,
 				"articles": [
 					{
@@ -2526,9 +3096,36 @@
 				]
 			},
 			{
+				"text": "成本",
+				"weight": 0.6115,
+				"count": 24,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 7
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "服务",
-				"weight": 0.6443,
-				"count": 21,
+				"weight": 0.6086,
+				"count": 23,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
@@ -2544,56 +3141,17 @@
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 5
-					}
-				]
-			},
-			{
-				"text": "上下文",
-				"weight": 0.6413,
-				"count": 20,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 6
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 6
-					}
-				]
-			},
-			{
-				"text": "学习",
-				"weight": 0.6412,
-				"count": 51,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 42
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 1
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
 					}
 				]
 			},
 			{
 				"text": "比赛",
-				"weight": 0.6374,
+				"weight": 0.6043,
 				"count": 25,
 				"articles": [
 					{
@@ -2610,7 +3168,7 @@
 			},
 			{
 				"text": "类别",
-				"weight": 0.635,
+				"weight": 0.602,
 				"count": 21,
 				"articles": [
 					{
@@ -2627,7 +3185,7 @@
 			},
 			{
 				"text": "spring",
-				"weight": 0.6318,
+				"weight": 0.5989,
 				"count": 20,
 				"articles": [
 					{
@@ -2643,127 +3201,30 @@
 				]
 			},
 			{
-				"text": "计算机视觉",
-				"weight": 0.6244,
-				"count": 22,
+				"text": "知识",
+				"weight": 0.596,
+				"count": 21,
 				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 18
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
-					}
-				]
-			},
-			{
-				"text": "迁移",
-				"weight": 0.6217,
-				"count": 26,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 13
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 7
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 5
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "应用",
-				"weight": 0.6172,
-				"count": 23,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 13
-					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "数据标注",
-				"weight": 0.6086,
-				"count": 20,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
-					}
-				]
-			},
-			{
-				"text": "yolo",
-				"weight": 0.6041,
-				"count": 28,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 28
-					}
-				]
-			},
-			{
-				"text": "机器学习",
-				"weight": 0.5939,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "实用机器学习",
-				"weight": 0.5939,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 34
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 5
 					}
 				]
 			},
 			{
 				"text": "训练",
-				"weight": 0.5937,
+				"weight": 0.592,
 				"count": 24,
 				"articles": [
 					{
@@ -2789,8 +3250,240 @@
 				]
 			},
 			{
+				"text": "计算机视觉",
+				"weight": 0.5919,
+				"count": 22,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 18
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "应用",
+				"weight": 0.5865,
+				"count": 25,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 13
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "开发",
+				"weight": 0.577,
+				"count": 29,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 18
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 6
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 4
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "数据标注",
+				"weight": 0.577,
+				"count": 20,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "claude",
+				"weight": 0.576,
+				"count": 31,
+				"articles": [
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 29
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "学习",
+				"weight": 0.5732,
+				"count": 52,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 42
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "迁移",
+				"weight": 0.5675,
+				"count": 27,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 13
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 7
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "yolo",
+				"weight": 0.5598,
+				"count": 28,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 28
+					}
+				]
+			},
+			{
+				"text": "机器学习",
+				"weight": 0.5504,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 34
+					}
+				]
+			},
+			{
+				"text": "实用机器学习",
+				"weight": 0.5504,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 34
+					}
+				]
+			},
+			{
+				"text": "输出",
+				"weight": 0.5384,
+				"count": 23,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 7
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 5
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "比赛复盘",
-				"weight": 0.5792,
+				"weight": 0.5367,
 				"count": 22,
 				"articles": [
 					{
@@ -2802,7 +3495,7 @@
 			},
 			{
 				"text": "大模型",
-				"weight": 0.5652,
+				"weight": 0.5358,
 				"count": 20,
 				"articles": [
 					{
@@ -2818,89 +3511,43 @@
 				]
 			},
 			{
-				"text": "模型接入",
-				"weight": 0.5502,
-				"count": 34,
+				"text": "mcp",
+				"weight": 0.5277,
+				"count": 16,
 				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "ai 大模型",
-				"weight": 0.5502,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "能力",
-				"weight": 0.5424,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
 						"count": 8
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 2
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
 					}
 				]
 			},
 			{
-				"text": "langchain4j",
-				"weight": 0.5388,
-				"count": 36,
+				"text": "prompt",
+				"weight": 0.5249,
+				"count": 16,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 36
-					}
-				]
-			},
-			{
-				"text": "开发",
-				"weight": 0.5336,
-				"count": 25,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 18
+						"count": 8
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 6
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
 					}
 				]
 			},
 			{
 				"text": "图片",
-				"weight": 0.5277,
-				"count": 19,
+				"weight": 0.516,
+				"count": 21,
 				"articles": [
 					{
 						"slug": "yolo-apple-disease-detection",
@@ -2915,6 +3562,11 @@
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 						"count": 2
 					},
 					{
@@ -2926,7 +3578,7 @@
 			},
 			{
 				"text": "部署",
-				"weight": 0.5261,
+				"weight": 0.5107,
 				"count": 18,
 				"articles": [
 					{
@@ -2947,103 +3599,33 @@
 				]
 			},
 			{
-				"text": "知识",
-				"weight": 0.5254,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "病虫害检测",
-				"weight": 0.5234,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "大小模型",
-				"weight": 0.5234,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "类别取舍",
-				"weight": 0.5234,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "模型协同",
-				"weight": 0.5234,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "ai",
-				"weight": 0.5206,
+				"text": "模型接入",
+				"weight": 0.5098,
 				"count": 34,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 32
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 2
+						"count": 34
 					}
 				]
 			},
 			{
-				"text": "苹果",
-				"weight": 0.5165,
-				"count": 17,
+				"text": "ai 大模型",
+				"weight": 0.5098,
+				"count": 34,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 17
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 34
 					}
 				]
 			},
 			{
 				"text": "分类",
-				"weight": 0.5151,
-				"count": 20,
+				"weight": 0.5037,
+				"count": 22,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -3056,6 +3638,11 @@
 						"count": 8
 					},
 					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					},
+					{
 						"slug": "yolo-apple-disease-detection",
 						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
 						"count": 1
@@ -3063,56 +3650,79 @@
 				]
 			},
 			{
-				"text": "并发编程",
-				"weight": 0.515,
-				"count": 18,
+				"text": "langchain4j",
+				"weight": 0.4993,
+				"count": 36,
 				"articles": [
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 36
 					}
 				]
 			},
 			{
-				"text": "虚拟线程",
-				"weight": 0.515,
-				"count": 18,
+				"text": "验证",
+				"weight": 0.4969,
+				"count": 17,
 				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
 					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
+						"count": 2
 					}
 				]
 			},
 			{
-				"text": "java 21",
-				"weight": 0.515,
-				"count": 18,
+				"text": "智能",
+				"weight": 0.4932,
+				"count": 19,
 				"articles": [
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "project loom",
-				"weight": 0.515,
-				"count": 18,
-				"articles": [
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1
 					}
 				]
 			},
 			{
 				"text": "模型训练",
-				"weight": 0.5018,
+				"weight": 0.4872,
 				"count": 12,
 				"articles": [
 					{
@@ -3134,7 +3744,7 @@
 			},
 			{
 				"text": "深度学习",
-				"weight": 0.5018,
+				"weight": 0.4872,
 				"count": 12,
 				"articles": [
 					{
@@ -3155,143 +3765,140 @@
 				]
 			},
 			{
-				"text": "课程笔记",
-				"weight": 0.4919,
+				"text": "病虫害检测",
+				"weight": 0.485,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "大小模型",
+				"weight": 0.485,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "类别取舍",
+				"weight": 0.485,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "模型协同",
+				"weight": 0.485,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "苹果",
+				"weight": 0.4786,
+				"count": 17,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 17
+					}
+				]
+			},
+			{
+				"text": "并发编程",
+				"weight": 0.4772,
 				"count": 18,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 18
 					}
 				]
 			},
 			{
-				"text": "spring ai",
-				"weight": 0.4852,
-				"count": 22,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 22
-					}
-				]
-			},
-			{
-				"text": "输出",
-				"weight": 0.4825,
+				"text": "虚拟线程",
+				"weight": 0.4772,
 				"count": 18,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 7
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "java 21",
+				"weight": 0.4772,
+				"count": 18,
+				"articles": [
 					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
+						"count": 18
 					}
 				]
 			},
 			{
-				"text": "课程介绍",
-				"weight": 0.4733,
-				"count": 16,
+				"text": "project loom",
+				"weight": 0.4772,
+				"count": 18,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 18
 					}
 				]
 			},
 			{
-				"text": "模型评估",
-				"weight": 0.4733,
-				"count": 16,
+				"text": "codex",
+				"weight": 0.4615,
+				"count": 26,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 26
 					}
 				]
 			},
 			{
-				"text": "迁移学习",
-				"weight": 0.4733,
-				"count": 16,
+				"text": "skill",
+				"weight": 0.4615,
+				"count": 26,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "数据获取",
-				"weight": 0.4733,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "特征工程",
-				"weight": 0.4733,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "音频转写",
-				"weight": 0.4733,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "逐字去噪",
-				"weight": 0.4733,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 26
 					}
 				]
 			},
 			{
 				"text": "评估",
-				"weight": 0.4719,
+				"weight": 0.4582,
 				"count": 17,
 				"articles": [
 					{
@@ -3312,20 +3919,138 @@
 				]
 			},
 			{
-				"text": "病害",
-				"weight": 0.4716,
-				"count": 13,
+				"text": "课程笔记",
+				"weight": 0.4558,
+				"count": 18,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 13
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 18
 					}
 				]
 			},
 			{
-				"text": "验证",
-				"weight": 0.4621,
+				"text": "spring ai",
+				"weight": 0.4496,
+				"count": 22,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 22
+					}
+				]
+			},
+			{
+				"text": "样本",
+				"weight": 0.4447,
+				"count": 12,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "课程介绍",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "模型评估",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "迁移学习",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "数据获取",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "特征工程",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "音频转写",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "逐字去噪",
+				"weight": 0.4386,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 16
+					}
+				]
+			},
+			{
+				"text": "指标",
+				"weight": 0.4379,
 				"count": 14,
 				"articles": [
 					{
@@ -3336,7 +4061,7 @@
 					{
 						"slug": "yolo-apple-disease-detection",
 						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
+						"count": 3
 					},
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -3346,79 +4071,25 @@
 					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "参数",
-				"weight": 0.4559,
-				"count": 13,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 3
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "输入",
-				"weight": 0.4559,
-				"count": 13,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 3
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "网络",
-				"weight": 0.455,
-				"count": 12,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 3
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
 						"count": 1
 					}
 				]
 			},
 			{
+				"text": "病害",
+				"weight": 0.4369,
+				"count": 13,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 13
+					}
+				]
+			},
+			{
 				"text": "特征",
-				"weight": 0.4423,
+				"weight": 0.4294,
 				"count": 16,
 				"articles": [
 					{
@@ -3439,25 +4110,8 @@
 				]
 			},
 			{
-				"text": "样本",
-				"weight": 0.4407,
-				"count": 10,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "指标",
-				"weight": 0.4392,
+				"text": "参数",
+				"weight": 0.4227,
 				"count": 14,
 				"articles": [
 					{
@@ -3466,25 +4120,125 @@
 						"count": 8
 					},
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
 						"count": 3
 					},
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
 						"count": 2
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 						"count": 1
 					}
 				]
 			},
 			{
+				"text": "输入",
+				"weight": 0.4227,
+				"count": 14,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "网络",
+				"weight": 0.422,
+				"count": 13,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 3
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "生态",
+				"weight": 0.418,
+				"count": 15,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 12
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "智能体",
+				"weight": 0.4123,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "ai agent",
+				"weight": 0.4123,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 18
+					}
+				]
+			},
+			{
 				"text": "模型选型",
-				"weight": 0.4384,
+				"weight": 0.4063,
 				"count": 16,
 				"articles": [
 					{
@@ -3496,7 +4250,7 @@
 			},
 			{
 				"text": "应用开发",
-				"weight": 0.4384,
+				"weight": 0.4063,
 				"count": 16,
 				"articles": [
 					{
@@ -3508,7 +4262,7 @@
 			},
 			{
 				"text": "微调",
-				"weight": 0.4135,
+				"weight": 0.3919,
 				"count": 10,
 				"articles": [
 					{
@@ -3525,7 +4279,7 @@
 			},
 			{
 				"text": "yolo11",
-				"weight": 0.4114,
+				"weight": 0.3812,
 				"count": 9,
 				"articles": [
 					{
@@ -3537,7 +4291,7 @@
 			},
 			{
 				"text": "yolov8",
-				"weight": 0.4114,
+				"weight": 0.3812,
 				"count": 9,
 				"articles": [
 					{
@@ -3549,7 +4303,7 @@
 			},
 			{
 				"text": "私有",
-				"weight": 0.3951,
+				"weight": 0.3746,
 				"count": 9,
 				"articles": [
 					{
@@ -3565,100 +4319,8 @@
 				]
 			},
 			{
-				"text": "java",
-				"weight": 0.3843,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "loom",
-				"weight": 0.3843,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "project",
-				"weight": 0.3843,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "函数",
-				"weight": 0.3826,
-				"count": 10,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "gpu",
-				"weight": 0.3778,
-				"count": 11,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "生态",
-				"weight": 0.3696,
-				"count": 13,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 12
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 1
-					}
-				]
-			},
-			{
 				"text": "算法",
-				"weight": 0.3687,
+				"weight": 0.3675,
 				"count": 12,
 				"articles": [
 					{
@@ -3684,13 +4346,13 @@
 				]
 			},
 			{
-				"text": "智能",
-				"weight": 0.366,
+				"text": "gpu",
+				"weight": 0.3668,
 				"count": 11,
 				"articles": [
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
 					},
 					{
@@ -3699,21 +4361,79 @@
 						"count": 2
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
 						"count": 1
 					}
 				]
 			},
 			{
-				"text": "回归",
-				"weight": 0.3659,
-				"count": 9,
+				"text": "函数",
+				"weight": 0.3627,
+				"count": 10,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "java",
+				"weight": 0.3561,
+				"count": 8,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "loom",
+				"weight": 0.3561,
+				"count": 8,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "project",
+				"weight": 0.3561,
+				"count": 8,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "回归",
+				"weight": 0.3473,
+				"count": 10,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
 					},
 					{
 						"slug": "java21-virtual-threads",
@@ -3724,7 +4444,7 @@
 			},
 			{
 				"text": "斯坦福",
-				"weight": 0.3614,
+				"weight": 0.3349,
 				"count": 13,
 				"articles": [
 					{
@@ -3735,98 +4455,29 @@
 				]
 			},
 			{
-				"text": "标签",
-				"weight": 0.355,
-				"count": 8,
+				"text": "架构",
+				"weight": 0.3346,
+				"count": 11,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
-					}
-				]
-			},
-			{
-				"text": "精度",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
+					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "偏差",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "神经",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "梯度",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "预测",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "adam",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "auc",
-				"weight": 0.355,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
 					}
 				]
 			}

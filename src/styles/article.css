@@ -86,11 +86,30 @@
 	list-style-type: square;
 }
 .prose ol {
-	list-style-type: decimal;
+	counter-reset: prose-ordered-list;
+	list-style: none;
+	padding-left: 0;
 }
 .prose li {
 	margin: 0.35em 0;
 	padding-left: 0.25em;
+}
+
+.prose ol > li {
+	counter-increment: prose-ordered-list;
+	position: relative;
+	padding-left: 2.75em;
+}
+
+.prose ol > li::before {
+	content: counter(prose-ordered-list) '.';
+	position: absolute;
+	top: 0;
+	left: 0;
+	min-width: 2em;
+	text-align: right;
+	color: var(--color-secondary);
+	font-weight: 600;
 }
 
 .prose li::marker {
