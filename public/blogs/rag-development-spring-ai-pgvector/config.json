@@ -1,0 +1,6 @@
+{
+	"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+	"tags": ["RAG", "Spring AI", "pgvector", "Java"],
+	"date": "2026-01-13",
+	"summary": "从项目结构、数据库表、文档入库、向量检索到问答接口，完整讲解一个 Spring AI + pgvector 的最小可用 RAG 系统。"
+}

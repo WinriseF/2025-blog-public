@@ -1,0 +1,6 @@
+{
+	"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+	"tags": ["RAG", "开源项目", "RAG-Anything", "RAGFlow", "Dify"],
+	"date": "2026-01-17",
+	"summary": "从 Dify、RAGFlow、RAG-Anything、AnythingLLM、PrivateGPT、Haystack、LlamaIndex、Quivr、AutoRAG 等项目出发，按交付形态、架构、文档处理、私有化、评测和集成成本拆解 RAG 开源方案选型。"
+}

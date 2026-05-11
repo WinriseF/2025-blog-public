@@ -2,35 +2,733 @@
 	"years": [
 		{
 			"year": "2026",
-			"articleCount": 1,
+			"articleCount": 8,
 			"words": [
 				{
-					"text": "claude",
+					"text": "rag",
 					"weight": 1,
-					"count": 29,
+					"count": 339,
 					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 60
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 47
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 47
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 47
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 47
+						}
+					]
+				},
+				{
+					"text": "系统",
+					"weight": 0.62,
+					"count": 74,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 13
+						},
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 11
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 10
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 9
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 9
+						}
+					]
+				},
+				{
+					"text": "模型",
+					"weight": 0.6128,
+					"count": 82,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
 							"count": 29
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 8
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 8
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 8
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "embedding",
+					"weight": 0.601,
+					"count": 111,
+					"articles": [
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 47
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 38
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 7
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "数据",
+					"weight": 0.5685,
+					"count": 68,
+					"articles": [
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 16
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 13
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 12
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "向量",
+					"weight": 0.5657,
+					"count": 66,
+					"articles": [
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 21
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 13
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 8
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
 						}
 					]
 				},
 				{
 					"text": "ai",
-					"weight": 0.9981,
-					"count": 29,
+					"weight": 0.5507,
+					"count": 88,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 							"count": 29
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 29
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 9
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "知识",
+					"weight": 0.5342,
+					"count": 68,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 26
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 10
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 10
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "prompt",
+					"weight": 0.5162,
+					"count": 57,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 13
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 11
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 8
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "spring ai",
+					"weight": 0.4777,
+					"count": 50,
+					"articles": [
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 34
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 4
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 4
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 4
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "上下文",
+					"weight": 0.4614,
+					"count": 42,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 8
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 8
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 7
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 6
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 6
+						}
+					]
+				},
+				{
+					"text": "大模型",
+					"weight": 0.4191,
+					"count": 28,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 16
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 4
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 4
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "问答",
+					"weight": 0.3979,
+					"count": 38,
+					"articles": [
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 18
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 7
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 2
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "开发",
+					"weight": 0.3714,
+					"count": 23,
+					"articles": [
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 10
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "成本",
+					"weight": 0.3643,
+					"count": 37,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 13
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 13
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 4
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 2
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "spring",
+					"weight": 0.3596,
+					"count": 38,
+					"articles": [
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 29
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 4
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 2
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 2
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "知识库",
+					"weight": 0.3565,
+					"count": 36,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 18
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "claude",
+					"weight": 0.3357,
+					"count": 28,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 28
+						}
+					]
+				},
+				{
+					"text": "私有",
+					"weight": 0.3353,
+					"count": 21,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 13
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "openai",
+					"weight": 0.3226,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 4
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 2
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 2
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "代码",
+					"weight": 0.3172,
+					"count": 22,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 2
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 2
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "api",
+					"weight": 0.3118,
+					"count": 20,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 5
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 2
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 2
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "dify",
+					"weight": 0.3031,
+					"count": 39,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 39
+						}
+					]
+				},
+				{
+					"text": "mcp",
+					"weight": 0.298,
+					"count": 13,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "检索",
+					"weight": 0.2854,
+					"count": 34,
+					"articles": [
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 26
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "能力",
+					"weight": 0.2823,
+					"count": 19,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 7
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 1
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
 						}
 					]
 				},
 				{
 					"text": "codex",
-					"weight": 0.8196,
+					"weight": 0.2774,
 					"count": 26,
 					"articles": [
 						{
@@ -42,7 +740,7 @@
 				},
 				{
 					"text": "skill",
-					"weight": 0.8196,
+					"weight": 0.2774,
 					"count": 26,
 					"articles": [
 						{
@@ -53,20 +751,214 @@
 					]
 				},
 				{
-					"text": "系统",
-					"weight": 0.7388,
+					"text": "应用",
+					"weight": 0.2763,
+					"count": 15,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 2
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "ai 大模型",
+					"weight": 0.2656,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "平台",
+					"weight": 0.2639,
 					"count": 11,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "架构",
+					"weight": 0.2628,
+					"count": 17,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 13
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "服务",
+					"weight": 0.2591,
+					"count": 14,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 2
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 1
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "指标",
+					"weight": 0.2579,
+					"count": 12,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 6
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 5
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "输出",
+					"weight": 0.2536,
+					"count": 14,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 11
+							"count": 5
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 2
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 2
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 2
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "评估",
+					"weight": 0.2492,
+					"count": 15,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 2
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 2
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 1
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
 						}
 					]
 				},
 				{
 					"text": "智能体",
-					"weight": 0.7322,
+					"weight": 0.2478,
 					"count": 18,
 					"articles": [
 						{
@@ -78,7 +970,7 @@
 				},
 				{
 					"text": "ai agent",
-					"weight": 0.7322,
+					"weight": 0.2478,
 					"count": 18,
 					"articles": [
 						{
@@ -89,286 +981,260 @@
 					]
 				},
 				{
-					"text": "mcp",
-					"weight": 0.6512,
-					"count": 8,
+					"text": "chunk",
+					"weight": 0.2447,
+					"count": 26,
 					"articles": [
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 8
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 26
 						}
 					]
 				},
 				{
-					"text": "代码",
-					"weight": 0.6448,
-					"count": 8,
+					"text": "java",
+					"weight": 0.2437,
+					"count": 26,
 					"articles": [
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 8
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 26
 						}
 					]
 				},
 				{
-					"text": "智能",
-					"weight": 0.6448,
-					"count": 8,
+					"text": "pgvector",
+					"weight": 0.2437,
+					"count": 26,
 					"articles": [
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 8
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 26
 						}
 					]
 				},
 				{
-					"text": "prompt",
-					"weight": 0.6448,
-					"count": 8,
+					"text": "rerank",
+					"weight": 0.2437,
+					"count": 26,
 					"articles": [
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "模型",
-					"weight": 0.6174,
-					"count": 7,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 7
-						}
-					]
-				},
-				{
-					"text": "能力",
-					"weight": 0.6174,
-					"count": 7,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 7
-						}
-					]
-				},
-				{
-					"text": "agent",
-					"weight": 0.5464,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "输出",
-					"weight": 0.5158,
-					"count": 5,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 5
-						}
-					]
-				},
-				{
-					"text": "知识",
-					"weight": 0.5158,
-					"count": 5,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 5
-						}
-					]
-				},
-				{
-					"text": "api",
-					"weight": 0.5158,
-					"count": 5,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 5
-						}
-					]
-				},
-				{
-					"text": "开发",
-					"weight": 0.4723,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 4
-						}
-					]
-				},
-				{
-					"text": "上下文",
-					"weight": 0.4723,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 4
-						}
-					]
-				},
-				{
-					"text": "数据",
-					"weight": 0.4723,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 4
-						}
-					]
-				},
-				{
-					"text": "平台",
-					"weight": 0.4211,
-					"count": 3,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 3
-						}
-					]
-				},
-				{
-					"text": "验证",
-					"weight": 0.4211,
-					"count": 3,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 3
-						}
-					]
-				},
-				{
-					"text": "openai",
-					"weight": 0.4211,
-					"count": 3,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 3
-						}
-					]
-				},
-				{
-					"text": "生态",
-					"weight": 0.3591,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "分类",
-					"weight": 0.2804,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "服务",
-					"weight": 0.2804,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "图片",
-					"weight": 0.2804,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "样本",
-					"weight": 0.2804,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "应用",
-					"weight": 0.2804,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "cursor",
-					"weight": 0.2804,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 26
 						}
 					]
 				},
 				{
 					"text": "参数",
-					"weight": 0.1725,
-					"count": 1,
+					"weight": 0.236,
+					"count": 10,
 					"articles": [
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 3
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 2
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "验证",
+					"weight": 0.2356,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 5
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 3
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "ragflow",
+					"weight": 0.2295,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 26
+						}
+					]
+				},
+				{
+					"text": "生态",
+					"weight": 0.2283,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 6
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "图片",
+					"weight": 0.2277,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "文档解析",
+					"weight": 0.2187,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "智能",
+					"weight": 0.2182,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "检索增强生成",
+					"weight": 0.2177,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "权限控制",
+					"weight": 0.2177,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "向量数据库",
+					"weight": 0.2177,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "hybrid search",
+					"weight": 0.2177,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "输入",
+					"weight": 0.2063,
+					"count": 9,
+					"articles": [
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 2
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 2
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 2
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 1
+						},
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
@@ -377,80 +1243,521 @@
 					]
 				},
 				{
-					"text": "成本",
-					"weight": 0.1725,
-					"count": 1,
+					"text": "开源项目",
+					"weight": 0.205,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "rag-anything",
+					"weight": 0.205,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "部署",
+					"weight": 0.2028,
+					"count": 11,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "评测",
+					"weight": 0.1872,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "运维",
+					"weight": 0.1872,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "样本",
+					"weight": 0.1868,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 2
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "agent",
+					"weight": 0.1849,
+					"count": 8,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "hybrid",
+					"weight": 0.1625,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "search",
+					"weight": 0.1625,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "分类",
+					"weight": 0.1588,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
+						},
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
 							"count": 1
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 1
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "anything",
+					"weight": 0.153,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
 						}
 					]
 				},
 				{
 					"text": "回归",
-					"weight": 0.1725,
-					"count": 1,
+					"weight": 0.1464,
+					"count": 4,
 					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 2
+						},
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
 							"count": 1
 						}
 					]
 				},
 				{
-					"text": "架构",
-					"weight": 0.1725,
-					"count": 1,
+					"text": "大小模型",
+					"weight": 0.1452,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "模型训练",
+					"weight": 0.1452,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "编排",
+					"weight": 0.1444,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 5
+						}
+					]
+				},
+				{
+					"text": "微调",
+					"weight": 0.1404,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "解析",
+					"weight": 0.1403,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "控制",
+					"weight": 0.1397,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "权限",
+					"weight": 0.1397,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "生成",
+					"weight": 0.1397,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "增强",
+					"weight": 0.1397,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "应用开发",
+					"weight": 0.1367,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 4
+						}
+					]
+				},
+				{
+					"text": "项目",
+					"weight": 0.1316,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "学习",
+					"weight": 0.131,
+					"count": 4,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "训练",
+					"weight": 0.1252,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "精度",
+					"weight": 0.1068,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "算法",
+					"weight": 0.1005,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "网络",
+					"weight": 0.0896,
+					"count": 2,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "sdk",
+					"weight": 0.0896,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
 							"count": 1
 						}
 					]
 				},
 				{
 					"text": "迁移",
-					"weight": 0.1725,
-					"count": 1,
+					"weight": 0.0871,
+					"count": 2,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
 							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 							"count": 1
-						}
-					]
-				},
-				{
-					"text": "输入",
-					"weight": 0.1725,
-					"count": 1,
-					"articles": [
+						},
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
 							"count": 1
 						}
 					]
 				},
 				{
-					"text": "网络",
-					"weight": 0.1725,
-					"count": 1,
+					"text": "计算",
+					"weight": 0.084,
+					"count": 2,
 					"articles": [
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
 							"count": 1
 						}
 					]
 				},
 				{
-					"text": "学习",
-					"weight": 0.1725,
+					"text": "标签",
+					"weight": 0.0838,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "rag-production-evaluation-security-operations",
+							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+							"count": 1
+						},
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "厂商",
+					"weight": 0.0838,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "rag-core-pipeline-from-documents-to-answers",
+							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "函数",
+					"weight": 0.0838,
+					"count": 2,
+					"articles": [
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+							"count": 1
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "cursor",
+					"weight": 0.0584,
 					"count": 1,
 					"articles": [
 						{
@@ -462,19 +1769,7 @@
 				},
 				{
 					"text": "gemini",
-					"weight": 0.1725,
-					"count": 1,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 1
-						}
-					]
-				},
-				{
-					"text": "sdk",
-					"weight": 0.1725,
+					"weight": 0.0584,
 					"count": 1,
 					"articles": [
 						{
@@ -2784,17 +4079,54 @@
 	],
 	"all": {
 		"year": "all",
-		"articleCount": 5,
+		"articleCount": 12,
 		"words": [
 			{
-				"text": "模型",
+				"text": "rag",
 				"weight": 1,
-				"count": 101,
+				"count": 344,
+				"articles": [
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 60
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 47
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 47
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 47
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 47
+					}
+				]
+			},
+			{
+				"text": "模型",
+				"weight": 0.793,
+				"count": 176,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
 						"count": 57
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 29
 					},
 					{
 						"slug": "yolo-apple-disease-detection",
@@ -2807,22 +4139,22 @@
 						"count": 13
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
 						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 7
 					}
 				]
 			},
 			{
 				"text": "数据",
-				"weight": 0.8223,
-				"count": 45,
+				"weight": 0.7052,
+				"count": 109,
 				"articles": [
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 16
+					},
 					{
 						"slug": "yolo-apple-disease-detection",
 						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
@@ -2834,53 +4166,53 @@
 						"count": 13
 					},
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
+						"slug": "rag-document-parsing-and-chunking",
+						"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+						"count": 13
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 7
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 4
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 12
 					}
 				]
 			},
 			{
-				"text": "代码",
-				"weight": 0.7977,
-				"count": 37,
+				"text": "系统",
+				"weight": 0.6933,
+				"count": 101,
 				"articles": [
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 13
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 14
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 13
 					},
 					{
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 8
+						"count": 11
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 10
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 9
 					}
 				]
 			},
 			{
 				"text": "ai",
-				"weight": 0.7675,
-				"count": 63,
+				"weight": 0.6219,
+				"count": 122,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -2893,48 +4225,250 @@
 						"count": 29
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 2
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 29
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 9
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
 					}
 				]
 			},
 			{
-				"text": "系统",
-				"weight": 0.7563,
-				"count": 38,
+				"text": "知识",
+				"weight": 0.6083,
+				"count": 84,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 14
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 26
 					},
 					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 11
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 10
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 5
+						"slug": "rag-document-parsing-and-chunking",
+						"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+						"count": 10
 					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
+						"count": 8
 					},
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "embedding",
+				"weight": 0.5854,
+				"count": 112,
+				"articles": [
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 47
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 38
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 7
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 6
+					}
+				]
+			},
+			{
+				"text": "向量",
+				"weight": 0.5816,
+				"count": 75,
+				"articles": [
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 21
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 13
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "prompt",
+				"weight": 0.5684,
+				"count": 65,
+				"articles": [
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 13
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 11
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "上下文",
+				"weight": 0.5648,
+				"count": 62,
+				"articles": [
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 8
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 7
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 6
+					}
+				]
+			},
+			{
+				"text": "spring ai",
+				"weight": 0.5512,
+				"count": 72,
+				"articles": [
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 34
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 22
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 4
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 4
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "大模型",
+				"weight": 0.5213,
+				"count": 48,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 16
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 16
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 4
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
 						"count": 4
 					}
 				]
 			},
 			{
 				"text": "平台",
-				"weight": 0.7297,
-				"count": 32,
+				"weight": 0.5164,
+				"count": 40,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -2952,6 +4486,11 @@
 						"count": 8
 					},
 					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 						"count": 3
@@ -2959,18 +4498,28 @@
 				]
 			},
 			{
-				"text": "计算",
-				"weight": 0.7063,
-				"count": 23,
+				"text": "成本",
+				"weight": 0.4976,
+				"count": 60,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 8
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 13
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 13
 					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
 						"count": 8
 					},
 					{
@@ -2981,30 +4530,114 @@
 				]
 			},
 			{
-				"text": "检测",
-				"weight": 0.7011,
-				"count": 37,
+				"text": "代码",
+				"weight": 0.4916,
+				"count": 51,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 29
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 13
 					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "spring",
+				"weight": 0.4901,
+				"count": 58,
+				"articles": [
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 29
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 14
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 6
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 4
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "开发",
+				"weight": 0.4747,
+				"count": 48,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 18
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 10
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 6
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
 					}
 				]
 			},
 			{
 				"text": "api",
-				"weight": 0.6908,
-				"count": 26,
+				"weight": 0.4597,
+				"count": 41,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
 						"count": 8
 					},
 					{
@@ -3025,36 +4658,181 @@
 				]
 			},
 			{
-				"text": "上下文",
-				"weight": 0.6644,
-				"count": 24,
+				"text": "问答",
+				"weight": 0.431,
+				"count": 46,
 				"articles": [
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 18
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 7
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 6
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "应用",
+				"weight": 0.4283,
+				"count": 38,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 13
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "服务",
+				"weight": 0.4253,
+				"count": 35,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
 						"count": 8
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 6
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
 					},
 					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 6
+						"count": 5
 					},
 					{
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 4
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "ai 大模型",
+				"weight": 0.4236,
+				"count": 52,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 34
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "训练",
+				"weight": 0.4077,
+				"count": 27,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 7
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 3
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "私有",
+				"weight": 0.4016,
+				"count": 30,
+				"articles": [
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 13
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 6
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 3
 					}
 				]
 			},
 			{
 				"text": "能力",
-				"weight": 0.6282,
-				"count": 25,
+				"weight": 0.3987,
+				"count": 37,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
@@ -3064,6 +4842,11 @@
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
 						"count": 8
 					},
 					{
@@ -3079,8 +4862,340 @@
 				]
 			},
 			{
+				"text": "计算",
+				"weight": 0.3955,
+				"count": 25,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 7
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 1
+					},
+					{
+						"slug": "rag-document-parsing-and-chunking",
+						"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "图片",
+				"weight": 0.3955,
+				"count": 30,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "检测",
+				"weight": 0.3794,
+				"count": 38,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 29
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "迁移",
+				"weight": 0.377,
+				"count": 28,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 13
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 7
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 5
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "指标",
+				"weight": 0.3718,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 6
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 5
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 3
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "验证",
+				"weight": 0.3689,
+				"count": 23,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 5
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "学习",
+				"weight": 0.3635,
+				"count": 55,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 42
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "输出",
+				"weight": 0.3562,
+				"count": 32,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 7
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 5
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "mcp",
+				"weight": 0.3544,
+				"count": 21,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 5
+					}
+				]
+			},
+			{
+				"text": "部署",
+				"weight": 0.3511,
+				"count": 29,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "评估",
+				"weight": 0.3497,
+				"count": 32,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 13
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 2
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 2
+					}
+				]
+			},
+			{
 				"text": "目标检测",
-				"weight": 0.6176,
+				"weight": 0.3494,
 				"count": 26,
 				"articles": [
 					{
@@ -3096,62 +5211,67 @@
 				]
 			},
 			{
-				"text": "成本",
-				"weight": 0.6115,
-				"count": 24,
+				"text": "模型训练",
+				"weight": 0.3451,
+				"count": 16,
 				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
+						"count": 4
 					},
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 8
+						"count": 4
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 7
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 4
 					}
 				]
 			},
 			{
-				"text": "服务",
-				"weight": 0.6086,
-				"count": 23,
+				"text": "openai",
+				"weight": 0.3444,
+				"count": 19,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 5
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 4
 					},
 					{
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
 						"count": 2
 					}
 				]
 			},
 			{
 				"text": "比赛",
-				"weight": 0.6043,
+				"weight": 0.3418,
 				"count": 25,
 				"articles": [
 					{
@@ -3168,7 +5288,7 @@
 			},
 			{
 				"text": "类别",
-				"weight": 0.602,
+				"weight": 0.3405,
 				"count": 21,
 				"articles": [
 					{
@@ -3184,74 +5304,25 @@
 				]
 			},
 			{
-				"text": "spring",
-				"weight": 0.5989,
-				"count": 20,
+				"text": "java",
+				"weight": 0.339,
+				"count": 34,
 				"articles": [
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 14
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 26
 					},
 					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 6
-					}
-				]
-			},
-			{
-				"text": "知识",
-				"weight": 0.596,
-				"count": 21,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 5
-					}
-				]
-			},
-			{
-				"text": "训练",
-				"weight": 0.592,
-				"count": 24,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 7
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
 					}
 				]
 			},
 			{
 				"text": "计算机视觉",
-				"weight": 0.5919,
+				"weight": 0.3349,
 				"count": 22,
 				"articles": [
 					{
@@ -3267,62 +5338,40 @@
 				]
 			},
 			{
-				"text": "应用",
-				"weight": 0.5865,
-				"count": 25,
+				"text": "参数",
+				"weight": 0.3341,
+				"count": 23,
 				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 13
-					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
 					},
 					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "开发",
-				"weight": 0.577,
-				"count": 29,
-				"articles": [
-					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 18
+						"count": 3
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 6
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 3
 					},
 					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 4
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 2
 					}
 				]
 			},
 			{
 				"text": "数据标注",
-				"weight": 0.577,
+				"weight": 0.3264,
 				"count": 20,
 				"articles": [
 					{
@@ -3339,13 +5388,13 @@
 			},
 			{
 				"text": "claude",
-				"weight": 0.576,
-				"count": 31,
+				"weight": 0.3244,
+				"count": 30,
 				"articles": [
 					{
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 29
+						"count": 28
 					},
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -3355,347 +5404,74 @@
 				]
 			},
 			{
-				"text": "学习",
-				"weight": 0.5732,
-				"count": 52,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 42
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 1
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "迁移",
-				"weight": 0.5675,
+				"text": "架构",
+				"weight": 0.324,
 				"count": 27,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
 						"count": 13
 					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 7
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 5
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "yolo",
-				"weight": 0.5598,
-				"count": 28,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 28
-					}
-				]
-			},
-			{
-				"text": "机器学习",
-				"weight": 0.5504,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "实用机器学习",
-				"weight": 0.5504,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "输出",
-				"weight": 0.5384,
-				"count": 23,
-				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 8
 					},
 					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 2
+					},
+					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 7
+						"count": 1
 					},
 					{
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 5
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 1
 					}
 				]
 			},
 			{
-				"text": "比赛复盘",
-				"weight": 0.5367,
-				"count": 22,
+				"text": "知识库",
+				"weight": 0.3235,
+				"count": 36,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 22
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 18
+					},
+					{
+						"slug": "rag-document-parsing-and-chunking",
+						"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+						"count": 18
 					}
 				]
 			},
 			{
-				"text": "大模型",
-				"weight": 0.5358,
+				"text": "大小模型",
+				"weight": 0.3233,
 				"count": 20,
 				"articles": [
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
 						"count": 16
 					},
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
 						"count": 4
 					}
 				]
 			},
 			{
-				"text": "mcp",
-				"weight": 0.5277,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "prompt",
-				"weight": 0.5249,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "图片",
-				"weight": 0.516,
-				"count": 21,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 2
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "部署",
-				"weight": 0.5107,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "模型接入",
-				"weight": 0.5098,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "ai 大模型",
-				"weight": 0.5098,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "分类",
-				"weight": 0.5037,
-				"count": 22,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 11
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 2
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "langchain4j",
-				"weight": 0.4993,
-				"count": 36,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 36
-					}
-				]
-			},
-			{
-				"text": "验证",
-				"weight": 0.4969,
-				"count": 17,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 3
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 2
-					}
-				]
-			},
-			{
 				"text": "智能",
-				"weight": 0.4932,
+				"weight": 0.3164,
 				"count": 19,
 				"articles": [
 					{
@@ -3721,30 +5497,148 @@
 				]
 			},
 			{
-				"text": "模型训练",
-				"weight": 0.4872,
-				"count": 12,
+				"text": "输入",
+				"weight": 0.311,
+				"count": 22,
 				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 4
-					},
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
+						"count": 8
 					},
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 4
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 2
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "生态",
+				"weight": 0.3099,
+				"count": 22,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 12
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 6
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "分类",
+				"weight": 0.3039,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 11
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 1
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "样本",
+				"weight": 0.2971,
+				"count": 17,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 2
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "yolo",
+				"weight": 0.2969,
+				"count": 28,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 28
 					}
 				]
 			},
 			{
 				"text": "深度学习",
-				"weight": 0.4872,
+				"weight": 0.2932,
 				"count": 12,
 				"articles": [
 					{
@@ -3765,20 +5659,227 @@
 				]
 			},
 			{
-				"text": "病虫害检测",
-				"weight": 0.485,
-				"count": 16,
+				"text": "机器学习",
+				"weight": 0.2919,
+				"count": 34,
 				"articles": [
 					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 34
 					}
 				]
 			},
 			{
-				"text": "大小模型",
-				"weight": 0.485,
+				"text": "实用机器学习",
+				"weight": 0.2919,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 34
+					}
+				]
+			},
+			{
+				"text": "比赛复盘",
+				"weight": 0.2847,
+				"count": 22,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 22
+					}
+				]
+			},
+			{
+				"text": "微调",
+				"weight": 0.2844,
+				"count": 14,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 2
+					}
+				]
+			},
+			{
+				"text": "应用开发",
+				"weight": 0.282,
+				"count": 20,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 16
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "网络",
+				"weight": 0.271,
+				"count": 14,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 3
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "模型接入",
+				"weight": 0.2704,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 34
+					}
+				]
+			},
+			{
+				"text": "算法",
+				"weight": 0.265,
+				"count": 14,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "langchain4j",
+				"weight": 0.2648,
+				"count": 36,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 36
+					}
+				]
+			},
+			{
+				"text": "dify",
+				"weight": 0.2609,
+				"count": 40,
+				"articles": [
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 39
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "检索",
+				"weight": 0.2589,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 26
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 8
+					}
+				]
+			},
+			{
+				"text": "特征",
+				"weight": 0.2584,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 13
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "病虫害检测",
+				"weight": 0.2572,
 				"count": 16,
 				"articles": [
 					{
@@ -3790,7 +5891,7 @@
 			},
 			{
 				"text": "类别取舍",
-				"weight": 0.485,
+				"weight": 0.2572,
 				"count": 16,
 				"articles": [
 					{
@@ -3802,7 +5903,7 @@
 			},
 			{
 				"text": "模型协同",
-				"weight": 0.485,
+				"weight": 0.2572,
 				"count": 16,
 				"articles": [
 					{
@@ -3814,7 +5915,7 @@
 			},
 			{
 				"text": "苹果",
-				"weight": 0.4786,
+				"weight": 0.2538,
 				"count": 17,
 				"articles": [
 					{
@@ -3826,7 +5927,7 @@
 			},
 			{
 				"text": "并发编程",
-				"weight": 0.4772,
+				"weight": 0.2531,
 				"count": 18,
 				"articles": [
 					{
@@ -3838,7 +5939,7 @@
 			},
 			{
 				"text": "虚拟线程",
-				"weight": 0.4772,
+				"weight": 0.2531,
 				"count": 18,
 				"articles": [
 					{
@@ -3850,7 +5951,7 @@
 			},
 			{
 				"text": "java 21",
-				"weight": 0.4772,
+				"weight": 0.2531,
 				"count": 18,
 				"articles": [
 					{
@@ -3862,7 +5963,7 @@
 			},
 			{
 				"text": "project loom",
-				"weight": 0.4772,
+				"weight": 0.2531,
 				"count": 18,
 				"articles": [
 					{
@@ -3873,8 +5974,40 @@
 				]
 			},
 			{
+				"text": "回归",
+				"weight": 0.2473,
+				"count": 13,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 2
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 1
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 1
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "codex",
-				"weight": 0.4615,
+				"weight": 0.2453,
 				"count": 26,
 				"articles": [
 					{
@@ -3886,7 +6019,7 @@
 			},
 			{
 				"text": "skill",
-				"weight": 0.4615,
+				"weight": 0.2453,
 				"count": 26,
 				"articles": [
 					{
@@ -3897,30 +6030,8 @@
 				]
 			},
 			{
-				"text": "评估",
-				"weight": 0.4582,
-				"count": 17,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 13
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 2
-					}
-				]
-			},
-			{
 				"text": "课程笔记",
-				"weight": 0.4558,
+				"weight": 0.2417,
 				"count": 18,
 				"articles": [
 					{
@@ -3931,42 +6042,8 @@
 				]
 			},
 			{
-				"text": "spring ai",
-				"weight": 0.4496,
-				"count": 22,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 22
-					}
-				]
-			},
-			{
-				"text": "样本",
-				"weight": 0.4447,
-				"count": 12,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 2
-					}
-				]
-			},
-			{
 				"text": "课程介绍",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
@@ -3978,7 +6055,7 @@
 			},
 			{
 				"text": "模型评估",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
@@ -3990,7 +6067,7 @@
 			},
 			{
 				"text": "迁移学习",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
@@ -4002,7 +6079,7 @@
 			},
 			{
 				"text": "数据获取",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
@@ -4014,7 +6091,7 @@
 			},
 			{
 				"text": "特征工程",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
@@ -4026,7 +6103,7 @@
 			},
 			{
 				"text": "音频转写",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
@@ -4038,46 +6115,19 @@
 			},
 			{
 				"text": "逐字去噪",
-				"weight": 0.4386,
+				"weight": 0.2326,
 				"count": 16,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 16
-					}
-				]
-			},
-			{
-				"text": "指标",
-				"weight": 0.4379,
-				"count": 14,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 3
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
 					}
 				]
 			},
 			{
 				"text": "病害",
-				"weight": 0.4369,
+				"weight": 0.2317,
 				"count": 13,
 				"articles": [
 					{
@@ -4088,223 +6138,9 @@
 				]
 			},
 			{
-				"text": "特征",
-				"weight": 0.4294,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 13
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "参数",
-				"weight": 0.4227,
-				"count": 14,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 3
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "输入",
-				"weight": 0.4227,
-				"count": 14,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 3
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "网络",
-				"weight": 0.422,
-				"count": 13,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 3
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "生态",
-				"weight": 0.418,
-				"count": 15,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 12
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 2
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "智能体",
-				"weight": 0.4123,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "ai agent",
-				"weight": 0.4123,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "模型选型",
-				"weight": 0.4063,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "应用开发",
-				"weight": 0.4063,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "微调",
-				"weight": 0.3919,
-				"count": 10,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 2
-					}
-				]
-			},
-			{
-				"text": "yolo11",
-				"weight": 0.3812,
-				"count": 9,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 9
-					}
-				]
-			},
-			{
-				"text": "yolov8",
-				"weight": 0.3812,
-				"count": 9,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 9
-					}
-				]
-			},
-			{
-				"text": "私有",
-				"weight": 0.3746,
-				"count": 9,
+				"text": "编排",
+				"weight": 0.2305,
+				"count": 11,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -4312,64 +6148,15 @@
 						"count": 6
 					},
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 3
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 5
 					}
 				]
 			},
 			{
-				"text": "算法",
-				"weight": 0.3675,
-				"count": 12,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "gpu",
-				"weight": 0.3668,
-				"count": 11,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "函数",
-				"weight": 0.3627,
+				"text": "精度",
+				"weight": 0.2254,
 				"count": 10,
 				"articles": [
 					{
@@ -4378,106 +6165,9 @@
 						"count": 8
 					},
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
 						"count": 2
-					}
-				]
-			},
-			{
-				"text": "java",
-				"weight": 0.3561,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "loom",
-				"weight": 0.3561,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "project",
-				"weight": 0.3561,
-				"count": 8,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 8
-					}
-				]
-			},
-			{
-				"text": "回归",
-				"weight": 0.3473,
-				"count": 10,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "斯坦福",
-				"weight": 0.3349,
-				"count": 13,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 13
-					}
-				]
-			},
-			{
-				"text": "架构",
-				"weight": 0.3346,
-				"count": 11,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 1
 					}
 				]
 			}

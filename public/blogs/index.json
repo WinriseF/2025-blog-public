@@ -1,5 +1,54 @@
 [
 	{
+		"slug": "rag-open-source-solutions-and-community-practices",
+		"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+		"tags": ["RAG", "开源项目", "RAG-Anything", "RAGFlow", "Dify"],
+		"date": "2026-01-17",
+		"summary": "从 Dify、RAGFlow、RAG-Anything、AnythingLLM、PrivateGPT、Haystack、LlamaIndex、Quivr、AutoRAG 等项目出发，按交付形态、架构、文档处理、私有化、评测和集成成本拆解 RAG 开源方案选型。"
+	},
+	{
+		"slug": "rag-production-evaluation-security-operations",
+		"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+		"tags": ["RAG", "评测", "安全", "权限控制", "运维"],
+		"date": "2026-01-16",
+		"summary": "介绍 RAG 从 Demo 走向生产所需的评测体系、权限过滤、间接 Prompt Injection 防护、成本控制、监控和持续迭代。"
+	},
+	{
+		"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+		"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+		"tags": ["RAG", "Embedding", "Hybrid Search", "Rerank"],
+		"date": "2026-01-15",
+		"summary": "系统讲解 RAG 检索质量优化：Embedding 选型、Top K、相似度阈值、混合检索、RRF、Rerank、MMR 和查询改写。"
+	},
+	{
+		"slug": "rag-document-parsing-and-chunking",
+		"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+		"tags": ["RAG", "Chunk", "文档解析", "知识库"],
+		"date": "2026-01-14",
+		"summary": "详细介绍 PDF、Markdown、Word、网页等资料进入 RAG 系统前如何解析、清洗、切分和设计元数据。"
+	},
+	{
+		"slug": "rag-development-spring-ai-pgvector",
+		"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+		"tags": ["RAG", "Spring AI", "pgvector", "Java"],
+		"date": "2026-01-13",
+		"summary": "从项目结构、数据库表、文档入库、向量检索到问答接口，完整讲解一个 Spring AI + pgvector 的最小可用 RAG 系统。"
+	},
+	{
+		"slug": "rag-core-pipeline-from-documents-to-answers",
+		"title": "RAG 核心流程详解：从文档到答案经历了什么",
+		"tags": ["RAG", "Embedding", "向量数据库", "检索"],
+		"date": "2026-01-12",
+		"summary": "拆解 RAG 的索引阶段和查询阶段，解释文档加载、清洗、Chunk、Embedding、向量检索、Prompt 组装和引用返回。"
+	},
+	{
+		"slug": "rag-intro-why-retrieval-augmented-generation",
+		"title": "RAG 入门：大模型为什么需要检索增强生成",
+		"tags": ["RAG", "AI 大模型", "检索增强生成", "知识库"],
+		"date": "2026-01-11",
+		"summary": "从大模型的知识过期、幻觉和私有知识缺失讲起，系统解释 RAG 的价值、工作方式、适用场景和边界。"
+	},
+	{
 		"slug": "ai-agent-skills-introduction",
 		"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 		"tags": ["AI Agent", "Skill", "Codex", "Claude", "智能体"],

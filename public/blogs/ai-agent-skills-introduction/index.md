@@ -6,7 +6,7 @@ AI Agent 的能力正在从“回答问题”走向“执行任务”。当模�
 
 Skill 就是为这个问题设计的：把某类任务的经验、约束、脚本、模板和参考资料，整理成 agent 可以自动发现、按需加载、重复使用的能力包。
 
-这篇文章面向已经使用过 ChatGPT、Codex、Claude Code、Cursor 或其他 AI 编程工具的开发者。我们会从 `SKILL.md` 文件讲起，介绍 Skill 的结构、触发方式、和 Prompt / MCP / Plugin 的区别，以及在团队中落地时需要注意的安全边界。
+这里从 `SKILL.md` 文件讲起，记录 Skill 的结构、触发方式、和 Prompt / MCP / Plugin 的区别，以及在团队中落地时需要注意的安全边界。
 
 ![AI Agent Skill 封面图](/blogs/ai-agent-skills-introduction/cover.png)
 

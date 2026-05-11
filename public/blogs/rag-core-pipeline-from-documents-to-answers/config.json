@@ -1,0 +1,6 @@
+{
+	"title": "RAG 核心流程详解：从文档到答案经历了什么",
+	"tags": ["RAG", "Embedding", "向量数据库", "检索"],
+	"date": "2026-01-12",
+	"summary": "拆解 RAG 的索引阶段和查询阶段，解释文档加载、清洗、Chunk、Embedding、向量检索、Prompt 组装和引用返回。"
+}

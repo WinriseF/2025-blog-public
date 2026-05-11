@@ -1,0 +1,6 @@
+{
+	"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+	"tags": ["RAG", "Embedding", "Hybrid Search", "Rerank"],
+	"date": "2026-01-15",
+	"summary": "系统讲解 RAG 检索质量优化：Embedding 选型、Top K、相似度阈值、混合检索、RRF、Rerank、MMR 和查询改写。"
+}
