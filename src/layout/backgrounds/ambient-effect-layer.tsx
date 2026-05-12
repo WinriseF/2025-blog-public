@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { TimeThemeName } from '@/lib/time-theme'
 import { rand } from './utils'
 import { useMusicPlayer } from '@/components/music-player'
@@ -112,8 +112,8 @@ function drawRain(ctx: CanvasRenderingContext2D, drops: RainDrop[], width: numbe
 	ctx.clearRect(0, 0, width, height)
 	ctx.save()
 	ctx.lineCap = 'round'
-	const rainColor = themeName === 'night' ? 'rgba(205, 235, 255, 0.95)' : 'rgba(42, 82, 94, 0.95)'
-	const rainHighlight = themeName === 'night' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(225, 246, 255, 0.42)'
+	const rainColor = themeName === 'night' ? 'rgba(205, 235, 255, 0.95)' : 'rgba(55, 158, 166, 0.86)'
+	const rainHighlight = themeName === 'night' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(228, 255, 252, 0.58)'
 
 	for (const drop of drops) {
 		drop.x += drop.wind * deltaSeconds
@@ -206,6 +206,26 @@ function drawMeteors(ctx: CanvasRenderingContext2D, meteors: Meteor[], width: nu
 		ctx.globalAlpha = 1
 	}
 	ctx.restore()
+}
+
+function getRainBackdropStyle(themeName: TimeThemeName, active: boolean): CSSProperties {
+	const opacity = active ? 1 : 0
+
+	if (themeName === 'night') {
+		return {
+			opacity,
+			background: 'linear-gradient(180deg, rgba(23, 38, 48, 0.18) 0%, rgba(18, 34, 44, 0.3) 54%, rgba(10, 22, 30, 0.42) 100%)',
+			backdropFilter: active ? 'brightness(0.78) saturate(0.86)' : 'none',
+			transition: 'opacity 900ms ease'
+		}
+	}
+
+	return {
+		opacity,
+		background: 'linear-gradient(180deg, rgba(196, 232, 232, 0.12) 0%, rgba(113, 184, 190, 0.16) 54%, rgba(64, 142, 149, 0.2) 100%)',
+		backdropFilter: active ? 'brightness(0.94) saturate(0.98)' : 'none',
+		transition: 'opacity 900ms ease'
+	}
 }
 
 export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProps) {
@@ -325,16 +345,7 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 
 	return (
 		<>
-			{rainActive && (
-				<div
-					className='absolute inset-0'
-					style={{
-						background:
-							'linear-gradient(180deg, rgba(26, 39, 46, 0.28) 0%, rgba(25, 39, 47, 0.42) 52%, rgba(15, 27, 34, 0.56) 100%)',
-						backdropFilter: 'brightness(0.68) saturate(0.72)'
-					}}
-				/>
-			)}
+			<div className='pointer-events-none absolute inset-0' style={getRainBackdropStyle(themeName, rainActive)} />
 			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} />
 		</>
 	)
