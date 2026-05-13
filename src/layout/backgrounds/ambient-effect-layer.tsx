@@ -208,22 +208,11 @@ function drawMeteors(ctx: CanvasRenderingContext2D, meteors: Meteor[], width: nu
 	ctx.restore()
 }
 
-function getRainBackdropStyle(themeName: TimeThemeName, active: boolean): CSSProperties {
-	const opacity = active ? 1 : 0
-
-	if (themeName === 'night') {
-		return {
-			opacity,
-			background: 'linear-gradient(180deg, rgba(23, 38, 48, 0.18) 0%, rgba(18, 34, 44, 0.3) 54%, rgba(10, 22, 30, 0.42) 100%)',
-			backdropFilter: active ? 'brightness(0.78) saturate(0.86)' : 'none',
-			transition: 'opacity 900ms ease'
-		}
-	}
-
+function getRainBackdropStyle(active: boolean): CSSProperties {
 	return {
-		opacity,
-		background: 'linear-gradient(180deg, rgba(196, 232, 232, 0.12) 0%, rgba(113, 184, 190, 0.16) 54%, rgba(64, 142, 149, 0.2) 100%)',
-		backdropFilter: active ? 'brightness(0.94) saturate(0.98)' : 'none',
+		opacity: active ? 1 : 0,
+		background: 'transparent',
+		backdropFilter: 'none',
 		transition: 'opacity 900ms ease'
 	}
 }
@@ -345,7 +334,7 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 
 	return (
 		<>
-			<div className='pointer-events-none absolute inset-0' style={getRainBackdropStyle(themeName, rainActive)} />
+			<div className='pointer-events-none absolute inset-0' style={getRainBackdropStyle(rainActive)} />
 			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} />
 		</>
 	)
