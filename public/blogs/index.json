@@ -1,5 +1,12 @@
 [
 	{
+		"slug": "software-architecture-gof-23-design-patterns",
+		"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+		"tags": ["软件体系结构", "设计模式", "GoF", "面向对象"],
+		"date": "2026-05-12",
+		"summary": "系统拆解 GoF 23 个设计模式在软件体系结构中的位置：创建型模式管理对象生命周期，结构型模式管理模块边界和对象组合，行为型模式管理协作流程和变化点。"
+	},
+	{
 		"slug": "rag-open-source-solutions-and-community-practices",
 		"title": "RAG 开源方案选型：社区项目给我们的工程启发",
 		"tags": ["RAG", "开源项目", "RAG-Anything", "RAGFlow", "Dify"],
