@@ -48,6 +48,8 @@ GoF 原书把 23 个模式分成三类：
 
 **核心意图：** 创建一组相互匹配的对象，也就是一个产品族。
 
+![抽象工厂](/blogs/software-architecture-gof-23-design-patterns/抽象工厂.png)
+
 抽象工厂不只是创建某一个类，而是保证一整组对象来自同一个实现体系。例如支付系统里，支付宝实现应该同时提供支付客户端、退款客户端、回调验签器、账单下载器；微信支付实现也应该提供同一组能力。业务层不应该混用“支付宝支付客户端 + 微信验签器”。
 
 适合场景：
@@ -111,6 +113,8 @@ interface PaymentProviderFactory {
 
 **核心意图：** 分步骤构造复杂对象，把构造过程和最终表示分开。
 
+![建造者](/blogs/software-architecture-gof-23-design-patterns/建造者.png)
+
 Builder 经常被误解成“链式调用”。链式调用只是表现形式，Builder 真正解决的是复杂对象构造时的可读性、校验和不变量维护。
 
 适合场景：
@@ -147,6 +151,8 @@ Builder 的另一个风险是让对象变得过度灵活。一个 Builder 如果
 ### 2.3 Factory Method：工厂方法
 
 **核心意图：** 定义创建对象的接口，把具体创建逻辑交给子类、插件或扩展点。
+
+![工厂方法](/blogs/software-architecture-gof-23-design-patterns/工厂方法.png)
 
 Factory Method 和 Abstract Factory 很像，但粒度更小。Factory Method 通常只创建一种产品；Abstract Factory 创建一组相关产品。
 
@@ -198,6 +204,8 @@ Factory Method 在框架中的核心作用，是把“稳定流程”和“变�
 
 **核心意图：** 通过复制已有对象来创建新对象。
 
+![原型](/blogs/software-architecture-gof-23-design-patterns/原型.png)
+
 Prototype 适合对象初始化成本高、结构复杂、需要从模板派生的场景。
 
 常见例子：
@@ -235,6 +243,8 @@ Prototype 还要考虑版本问题。模板升级后，已经复制出去的实�
 ### 2.5 Singleton：单例
 
 **核心意图：** 保证一个类只有一个实例，并提供全局访问点。
+
+![单例](/blogs/software-architecture-gof-23-design-patterns/单例.png)
 
 Singleton 是最容易滥用的模式之一。它看起来能解决“全局只有一个”的问题，但经常引入隐藏依赖和全局状态。
 
@@ -282,6 +292,8 @@ Singleton 的主要问题：
 ### 3.1 Adapter：适配器
 
 **核心意图：** 把一个接口转换成调用方期望的另一个接口。
+
+![适配器](/blogs/software-architecture-gof-23-design-patterns/适配器.png)
 
 Adapter 在架构中最重要的作用是保护边界。尤其是对接第三方系统时，外部 SDK 的模型、异常、状态码、分页方式、重试语义都不应该直接进入核心业务层。
 
@@ -334,6 +346,8 @@ Adapter 也不要变成业务规则中心。它负责把外部世界翻译成内
 
 **核心意图：** 将抽象部分和实现部分分离，使它们可以独立变化。
 
+![桥接](/blogs/software-architecture-gof-23-design-patterns/桥接.png)
+
 Bridge 适合两个维度都会变化的场景。如果不用 Bridge，系统往往会出现类爆炸。
 
 例如通知系统有两个变化维度：
@@ -365,6 +379,8 @@ Bridge 的误用通常出现在只有一个维度变化时。如果只有发送�
 ### 3.3 Composite：组合
 
 **核心意图：** 让调用方用统一接口处理单个对象和组合对象。
+
+![组合](/blogs/software-architecture-gof-23-design-patterns/组合.png)
 
 Composite 适合树形结构。
 
@@ -439,6 +455,8 @@ Composite 不适合所有层级关系。如果关系本质是图，例如标签�
 
 **核心意图：** 在不改变对象接口的前提下，动态叠加行为。
 
+![装饰器](/blogs/software-architecture-gof-23-design-patterns/装饰器.png)
+
 Decorator 和继承都能扩展行为，但 Decorator 更适合横向能力叠加。例如一个 HTTP 客户端可以被依次包装为：带日志的客户端、带重试的客户端、带指标的客户端、带缓存的客户端。
 
 Java 标准库里的 `FilterInputStream` 就是典型例子：它包装另一个输入流，并在读取过程中增加额外行为或转换。
@@ -470,6 +488,8 @@ Decorator 的误用是包装层过多却没有可观测性。调用栈里套了�
 
 **核心意图：** 为复杂子系统提供一个简单入口。
 
+![外观](/blogs/software-architecture-gof-23-design-patterns/外观.png)
+
 Facade 在架构分层里很常见。比如订单模块内部可能涉及库存、优惠、支付、履约、发票、通知，但对外只暴露 `OrderFacade.placeOrder()`。
 
 Facade 的价值：
@@ -494,6 +514,8 @@ Facade 不应该成为绕过领域模型的捷径。如果所有规则都堆在 
 ### 3.6 Flyweight：享元
 
 **核心意图：** 共享大量细粒度对象的内部状态，降低内存占用。
+
+![享元](/blogs/software-architecture-gof-23-design-patterns/享元.png)
 
 Flyweight 适合对象数量巨大、重复状态很多的场景。
 
@@ -525,6 +547,8 @@ Flyweight 更适合高频、大量、重复的对象。如果系统只有几十�
 ### 3.7 Proxy：代理
 
 **核心意图：** 用代理对象控制对真实对象的访问。
+
+![代理](/blogs/software-architecture-gof-23-design-patterns/代理.png)
 
 Proxy 在现代架构里无处不在：RPC 客户端、ORM 懒加载、AOP、事务代理、缓存代理、权限代理、远程服务代理都属于这个思路。
 
@@ -563,6 +587,8 @@ Proxy 和 Adapter 的边界也常被混淆。Adapter 解决接口不兼容，重
 ### 4.1 Chain of Responsibility：责任链
 
 **核心意图：** 让多个处理器都有机会处理请求，请求沿链路传递。
+
+![责任链](/blogs/software-architecture-gof-23-design-patterns/责任链.png)
 
 责任链在 Web 框架和业务规则系统里非常常见。
 
@@ -620,6 +646,8 @@ const authHandler: Handler = {
 
 **核心意图：** 把一次请求封装成对象。
 
+![命令](/blogs/software-architecture-gof-23-design-patterns/命令.png)
+
 Command 是架构里非常实用的模式。它让“请求的发起”和“请求的执行”分离。
 
 适合场景：
@@ -662,6 +690,8 @@ Command 与事件也要区分。命令表示“请求系统做一件事”，通
 ### 4.3 Interpreter：解释器
 
 **核心意图：** 为语言定义语法表示，并解释执行。
+
+![解释器](/blogs/software-architecture-gof-23-design-patterns/解释器.png)
 
 Interpreter 适合小型 DSL，而不是通用编程语言。
 
@@ -706,6 +736,8 @@ Interpreter 的适用范围通常比很多人想象得窄。它适合表达式�
 
 **核心意图：** 在不暴露集合内部结构的情况下，顺序访问元素。
 
+![迭代器](/blogs/software-architecture-gof-23-design-patterns/迭代器.png)
+
 Iterator 不只是数组遍历。在系统架构里，它还对应分页、游标、流式读取和批处理。
 
 常见场景：
@@ -747,6 +779,8 @@ Iterator 和批处理经常一起出现。一个好的批处理接口不应该�
 
 **核心意图：** 用一个中介对象封装多个对象之间的交互。
 
+![中介者](/blogs/software-architecture-gof-23-design-patterns/中介者.png)
+
 当多个对象互相调用，形成网状依赖时，Mediator 可以把协作逻辑集中起来。
 
 适合场景：
@@ -781,6 +815,8 @@ Mediator 适合管理多对象协作，但它不应该替代对象本身的职�
 
 **核心意图：** 在不暴露对象内部结构的情况下，保存和恢复对象状态。
 
+![备忘录](/blogs/software-architecture-gof-23-design-patterns/备忘录.png)
+
 Memento 常用于撤销、回滚、快照和检查点。
 
 典型场景：
@@ -814,6 +850,8 @@ Memento 和 Command 经常配合。Command 记录“做了什么”，Memento �
 ### 4.7 Observer：观察者
 
 **核心意图：** 当一个对象状态变化时，自动通知依赖它的对象。
+
+![观察者](/blogs/software-architecture-gof-23-design-patterns/观察者.png)
 
 Observer 是事件驱动架构的基础思想之一。
 
@@ -852,6 +890,8 @@ Observer 的价值在于解耦“状态变化”和“后续反应”。订单�
 ### 4.8 State：状态
 
 **核心意图：** 让对象在内部状态改变时改变行为。
+
+![状态模式](/blogs/software-architecture-gof-23-design-patterns/状态模式.png)
 
 State 适合状态明确、状态行为差异大、状态迁移有规则的场景。
 
@@ -897,6 +937,8 @@ State 的误用是把简单枚举也拆成一堆类。比如只有 `enabled/disa
 ### 4.9 Strategy：策略
 
 **核心意图：** 定义一组算法，把它们封装起来，并让它们可以互相替换。
+
+![策略](/blogs/software-architecture-gof-23-design-patterns/策略.png)
 
 Strategy 是业务系统里最常用的设计模式之一。
 
@@ -956,6 +998,8 @@ Strategy 和 Template Method 的区别在于变化位置。Strategy 替换整个
 
 **核心意图：** 在父类中定义算法骨架，把部分步骤延迟到子类实现。
 
+![模板方法](/blogs/software-architecture-gof-23-design-patterns/模板方法.png)
+
 Template Method 很适合框架代码。
 
 例如一个导入流程固定为：
@@ -995,6 +1039,8 @@ Template Method 的价值在于固定流程骨架。框架或父类控制执行�
 ### 4.11 Visitor：访问者
 
 **核心意图：** 在不改变对象结构的前提下，为对象结构增加新的操作。
+
+![访问者](/blogs/software-architecture-gof-23-design-patterns/访问者.png)
 
 Visitor 适合“对象结构稳定，但操作经常增加”的场景。
 
