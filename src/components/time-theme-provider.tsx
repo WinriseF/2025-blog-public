@@ -11,6 +11,13 @@ type TimeThemeContextValue = {
 	cycleTheme: () => void
 }
 
+function getInitialThemeFromDom(): TimeTheme {
+	if (typeof document === 'undefined') return getTimeTheme()
+
+	const name = document.documentElement.dataset.timeTheme as TimeThemeName | undefined
+	return name && timeThemes[name] ? timeThemes[name] : getTimeTheme()
+}
+
 const TimeThemeContext = createContext<TimeThemeContextValue>({
 	theme: getTimeTheme(),
 	manual: false,
@@ -18,7 +25,7 @@ const TimeThemeContext = createContext<TimeThemeContextValue>({
 })
 
 export function TimeThemeProvider({ children }: { children: React.ReactNode }) {
-	const [theme, setTheme] = useState<TimeTheme>(() => getTimeTheme())
+	const [theme, setTheme] = useState<TimeTheme>(() => getInitialThemeFromDom())
 	const [manualThemeName, setManualThemeName] = useState<TimeThemeName | null>(null)
 
 	const applyTheme = useCallback((nextTheme: TimeTheme) => {

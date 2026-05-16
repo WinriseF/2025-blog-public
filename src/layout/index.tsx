@@ -1,5 +1,5 @@
 'use client'
-import { PropsWithChildren, useLayoutEffect, useState, type CSSProperties } from 'react'
+import { PropsWithChildren, useEffect, useLayoutEffect, useState, type CSSProperties } from 'react'
 import { useCenterInit } from '@/hooks/use-center'
 import TimeAtmosphereBackground from './backgrounds/time-atmosphere-background'
 import NavCard from '@/components/nav-card'
@@ -46,6 +46,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const pathname = usePathname()
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
+	const [mounted, setMounted] = useState(false)
 
 	const backgroundImages = (siteContent.backgroundImages ?? []) as Array<{ id: string; url: string }>
 	const currentBackgroundImageId = siteContent.currentBackgroundImageId
@@ -58,6 +59,10 @@ function ThemedLayout({ children }: PropsWithChildren) {
 				transformOrigin: 'center center'
 			}
 		: undefined
+
+	useEffect(() => {
+		setMounted(true)
+	}, [])
 
 	useLayoutEffect(() => {
 		if (pathname !== '/') {
@@ -89,7 +94,15 @@ function ThemedLayout({ children }: PropsWithChildren) {
 					} as React.CSSProperties
 				}
 			/>
-			<TimeAtmosphereBackground theme={timeTheme} backgroundImage={getAssetUrl(currentBackgroundImage?.url)} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
+			{mounted ? (
+				<TimeAtmosphereBackground
+					theme={timeTheme}
+					backgroundImage={getAssetUrl(currentBackgroundImage?.url)}
+					regenerateKey={`${regenerateKey}-${timeTheme.name}`}
+				/>
+			) : (
+				<div className='pointer-events-none fixed inset-0 z-0 bg-bg' />
+			)}
 			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
 				<NavCard />
