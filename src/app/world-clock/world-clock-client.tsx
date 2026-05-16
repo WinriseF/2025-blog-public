@@ -15,6 +15,7 @@ import {
 	type Coordinates
 } from '@/lib/world-clock/solar'
 import { buildSolarTermPoints, formatSolarTermDate, type SolarTermPoint } from '@/lib/world-clock/solar-terms'
+import { getAssetUrl } from '@/lib/asset-url'
 
 const EARTH_RADIUS = 2.2
 const SURFACE_MARKER_OFFSET = 0.008
@@ -25,9 +26,9 @@ const INITIAL_RENDER_DATE = new Date(Date.UTC(2026, 0, 1, 0, 0, 0))
 const INITIAL_VIEW: Coordinates = { lat: 18, lon: 108 }
 const INITIAL_SELECTION: Coordinates = { lat: 31.23, lon: 121.47 }
 const BASE_MAPS = [
-	{ key: 'winter-standard', label: '冬季标清', src: '/world-clock/earth-blue-marble-5400.jpg' },
-	{ key: 'winter-high', label: '冬季高清', src: '/world-clock/earth-winter-8192.jpg' },
-	{ key: 'summer-high', label: '夏季高清', src: '/world-clock/earth-summer-8192.jpg' }
+	{ key: 'winter-standard', label: '冬季标清', src: getAssetUrl('/world-clock/earth-blue-marble-5400.jpg') },
+	{ key: 'winter-high', label: '冬季高清', src: getAssetUrl('/world-clock/earth-winter-8192.jpg') },
+	{ key: 'summer-high', label: '夏季高清', src: getAssetUrl('/world-clock/earth-summer-8192.jpg') }
 ] as const
 
 function getBaseMapKeyForDate(date: Date) {
@@ -345,7 +346,7 @@ export default function WorldClockClient() {
 			earthMaterial.uniforms.dayMap.value = configureTexture(texture)
 			disposableTextures.add(texture)
 		})
-		textureLoader.load('/world-clock/earth-night-8192.jpg', texture => {
+		textureLoader.load(getAssetUrl('/world-clock/earth-night-8192.jpg'), texture => {
 			if (disposed) {
 				texture.dispose()
 				return

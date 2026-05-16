@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { getAssetUrl } from '@/lib/asset-url'
 import ImageUploadDialog, { type ImageItem } from './image-upload-dialog'
 
 export interface Project {
@@ -93,7 +94,7 @@ export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }:
 			<div className='flex items-start gap-4'>
 				<div className='group relative'>
 					<img
-						src={localProject.image}
+						src={getAssetUrl(localProject.image)}
 						alt={localProject.name}
 						className={cn('h-16 w-16 shrink-0 rounded-xl object-cover', canEdit && 'cursor-pointer')}
 						onClick={() => canEdit && setShowImageDialog(true)}

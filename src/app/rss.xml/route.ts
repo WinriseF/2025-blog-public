@@ -1,15 +1,10 @@
-import fs from 'node:fs'
-import path from 'node:path'
-
 import siteContent from '@/config/site-content.json'
 import blogIndex from '@/../public/blogs/index.json'
-import { getBlogCover } from '@/lib/blog-cover'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yysuni.com'
 const FEED_PATH = '/rss.xml'
 const SITE_ORIGIN = SITE_URL.replace(/\/$/, '')
 const FEED_URL = `${SITE_ORIGIN}${FEED_PATH}`
-const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
 type BlogIndexItem = {
 	slug: string
@@ -27,50 +22,6 @@ const escapeXml = (value: string): string =>
 
 const wrapCdata = (value: string): string => `<![CDATA[${value}]]>`
 
-const getExtension = (input: string): string | undefined => {
-	const clean = input.split(/[?#]/)[0]
-	return clean.split('.').pop()?.toLowerCase()
-}
-
-const getMimeTypeFromUrl = (url?: string): string | null => {
-	if (!url) return null
-	const ext = getExtension(url)
-	if (!ext) return null
-	if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
-	if (ext === 'png') return 'image/png'
-	if (ext === 'gif') return 'image/gif'
-	if (ext === 'webp') return 'image/webp'
-	if (ext === 'svg') return 'image/svg+xml'
-	return null
-}
-
-const buildEnclosure = (cover?: string): string | null => {
-	if (!cover) return null
-	const absoluteUrl = /^https?:\/\//.test(cover) ? cover : `${SITE_ORIGIN}${cover}`
-	const type = getMimeTypeFromUrl(absoluteUrl)
-	if (!type) return null
-
-	let length: number | null = null
-
-	if (!/^https?:\/\//.test(cover)) {
-		const filePath = path.join(PUBLIC_DIR, cover.replace(/^\/+/, ''))
-		try {
-			const stat = fs.statSync(filePath)
-			if (stat.isFile()) {
-				length = stat.size
-			}
-		} catch {
-			length = null
-		}
-	}
-
-	if (length === null) {
-		return null
-	}
-
-	return `<enclosure url="${escapeXml(absoluteUrl)}" type="${type}" length="${length}" />`
-}
-
 const serializeItem = (item: BlogIndexItem): string => {
 	const link = `${SITE_ORIGIN}/blog/${item.slug}`
 	const title = escapeXml(item.title || item.slug)
@@ -81,8 +32,6 @@ const serializeItem = (item: BlogIndexItem): string => {
 		.map(tag => `<category>${escapeXml(tag)}</category>`)
 		.join('')
 
-	const enclosure = buildEnclosure(getBlogCover(item.cover))
-
 	return `
 		<item>
 			<title>${title}</title>
@@ -91,7 +40,6 @@ const serializeItem = (item: BlogIndexItem): string => {
 			<description>${description}</description>
 			<pubDate>${pubDate}</pubDate>
 			${categories}
-			${enclosure ?? ''}
 		</item>`.trim()
 }
 

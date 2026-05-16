@@ -11,6 +11,7 @@ import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
 import { TimeThemeProvider, useTimeTheme } from '@/components/time-theme-provider'
 import { usePathname } from 'next/navigation'
+import { getAssetUrl } from '@/lib/asset-url'
 
 const HOME_FIT_DESIGN_WIDTH = 2048
 const HOME_FIT_DESIGN_HEIGHT = 1152
@@ -88,7 +89,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 					} as React.CSSProperties
 				}
 			/>
-			<TimeAtmosphereBackground theme={timeTheme} backgroundImage={currentBackgroundImage?.url} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
+			<TimeAtmosphereBackground theme={timeTheme} backgroundImage={getAssetUrl(currentBackgroundImage?.url)} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
 			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
 				<NavCard />

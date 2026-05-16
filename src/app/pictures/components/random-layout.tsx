@@ -7,6 +7,7 @@ import { Picture } from '../page'
 import siteContent from '@/config/site-content.json'
 import { cn } from '@/lib/utils'
 import { useSize } from '@/hooks/use-size'
+import { getAssetUrl } from '@/lib/asset-url'
 
 interface RandomLayoutProps {
 	pictures: Picture[]
@@ -139,6 +140,7 @@ const FloatingImage = ({
 	const [zIndex, setZIndex] = useState(index)
 	const [show, setShow] = useState(false)
 	const [dragOffset, setDragOffset] = useState(() => loadSavedOffset(url))
+	const imageUrl = getAssetUrl(url)
 
 	useEffect(() => {
 		setTimeout(() => {
@@ -291,7 +293,7 @@ const FloatingImage = ({
 					!isEditMode && !isZoomed && 'hover:scale-105'
 				)}>
 				<motion.img
-					src={url}
+					src={imageUrl}
 					loading='lazy'
 					decoding='async'
 					onLoad={event => {

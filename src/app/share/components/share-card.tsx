@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import EditableStarRating from '@/components/editable-star-rating'
 import { useState } from 'react'
 import LogoUploadDialog, { type LogoItem } from './logo-upload-dialog'
+import { getAssetUrl } from '@/lib/asset-url'
 
 export interface Share {
 	name: string
@@ -95,7 +96,7 @@ export function ShareCard({ share, isEditMode = false, onUpdate, onDelete }: Sha
 				<div className='mb-4 flex items-center gap-4'>
 					<div className='group relative'>
 						<img
-							src={localShare.logo}
+							src={getAssetUrl(localShare.logo)}
 							alt={localShare.name}
 							loading='lazy'
 							decoding='async'
