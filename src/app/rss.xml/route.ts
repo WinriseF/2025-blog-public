@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import siteContent from '@/config/site-content.json'
 import blogIndex from '@/../public/blogs/index.json'
+import { getBlogCover } from '@/lib/blog-cover'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yysuni.com'
 const FEED_PATH = '/rss.xml'
@@ -80,7 +81,7 @@ const serializeItem = (item: BlogIndexItem): string => {
 		.map(tag => `<category>${escapeXml(tag)}</category>`)
 		.join('')
 
-	const enclosure = buildEnclosure(item.cover)
+	const enclosure = buildEnclosure(getBlogCover(item.cover))
 
 	return `
 		<item>

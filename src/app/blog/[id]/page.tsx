@@ -8,6 +8,7 @@ import { BlogPreview } from '@/components/blog-preview'
 import { loadBlog, type BlogConfig } from '@/lib/load-blog'
 import { useReadArticles } from '@/hooks/use-read-articles'
 import LiquidGrass from '@/components/liquid-grass'
+import { getBlogCover } from '@/lib/blog-cover'
 
 export default function Page() {
 	const params = useParams() as { id?: string | string[] }
@@ -76,7 +77,7 @@ export default function Page() {
 				tags={tags}
 				date={date}
 				summary={blog.config.summary}
-				cover={blog.cover ? `${origin}${blog.cover}` : undefined}
+				cover={getBlogCover(blog.cover)}
 				slug={slug}
 			/>
 
