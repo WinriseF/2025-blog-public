@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { useWriteStore } from '../../stores/write-store'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 type CoverSectionProps = {
 	delay?: number
@@ -85,15 +86,24 @@ export function CoverSection({ delay = 0 }: CoverSectionProps) {
 			<div
 				className='mt-3 h-[150px] overflow-hidden rounded-xl border bg-white/60'
 				onDragOver={e => {
-					e.preventDefault()
+					if (SHOW_PUBLIC_ADMIN_ACTIONS) e.preventDefault()
 				}}
-				onDrop={handleCoverDrop}>
+				onDrop={SHOW_PUBLIC_ADMIN_ACTIONS ? handleCoverDrop : undefined}>
 				{!!coverPreviewUrl ? (
 					<img src={coverPreviewUrl} alt='cover preview' className='h-full w-full rounded-2xl object-cover' />
 				) : (
-					<div className='grid h-full w-full cursor-pointer place-items-center transition-colors hover:bg-white/60' onClick={handleClickUpload}>
-						<span className='text-3xl leading-none text-neutral-400'>+</span>
-					</div>
+					<>
+						{/* Public visitors should not see the cover upload tile; existing upload logic stays wired behind the flag. */}
+						{SHOW_PUBLIC_ADMIN_ACTIONS ? (
+							<div className='grid h-full w-full cursor-pointer place-items-center transition-colors hover:bg-white/60' onClick={handleClickUpload}>
+								<span className='text-3xl leading-none text-neutral-400'>+</span>
+							</div>
+						) : (
+							<div className='grid h-full w-full place-items-center'>
+								<span className='text-xs text-neutral-400'>暂无封面</span>
+							</div>
+						)}
+					</>
 				)}
 			</div>
 		</motion.div>

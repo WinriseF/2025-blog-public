@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { hashFileSHA256 } from '@/lib/file-utils'
 import { getAssetUrl } from '@/lib/asset-url'
 import type { FileItem } from './types'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 interface FaviconAvatarUploadProps {
 	faviconItem: FileItem | null
@@ -67,16 +68,19 @@ export function FaviconAvatarUpload({ faviconItem, setFaviconItem, avatarItem, s
 			<div>
 				<label className='mb-2 block text-sm font-medium'>Favicon</label>
 				<input ref={faviconInputRef} type='file' accept='image/*' className='hidden' onChange={handleFaviconFileSelect} />
-				<div className='group relative h-20 w-20 cursor-pointer overflow-hidden rounded-lg border bg-white/60'>
+				<div className='group relative h-20 w-20 overflow-hidden rounded-lg border bg-white/60'>
 					{faviconItem?.type === 'file' ? (
 						<img src={faviconItem.previewUrl} alt='favicon preview' className='h-full w-full object-cover' />
 					) : (
 						<img src='/favicon.png' alt='current favicon' className='h-full w-full object-cover' />
 					)}
-					<div className='pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
-						<span className='text-xs text-white'>{faviconItem ? '更换' : '上传'}</span>
-					</div>
-					{faviconItem && (
+					{/* Public visitors should not see upload/change overlays; existing upload logic stays wired behind the flag. */}
+					{SHOW_PUBLIC_ADMIN_ACTIONS && (
+						<div className='pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
+							<span className='text-xs text-white'>{faviconItem ? '更换' : '上传'}</span>
+						</div>
+					)}
+					{SHOW_PUBLIC_ADMIN_ACTIONS && faviconItem && (
 						<div className='absolute top-1 right-1 hidden group-hover:block'>
 							<motion.button
 								whileHover={{ scale: 1.05 }}
@@ -90,23 +94,26 @@ export function FaviconAvatarUpload({ faviconItem, setFaviconItem, avatarItem, s
 							</motion.button>
 						</div>
 					)}
-					<div className='absolute inset-0' onClick={() => faviconInputRef.current?.click()} />
+					{SHOW_PUBLIC_ADMIN_ACTIONS && <div className='absolute inset-0 cursor-pointer' onClick={() => faviconInputRef.current?.click()} />}
 				</div>
 			</div>
 
 			<div>
 				<label className='mb-2 block text-sm font-medium'>Avatar</label>
 				<input ref={avatarInputRef} type='file' accept='image/*' className='hidden' onChange={handleAvatarFileSelect} />
-				<div className='group relative h-20 w-20 cursor-pointer overflow-hidden rounded-full border bg-white/60'>
+				<div className='group relative h-20 w-20 overflow-hidden rounded-full border bg-white/60'>
 					{avatarItem?.type === 'file' ? (
 						<img src={avatarItem.previewUrl} alt='avatar preview' className='h-full w-full object-cover' />
 					) : (
 						<img src={getAssetUrl('/images/avatar.png')} alt='current avatar' className='h-full w-full object-cover' />
 					)}
-					<div className='pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
-						<span className='text-xs text-white'>{avatarItem ? '更换' : '上传'}</span>
-					</div>
-					{avatarItem && (
+					{/* Public visitors should not see upload/change overlays; existing upload logic stays wired behind the flag. */}
+					{SHOW_PUBLIC_ADMIN_ACTIONS && (
+						<div className='pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
+							<span className='text-xs text-white'>{avatarItem ? '更换' : '上传'}</span>
+						</div>
+					)}
+					{SHOW_PUBLIC_ADMIN_ACTIONS && avatarItem && (
 						<div className='absolute top-1 right-1 hidden group-hover:block'>
 							<motion.button
 								whileHover={{ scale: 1.05 }}
@@ -120,7 +127,7 @@ export function FaviconAvatarUpload({ faviconItem, setFaviconItem, avatarItem, s
 							</motion.button>
 						</div>
 					)}
-					<div className='absolute inset-0' onClick={() => avatarInputRef.current?.click()} />
+					{SHOW_PUBLIC_ADMIN_ACTIONS && <div className='absolute inset-0 cursor-pointer' onClick={() => avatarInputRef.current?.click()} />}
 				</div>
 			</div>
 		</div>

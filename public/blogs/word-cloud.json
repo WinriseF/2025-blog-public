@@ -1853,7 +1853,7 @@
 		},
 		{
 			"year": "2025",
-			"articleCount": 2,
+			"articleCount": 3,
 			"words": [
 				{
 					"text": "模型",
@@ -1873,19 +1873,46 @@
 					]
 				},
 				{
-					"text": "代码",
-					"weight": 0.7995,
-					"count": 21,
+					"text": "数据",
+					"weight": 0.9081,
+					"count": 28,
 					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 13
+						},
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
-							"count": 13
+							"count": 8
 						},
 						{
 							"slug": "java21-virtual-threads",
 							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 8
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "系统",
+					"weight": 0.8373,
+					"count": 28,
+					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 19
+						},
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 5
+						},
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 4
 						}
 					]
 				},
@@ -1924,45 +1951,9 @@
 					]
 				},
 				{
-					"text": "模型接入",
-					"weight": 0.7424,
-					"count": 34,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 34
-						}
-					]
-				},
-				{
-					"text": "ai 大模型",
-					"weight": 0.7424,
-					"count": 34,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 34
-						}
-					]
-				},
-				{
-					"text": "langchain4j",
-					"weight": 0.7271,
-					"count": 36,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 36
-						}
-					]
-				},
-				{
-					"text": "成本",
-					"weight": 0.7191,
-					"count": 15,
+					"text": "服务",
+					"weight": 0.7554,
+					"count": 19,
 					"articles": [
 						{
 							"slug": "ai-large-model-access-intro-1",
@@ -1970,14 +1961,41 @@
 							"count": 8
 						},
 						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 6
+						},
+						{
 							"slug": "java21-virtual-threads",
 							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 7
+							"count": 5
 						}
 					]
 				},
 				{
-					"text": "数据",
+					"text": "开发",
+					"weight": 0.7247,
+					"count": 29,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 18
+						},
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 10
+						},
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "成本",
 					"weight": 0.7191,
 					"count": 15,
 					"articles": [
@@ -2011,8 +2029,66 @@
 					]
 				},
 				{
+					"text": "模型接入",
+					"weight": 0.6986,
+					"count": 34,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 34
+						}
+					]
+				},
+				{
+					"text": "ai 大模型",
+					"weight": 0.6986,
+					"count": 34,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 34
+						}
+					]
+				},
+				{
+					"text": "代码",
+					"weight": 0.6953,
+					"count": 22,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 13
+						},
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 8
+						},
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "langchain4j",
+					"weight": 0.6842,
+					"count": 36,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 36
+						}
+					]
+				},
+				{
 					"text": "ai",
-					"weight": 0.7062,
+					"weight": 0.6645,
 					"count": 32,
 					"articles": [
 						{
@@ -2023,8 +2099,20 @@
 					]
 				},
 				{
+					"text": "redis",
+					"weight": 0.654,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 26
+						}
+					]
+				},
+				{
 					"text": "并发编程",
-					"weight": 0.695,
+					"weight": 0.654,
 					"count": 18,
 					"articles": [
 						{
@@ -2036,7 +2124,7 @@
 				},
 				{
 					"text": "虚拟线程",
-					"weight": 0.695,
+					"weight": 0.654,
 					"count": 18,
 					"articles": [
 						{
@@ -2048,7 +2136,7 @@
 				},
 				{
 					"text": "java 21",
-					"weight": 0.695,
+					"weight": 0.654,
 					"count": 18,
 					"articles": [
 						{
@@ -2060,7 +2148,7 @@
 				},
 				{
 					"text": "project loom",
-					"weight": 0.695,
+					"weight": 0.654,
 					"count": 18,
 					"articles": [
 						{
@@ -2071,48 +2159,14 @@
 					]
 				},
 				{
-					"text": "上下文",
-					"weight": 0.6769,
-					"count": 14,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						},
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 6
-						}
-					]
-				},
-				{
 					"text": "spring ai",
-					"weight": 0.6547,
+					"weight": 0.6161,
 					"count": 22,
 					"articles": [
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
 							"count": 22
-						}
-					]
-				},
-				{
-					"text": "服务",
-					"weight": 0.6518,
-					"count": 13,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						},
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 5
 						}
 					]
 				},
@@ -2134,8 +2188,54 @@
 					]
 				},
 				{
+					"text": "上下文",
+					"weight": 0.6007,
+					"count": 15,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						},
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 6
+						},
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "分布式系统",
+					"weight": 0.5842,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "后端开发",
+					"weight": 0.5842,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 18
+						}
+					]
+				},
+				{
 					"text": "大模型",
-					"weight": 0.5916,
+					"weight": 0.5567,
 					"count": 16,
 					"articles": [
 						{
@@ -2147,7 +2247,7 @@
 				},
 				{
 					"text": "模型选型",
-					"weight": 0.5916,
+					"weight": 0.5567,
 					"count": 16,
 					"articles": [
 						{
@@ -2159,7 +2259,7 @@
 				},
 				{
 					"text": "应用开发",
-					"weight": 0.5916,
+					"weight": 0.5567,
 					"count": 16,
 					"articles": [
 						{
@@ -2171,7 +2271,7 @@
 				},
 				{
 					"text": "计算",
-					"weight": 0.586,
+					"weight": 0.5514,
 					"count": 7,
 					"articles": [
 						{
@@ -2182,42 +2282,42 @@
 					]
 				},
 				{
-					"text": "系统",
-					"weight": 0.5689,
-					"count": 9,
+					"text": "验证",
+					"weight": 0.5031,
+					"count": 8,
 					"articles": [
 						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 5
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 4
 						},
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
-							"count": 4
+							"count": 2
+						},
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 2
 						}
 					]
 				},
 				{
-					"text": "开发",
-					"weight": 0.5296,
-					"count": 19,
+					"text": "缓存",
+					"weight": 0.5024,
+					"count": 18,
 					"articles": [
 						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
 							"count": 18
-						},
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 1
 						}
 					]
 				},
 				{
 					"text": "生态",
-					"weight": 0.5211,
+					"weight": 0.4904,
 					"count": 12,
 					"articles": [
 						{
@@ -2229,7 +2329,7 @@
 				},
 				{
 					"text": "java",
-					"weight": 0.5186,
+					"weight": 0.488,
 					"count": 8,
 					"articles": [
 						{
@@ -2241,7 +2341,7 @@
 				},
 				{
 					"text": "loom",
-					"weight": 0.5186,
+					"weight": 0.488,
 					"count": 8,
 					"articles": [
 						{
@@ -2253,7 +2353,7 @@
 				},
 				{
 					"text": "project",
-					"weight": 0.5186,
+					"weight": 0.488,
 					"count": 8,
 					"articles": [
 						{
@@ -2265,7 +2365,7 @@
 				},
 				{
 					"text": "分类",
-					"weight": 0.5085,
+					"weight": 0.4785,
 					"count": 11,
 					"articles": [
 						{
@@ -2276,9 +2376,26 @@
 					]
 				},
 				{
-					"text": "能力",
-					"weight": 0.4957,
+					"text": "部署",
+					"weight": 0.4759,
 					"count": 10,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						},
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "能力",
+					"weight": 0.461,
+					"count": 11,
 					"articles": [
 						{
 							"slug": "ai-large-model-access-intro-1",
@@ -2289,114 +2406,11 @@
 							"slug": "java21-virtual-threads",
 							"title": "Java 21 虚拟线程：它到底解决了什么问题",
 							"count": 2
-						}
-					]
-				},
-				{
-					"text": "并发",
-					"weight": 0.446,
-					"count": 8,
-					"articles": [
+						},
 						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "虚拟",
-					"weight": 0.446,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "部署",
-					"weight": 0.4438,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "学习",
-					"weight": 0.4438,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "知识",
-					"weight": 0.4438,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "智能",
-					"weight": 0.4438,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "mcp",
-					"weight": 0.4438,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "prompt",
-					"weight": 0.4438,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "厂商",
-					"weight": 0.425,
-					"count": 7,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 7
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 1
 						}
 					]
 				},
@@ -2418,14 +2432,86 @@
 					]
 				},
 				{
-					"text": "要注意",
-					"weight": 0.4229,
-					"count": 5,
+					"text": "并发",
+					"weight": 0.4197,
+					"count": 8,
 					"articles": [
 						{
 							"slug": "java21-virtual-threads",
 							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 5
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "虚拟",
+					"weight": 0.4197,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "学习",
+					"weight": 0.4176,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "知识",
+					"weight": 0.4176,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "智能",
+					"weight": 0.4176,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "mcp",
+					"weight": 0.4176,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
+						}
+					]
+				},
+				{
+					"text": "prompt",
+					"weight": 0.4176,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 8
 						}
 					]
 				},
@@ -2464,8 +2550,54 @@
 					]
 				},
 				{
+					"text": "网络",
+					"weight": 0.4072,
+					"count": 6,
+					"articles": [
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 3
+						},
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 2
+						},
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "厂商",
+					"weight": 0.3999,
+					"count": 7,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 7
+						}
+					]
+				},
+				{
+					"text": "要注意",
+					"weight": 0.3979,
+					"count": 5,
+					"articles": [
+						{
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 5
+						}
+					]
+				},
+				{
 					"text": "编排",
-					"weight": 0.4042,
+					"weight": 0.3804,
 					"count": 6,
 					"articles": [
 						{
@@ -2477,7 +2609,7 @@
 				},
 				{
 					"text": "sdk",
-					"weight": 0.4042,
+					"weight": 0.3804,
 					"count": 6,
 					"articles": [
 						{
@@ -2488,8 +2620,20 @@
 					]
 				},
 				{
+					"text": "分布",
+					"weight": 0.3749,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 8
+						}
+					]
+				},
+				{
 					"text": "私有",
-					"weight": 0.3811,
+					"weight": 0.3586,
 					"count": 6,
 					"articles": [
 						{
@@ -2501,7 +2645,7 @@
 				},
 				{
 					"text": "问答",
-					"weight": 0.3811,
+					"weight": 0.3586,
 					"count": 6,
 					"articles": [
 						{
@@ -2513,7 +2657,7 @@
 				},
 				{
 					"text": "dashscope",
-					"weight": 0.3811,
+					"weight": 0.3586,
 					"count": 6,
 					"articles": [
 						{
@@ -2524,72 +2668,14 @@
 					]
 				},
 				{
-					"text": "验证",
-					"weight": 0.3728,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 2
-						},
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "网络",
-					"weight": 0.362,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 3
-						},
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 1
-						}
-					]
-				},
-				{
 					"text": "rag",
-					"weight": 0.355,
+					"weight": 0.3341,
 					"count": 5,
 					"articles": [
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
 							"count": 5
-						}
-					]
-				},
-				{
-					"text": "模型训练",
-					"weight": 0.3361,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 4
-						}
-					]
-				},
-				{
-					"text": "深度学习",
-					"weight": 0.3361,
-					"count": 4,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 4
 						}
 					]
 				},
@@ -2611,74 +2697,48 @@
 					]
 				},
 				{
-					"text": "参数",
-					"weight": 0.2898,
-					"count": 3,
+					"text": "模型训练",
+					"weight": 0.3162,
+					"count": 4,
 					"articles": [
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
-							"count": 3
+							"count": 4
 						}
 					]
 				},
 				{
-					"text": "输入",
-					"weight": 0.2898,
-					"count": 3,
+					"text": "深度学习",
+					"weight": 0.3162,
+					"count": 4,
 					"articles": [
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
-							"count": 3
+							"count": 4
 						}
 					]
 				},
 				{
-					"text": "图像",
-					"weight": 0.2898,
-					"count": 3,
+					"text": "算法",
+					"weight": 0.316,
+					"count": 4,
 					"articles": [
+						{
+							"slug": "redis-interview-guide",
+							"title": "Redis 核心原理与工程实践入门",
+							"count": 2
+						},
 						{
 							"slug": "ai-large-model-access-intro-1",
 							"title": "AI 大模型接入入门——1",
-							"count": 3
-						}
-					]
-				},
-				{
-					"text": "cursor",
-					"weight": 0.2898,
-					"count": 3,
-					"articles": [
+							"count": 1
+						},
 						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 3
-						}
-					]
-				},
-				{
-					"text": "deepseek",
-					"weight": 0.2898,
-					"count": 3,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 3
-						}
-					]
-				},
-				{
-					"text": "gemini",
-					"weight": 0.2898,
-					"count": 3,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 3
+							"slug": "java21-virtual-threads",
+							"title": "Java 21 虚拟线程：它到底解决了什么问题",
+							"count": 1
 						}
 					]
 				},
@@ -2696,6 +2756,78 @@
 							"slug": "java21-virtual-threads",
 							"title": "Java 21 虚拟线程：它到底解决了什么问题",
 							"count": 1
+						}
+					]
+				},
+				{
+					"text": "参数",
+					"weight": 0.2727,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "输入",
+					"weight": 0.2727,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "图像",
+					"weight": 0.2727,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "cursor",
+					"weight": 0.2727,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "deepseek",
+					"weight": 0.2727,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 3
+						}
+					]
+				},
+				{
+					"text": "gemini",
+					"weight": 0.2727,
+					"count": 3,
+					"articles": [
+						{
+							"slug": "ai-large-model-access-intro-1",
+							"title": "AI 大模型接入入门——1",
+							"count": 3
 						}
 					]
 				},
@@ -2718,7 +2850,7 @@
 				},
 				{
 					"text": "微调",
-					"weight": 0.2472,
+					"weight": 0.2326,
 					"count": 2,
 					"articles": [
 						{
@@ -2730,7 +2862,7 @@
 				},
 				{
 					"text": "claude",
-					"weight": 0.2472,
+					"weight": 0.2326,
 					"count": 2,
 					"articles": [
 						{
@@ -2742,7 +2874,7 @@
 				},
 				{
 					"text": "openai",
-					"weight": 0.2472,
+					"weight": 0.2326,
 					"count": 2,
 					"articles": [
 						{
@@ -2770,25 +2902,8 @@
 					]
 				},
 				{
-					"text": "算法",
-					"weight": 0.1972,
-					"count": 2,
-					"articles": [
-						{
-							"slug": "ai-large-model-access-intro-1",
-							"title": "AI 大模型接入入门——1",
-							"count": 1
-						},
-						{
-							"slug": "java21-virtual-threads",
-							"title": "Java 21 虚拟线程：它到底解决了什么问题",
-							"count": 1
-						}
-					]
-				},
-				{
 					"text": "函数",
-					"weight": 0.193,
+					"weight": 0.1816,
 					"count": 2,
 					"articles": [
 						{
@@ -2800,7 +2915,7 @@
 				},
 				{
 					"text": "qwen",
-					"weight": 0.193,
+					"weight": 0.1816,
 					"count": 2,
 					"articles": [
 						{
@@ -2812,7 +2927,7 @@
 				},
 				{
 					"text": "回归",
-					"weight": 0.1637,
+					"weight": 0.154,
 					"count": 1,
 					"articles": [
 						{
@@ -2824,7 +2939,7 @@
 				},
 				{
 					"text": "特征",
-					"weight": 0.1637,
+					"weight": 0.154,
 					"count": 1,
 					"articles": [
 						{
@@ -2836,7 +2951,7 @@
 				},
 				{
 					"text": "线性",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -2848,7 +2963,7 @@
 				},
 				{
 					"text": "向量",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -2860,7 +2975,7 @@
 				},
 				{
 					"text": "coze",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -2872,7 +2987,7 @@
 				},
 				{
 					"text": "dify",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -2884,7 +2999,7 @@
 				},
 				{
 					"text": "embedding",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -2896,7 +3011,7 @@
 				},
 				{
 					"text": "gpu",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -2908,7 +3023,7 @@
 				},
 				{
 					"text": "llama",
-					"weight": 0.1187,
+					"weight": 0.1117,
 					"count": 1,
 					"articles": [
 						{
@@ -4149,7 +4264,7 @@
 	],
 	"all": {
 		"year": "all",
-		"articleCount": 13,
+		"articleCount": 14,
 		"words": [
 			{
 				"text": "rag",
@@ -4185,7 +4300,7 @@
 			},
 			{
 				"text": "模型",
-				"weight": 0.8138,
+				"weight": 0.8298,
 				"count": 184,
 				"articles": [
 					{
@@ -4217,9 +4332,14 @@
 			},
 			{
 				"text": "系统",
-				"weight": 0.7318,
-				"count": 114,
+				"weight": 0.7781,
+				"count": 133,
 				"articles": [
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 19
+					},
 					{
 						"slug": "yolo-apple-disease-detection",
 						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
@@ -4239,18 +4359,13 @@
 						"slug": "ai-agent-skills-introduction",
 						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
 						"count": 11
-					},
-					{
-						"slug": "rag-development-spring-ai-pgvector",
-						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-						"count": 10
 					}
 				]
 			},
 			{
 				"text": "数据",
-				"weight": 0.7305,
-				"count": 117,
+				"weight": 0.7679,
+				"count": 130,
 				"articles": [
 					{
 						"slug": "rag-core-pipeline-from-documents-to-answers",
@@ -4273,15 +4388,15 @@
 						"count": 13
 					},
 					{
-						"slug": "rag-development-spring-ai-pgvector",
-						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-						"count": 12
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 13
 					}
 				]
 			},
 			{
 				"text": "ai",
-				"weight": 0.6272,
+				"weight": 0.6318,
 				"count": 122,
 				"articles": [
 					{
@@ -4313,7 +4428,7 @@
 			},
 			{
 				"text": "知识",
-				"weight": 0.6135,
+				"weight": 0.618,
 				"count": 84,
 				"articles": [
 					{
@@ -4344,9 +4459,41 @@
 				]
 			},
 			{
+				"text": "向量",
+				"weight": 0.5861,
+				"count": 75,
+				"articles": [
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 21
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 13
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					}
+				]
+			},
+			{
 				"text": "上下文",
-				"weight": 0.5991,
-				"count": 70,
+				"weight": 0.5856,
+				"count": 71,
 				"articles": [
 					{
 						"slug": "rag-production-evaluation-security-operations",
@@ -4408,40 +4555,8 @@
 				]
 			},
 			{
-				"text": "向量",
-				"weight": 0.5841,
-				"count": 75,
-				"articles": [
-					{
-						"slug": "rag-core-pipeline-from-documents-to-answers",
-						"title": "RAG 核心流程详解：从文档到答案经历了什么",
-						"count": 21
-					},
-					{
-						"slug": "rag-development-spring-ai-pgvector",
-						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-						"count": 13
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
-						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
-						"count": 8
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 8
-					}
-				]
-			},
-			{
 				"text": "prompt",
-				"weight": 0.5708,
+				"weight": 0.5728,
 				"count": 65,
 				"articles": [
 					{
@@ -4472,40 +4587,8 @@
 				]
 			},
 			{
-				"text": "spring ai",
-				"weight": 0.5469,
-				"count": 72,
-				"articles": [
-					{
-						"slug": "rag-development-spring-ai-pgvector",
-						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-						"count": 34
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 22
-					},
-					{
-						"slug": "rag-core-pipeline-from-documents-to-answers",
-						"title": "RAG 核心流程详解：从文档到答案经历了什么",
-						"count": 4
-					},
-					{
-						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
-						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
-						"count": 4
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 4
-					}
-				]
-			},
-			{
 				"text": "成本",
-				"weight": 0.5358,
+				"weight": 0.5439,
 				"count": 68,
 				"articles": [
 					{
@@ -4536,9 +4619,41 @@
 				]
 			},
 			{
+				"text": "spring ai",
+				"weight": 0.5433,
+				"count": 72,
+				"articles": [
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 34
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 22
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 4
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 4
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 4
+					}
+				]
+			},
+			{
 				"text": "代码",
-				"weight": 0.5352,
-				"count": 59,
+				"weight": 0.5223,
+				"count": 60,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -4568,8 +4683,40 @@
 				]
 			},
 			{
+				"text": "开发",
+				"weight": 0.5174,
+				"count": 59,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 18
+					},
+					{
+						"slug": "rag-development-spring-ai-pgvector",
+						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+						"count": 10
+					},
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 10
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 6
+					}
+				]
+			},
+			{
 				"text": "大模型",
-				"weight": 0.5172,
+				"weight": 0.5137,
 				"count": 48,
 				"articles": [
 					{
@@ -4600,14 +4747,14 @@
 				]
 			},
 			{
-				"text": "平台",
+				"text": "服务",
 				"weight": 0.5124,
-				"count": 42,
+				"count": 49,
 				"articles": [
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 13
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 8
 					},
 					{
 						"slug": "practical-machine-learning-limu",
@@ -4615,8 +4762,8 @@
 						"count": 8
 					},
 					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
 						"count": 8
 					},
 					{
@@ -4625,15 +4772,15 @@
 						"count": 8
 					},
 					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 3
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 6
 					}
 				]
 			},
 			{
 				"text": "api",
-				"weight": 0.5055,
+				"weight": 0.5092,
 				"count": 49,
 				"articles": [
 					{
@@ -4660,6 +4807,38 @@
 						"slug": "practical-machine-learning-limu",
 						"title": "斯坦福 21 秋季：实用机器学习中文版",
 						"count": 6
+					}
+				]
+			},
+			{
+				"text": "平台",
+				"weight": 0.509,
+				"count": 42,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 13
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
 					}
 				]
 			},
@@ -4696,72 +4875,8 @@
 				]
 			},
 			{
-				"text": "服务",
-				"weight": 0.4769,
-				"count": 43,
-				"articles": [
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 5
-					}
-				]
-			},
-			{
-				"text": "开发",
-				"weight": 0.4604,
-				"count": 49,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 18
-					},
-					{
-						"slug": "rag-development-spring-ai-pgvector",
-						"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-						"count": 10
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 6
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 3
-					}
-				]
-			},
-			{
 				"text": "应用",
-				"weight": 0.4574,
+				"weight": 0.4591,
 				"count": 42,
 				"articles": [
 					{
@@ -4793,8 +4908,8 @@
 			},
 			{
 				"text": "能力",
-				"weight": 0.4486,
-				"count": 45,
+				"weight": 0.4409,
+				"count": 46,
 				"articles": [
 					{
 						"slug": "software-architecture-gof-23-design-patterns",
@@ -4825,7 +4940,7 @@
 			},
 			{
 				"text": "迁移",
-				"weight": 0.4411,
+				"weight": 0.4396,
 				"count": 36,
 				"articles": [
 					{
@@ -4920,8 +5035,40 @@
 				]
 			},
 			{
+				"text": "验证",
+				"weight": 0.4079,
+				"count": 28,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 4
+					},
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 4
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 3
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
 				"text": "ai 大模型",
-				"weight": 0.4139,
+				"weight": 0.4057,
 				"count": 52,
 				"articles": [
 					{
@@ -4938,7 +5085,7 @@
 			},
 			{
 				"text": "私有",
-				"weight": 0.4062,
+				"weight": 0.4022,
 				"count": 31,
 				"articles": [
 					{
@@ -4970,7 +5117,7 @@
 			},
 			{
 				"text": "计算",
-				"weight": 0.4032,
+				"weight": 0.4005,
 				"count": 27,
 				"articles": [
 					{
@@ -5002,7 +5149,7 @@
 			},
 			{
 				"text": "训练",
-				"weight": 0.403,
+				"weight": 0.399,
 				"count": 27,
 				"articles": [
 					{
@@ -5034,7 +5181,7 @@
 			},
 			{
 				"text": "图片",
-				"weight": 0.3939,
+				"weight": 0.3926,
 				"count": 30,
 				"articles": [
 					{
@@ -5066,7 +5213,7 @@
 			},
 			{
 				"text": "参数",
-				"weight": 0.3885,
+				"weight": 0.3913,
 				"count": 31,
 				"articles": [
 					{
@@ -5129,40 +5276,8 @@
 				]
 			},
 			{
-				"text": "验证",
-				"weight": 0.3733,
-				"count": 24,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 4
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 3
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 2
-					}
-				]
-			},
-			{
 				"text": "输出",
-				"weight": 0.3729,
+				"weight": 0.3786,
 				"count": 34,
 				"articles": [
 					{
@@ -5193,8 +5308,40 @@
 				]
 			},
 			{
+				"text": "算法",
+				"weight": 0.3702,
+				"count": 24,
+				"articles": [
+					{
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 2
+					},
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 2
+					}
+				]
+			},
+			{
 				"text": "检测",
-				"weight": 0.3722,
+				"weight": 0.3662,
 				"count": 38,
 				"articles": [
 					{
@@ -5215,8 +5362,40 @@
 				]
 			},
 			{
+				"text": "部署",
+				"weight": 0.3585,
+				"count": 32,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 2
+					}
+				]
+			},
+			{
 				"text": "学习",
-				"weight": 0.3606,
+				"weight": 0.3582,
 				"count": 55,
 				"articles": [
 					{
@@ -5248,7 +5427,7 @@
 			},
 			{
 				"text": "评估",
-				"weight": 0.3511,
+				"weight": 0.3524,
 				"count": 32,
 				"articles": [
 					{
@@ -5279,62 +5458,8 @@
 				]
 			},
 			{
-				"text": "mcp",
-				"weight": 0.3476,
-				"count": 21,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 8
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 5
-					}
-				]
-			},
-			{
-				"text": "部署",
-				"weight": 0.3468,
-				"count": 30,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 1
-					}
-				]
-			},
-			{
 				"text": "输入",
-				"weight": 0.3463,
+				"weight": 0.3488,
 				"count": 26,
 				"articles": [
 					{
@@ -5361,38 +5486,6 @@
 						"slug": "rag-core-pipeline-from-documents-to-answers",
 						"title": "RAG 核心流程详解：从文档到答案经历了什么",
 						"count": 2
-					}
-				]
-			},
-			{
-				"text": "算法",
-				"weight": 0.3452,
-				"count": 22,
-				"articles": [
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
 					}
 				]
 			},
@@ -5429,52 +5522,30 @@
 				]
 			},
 			{
-				"text": "目标检测",
-				"weight": 0.3414,
-				"count": 26,
+				"text": "mcp",
+				"weight": 0.3419,
+				"count": 21,
 				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 22
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
-					}
-				]
-			},
-			{
-				"text": "模型训练",
-				"weight": 0.3398,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 4
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
-					},
 					{
 						"slug": "ai-large-model-access-intro-1",
 						"title": "AI 大模型接入入门——1",
-						"count": 4
+						"count": 8
 					},
 					{
-						"slug": "rag-intro-why-retrieval-augmented-generation",
-						"title": "RAG 入门：大模型为什么需要检索增强生成",
-						"count": 4
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 5
 					}
 				]
 			},
 			{
 				"text": "分类",
-				"weight": 0.3357,
+				"weight": 0.3369,
 				"count": 29,
 				"articles": [
 					{
@@ -5505,8 +5576,52 @@
 				]
 			},
 			{
+				"text": "模型训练",
+				"weight": 0.3354,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 4
+					}
+				]
+			},
+			{
+				"text": "目标检测",
+				"weight": 0.3347,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 22
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 4
+					}
+				]
+			},
+			{
 				"text": "比赛",
-				"weight": 0.334,
+				"weight": 0.3274,
 				"count": 25,
 				"articles": [
 					{
@@ -5523,7 +5638,7 @@
 			},
 			{
 				"text": "类别",
-				"weight": 0.3328,
+				"weight": 0.3262,
 				"count": 21,
 				"articles": [
 					{
@@ -5540,7 +5655,7 @@
 			},
 			{
 				"text": "java",
-				"weight": 0.3312,
+				"weight": 0.3247,
 				"count": 34,
 				"articles": [
 					{
@@ -5557,7 +5672,7 @@
 			},
 			{
 				"text": "计算机视觉",
-				"weight": 0.3272,
+				"weight": 0.3208,
 				"count": 22,
 				"articles": [
 					{
@@ -5573,8 +5688,40 @@
 				]
 			},
 			{
+				"text": "网络",
+				"weight": 0.3203,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 3
+					},
+					{
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 2
+					},
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "编排",
-				"weight": 0.3202,
+				"weight": 0.3149,
 				"count": 17,
 				"articles": [
 					{
@@ -5596,7 +5743,7 @@
 			},
 			{
 				"text": "数据标注",
-				"weight": 0.319,
+				"weight": 0.3126,
 				"count": 20,
 				"articles": [
 					{
@@ -5613,7 +5760,7 @@
 			},
 			{
 				"text": "claude",
-				"weight": 0.3169,
+				"weight": 0.3107,
 				"count": 30,
 				"articles": [
 					{
@@ -5630,7 +5777,7 @@
 			},
 			{
 				"text": "知识库",
-				"weight": 0.3161,
+				"weight": 0.3098,
 				"count": 36,
 				"articles": [
 					{
@@ -5647,7 +5794,7 @@
 			},
 			{
 				"text": "大小模型",
-				"weight": 0.3159,
+				"weight": 0.3096,
 				"count": 20,
 				"articles": [
 					{
@@ -5663,35 +5810,8 @@
 				]
 			},
 			{
-				"text": "智能",
-				"weight": 0.3116,
-				"count": 19,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 2
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 1
-					}
-				]
-			},
-			{
 				"text": "函数",
-				"weight": 0.3111,
+				"weight": 0.308,
 				"count": 20,
 				"articles": [
 					{
@@ -5722,8 +5842,35 @@
 				]
 			},
 			{
+				"text": "智能",
+				"weight": 0.3075,
+				"count": 19,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "ai-agent-skills-introduction",
+						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "生态",
-				"weight": 0.3063,
+				"weight": 0.3033,
 				"count": 22,
 				"articles": [
 					{
@@ -5754,40 +5901,8 @@
 				]
 			},
 			{
-				"text": "网络",
-				"weight": 0.3037,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 3
-					},
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					},
-					{
-						"slug": "ai-agent-skills-introduction",
-						"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-						"count": 1
-					}
-				]
-			},
-			{
 				"text": "样本",
-				"weight": 0.2947,
+				"weight": 0.2928,
 				"count": 17,
 				"articles": [
 					{
@@ -5818,20 +5933,8 @@
 				]
 			},
 			{
-				"text": "yolo",
-				"weight": 0.2888,
-				"count": 28,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 28
-					}
-				]
-			},
-			{
 				"text": "深度学习",
-				"weight": 0.2876,
+				"weight": 0.2829,
 				"count": 12,
 				"articles": [
 					{
@@ -5852,32 +5955,20 @@
 				]
 			},
 			{
-				"text": "机器学习",
-				"weight": 0.284,
-				"count": 34,
+				"text": "yolo",
+				"weight": 0.282,
+				"count": 28,
 				"articles": [
 					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 34
-					}
-				]
-			},
-			{
-				"text": "实用机器学习",
-				"weight": 0.284,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 34
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 28
 					}
 				]
 			},
 			{
 				"text": "特征",
-				"weight": 0.2824,
+				"weight": 0.2787,
 				"count": 18,
 				"articles": [
 					{
@@ -5903,8 +5994,32 @@
 				]
 			},
 			{
+				"text": "机器学习",
+				"weight": 0.2773,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 34
+					}
+				]
+			},
+			{
+				"text": "实用机器学习",
+				"weight": 0.2773,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 34
+					}
+				]
+			},
+			{
 				"text": "微调",
-				"weight": 0.279,
+				"weight": 0.2745,
 				"count": 14,
 				"articles": [
 					{
@@ -5926,7 +6041,7 @@
 			},
 			{
 				"text": "比赛复盘",
-				"weight": 0.2769,
+				"weight": 0.2704,
 				"count": 22,
 				"articles": [
 					{
@@ -5938,7 +6053,7 @@
 			},
 			{
 				"text": "应用开发",
-				"weight": 0.2755,
+				"weight": 0.2701,
 				"count": 20,
 				"articles": [
 					{
@@ -5955,7 +6070,7 @@
 			},
 			{
 				"text": "模型接入",
-				"weight": 0.263,
+				"weight": 0.2568,
 				"count": 34,
 				"articles": [
 					{
@@ -5967,7 +6082,7 @@
 			},
 			{
 				"text": "langchain4j",
-				"weight": 0.2576,
+				"weight": 0.2515,
 				"count": 36,
 				"articles": [
 					{
@@ -5979,7 +6094,7 @@
 			},
 			{
 				"text": "dify",
-				"weight": 0.255,
+				"weight": 0.2499,
 				"count": 40,
 				"articles": [
 					{
@@ -5995,25 +6110,8 @@
 				]
 			},
 			{
-				"text": "检索",
-				"weight": 0.253,
-				"count": 34,
-				"articles": [
-					{
-						"slug": "rag-core-pipeline-from-documents-to-answers",
-						"title": "RAG 核心流程详解：从文档到答案经历了什么",
-						"count": 26
-					},
-					{
-						"slug": "rag-intro-why-retrieval-augmented-generation",
-						"title": "RAG 入门：大模型为什么需要检索增强生成",
-						"count": 8
-					}
-				]
-			},
-			{
 				"text": "厂商",
-				"weight": 0.2514,
+				"weight": 0.2481,
 				"count": 13,
 				"articles": [
 					{
@@ -6039,8 +6137,25 @@
 				]
 			},
 			{
+				"text": "检索",
+				"weight": 0.248,
+				"count": 34,
+				"articles": [
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 26
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 8
+					}
+				]
+			},
+			{
 				"text": "病虫害检测",
-				"weight": 0.2502,
+				"weight": 0.2443,
 				"count": 16,
 				"articles": [
 					{
@@ -6052,7 +6167,7 @@
 			},
 			{
 				"text": "类别取舍",
-				"weight": 0.2502,
+				"weight": 0.2443,
 				"count": 16,
 				"articles": [
 					{
@@ -6064,7 +6179,7 @@
 			},
 			{
 				"text": "模型协同",
-				"weight": 0.2502,
+				"weight": 0.2443,
 				"count": 16,
 				"articles": [
 					{
@@ -6075,80 +6190,8 @@
 				]
 			},
 			{
-				"text": "苹果",
-				"weight": 0.2469,
-				"count": 17,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 17
-					}
-				]
-			},
-			{
-				"text": "gof",
-				"weight": 0.2462,
-				"count": 26,
-				"articles": [
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 26
-					}
-				]
-			},
-			{
-				"text": "并发编程",
-				"weight": 0.2462,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "虚拟线程",
-				"weight": 0.2462,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "java 21",
-				"weight": 0.2462,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "project loom",
-				"weight": 0.2462,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
 				"text": "回归",
-				"weight": 0.2444,
+				"weight": 0.242,
 				"count": 13,
 				"articles": [
 					{
@@ -6179,8 +6222,92 @@
 				]
 			},
 			{
-				"text": "sdk",
+				"text": "苹果",
+				"weight": 0.2411,
+				"count": 17,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 17
+					}
+				]
+			},
+			{
+				"text": "gof",
 				"weight": 0.2404,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 26
+					}
+				]
+			},
+			{
+				"text": "redis",
+				"weight": 0.2404,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "redis-interview-guide",
+						"title": "Redis 核心原理与工程实践入门",
+						"count": 26
+					}
+				]
+			},
+			{
+				"text": "并发编程",
+				"weight": 0.2404,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "虚拟线程",
+				"weight": 0.2404,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "java 21",
+				"weight": 0.2404,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "project loom",
+				"weight": 0.2404,
+				"count": 18,
+				"articles": [
+					{
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "sdk",
+				"weight": 0.2372,
 				"count": 11,
 				"articles": [
 					{
@@ -6207,7 +6334,7 @@
 			},
 			{
 				"text": "codex",
-				"weight": 0.2386,
+				"weight": 0.233,
 				"count": 26,
 				"articles": [
 					{
@@ -6219,7 +6346,7 @@
 			},
 			{
 				"text": "skill",
-				"weight": 0.2386,
+				"weight": 0.233,
 				"count": 26,
 				"articles": [
 					{
@@ -6231,7 +6358,7 @@
 			},
 			{
 				"text": "课程笔记",
-				"weight": 0.2352,
+				"weight": 0.2296,
 				"count": 18,
 				"articles": [
 					{
@@ -6242,8 +6369,35 @@
 				]
 			},
 			{
+				"text": "标签",
+				"weight": 0.223,
+				"count": 12,
+				"articles": [
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 2
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 1
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "课程介绍",
-				"weight": 0.2263,
+				"weight": 0.221,
 				"count": 16,
 				"articles": [
 					{
@@ -6255,7 +6409,7 @@
 			},
 			{
 				"text": "模型评估",
-				"weight": 0.2263,
+				"weight": 0.221,
 				"count": 16,
 				"articles": [
 					{
@@ -6267,31 +6421,7 @@
 			},
 			{
 				"text": "迁移学习",
-				"weight": 0.2263,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "数据获取",
-				"weight": 0.2263,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 16
-					}
-				]
-			},
-			{
-				"text": "特征工程",
-				"weight": 0.2263,
+				"weight": 0.221,
 				"count": 16,
 				"articles": [
 					{

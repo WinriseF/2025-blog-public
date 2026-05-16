@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { batchDeleteBlogs } from './services/batch-delete-blogs'
 import { Check, Cloud, List } from 'lucide-react'
 import { YearWordCloud } from '@/components/year-word-cloud'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export default function BlogPage() {
 	const { items, loading } = useBlogIndex()
@@ -343,13 +344,16 @@ export default function BlogPage() {
 							{isCloudView ? <List className='size-4' /> : <Cloud className='size-4' />}
 							{viewButtonText}
 						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={toggleEditMode}
-							className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-							编辑
-						</motion.button>
+						{/* Public visitors should not see the edit entry; existing edit logic stays wired behind the flag. */}
+						{SHOW_PUBLIC_ADMIN_ACTIONS && (
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={toggleEditMode}
+								className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
+								编辑
+							</motion.button>
+						)}
 					</>
 				)}
 			</motion.div>

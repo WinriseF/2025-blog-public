@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { useConfigStore, type CardStyles } from '../stores/config-store'
 import { useLayoutEditStore } from '../stores/layout-edit-store'
 import cardStylesDefault from '@/config/card-styles-default.json'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 const CARD_LABELS: Record<string, string> = {
 	artCard: '首图',
@@ -48,13 +49,16 @@ export function HomeLayout({ cardStylesData, setCardStylesData, onClose }: HomeL
 					<button type='button' onClick={handleReset} className='bg-card rounded-xl border px-3 py-1.5 text-xs font-medium'>
 						重置
 					</button>
-					<button
-						type='button'
-						onClick={handleStartManualLayout}
-						disabled={editing}
-						className='bg-card rounded-xl border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50'>
-						{editing ? '主页正在编辑中' : '进入主页拖拽布局'}
-					</button>
+					{/* Public visitors should not see layout edit entry; existing layout edit logic stays wired behind the flag. */}
+					{SHOW_PUBLIC_ADMIN_ACTIONS && (
+						<button
+							type='button'
+							onClick={handleStartManualLayout}
+							disabled={editing}
+							className='bg-card rounded-xl border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50'>
+							{editing ? '主页正在编辑中' : '进入主页拖拽布局'}
+						</button>
+					)}
 				</div>
 			</div>
 			<table className='mt-3 w-full border-collapse text-sm whitespace-nowrap'>

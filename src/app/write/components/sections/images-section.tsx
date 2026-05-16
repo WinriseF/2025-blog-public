@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useWriteStore } from '../../stores/write-store'
 import Link from 'next/link'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 type ImagesSectionProps = {
 	delay?: number
@@ -25,25 +26,28 @@ export function ImagesSection({ delay = 0 }: ImagesSectionProps) {
 				</Link>
 			</div>
 
-			<div className='mt-3 flex items-center gap-2'>
-				<input
-					type='text'
-					placeholder='https://...'
-					className='flex-1 rounded-lg border bg-white/70 px-3 py-2 text-sm'
-					value={urlInput}
-					onChange={e => setUrlInput(e.target.value)}
-				/>
-				<button
-					className='rounded-lg border bg-white/70 px-3 py-2 text-sm'
-					onClick={() => {
-						const v = urlInput.trim()
-						if (!v) return
-						addUrlImage(v)
-						setUrlInput('')
-					}}>
-					添加
-				</button>
-			</div>
+			{/* Public visitors should not see image add/upload controls; existing image logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && (
+				<div className='mt-3 flex items-center gap-2'>
+					<input
+						type='text'
+						placeholder='https://...'
+						className='flex-1 rounded-lg border bg-white/70 px-3 py-2 text-sm'
+						value={urlInput}
+						onChange={e => setUrlInput(e.target.value)}
+					/>
+					<button
+						className='rounded-lg border bg-white/70 px-3 py-2 text-sm'
+						onClick={() => {
+							const v = urlInput.trim()
+							if (!v) return
+							addUrlImage(v)
+							setUrlInput('')
+						}}>
+						添加
+					</button>
+				</div>
+			)}
 
 			<input
 				ref={fileInputRef}
@@ -61,20 +65,22 @@ export function ImagesSection({ delay = 0 }: ImagesSectionProps) {
 			/>
 
 			<div className='mt-3 grid grid-cols-4 gap-2'>
-				{/* plus tile */}
-				<div
-					className='group relative grid aspect-square cursor-pointer place-items-center rounded-lg border bg-white/50 hover:bg-white/70'
-					onClick={() => fileInputRef.current?.click()}
-					onDragOver={e => {
-						e.preventDefault()
-					}}
-					onDrop={e => {
-						e.preventDefault()
-						const files = e.dataTransfer.files
-						if (files && files.length) addFiles(files)
-					}}>
-					<span className='text-2xl leading-none text-neutral-400'>+</span>
-				</div>
+				{/* Public visitors should not see the image upload tile; existing upload logic stays wired behind the flag. */}
+				{SHOW_PUBLIC_ADMIN_ACTIONS && (
+					<div
+						className='group relative grid aspect-square cursor-pointer place-items-center rounded-lg border bg-white/50 hover:bg-white/70'
+						onClick={() => fileInputRef.current?.click()}
+						onDragOver={e => {
+							e.preventDefault()
+						}}
+						onDrop={e => {
+							e.preventDefault()
+							const files = e.dataTransfer.files
+							if (files && files.length) addFiles(files)
+						}}>
+						<span className='text-2xl leading-none text-neutral-400'>+</span>
+					</div>
+				)}
 
 				{images.map(item => {
 					const isUrl = item.type === 'url'
@@ -96,11 +102,13 @@ export function ImagesSection({ delay = 0 }: ImagesSectionProps) {
 								}}
 							/>
 							{isCover && <div className='absolute top-1 left-1 rounded-md bg-blue-500 px-1.5 py-0.5 text-white shadow'>封面</div>}
-							<div className='absolute top-1 right-1 hidden group-hover:flex'>
-								<button type='button' className='rounded-md bg-white/80 px-1.5 py-0.5 shadow hover:bg-white' onClick={() => deleteImage(item.id)}>
-									删除
-								</button>
-							</div>
+							{SHOW_PUBLIC_ADMIN_ACTIONS && (
+								<div className='absolute top-1 right-1 hidden group-hover:flex'>
+									<button type='button' className='rounded-md bg-white/80 px-1.5 py-0.5 shadow hover:bg-white' onClick={() => deleteImage(item.id)}>
+										删除
+									</button>
+								</div>
+							)}
 						</div>
 					)
 				})}

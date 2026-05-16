@@ -8,6 +8,7 @@ import EditableStarRating from '@/components/editable-star-rating'
 import { useState } from 'react'
 import LogoUploadDialog, { type LogoItem } from './logo-upload-dialog'
 import { getAssetUrl } from '@/lib/asset-url'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export interface Share {
 	name: string
@@ -61,14 +62,15 @@ export function ShareCard({ share, isEditMode = false, onUpdate, onDelete }: Sha
 		setLogoItem(null)
 	}
 
-	const canEdit = isEditMode && isEditing
+	const canEdit = SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode && isEditing
 
 	return (
 		<motion.div
 			initial={{ opacity: 0, scale: 0.6 }}
 			{...(maxSM ? { animate: { opacity: 1, scale: 1 } } : { whileInView: { opacity: 1, scale: 1 } })}
 			className='card relative block overflow-hidden'>
-			{isEditMode && (
+			{/* Public visitors should not see card edit controls; existing edit logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode && (
 				<div className='absolute top-3 right-3 z-10 flex gap-2'>
 					{isEditing ? (
 						<>

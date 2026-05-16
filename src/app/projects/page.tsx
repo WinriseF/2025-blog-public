@@ -9,6 +9,7 @@ import { pushProjects } from './services/push-projects'
 import { useAuthStore } from '@/hooks/use-auth'
 import initialList from './list.json'
 import type { ImageItem } from './components/image-upload-dialog'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export default function Page() {
 	const [projects, setProjects] = useState<Project[]>(initialList as Project[])
@@ -121,7 +122,7 @@ export default function Page() {
 						<ProjectCard
 							key={project.url}
 							project={project}
-							isEditMode={isEditMode}
+							isEditMode={SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode}
 							onUpdate={handleUpdate}
 							onDelete={() => handleDelete(project)}
 						/>
@@ -129,48 +130,51 @@ export default function Page() {
 				</div>
 			</div>
 
-			<motion.div
-				initial={{ opacity: 0, scale: 0.6 }}
-				animate={{ opacity: 1, scale: 1 }}
-				className='absolute top-4 right-6 flex gap-3 max-sm:hidden'>
-				{isEditMode ? (
-					<>
+			{/* Public visitors should not see project edit controls; existing edit logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && (
+				<motion.div
+					initial={{ opacity: 0, scale: 0.6 }}
+					animate={{ opacity: 1, scale: 1 }}
+					className='absolute top-4 right-6 flex gap-3 max-sm:hidden'>
+					{isEditMode ? (
+						<>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={handleCancel}
+								disabled={isSaving}
+								className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
+								取消
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={handleAdd}
+								className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
+								添加
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={handleSaveClick}
+								disabled={isSaving}
+								className='brand-btn px-6'>
+								{isSaving ? '保存中...' : buttonText}
+							</motion.button>
+						</>
+					) : (
 						<motion.button
 							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.95 }}
-							onClick={handleCancel}
-							disabled={isSaving}
-							className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
-							取消
+							onClick={() => setIsEditMode(true)}
+							className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
+							编辑
 						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={handleAdd}
-							className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
-							添加
-						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={handleSaveClick}
-							disabled={isSaving}
-							className='brand-btn px-6'>
-							{isSaving ? '保存中...' : buttonText}
-						</motion.button>
-					</>
-				) : (
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={() => setIsEditMode(true)}
-						className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-						编辑
-					</motion.button>
-				)}
-			</motion.div>
+					)}
+				</motion.div>
+			)}
 
-			{isCreateDialogOpen && (
+			{SHOW_PUBLIC_ADMIN_ACTIONS && isCreateDialogOpen && (
 				<CreateDialog project={editingProject} onClose={() => setIsCreateDialogOpen(false)} onSave={handleSaveProject} />
 			)}
 		</>

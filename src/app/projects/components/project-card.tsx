@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { getAssetUrl } from '@/lib/asset-url'
 import ImageUploadDialog, { type ImageItem } from './image-upload-dialog'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export interface Project {
 	name: string
@@ -59,7 +60,7 @@ export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }:
 		setImageItem(null)
 	}
 
-	const canEdit = isEditMode && isEditing
+	const canEdit = SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode && isEditing
 	const primaryLinkLabel = localProject.url.startsWith('/blog/') ? '文章' : 'Website'
 
 	return (
@@ -67,7 +68,8 @@ export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }:
 			initial={{ opacity: 0, scale: 0.9 }}
 			animate={{ opacity: 1, scale: 1 }}
 			className='bg-card relative flex flex-col gap-4 rounded-[40px] border p-6 shadow-[0_40px_50px_-32px_rgba(0,0,0,0.05)] backdrop-blur'>
-			{isEditMode && (
+			{/* Public visitors should not see card edit controls; existing edit logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode && (
 				<div className='absolute top-3 right-3 z-10 flex gap-2'>
 					{isEditing ? (
 						<>

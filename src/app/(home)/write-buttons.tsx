@@ -10,6 +10,7 @@ import DotsSVG from '@/svgs/dots.svg'
 import { HomeDraggableLayer } from './home-draggable-layer'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import { Moon, Sunrise, Sunset, SunMedium } from 'lucide-react'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export default function WriteButton() {
 	const center = useCenterStore()
@@ -43,17 +44,20 @@ export default function WriteButton() {
 	return (
 		<HomeDraggableLayer cardKey='writeButtons' x={x} y={y} width={styles.width} height={styles.height}>
 			<motion.div initial={{ left: x, top: y }} animate={{ left: x, top: y }} className='absolute flex items-center gap-4'>
-				<motion.button
-					onClick={() => router.push('/write')}
-					initial={{ opacity: 0, scale: 0.6 }}
-					animate={{ opacity: 1, scale: 1 }}
-					whileHover={{ scale: 1.05 }}
-					whileTap={{ scale: 0.95 }}
-					style={{ boxShadow: 'inset 0 0 12px rgba(255, 255, 255, 0.4)' }}
-					className='brand-btn whitespace-nowrap'>
-					<PenSVG />
-					<span>写文章</span>
-				</motion.button>
+				{/* Public visitors should not see the write entry; existing authoring logic stays wired behind the flag. */}
+				{SHOW_PUBLIC_ADMIN_ACTIONS && (
+					<motion.button
+						onClick={() => router.push('/write')}
+						initial={{ opacity: 0, scale: 0.6 }}
+						animate={{ opacity: 1, scale: 1 }}
+						whileHover={{ scale: 1.05 }}
+						whileTap={{ scale: 0.95 }}
+						style={{ boxShadow: 'inset 0 0 12px rgba(255, 255, 255, 0.4)' }}
+						className='brand-btn whitespace-nowrap'>
+						<PenSVG />
+						<span>写文章</span>
+					</motion.button>
+				)}
 				<motion.button
 					type='button'
 					initial={{ opacity: 0, scale: 0.6 }}
@@ -65,15 +69,18 @@ export default function WriteButton() {
 					aria-label='切换时间主题'>
 					<ThemeIcon className='text-brand h-5 w-5' />
 				</motion.button>
-				<motion.button
-					initial={{ opacity: 0, scale: 0.6 }}
-					animate={{ opacity: 1, scale: 1 }}
-					whileHover={{ scale: 1.05 }}
-					whileTap={{ scale: 0.95 }}
-					onClick={() => setConfigDialogOpen(true)}
-					className='p-2'>
-					<DotsSVG className='h-6 w-6' />
-				</motion.button>
+				{/* Public visitors should not see the site config entry because it exposes upload/edit controls. */}
+				{SHOW_PUBLIC_ADMIN_ACTIONS && (
+					<motion.button
+						initial={{ opacity: 0, scale: 0.6 }}
+						animate={{ opacity: 1, scale: 1 }}
+						whileHover={{ scale: 1.05 }}
+						whileTap={{ scale: 0.95 }}
+						onClick={() => setConfigDialogOpen(true)}
+						className='p-2'>
+						<DotsSVG className='h-6 w-6' />
+					</motion.button>
+				)}
 			</motion.div>
 		</HomeDraggableLayer>
 	)

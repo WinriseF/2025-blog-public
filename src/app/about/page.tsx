@@ -9,6 +9,7 @@ import { useAuthStore } from '@/hooks/use-auth'
 import LikeButton from '@/components/like-button'
 import GithubSVG from '@/svgs/github.svg'
 import initialData from './list.json'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export default function Page() {
 	const [data, setData] = useState<AboutData>(initialData as AboutData)
@@ -190,13 +191,18 @@ export default function Page() {
 						</motion.button>
 					</>
 				) : (
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={handleEnterEditMode}
-						className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-						编辑
-					</motion.button>
+					<>
+						{/* Public visitors should not see the edit entry; existing edit logic stays wired behind the flag. */}
+						{SHOW_PUBLIC_ADMIN_ACTIONS && (
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={handleEnterEditMode}
+								className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
+								编辑
+							</motion.button>
+						)}
+					</>
 				)}
 			</motion.div>
 		</>

@@ -17,6 +17,7 @@ import { useConfigStore } from './stores/config-store'
 import { toast } from 'sonner'
 import ConfigDialog from './config-dialog/index'
 import { useEffect } from 'react'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export default function Home() {
 	const { maxSM } = useSize()
@@ -37,6 +38,8 @@ export default function Home() {
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			if (!SHOW_PUBLIC_ADMIN_ACTIONS) return
+
 			if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
 				e.preventDefault()
 				setConfigDialogOpen(true)
@@ -51,7 +54,8 @@ export default function Home() {
 
 	return (
 		<>
-			{editing && (
+			{/* Public visitors should not see layout edit controls; existing layout edit logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && editing && (
 				<div className='pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center pt-6'>
 					<div className='pointer-events-auto flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-2 shadow-lg backdrop-blur'>
 						<span className='text-xs text-gray-600'>正在编辑首页布局，拖拽卡片调整位置</span>
@@ -84,7 +88,7 @@ export default function Home() {
 				{!maxSM && cardStyles.writeButtons?.enabled !== false && <WriteButtons />}
 				{cardStyles.likePosition?.enabled !== false && <LikePosition />}
 			</div>
-			<ConfigDialog open={configDialogOpen} onClose={() => setConfigDialogOpen(false)} />
+			{SHOW_PUBLIC_ADMIN_ACTIONS && <ConfigDialog open={configDialogOpen} onClose={() => setConfigDialogOpen(false)} />}
 		</>
 	)
 }

@@ -10,6 +10,7 @@ import { pushPictures } from './services/push-pictures'
 import { useAuthStore } from '@/hooks/use-auth'
 import type { ImageItem } from '../projects/components/image-upload-dialog'
 import { useRouter } from 'next/navigation'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export interface Picture {
 	id: string
@@ -214,55 +215,61 @@ export default function Page() {
 				}}
 			/>
 
-			<RandomLayout pictures={pictures} isEditMode={isEditMode} onDeleteSingle={handleDeleteSingleImage} onDeleteGroup={handleDeleteGroup} />
+			<RandomLayout
+				pictures={pictures}
+				isEditMode={SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode}
+				onDeleteSingle={handleDeleteSingleImage}
+				onDeleteGroup={handleDeleteGroup}
+			/>
 
 			{pictures.length === 0 && (
-				<div className='text-secondary flex min-h-screen items-center justify-center text-center text-sm'>
-					还没有上传图片，点击右上角「编辑」后即可开始上传。
-				</div>
+				<div className='text-secondary flex min-h-screen items-center justify-center text-center text-sm'>还没有图片。</div>
 			)}
 
-			<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} className='absolute top-4 right-6 flex gap-3 max-sm:hidden'>
-				{isEditMode ? (
-					<>
+			{/* Public visitors should not see picture edit or upload controls; existing logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && (
+				<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} className='absolute top-4 right-6 flex gap-3 max-sm:hidden'>
+					{isEditMode ? (
+						<>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={() => router.push('/image-toolbox')}
+								className='rounded-xl border bg-blue-50 px-4 py-2 text-sm text-blue-700'>
+								压缩工具
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={handleCancel}
+								disabled={isSaving}
+								className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
+								取消
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								onClick={() => setIsUploadDialogOpen(true)}
+								className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
+								上传
+							</motion.button>
+							<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleSaveClick} disabled={isSaving} className='brand-btn px-6'>
+								{isSaving ? '保存中...' : buttonText}
+							</motion.button>
+						</>
+					) : (
 						<motion.button
 							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.95 }}
-							onClick={() => router.push('/image-toolbox')}
-							className='rounded-xl border bg-blue-50 px-4 py-2 text-sm text-blue-700'>
-							压缩工具
+							onClick={() => setIsEditMode(true)}
+							className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
+							编辑
 						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={handleCancel}
-							disabled={isSaving}
-							className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
-							取消
-						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={() => setIsUploadDialogOpen(true)}
-							className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
-							上传
-						</motion.button>
-						<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleSaveClick} disabled={isSaving} className='brand-btn px-6'>
-							{isSaving ? '保存中...' : buttonText}
-						</motion.button>
-					</>
-				) : (
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={() => setIsEditMode(true)}
-						className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-						编辑
-					</motion.button>
-				)}
-			</motion.div>
+					)}
+				</motion.div>
+			)}
 
-			{isUploadDialogOpen && <UploadDialog onClose={() => setIsUploadDialogOpen(false)} onSubmit={handleUploadSubmit} />}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && isUploadDialogOpen && <UploadDialog onClose={() => setIsUploadDialogOpen(false)} onSubmit={handleUploadSubmit} />}
 		</>
 	)
 }

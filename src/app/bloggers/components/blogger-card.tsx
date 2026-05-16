@@ -9,6 +9,7 @@ import { Blogger } from '../grid-view'
 import { useState } from 'react'
 import AvatarUploadDialog, { type AvatarItem } from './avatar-upload-dialog'
 import { getAssetUrl } from '@/lib/asset-url'
+import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 interface BloggerCardProps {
 	blogger: Blogger
@@ -45,14 +46,15 @@ export function BloggerCard({ blogger, isEditMode = false, onUpdate, onDelete }:
 		setAvatarItem(null)
 	}
 
-	const canEdit = isEditMode && isEditing
+	const canEdit = SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode && isEditing
 
 	return (
 		<motion.div
 			initial={{ opacity: 0, scale: 0.6 }}
 			{...(maxSM ? { animate: { opacity: 1, scale: 1 } } : { whileInView: { opacity: 1, scale: 1 } })}
 			className='card relative block overflow-hidden'>
-			{isEditMode && (
+			{/* Public visitors should not see card edit controls; existing edit logic stays wired behind the flag. */}
+			{SHOW_PUBLIC_ADMIN_ACTIONS && isEditMode && (
 				<div className='absolute top-3 right-3 z-10 flex gap-2'>
 					{isEditing ? (
 						<>
