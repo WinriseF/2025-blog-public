@@ -1,5 +1,12 @@
 [
 	{
+		"slug": "redis-interview-guide",
+		"title": "Redis 核心原理与工程实践入门",
+		"tags": ["Redis", "缓存", "后端开发", "分布式系统"],
+		"date": "2025-04-18",
+		"summary": "从 Redis 基础、5 种数据类型、性能原理，到持久化机制（RDB/AOF）、内存淘汰策略、分布式锁实现，以及生产环境常见的缓存问题和集群方案，系统讲解 Redis 核心概念与工程实践。"
+	},
+	{
 		"slug": "software-architecture-gof-23-design-patterns",
 		"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
 		"tags": ["软件体系结构", "设计模式", "GoF", "面向对象"],
