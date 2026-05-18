@@ -10,6 +10,7 @@ import { useReadArticles } from '@/hooks/use-read-articles'
 import LiquidGrass from '@/components/liquid-grass'
 import { getBlogCover } from '@/lib/blog-cover'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { ReadingProgressBar } from '@/components/reading-progress-bar'
 
 export default function Page() {
 	const params = useParams() as { id?: string | string[] }
@@ -72,6 +73,7 @@ export default function Page() {
 
 	return (
 		<>
+			<ReadingProgressBar />
 			<BlogPreview
 				markdown={blog.markdown}
 				title={title}
