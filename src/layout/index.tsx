@@ -11,7 +11,6 @@ import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
 import { TimeThemeProvider, useTimeTheme } from '@/components/time-theme-provider'
 import { usePathname } from 'next/navigation'
-import { getAssetUrl } from '@/lib/asset-url'
 
 const HOME_FIT_DESIGN_WIDTH = 2048
 const HOME_FIT_DESIGN_HEIGHT = 1152
@@ -40,18 +39,13 @@ export default function Layout({ children }: PropsWithChildren) {
 function ThemedLayout({ children }: PropsWithChildren) {
 	useCenterInit()
 	useSizeInit()
-	const { siteContent, regenerateKey } = useConfigStore()
+	const { regenerateKey } = useConfigStore()
 	const { maxSM, init } = useSize()
 	const { theme: timeTheme } = useTimeTheme()
 	const pathname = usePathname()
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 	const [mounted, setMounted] = useState(false)
-
-	const backgroundImages = (siteContent.backgroundImages ?? []) as Array<{ id: string; url: string }>
-	const currentBackgroundImageId = siteContent.currentBackgroundImageId
-	const currentBackgroundImage =
-		currentBackgroundImageId && currentBackgroundImageId.trim() ? backgroundImages.find(item => item.id === currentBackgroundImageId) : null
 	const mainStyle: CSSProperties | undefined = homeFitActive
 		? {
 				opacity: homeFit.ready ? 1 : 0,
@@ -97,7 +91,6 @@ function ThemedLayout({ children }: PropsWithChildren) {
 			{mounted ? (
 				<TimeAtmosphereBackground
 					theme={timeTheme}
-					backgroundImage={getAssetUrl(currentBackgroundImage?.url)}
 					regenerateKey={`${regenerateKey}-${timeTheme.name}`}
 				/>
 			) : (

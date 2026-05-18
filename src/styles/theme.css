@@ -13,3 +13,56 @@
 		'PingFang SC', -apple-system, system-ui, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif, BlinkMacSystemFont, 'Helvetica Neue',
 		'Hiragino Sans GB', 'Microsoft YaHei', Arial;
 }
+
+/* Pavilion Line Art Layer */
+.pavilion-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+
+	background-color: var(--pavilion-line-main);
+
+	-webkit-mask-image: url("/images/pavilion-line-mask.png");
+	mask-image: url("/images/pavilion-line-mask.png");
+
+	-webkit-mask-size: cover;
+	mask-size: cover;
+
+	-webkit-mask-position: center;
+	mask-position: center;
+
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+
+	/* 显式使用 Alpha 通道模式，适配透明背景 PNG */
+	-webkit-mask-mode: alpha;
+	mask-mode: alpha;
+
+	opacity: var(--pavilion-main-opacity);
+	filter: drop-shadow(0 0 10px var(--pavilion-glow));
+}
+
+[data-time-atmosphere="dawn"] {
+	--pavilion-line-main: #5b7dc2;
+	--pavilion-glow: rgba(91, 125, 194, 0.15);
+	--pavilion-main-opacity: 0.2;
+}
+
+[data-time-atmosphere="noon"] {
+	--pavilion-line-main: #2a8b78;
+	--pavilion-glow: rgba(42, 139, 120, 0.12);
+	--pavilion-main-opacity: 0.18;
+}
+
+[data-time-atmosphere="sunset"] {
+	--pavilion-line-main: #b0465e;
+	--pavilion-glow: rgba(176, 70, 94, 0.14);
+	--pavilion-main-opacity: 0.18;
+}
+
+[data-time-atmosphere="night"] {
+	--pavilion-line-main: #39d4c8;
+	--pavilion-glow: rgba(57, 212, 200, 0.28);
+	--pavilion-main-opacity: 0.16;
+}

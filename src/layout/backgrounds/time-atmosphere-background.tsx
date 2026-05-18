@@ -7,7 +7,6 @@ import AmbientEffectLayer from './ambient-effect-layer'
 
 type TimeAtmosphereBackgroundProps = {
 	theme: TimeTheme
-	backgroundImage?: string
 	regenerateKey?: string | number
 }
 
@@ -64,7 +63,7 @@ function useReducedMotion() {
 	return reducedMotion
 }
 
-export default function TimeAtmosphereBackground({ theme, backgroundImage, regenerateKey = 0 }: TimeAtmosphereBackgroundProps) {
+export default function TimeAtmosphereBackground({ theme, regenerateKey = 0 }: TimeAtmosphereBackgroundProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
 	const { atmosphere } = theme
@@ -73,10 +72,9 @@ export default function TimeAtmosphereBackground({ theme, backgroundImage, regen
 		() =>
 			({
 				backgroundColor: theme.colors.bg,
-				backgroundImage: makeBackground(atmosphere.background),
-				opacity: backgroundImage ? 0.9 : 1
+				backgroundImage: makeBackground(atmosphere.background)
 			}) satisfies CSSProperties,
-		[atmosphere.background, backgroundImage, theme.colors.bg]
+		[atmosphere.background, theme.colors.bg]
 	)
 
 	useEffect(() => {
@@ -243,13 +241,17 @@ export default function TimeAtmosphereBackground({ theme, backgroundImage, regen
 
 	return (
 		<div className='pointer-events-none fixed inset-0 z-0 overflow-hidden' data-time-atmosphere={theme.name}>
-			<div
-				className='absolute inset-0 bg-cover bg-center bg-no-repeat'
-				style={backgroundImage ? { backgroundColor: theme.colors.bg, backgroundImage: `url(${backgroundImage})` } : { backgroundColor: theme.colors.bg }}
-			/>
+			{/* Gradient Background */}
 			<div className='absolute inset-0 transition-opacity duration-1000' style={backgroundStyle} />
+
+			{/* Pavilion Line Art Layer */}
+			<div className='pavilion-layer' />
+
+			{/* Canvas Animation */}
 			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' />
 			<AmbientEffectLayer themeName={theme.name} />
+
+			{/* Noise Texture */}
 			<div
 				className='absolute inset-0 mix-blend-overlay'
 				style={{
