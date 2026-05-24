@@ -8,12 +8,12 @@ import { useCenterStore } from '@/hooks/use-center'
 import { CARD_SPACING } from '@/consts'
 import ScrollOutlineSVG from '@/svgs/scroll-outline.svg'
 import ScrollFilledSVG from '@/svgs/scroll-filled.svg'
+import NewsOutlineSVG from '@/svgs/news-outline.svg'
+import NewsFilledSVG from '@/svgs/news-filled.svg'
 import ProjectsFilledSVG from '@/svgs/projects-filled.svg'
 import ProjectsOutlineSVG from '@/svgs/projects-outline.svg'
 import AboutFilledSVG from '@/svgs/about-filled.svg'
 import AboutOutlineSVG from '@/svgs/about-outline.svg'
-import ShareFilledSVG from '@/svgs/share-filled.svg'
-import ShareOutlineSVG from '@/svgs/share-outline.svg'
 import WebsiteFilledSVG from '@/svgs/website-filled.svg'
 import WebsiteOutlineSVG from '@/svgs/website-outline.svg'
 import { usePathname } from 'next/navigation'
@@ -44,10 +44,10 @@ const list = [
 		href: '/about'
 	},
 	{
-		icon: ShareOutlineSVG,
-		iconActive: ShareFilledSVG,
-		label: '推荐分享',
-		href: '/share'
+		icon: NewsOutlineSVG,
+		iconActive: NewsFilledSVG,
+		label: '新闻趋势',
+		href: '/news'
 	},
 	{
 		icon: WebsiteOutlineSVG,
@@ -64,15 +64,15 @@ export default function NavCard() {
 	const center = useCenterStore()
 	const [show, setShow] = useState(false)
 	const { maxSM } = useSize()
-	const [hoveredIndex, setHoveredIndex] = useState<number>(0)
+
+	const activeIndex = useMemo(() => {
+		const index = list.findIndex(item => pathname === item.href || pathname.startsWith(`${item.href}/`))
+		return index >= 0 ? index : undefined
+	}, [pathname])
+	const [hoveredIndex, setHoveredIndex] = useState<number>(activeIndex ?? 0)
 	const { siteContent, cardStyles } = useConfigStore()
 	const styles = cardStyles.navCard
 	const hiCardStyles = cardStyles.hiCard
-
-	const activeIndex = useMemo(() => {
-		const index = list.findIndex(item => pathname === item.href)
-		return index >= 0 ? index : undefined
-	}, [pathname])
 
 	useEffect(() => {
 		setShow(true)
@@ -107,13 +107,10 @@ export default function NavCard() {
 	}, [form, styles])
 
 	useEffect(() => {
-		if (form === 'icons' && activeIndex !== undefined && hoveredIndex !== activeIndex) {
-			const timer = setTimeout(() => {
-				setHoveredIndex(activeIndex)
-			}, 1500)
-			return () => clearTimeout(timer)
+		if (form === 'icons' && activeIndex !== undefined) {
+			setHoveredIndex(activeIndex)
 		}
-	}, [hoveredIndex, activeIndex, form])
+	}, [activeIndex, form])
 
 	if (maxSM) position = { x: center.x - size.width / 2, y: 16 }
 
