@@ -1,3 +1,5 @@
+import { ASSET_ORIGIN } from '@/lib/asset-url'
+
 export default function Head() {
 	return (
 		<head>
@@ -5,6 +7,9 @@ export default function Head() {
 			<link rel='manifest' href='/manifest.json' />
 
 			<link rel='icon' href='/favicon.png' />
+
+			<link rel='preconnect' href={ASSET_ORIGIN} crossOrigin='anonymous' />
+			<link rel='dns-prefetch' href={ASSET_ORIGIN} />
 
 			<link rel='preconnect' href='https://fonts.googleapis.com' />
 			<link rel='preconnect' href='https://fonts.gstatic.com' crossOrigin='anonymous' />

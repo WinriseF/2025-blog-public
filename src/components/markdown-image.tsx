@@ -26,8 +26,15 @@ export function MarkdownImage({ src, alt = '', title = '' }: MarkdownImageProps)
 				onClick={() => setDisplay(true)}
 				className='h-auto max-w-full cursor-pointer transition-opacity hover:opacity-80'
 			/>
-			<DialogModal open={display} onClose={() => setDisplay(false)} className='max-w-none bg-transparent p-0'>
-				<OptimizedImage src={imageSrc} alt={alt} width={1600} height={1200} className='h-auto max-h-[90vh] max-w-full rounded-2xl object-contain' />
+			<DialogModal open={display} onClose={() => setDisplay(false)} className='pointer-events-none max-w-none bg-transparent p-0'>
+				<OptimizedImage
+					src={imageSrc}
+					alt={alt}
+					width={1600}
+					height={1200}
+					onClick={() => setDisplay(false)}
+					className='pointer-events-auto h-auto max-h-[90vh] max-w-full cursor-zoom-out rounded-2xl object-contain'
+				/>
 			</DialogModal>
 		</>
 	)
