@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 import ImageUploadDialog, { type ImageItem } from './image-upload-dialog'
 import type { Project } from './project-card'
 import { DialogModal } from '@/components/dialog-modal'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface CreateDialogProps {
 	project: Project | null
@@ -83,7 +84,7 @@ export default function CreateDialog({ project, onClose, onSave }: CreateDialogP
 					<div className='group relative cursor-pointer' onClick={() => setShowImageDialog(true)}>
 						{formData.image ? (
 							<>
-								<img src={formData.image} alt={formData.name} className='h-16 w-16 rounded-xl object-cover' />
+								<OptimizedImage src={formData.image} alt={formData.name} width={64} height={64} className='h-16 w-16 rounded-xl object-cover' />
 								<div className='pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
 									<span className='text-xs text-white'>更换</span>
 								</div>

@@ -10,6 +10,7 @@ import { useState } from 'react'
 import AvatarUploadDialog, { type AvatarItem } from './avatar-upload-dialog'
 import { getAssetUrl } from '@/lib/asset-url'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface BloggerCardProps {
 	blogger: Blogger
@@ -81,11 +82,11 @@ export function BloggerCard({ blogger, isEditMode = false, onUpdate, onDelete }:
 			<div>
 				<div className='mb-4 flex items-center gap-4'>
 					<div className='group relative'>
-						<img
+						<OptimizedImage
 							src={getAssetUrl(localBlogger.avatar)}
 							alt={localBlogger.name}
-							loading='lazy'
-							decoding='async'
+							width={64}
+							height={64}
 							className={cn('h-16 w-16 rounded-full object-cover', canEdit && 'cursor-pointer')}
 							onClick={() => canEdit && setShowAvatarDialog(true)}
 						/>

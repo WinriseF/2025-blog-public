@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { DialogModal } from '@/components/dialog-modal'
 import type { ImageItem } from '../../projects/components/image-upload-dialog'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface UploadDialogProps {
 	onClose: () => void
@@ -94,7 +95,7 @@ export default function UploadDialog({ onClose, onSubmit }: UploadDialogProps) {
 											className={`absolute h-32 w-44 overflow-hidden rounded-xl border-4 border-white bg-white shadow-xl transition-transform ${
 												index === 0 ? '-left-4 -translate-y-2 -rotate-6' : index === 1 ? 'z-20 rotate-1' : 'right-0 translate-y-2 rotate-6'
 											}`}>
-											<img src={image.previewUrl} alt={`preview-${index}`} className='h-full w-full object-cover' />
+											<OptimizedImage src={image.previewUrl} alt={`preview-${index}`} width={176} height={128} className='h-full w-full object-cover' />
 										</div>
 									) : null
 								)}

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { DialogModal } from '@/components/dialog-modal'
+import { OptimizedImage } from '@/components/optimized-image'
 
 export type ImageItem = { type: 'url'; url: string } | { type: 'file'; file: File; previewUrl: string; hash?: string }
 
@@ -76,7 +77,7 @@ export default function ImageUploadDialog({ currentImage, onClose, onSubmit }: I
 						onClick={() => fileInputRef.current?.click()}
 						className='mx-auto flex h-32 w-32 cursor-pointer items-center justify-center rounded-xl border border-gray-300 bg-secondary/10 transition-colors hover:bg-gray-200'>
 						{previewFile ? (
-							<img src={previewFile.previewUrl} alt='preview' className='h-full w-full rounded-xl object-cover' />
+							<OptimizedImage src={previewFile.previewUrl} alt='preview' width={128} height={128} className='h-full w-full rounded-xl object-cover' />
 						) : (
 							<div className='text-center'>
 								<Plus className='text-secondary mx-auto mb-1 h-8 w-8' />

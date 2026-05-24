@@ -9,6 +9,7 @@ import shareList from '@/app/share/list.json'
 import Link from 'next/link'
 import { HomeDraggableLayer } from './home-draggable-layer'
 import { getAssetUrl } from '@/lib/asset-url'
+import { OptimizedImage } from '@/components/optimized-image'
 
 type ShareItem = {
 	name: string
@@ -47,7 +48,7 @@ export default function ShareCard() {
 				<Link href='/share' className='mt-2 block space-y-2'>
 					<div className='flex items-center'>
 						<div className='relative mr-3 h-12 w-12 shrink-0 overflow-hidden rounded-xl'>
-							<img src={getAssetUrl(randomItem.logo)} alt={randomItem.name} className='h-full w-full object-contain' />
+							<OptimizedImage src={getAssetUrl(randomItem.logo)} alt={randomItem.name} fill sizes='48px' className='object-contain' />
 						</div>
 						<h3 className='text-sm font-medium'>{randomItem.name}</h3>
 					</div>

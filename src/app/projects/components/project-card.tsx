@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { getAssetUrl } from '@/lib/asset-url'
 import ImageUploadDialog, { type ImageItem } from './image-upload-dialog'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { OptimizedImage } from '@/components/optimized-image'
 
 export interface Project {
 	name: string
@@ -95,9 +96,11 @@ export function ProjectCard({ project, isEditMode = false, onUpdate, onDelete }:
 
 			<div className='flex items-start gap-4'>
 				<div className='group relative'>
-					<img
+					<OptimizedImage
 						src={getAssetUrl(localProject.image)}
 						alt={localProject.name}
+						width={64}
+						height={64}
 						className={cn('h-16 w-16 shrink-0 rounded-xl object-cover', canEdit && 'cursor-pointer')}
 						onClick={() => canEdit && setShowImageDialog(true)}
 					/>

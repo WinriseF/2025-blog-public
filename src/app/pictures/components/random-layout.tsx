@@ -8,6 +8,7 @@ import siteContent from '@/config/site-content.json'
 import { cn } from '@/lib/utils'
 import { useSize } from '@/hooks/use-size'
 import { getAssetUrl } from '@/lib/asset-url'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface RandomLayoutProps {
 	pictures: Picture[]
@@ -292,10 +293,11 @@ const FloatingImage = ({
 					'pointer-events-auto absolute origin-center -translate-1/2 cursor-pointer shadow-xl transition-[scale]',
 					!isEditMode && !isZoomed && 'hover:scale-105'
 				)}>
-				<motion.img
+				<OptimizedImage
 					src={imageUrl}
-					loading='lazy'
-					decoding='async'
+					alt=''
+					fill
+					sizes={isZoomed ? '100vw' : '200px'}
 					onLoad={event => {
 						const img = event.currentTarget
 						setOriginalSize({ width: img.naturalWidth, height: img.naturalHeight })

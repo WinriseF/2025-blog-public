@@ -6,6 +6,7 @@ import { hashFileSHA256 } from '@/lib/file-utils'
 import { getAssetUrl } from '@/lib/asset-url'
 import type { SiteContent } from '../../stores/config-store'
 import type { ArtImageUploads, FileItem } from './types'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface ArtImagesSectionProps {
 	formData: SiteContent
@@ -125,7 +126,7 @@ export function ArtImagesSection({ formData, setFormData, artImageUploads, setAr
 								className={`block w-full overflow-hidden rounded-xl border bg-white/60 transition-all ${
 									isActive ? 'ring-brand shadow-md ring-2' : 'hover:border-brand/60'
 								}`}>
-								<img src={src} alt='art preview' className='h-24 w-full object-cover' />
+								<OptimizedImage src={src} alt='art preview' width={180} height={96} className='h-24 w-full object-cover' />
 							</button>
 							{isActive && (
 								<span className='bg-brand pointer-events-none absolute top-1 left-1 rounded-full px-2 py-0.5 text-[10px] text-white shadow'>当前使用</span>

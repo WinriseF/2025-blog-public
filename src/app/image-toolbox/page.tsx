@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 import { motion } from 'motion/react'
 import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import { DialogModal } from '@/components/dialog-modal'
+import { OptimizedImage } from '@/components/optimized-image'
 
 type ConvertedMeta = {
 	url: string
@@ -340,7 +341,7 @@ export default function Page() {
 								return (
 									<li key={`${file.name}-${index}`} className='flex items-center gap-4 py-3'>
 										<div className='h-12 w-12 overflow-hidden rounded-xl border border-slate-200 bg-slate-50'>
-											<img src={preview} alt={file.name} className='h-full w-full object-cover' />
+											<OptimizedImage src={preview} alt={file.name} width={48} height={48} className='h-full w-full object-cover' />
 										</div>
 										<div className='flex flex-1 flex-col'>
 											<p className='font-medium'>{formatFileName(file.name)}</p>
@@ -459,13 +460,13 @@ export default function Page() {
 						<div className='flex flex-col items-end p-4'>
 							<div>
 								<div className='text-secondary text-center text-sm font-medium'>原图 ({formatBytes(images[compareIndex].file.size)})</div>
-								<img src={images[compareIndex].preview} alt='Original' className='mt-3 max-h-[90vh] rounded-xl bg-slate-100' />
+								<OptimizedImage src={images[compareIndex].preview} alt='Original' width={1200} height={800} className='mt-3 max-h-[90vh] rounded-xl bg-slate-100' />
 							</div>
 						</div>
 						<div className='flex flex-col items-start p-4'>
 							<div>
 								<div className='text-secondary text-center text-sm font-medium'>WEBP ({formatBytes(images[compareIndex].converted!.size)})</div>
-								<img src={images[compareIndex].converted!.url} alt='Converted' className='mt-3 max-h-[90vh] rounded-xl bg-slate-100' />
+								<OptimizedImage src={images[compareIndex].converted!.url} alt='Converted' width={1200} height={800} className='mt-3 max-h-[90vh] rounded-xl bg-slate-100' />
 							</div>
 						</div>
 					</div>

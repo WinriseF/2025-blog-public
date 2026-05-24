@@ -5,6 +5,7 @@ import { CARD_SPACING } from '@/consts'
 import { useRouter } from 'next/navigation'
 import { HomeDraggableLayer } from './home-draggable-layer'
 import { getAssetUrl } from '@/lib/asset-url'
+import { OptimizedImage } from '@/components/optimized-image'
 
 export default function ArtCard() {
 	const center = useCenterStore()
@@ -24,7 +25,16 @@ export default function ArtCard() {
 	return (
 		<HomeDraggableLayer cardKey='artCard' x={x} y={y} width={styles.width} height={styles.height}>
 			<Card className='p-2 max-sm:static max-sm:translate-0' order={styles.order} width={styles.width} height={styles.height} x={x} y={y}>
-				<img onClick={() => router.push('/pictures')} src={artUrl} alt='wall art' className='h-full w-full rounded-[32px] object-cover' />
+				<div className='relative h-full w-full'>
+					<OptimizedImage
+						onClick={() => router.push('/pictures')}
+						src={artUrl}
+						alt='wall art'
+						fill
+						sizes={`${styles.width}px`}
+						className='rounded-[32px] object-cover'
+					/>
+				</div>
 			</Card>
 		</HomeDraggableLayer>
 	)

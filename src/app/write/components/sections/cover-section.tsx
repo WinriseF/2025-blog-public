@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { useWriteStore } from '../../stores/write-store'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { OptimizedImage } from '@/components/optimized-image'
 
 type CoverSectionProps = {
 	delay?: number
@@ -90,7 +91,7 @@ export function CoverSection({ delay = 0 }: CoverSectionProps) {
 				}}
 				onDrop={SHOW_PUBLIC_ADMIN_ACTIONS ? handleCoverDrop : undefined}>
 				{!!coverPreviewUrl ? (
-					<img src={coverPreviewUrl} alt='cover preview' className='h-full w-full rounded-2xl object-cover' />
+					<OptimizedImage src={coverPreviewUrl} alt='cover preview' width={320} height={150} className='h-full w-full rounded-2xl object-cover' />
 				) : (
 					<>
 						{/* Public visitors should not see the cover upload tile; existing upload logic stays wired behind the flag. */}

@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 import LogoUploadDialog, { type LogoItem } from './logo-upload-dialog'
 import type { Share } from './share-card'
 import { DialogModal } from '@/components/dialog-modal'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface CreateDialogProps {
 	share: Share | null
@@ -80,7 +81,7 @@ export default function CreateDialog({ share, onClose, onSave }: CreateDialogPro
 					<div className='group relative cursor-pointer' onClick={() => setShowLogoDialog(true)}>
 						{formData.logo ? (
 							<>
-								<img src={formData.logo} alt={formData.name} className='h-16 w-16 rounded-xl object-cover' />
+								<OptimizedImage src={formData.logo} alt={formData.name} width={64} height={64} className='h-16 w-16 rounded-xl object-cover' />
 								<div className='pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
 									<span className='text-xs text-white'>更换</span>
 								</div>

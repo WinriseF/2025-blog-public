@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import { useWriteStore } from '../../stores/write-store'
 import Link from 'next/link'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { OptimizedImage } from '@/components/optimized-image'
 
 type ImagesSectionProps = {
 	delay?: number
@@ -92,8 +93,11 @@ export function ImagesSection({ delay = 0 }: ImagesSectionProps) {
 						<div
 							key={item.id}
 							className={`group relative aspect-square overflow-hidden rounded-lg border bg-white/50 text-xs ${isCover ? 'ring-2 ring-blue-500' : ''}`}>
-							<img
+							<OptimizedImage
 								src={src}
+								alt=''
+								width={160}
+								height={160}
 								className='h-full w-full object-cover'
 								draggable
 								onDragStart={e => {

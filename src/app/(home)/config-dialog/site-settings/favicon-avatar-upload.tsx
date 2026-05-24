@@ -7,6 +7,7 @@ import { hashFileSHA256 } from '@/lib/file-utils'
 import { getAssetUrl } from '@/lib/asset-url'
 import type { FileItem } from './types'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface FaviconAvatarUploadProps {
 	faviconItem: FileItem | null
@@ -70,9 +71,9 @@ export function FaviconAvatarUpload({ faviconItem, setFaviconItem, avatarItem, s
 				<input ref={faviconInputRef} type='file' accept='image/*' className='hidden' onChange={handleFaviconFileSelect} />
 				<div className='group relative h-20 w-20 overflow-hidden rounded-lg border bg-white/60'>
 					{faviconItem?.type === 'file' ? (
-						<img src={faviconItem.previewUrl} alt='favicon preview' className='h-full w-full object-cover' />
+						<OptimizedImage src={faviconItem.previewUrl} alt='favicon preview' width={80} height={80} className='h-full w-full object-cover' />
 					) : (
-						<img src='/favicon.png' alt='current favicon' className='h-full w-full object-cover' />
+						<OptimizedImage src='/favicon.png' alt='current favicon' width={80} height={80} className='h-full w-full object-cover' />
 					)}
 					{/* Public visitors should not see upload/change overlays; existing upload logic stays wired behind the flag. */}
 					{SHOW_PUBLIC_ADMIN_ACTIONS && (
@@ -103,9 +104,9 @@ export function FaviconAvatarUpload({ faviconItem, setFaviconItem, avatarItem, s
 				<input ref={avatarInputRef} type='file' accept='image/*' className='hidden' onChange={handleAvatarFileSelect} />
 				<div className='group relative h-20 w-20 overflow-hidden rounded-full border bg-white/60'>
 					{avatarItem?.type === 'file' ? (
-						<img src={avatarItem.previewUrl} alt='avatar preview' className='h-full w-full object-cover' />
+						<OptimizedImage src={avatarItem.previewUrl} alt='avatar preview' width={80} height={80} className='h-full w-full object-cover' />
 					) : (
-						<img src={getAssetUrl('/images/avatar.png')} alt='current avatar' className='h-full w-full object-cover' />
+						<OptimizedImage src={getAssetUrl('/images/avatar.png')} alt='current avatar' width={80} height={80} className='h-full w-full object-cover' />
 					)}
 					{/* Public visitors should not see upload/change overlays; existing upload logic stays wired behind the flag. */}
 					{SHOW_PUBLIC_ADMIN_ACTIONS && (

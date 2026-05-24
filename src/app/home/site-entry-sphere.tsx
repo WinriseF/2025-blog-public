@@ -4,6 +4,7 @@ import { ExternalLinkIcon, Globe2Icon } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSize } from '@/hooks/use-size'
 import { siteEntries, type SiteEntry } from './list'
+import { OptimizedImage } from '@/components/optimized-image'
 
 interface Tile {
 	key: string
@@ -133,7 +134,7 @@ const SiteLogo = memo(function SiteLogo({ url }: { url: string }) {
 
 	if (!src) return <Globe2Icon className='h-7 w-7 text-[#668390]' />
 
-	return <img src={src} alt='' width={38} height={38} draggable={false} referrerPolicy='no-referrer' className='rounded-lg max-sm:h-8 max-sm:w-8' />
+	return <OptimizedImage src={src} alt='' width={38} height={38} draggable={false} referrerPolicy='no-referrer' className='rounded-lg max-sm:h-8 max-sm:w-8' />
 })
 
 export default function SiteEntrySphere() {

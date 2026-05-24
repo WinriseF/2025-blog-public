@@ -9,6 +9,7 @@ import { useState } from 'react'
 import LogoUploadDialog, { type LogoItem } from './logo-upload-dialog'
 import { getAssetUrl } from '@/lib/asset-url'
 import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
+import { OptimizedImage } from '@/components/optimized-image'
 
 export interface Share {
 	name: string
@@ -97,11 +98,11 @@ export function ShareCard({ share, isEditMode = false, onUpdate, onDelete }: Sha
 			<div>
 				<div className='mb-4 flex items-center gap-4'>
 					<div className='group relative'>
-						<img
+						<OptimizedImage
 							src={getAssetUrl(localShare.logo)}
 							alt={localShare.name}
-							loading='lazy'
-							decoding='async'
+							width={64}
+							height={64}
 							className={cn('h-16 w-16 rounded-xl object-cover', canEdit && 'cursor-pointer')}
 							onClick={() => canEdit && setShowLogoDialog(true)}
 						/>

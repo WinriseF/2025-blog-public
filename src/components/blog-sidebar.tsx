@@ -7,6 +7,7 @@ import LikeButton from '@/components/like-button'
 import { BlogToc } from '@/components/blog-toc'
 import { ScrollTopButton } from '@/components/scroll-top-button'
 import { getBlogCover } from '@/lib/blog-cover'
+import { OptimizedImage } from '@/components/optimized-image'
 
 type TocItem = {
 	id: string
@@ -71,7 +72,7 @@ export function BlogSidebar({ cover, summary, toc, slug }: BlogSidebarProps) {
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ delay: INIT_DELAY + ANIMATION_DELAY * 1 }}
 				className='bg-card w-full rounded-xl p-3'>
-				<img src={coverSrc} alt='cover' className='h-auto w-full rounded-xl border object-cover' />
+				<OptimizedImage src={coverSrc} alt='cover' width={176} height={110} className='h-auto w-full rounded-xl border object-cover' />
 			</motion.div>
 
 			{summary && (
