@@ -460,13 +460,25 @@ export default function Page() {
 						<div className='flex flex-col items-end p-4'>
 							<div>
 								<div className='text-secondary text-center text-sm font-medium'>原图 ({formatBytes(images[compareIndex].file.size)})</div>
-								<OptimizedImage src={images[compareIndex].preview} alt='Original' width={1200} height={800} className='mt-3 max-h-[90vh] rounded-xl bg-slate-100' />
+								<img
+									src={images[compareIndex].preview}
+									alt='Original'
+									loading='lazy'
+									decoding='async'
+									className='mt-3 h-auto max-h-[90vh] max-w-full rounded-xl bg-slate-100'
+								/>
 							</div>
 						</div>
 						<div className='flex flex-col items-start p-4'>
 							<div>
 								<div className='text-secondary text-center text-sm font-medium'>WEBP ({formatBytes(images[compareIndex].converted!.size)})</div>
-								<OptimizedImage src={images[compareIndex].converted!.url} alt='Converted' width={1200} height={800} className='mt-3 max-h-[90vh] rounded-xl bg-slate-100' />
+								<img
+									src={images[compareIndex].converted!.url}
+									alt='Converted'
+									loading='lazy'
+									decoding='async'
+									className='mt-3 h-auto max-h-[90vh] max-w-full rounded-xl bg-slate-100'
+								/>
 							</div>
 						</div>
 					</div>
