@@ -53,7 +53,6 @@ function NewsVideoPreview({ video }: { video: NewsDay['videos'][number] }) {
 
 function NewsDaySection({ day, index }: { day: NewsDay; index: number }) {
 	const previewVideos = day.videos.slice(0, NEWS_PREVIEW_LIMIT)
-	const hiddenCount = Math.max(day.count - previewVideos.length, 0)
 
 	return (
 		<section
@@ -65,16 +64,7 @@ function NewsDaySection({ day, index }: { day: NewsDay; index: number }) {
 					href={`/news/${day.date}`}
 					prefetch={false}
 					className='group min-w-0'>
-					<div className='news-muted text-[11px] tracking-[0.18em] uppercase'>{day.date}</div>
 					<h2 className='news-heading mt-1 text-xl leading-7 font-semibold transition-colors max-sm:text-lg'>{formatNewsDate(day.date)}</h2>
-				</Link>
-
-				<Link
-					href={`/news/${day.date}`}
-					prefetch={false}
-					className='news-action flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200'>
-					{day.count} 个视频
-					<ArrowRight className='size-3.5' />
 				</Link>
 			</div>
 
@@ -87,14 +77,6 @@ function NewsDaySection({ day, index }: { day: NewsDay; index: number }) {
 			) : (
 				<div className='news-muted py-8 text-center text-sm'>暂无视频</div>
 			)}
-
-			<Link
-				href={`/news/${day.date}`}
-				prefetch={false}
-				className='news-more mt-1 flex items-center gap-2 py-2 text-sm font-medium transition-colors max-sm:text-xs'>
-				<span>{day.count > 0 ? `打开完整日报${hiddenCount > 0 ? `，还有 ${hiddenCount} 条未展示` : ''}` : '查看日报详情'}</span>
-				<ArrowRight className='size-4 shrink-0' />
-			</Link>
 		</section>
 	)
 }

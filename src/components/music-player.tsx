@@ -25,6 +25,7 @@ type PlayMusicOptions = {
 	fadeInMs?: number
 	loop?: boolean
 	showPlayer?: boolean
+	autoPlay?: boolean
 }
 
 type PendingPlayRequest = {
@@ -159,6 +160,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
 			const showPlayer = options.showPlayer ?? true
 			const nextLoop = options.loop ?? false
+			const autoPlay = options.autoPlay ?? true
 
 			clearFadeTimer()
 			setCurrentMusic(music)
@@ -171,6 +173,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 				currentSrcRef.current = music.src
 				setCurrentTime(0)
 				setDuration(0)
+			}
+
+			if (!autoPlay) {
+				setIsPlaying(false)
+				setHasStarted(false)
+				if (showPlayer) setShowFloatingPlayer(true)
+				setLoadError(false)
+				syncDuration()
+				setPendingPlayRequest(null)
+				return
 			}
 
 			try {

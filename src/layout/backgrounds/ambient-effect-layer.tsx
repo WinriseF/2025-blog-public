@@ -233,9 +233,9 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 	useEffect(() => {
 		if (!rainActive) return
 		void playMusic(ambientMusic.rain, {
-			fadeInMs: 5000,
 			loop: true,
-			showPlayer: true
+			showPlayer: true,
+			autoPlay: false
 		})
 	}, [playMusic, rainActive])
 
