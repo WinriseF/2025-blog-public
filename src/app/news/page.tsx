@@ -138,7 +138,7 @@ export default async function NewsPage() {
 	const result = await getNewsIndex()
 
 	if (!result.ok) {
-		return <NewsState title='新闻趋势' message={result.error} />
+		return <NewsState title='每日内容与热点' message={result.error} />
 	}
 
 	const { title, updatedAt, days } = result.data
@@ -146,7 +146,7 @@ export default async function NewsPage() {
 	const totalVideos = days.reduce((total, day) => total + day.count, 0)
 
 	if (days.length === 0) {
-		return <NewsState title={title} message='暂无新闻趋势内容' />
+		return <NewsState title={title} message='暂无日报内容' />
 	}
 
 	return (
@@ -158,9 +158,12 @@ export default async function NewsPage() {
 							<Newspaper className='size-7' />
 						</div>
 						<div className='min-w-0'>
-							<div className='news-muted text-xs tracking-[0.22em] uppercase'>Daily Video Digest</div>
+							<div className='news-muted text-xs tracking-[0.22em] uppercase'>Daily Intel Digest</div>
 							<h1 className='mt-1 truncate text-2xl font-semibold max-sm:text-xl'>{title}</h1>
-							<p className='news-muted mt-2 text-sm'>{updatedAt ? `更新时间：${updatedAt}` : '按日期整理的新闻趋势内容'}</p>
+							<p className='news-muted mt-2 text-sm leading-6'>
+								汇总 B 站 UP 内容与 NewsNow 午间热点摘要
+								{updatedAt ? <span className='block'>更新时间：{updatedAt}</span> : null}
+							</p>
 						</div>
 					</div>
 
@@ -174,7 +177,7 @@ export default async function NewsPage() {
 
 				<div className='news-stat-panel mt-6 grid grid-cols-3 rounded-2xl py-4 max-sm:grid-cols-1 max-sm:px-4 max-sm:py-0'>
 					<NewsStat label='收录天数' value={days.length} />
-					<NewsStat label='视频总数' value={totalVideos} />
+					<NewsStat label='B站视频' value={totalVideos} />
 					<NewsStat label='最新日期' value={latestDay?.date || '-'} />
 				</div>
 			</section>

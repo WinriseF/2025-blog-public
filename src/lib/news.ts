@@ -11,6 +11,9 @@ const NEWS_TABLE_DIVIDER_RE = /^\|\s*-+/
 const NEWS_TABLE_ROW_RE = /^\|\s*([^|]+?)\s*\|\s*(.+)\s*\|\s*\[[^\]]+\]\((https?:\/\/[^)]+)\)\s*\|$/
 const MARKDOWN_TITLE_RE = /^#\s+(.+)$/m
 const MARKDOWN_LIST_ITEM_RE = /^-\s+/
+const NEWS_INDEX_TITLE = '每日内容与热点精选'
+const NEWS_INDEX_SUMMARY = '汇总 B 站 UP 内容与 NewsNow 午间热点摘要'
+const LEGACY_BILI_DIGEST_TITLE_RE = /B\s*站\s*UP\s*内容精选/
 
 const NEWS_BILI_BASE_URL = (process.env.NEWS_BILI_BASE_URL || process.env.NEXT_PUBLIC_NEWS_BILI_BASE_URL || DEFAULT_NEWS_BILI_BASE_URL).replace(/\/$/, '')
 const NEWSNOW_BASE_URL = (process.env.NEWSNOW_BASE_URL || DEFAULT_NEWSNOW_BASE_URL).replace(/\/$/, '')
@@ -121,6 +124,14 @@ function getNewsUrl(path: string) {
 
 function getNewsNowUrl(path: string) {
 	return `${NEWSNOW_BASE_URL}/${path.replace(/^\//, '')}`
+}
+
+function normalizeNewsDisplayTitle(title: string, date?: string): string {
+	if (LEGACY_BILI_DIGEST_TITLE_RE.test(title)) {
+		return date ? `${date} ${NEWS_INDEX_TITLE}` : NEWS_INDEX_TITLE
+	}
+
+	return title
 }
 
 export function getNewsNowFocusUrl() {
@@ -294,7 +305,8 @@ function parseNewsTableRow(line: string): NewsVideo | null {
 
 export function parseNewsIndexMarkdown(markdown: string): NewsIndex {
 	const lines = markdown.split(/\r?\n/)
-	const title = lines.find(line => line.startsWith('# '))?.replace(/^#\s+/, '').trim() || '新闻趋势'
+	const rawTitle = lines.find(line => line.startsWith('# '))?.replace(/^#\s+/, '').trim() || NEWS_INDEX_TITLE
+	const title = normalizeNewsDisplayTitle(rawTitle)
 	const updatedAt = lines
 		.find(line => /^>\s*更新时间：/.test(line.trim()))
 		?.replace(/^>\s*更新时间：/, '')
@@ -396,18 +408,18 @@ export async function getNewsArticle(date: string): Promise<NewsResult<NewsArtic
 	const contentCount = countListItems(getSectionMarkdown(markdown, '内容'))
 	const sourceCount = countListItems(getSectionMarkdown(markdown, '来源'))
 	const summaryParts: string[] = []
-	if (contentCount > 0) summaryParts.push(`${contentCount} 条趋势`)
+	if (contentCount > 0) summaryParts.push(`${contentCount} 条 B站内容`)
 	if (sourceCount > 0) summaryParts.push(`${sourceCount} 个来源视频`)
 
 	return {
 		ok: true,
 		data: {
 			date,
-			title: getMarkdownTitle(markdown, `${date} B站 UP 内容精选`),
+			title: normalizeNewsDisplayTitle(getMarkdownTitle(markdown, `${date} ${NEWS_INDEX_TITLE}`), date),
 			markdown,
 			sourceUrl: result.data.url,
-			tags: ['新闻', '趋势', 'B站'],
-			summary: summaryParts.join('，') || 'B 站 UP 内容精选'
+			tags: ['新闻', '趋势', 'B站', 'NewsNow'],
+			summary: summaryParts.join('，') || NEWS_INDEX_SUMMARY
 		}
 	}
 }
