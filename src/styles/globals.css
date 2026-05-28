@@ -257,6 +257,109 @@
 	border-left: 1px solid var(--news-border);
 }
 
+.news-live-shell {
+	--news-live-accent: #f14d42;
+}
+
+.news-live-shell::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background:
+		linear-gradient(90deg, color-mix(in srgb, var(--news-live-accent) 16%, transparent), transparent 42%),
+		linear-gradient(180deg, color-mix(in srgb, var(--news-live-accent) 9%, transparent), transparent 34%);
+	opacity: 0.74;
+}
+
+[data-time-theme='night'] .news-live-shell {
+	--news-live-accent: #ff8b78;
+}
+
+.news-live-mark {
+	border: 1px solid color-mix(in srgb, var(--news-live-accent) 36%, var(--news-border));
+	background: color-mix(in srgb, var(--news-live-accent) 16%, var(--news-panel-strong));
+	color: var(--news-live-accent);
+	box-shadow: 0 16px 34px -26px color-mix(in srgb, var(--news-live-accent) 80%, black);
+}
+
+.news-live-meta {
+	border: 1px solid color-mix(in srgb, var(--news-live-accent) 20%, var(--news-border));
+	background: color-mix(in srgb, var(--news-panel-soft) 74%, var(--news-live-accent) 6%);
+}
+
+.news-live-metric {
+	border-left: 1px solid color-mix(in srgb, var(--news-live-accent) 14%, var(--news-border));
+}
+
+.news-live-source {
+	border: 1px solid color-mix(in srgb, var(--news-live-accent) 16%, var(--news-border));
+	background:
+		linear-gradient(180deg, color-mix(in srgb, var(--news-panel-strong) 82%, transparent), color-mix(in srgb, var(--news-panel-soft) 78%, transparent)),
+		color-mix(in srgb, var(--news-live-accent) 4%, transparent);
+}
+
+.news-live-items {
+	max-height: 22rem;
+	overflow-y: auto;
+	padding-right: 0.35rem;
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--news-live-accent) 22%, transparent) transparent;
+}
+
+.news-live-items::-webkit-scrollbar {
+	width: 4px;
+}
+
+.news-live-items::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.news-live-items::-webkit-scrollbar-thumb {
+	border-radius: 9999px;
+	background: color-mix(in srgb, var(--news-live-accent) 18%, transparent);
+}
+
+.news-live-items:hover {
+	scrollbar-color: color-mix(in srgb, var(--news-live-accent) 42%, transparent) transparent;
+}
+
+.news-live-items:hover::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--news-live-accent) 40%, transparent);
+}
+
+.news-live-item:hover {
+	background: color-mix(in srgb, var(--news-live-accent) 10%, transparent);
+}
+
+.news-live-item .news-title {
+	overflow-wrap: anywhere;
+}
+
+.news-live-rank {
+	border: 1px solid color-mix(in srgb, var(--news-live-accent) 28%, var(--news-border));
+	background: color-mix(in srgb, var(--news-live-accent) 12%, transparent);
+	color: var(--news-live-accent);
+}
+
+.news-live-time,
+.news-live-chip {
+	border: 1px solid color-mix(in srgb, var(--news-live-accent) 18%, var(--news-border));
+	background: color-mix(in srgb, var(--news-panel-soft) 76%, transparent);
+	color: var(--news-text);
+	white-space: nowrap;
+}
+
+.news-live-chip:hover {
+	background: color-mix(in srgb, var(--news-live-accent) 12%, transparent);
+	color: var(--news-accent-strong);
+}
+
+.news-live-empty {
+	border: 1px dashed color-mix(in srgb, var(--news-live-accent) 30%, var(--news-border));
+	background: color-mix(in srgb, var(--news-panel-soft) 68%, transparent);
+}
+
 .news-divider,
 .news-list,
 .news-list > * {
@@ -276,6 +379,11 @@
 	.news-stat {
 		border-left: 0;
 		border-top: 1px solid var(--news-border);
+	}
+
+	.news-live-metric {
+		border-left: 0;
+		border-top: 1px solid color-mix(in srgb, var(--news-live-accent) 14%, var(--news-border));
 	}
 }
 

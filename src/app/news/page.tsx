@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, CalendarDays, ExternalLink, Newspaper, PlayCircle } from 'lucide-react'
 import { formatNewsDate, getNewsIndex, type NewsDay } from '@/lib/news'
+import { NewsNowLiveSection } from './newsnow-live-section'
 
 export const revalidate = 300
 
@@ -177,6 +178,8 @@ export default async function NewsPage() {
 					<NewsStat label='最新日期' value={latestDay?.date || '-'} />
 				</div>
 			</section>
+
+			<NewsNowLiveSection />
 
 			<div className='grid grid-cols-[220px_minmax(0,1fr)] gap-6 max-lg:grid-cols-1'>
 				<NewsDateIndex days={days} />

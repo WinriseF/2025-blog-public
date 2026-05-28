@@ -1,7 +1,9 @@
 import { cache } from 'react'
 
 const DEFAULT_NEWS_BILI_BASE_URL = 'https://img.winrisef.top/news/bili'
+const DEFAULT_NEWSNOW_BASE_URL = 'https://newsnow.busiyi.world'
 const NEWS_REVALIDATE_SECONDS = 300
+const NEWSNOW_REVALIDATE_SECONDS = 180
 const NEWS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const NEWS_DAY_HEADING_RE = /^##\s+(\d{4}-\d{2}-\d{2})(?:（共\s*(\d+)\s*个视频）)?/
 const NEWS_TABLE_HEADER_RE = /^\|\s*UP\s*主\s*\|/
@@ -11,6 +13,52 @@ const MARKDOWN_TITLE_RE = /^#\s+(.+)$/m
 const MARKDOWN_LIST_ITEM_RE = /^-\s+/
 
 const NEWS_BILI_BASE_URL = (process.env.NEWS_BILI_BASE_URL || process.env.NEXT_PUBLIC_NEWS_BILI_BASE_URL || DEFAULT_NEWS_BILI_BASE_URL).replace(/\/$/, '')
+const NEWSNOW_BASE_URL = (process.env.NEWSNOW_BASE_URL || DEFAULT_NEWSNOW_BASE_URL).replace(/\/$/, '')
+
+const NEWSNOW_FOCUS_SOURCES = [
+	'36kr-quick',
+	'douyin',
+	'github-trending-today',
+	'ithome',
+	'juejin',
+	'mktnews-flash',
+	'pcbeta-windows11',
+	'producthunt',
+	'solidot',
+	'sspai',
+	'thepaper',
+	'toutiao',
+	'v2ex-share',
+	'zaobao',
+	'zhihu'
+] as const
+
+const NEWSNOW_SOURCE_NAMES: Record<(typeof NEWSNOW_FOCUS_SOURCES)[number], string> = {
+	'36kr-quick': '36氪 快讯',
+	douyin: '抖音热点',
+	'github-trending-today': 'Github Today',
+	ithome: 'IT之家',
+	juejin: '稀土掘金',
+	'mktnews-flash': 'MKTNews',
+	'pcbeta-windows11': '远景论坛 Win11',
+	producthunt: 'Product Hunt',
+	solidot: 'Solidot',
+	sspai: '少数派',
+	thepaper: '澎湃新闻',
+	toutiao: '今日头条',
+	'v2ex-share': 'V2EX 分享',
+	zaobao: '联合早报',
+	zhihu: '知乎'
+}
+
+const NEWSNOW_REQUEST_HEADERS = {
+	Accept: 'application/json',
+	'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+	'Content-Type': 'application/json',
+	Origin: NEWSNOW_BASE_URL,
+	Referer: `${NEWSNOW_BASE_URL}/c/focus`,
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
+}
 
 export type NewsVideo = {
 	up: string
@@ -39,6 +87,23 @@ export type NewsArticle = {
 	summary: string
 }
 
+export type NewsNowItem = {
+	id: string
+	title: string
+	url: string
+	mobileUrl?: string
+	info?: string
+	hover?: string
+}
+
+export type NewsNowSource = {
+	id: string
+	name: string
+	status: string
+	updatedTime?: number
+	items: NewsNowItem[]
+}
+
 export type NewsResult<T> =
 	| {
 			ok: true
@@ -52,6 +117,67 @@ export type NewsResult<T> =
 
 function getNewsUrl(path: string) {
 	return `${NEWS_BILI_BASE_URL}/${path.replace(/^\//, '')}`
+}
+
+function getNewsNowUrl(path: string) {
+	return `${NEWSNOW_BASE_URL}/${path.replace(/^\//, '')}`
+}
+
+export function getNewsNowFocusUrl() {
+	return getNewsNowUrl('c/focus')
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+function readString(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function readNumber(value: unknown): number | undefined {
+	return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function normalizeNewsNowItem(value: unknown): NewsNowItem | null {
+	if (!isRecord(value)) return null
+
+	const title = readString(value.title)
+	const url = readString(value.url)
+	if (!title || !url) return null
+
+	const extra = isRecord(value.extra) ? value.extra : {}
+	const id = readString(value.id) || url
+	const mobileUrl = readString(value.mobileUrl)
+	const info = readString(extra.info)
+	const hover = readString(extra.hover)
+
+	return {
+		id,
+		title,
+		url,
+		...(mobileUrl ? { mobileUrl } : {}),
+		...(info ? { info } : {}),
+		...(hover ? { hover } : {})
+	}
+}
+
+function normalizeNewsNowSource(value: unknown): NewsNowSource | null {
+	if (!isRecord(value)) return null
+
+	const id = readString(value.id)
+	if (!id) return null
+
+	const items = Array.isArray(value.items) ? value.items.map(normalizeNewsNowItem).filter((item): item is NewsNowItem => Boolean(item)) : []
+	if (items.length === 0) return null
+
+	return {
+		id,
+		name: NEWSNOW_SOURCE_NAMES[id as (typeof NEWSNOW_FOCUS_SOURCES)[number]] || id,
+		status: readString(value.status) || 'unknown',
+		updatedTime: readNumber(value.updatedTime),
+		items
+	}
 }
 
 const fetchNewsText = cache(async function fetchNewsText(path: string): Promise<NewsResult<{ text: string; url: string }>> {
@@ -90,6 +216,53 @@ const fetchNewsText = cache(async function fetchNewsText(path: string): Promise<
 		return {
 			ok: false,
 			error: '新闻数据加载失败，请稍后再试'
+		}
+	}
+})
+
+export const getNewsNowFocus = cache(async function getNewsNowFocus(): Promise<NewsResult<NewsNowSource[]>> {
+	try {
+		const res = await fetch(getNewsNowUrl('api/s/entire'), {
+			method: 'POST',
+			headers: NEWSNOW_REQUEST_HEADERS,
+			body: JSON.stringify({ sources: NEWSNOW_FOCUS_SOURCES }),
+			next: { revalidate: NEWSNOW_REVALIDATE_SECONDS }
+		})
+
+		if (!res.ok) {
+			return {
+				ok: false,
+				error: `实时热点加载失败：${res.status} ${res.statusText}`,
+				status: res.status
+			}
+		}
+
+		const data: unknown = await res.json()
+		if (!Array.isArray(data)) {
+			return {
+				ok: false,
+				error: '实时热点数据格式异常',
+				status: res.status
+			}
+		}
+
+		const sources = data.map(normalizeNewsNowSource).filter((source): source is NewsNowSource => Boolean(source))
+		if (sources.length === 0) {
+			return {
+				ok: false,
+				error: '实时热点暂无内容',
+				status: res.status
+			}
+		}
+
+		return {
+			ok: true,
+			data: sources
+		}
+	} catch {
+		return {
+			ok: false,
+			error: '实时热点加载失败，请稍后再试'
 		}
 	}
 })
