@@ -84,6 +84,107 @@
 		box-shadow: 0 5px 12px color-mix(in srgb, var(--color-brand) 50%, transparent);
 	}
 
+	.reading-progress {
+		position: fixed;
+		inset: 0 0 auto;
+		z-index: 50;
+		width: 100%;
+		height: 16px;
+		--reading-progress-scale: 0;
+	}
+
+	.reading-progress-visual {
+		pointer-events: none;
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 4px;
+		overflow: hidden;
+		background-color: color-mix(in srgb, var(--color-brand) 12%, transparent);
+		contain: paint;
+	}
+
+	.reading-progress-fill {
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--color-brand) 68%, #ff4d8d) 0%,
+			var(--color-brand) 28%,
+			color-mix(in srgb, var(--color-brand) 42%, var(--color-brand-secondary)) 52%,
+			var(--color-brand-secondary) 74%,
+			color-mix(in srgb, var(--color-brand-secondary) 58%, #ffd166) 100%
+		);
+		transform: scaleX(var(--reading-progress-scale));
+		transform-origin: left center;
+		will-change: transform;
+	}
+
+	.reading-progress-input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		appearance: none;
+		background: transparent;
+		cursor: pointer;
+		opacity: 0;
+		touch-action: none;
+	}
+
+	.reading-progress-input:focus {
+		outline: none;
+	}
+
+	.reading-progress-input::-webkit-slider-runnable-track {
+		width: 100%;
+		height: 100%;
+		background: transparent;
+	}
+
+	.reading-progress-input::-webkit-slider-thumb {
+		width: 16px;
+		height: 16px;
+		appearance: none;
+	}
+
+	.reading-progress-input::-moz-range-track {
+		width: 100%;
+		height: 100%;
+		border: 0;
+		background: transparent;
+	}
+
+	.reading-progress-input::-moz-range-thumb {
+		width: 16px;
+		height: 16px;
+		border: 0;
+		background: transparent;
+	}
+
+	@media (max-width: 640px) {
+		.reading-progress {
+			height: 20px;
+		}
+
+		.reading-progress-visual {
+			height: 5px;
+		}
+
+		.reading-progress-input::-webkit-slider-thumb {
+			width: 20px;
+			height: 20px;
+		}
+
+		.reading-progress-input::-moz-range-thumb {
+			width: 20px;
+			height: 20px;
+		}
+	}
+
 	.windows {
 		@apply scrollbar-none;
 		* {
