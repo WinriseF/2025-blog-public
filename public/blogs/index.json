@@ -1,5 +1,12 @@
 [
 	{
+		"slug": "mysql-innodb-underlying-mechanism",
+		"title": "MySQL / InnoDB 底层机制深度解析",
+		"tags": ["MySQL", "InnoDB", "数据库底层", "后端开发"],
+		"date": "2026-05-10",
+		"summary": "从存储结构、B+ 树索引、Buffer Pool、事务日志、MVCC、锁到主从复制，系统讲解 MySQL/InnoDB 底层机制。不背概念，而是从「数据怎么存、索引怎么查、事务怎么恢复、并发怎么隔离、SQL 怎么执行」这几条主线讲清楚数据库。"
+	},
+	{
 		"slug": "redis-interview-guide",
 		"title": "Redis 核心原理与工程实践入门",
 		"tags": ["Redis", "缓存", "后端开发", "分布式系统"],
