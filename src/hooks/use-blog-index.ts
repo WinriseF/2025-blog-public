@@ -49,8 +49,7 @@ const fetcher = async (url: string) => {
 	if (!res.ok) {
 		throw new Error('Failed to load blog index')
 	}
-	const data = await res.json()
-	const items = Array.isArray(data) ? data : []
+	const items = (await res.json()) as BlogIndexItem[]
 	writeCachedIndex(items)
 	return items
 }
@@ -65,7 +64,7 @@ export function useBlogIndex() {
 	})
 
 	return {
-		items: data || [],
+		items: data ?? [],
 		loading: isLoading,
 		error
 	}
@@ -74,7 +73,7 @@ export function useBlogIndex() {
 export function useLatestBlog() {
 	const { items, loading, error } = useBlogIndex()
 
-	const latestBlog = items.length > 0 ? items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null
+	const latestBlog = items.length > 0 ? [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null
 
 	return {
 		blog: latestBlog,

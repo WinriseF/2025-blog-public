@@ -29,10 +29,6 @@ export function BlogSidebar({ cover, summary, toc, slug }: BlogSidebarProps) {
 	const coverSrc = getBlogCover(cover)
 
 	useEffect(() => {
-		if (typeof window === 'undefined') {
-			return
-		}
-
 		const updateMaxOffset = () => {
 			const maxScrollable = document.documentElement.scrollHeight - window.innerHeight
 

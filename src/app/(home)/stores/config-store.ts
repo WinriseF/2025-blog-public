@@ -12,8 +12,6 @@ interface ConfigStore {
 	configDialogOpen: boolean
 	setSiteContent: (content: SiteContent) => void
 	setCardStyles: (styles: CardStyles) => void
-	resetSiteContent: () => void
-	resetCardStyles: () => void
 	regenerateBubbles: () => void
 	setConfigDialogOpen: (open: boolean) => void
 }
@@ -28,12 +26,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
 	},
 	setCardStyles: (styles: CardStyles) => {
 		set({ cardStyles: styles })
-	},
-	resetSiteContent: () => {
-		set({ siteContent: { ...siteContent } })
-	},
-	resetCardStyles: () => {
-		set({ cardStyles: { ...cardStyles } })
 	},
 	regenerateBubbles: () => {
 		set(state => ({ regenerateKey: state.regenerateKey + 1 }))

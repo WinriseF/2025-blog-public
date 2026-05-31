@@ -13,8 +13,15 @@ type ScrollTopButtonProps = {
 export function ScrollTopButton({ className, delay }: ScrollTopButtonProps) {
 	const [show, setShow] = useState(false)
 	const [active, setActive] = useState(false)
+
+	const handleClick = useCallback(() => {
+		window.scrollTo({ top: 0, behavior: 'smooth' })
+		setTimeout(() => setActive(false), 1000)
+	}, [])
+
 	useEffect(() => {
-		setTimeout(() => setShow(true), delay || 1000)
+		const timer = setTimeout(() => setShow(true), delay ?? 1000)
+		return () => clearTimeout(timer)
 	}, [delay])
 
 	useEffect(() => {
@@ -27,11 +34,6 @@ export function ScrollTopButton({ className, delay }: ScrollTopButtonProps) {
 	}, [])
 
 	if (!show || !active) return null
-
-	const handleClick = useCallback(() => {
-		window.scrollTo({ top: 0, behavior: 'smooth' })
-		setTimeout(() => setActive(false), 1000)
-	}, [])
 
 	return (
 		<motion.button

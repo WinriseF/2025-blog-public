@@ -21,6 +21,10 @@ interface ConfigDialogProps {
 
 type TabType = 'site' | 'color' | 'layout'
 
+function getErrorMessage(error: unknown, fallback: string) {
+	return error instanceof Error ? error.message : fallback
+}
+
 export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 	const { isAuth, setPrivateKey } = useAuthStore()
 	const { siteContent, setSiteContent, cardStyles, setCardStyles, regenerateBubbles } = useConfigStore()
@@ -126,9 +130,9 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 			setArtImageUploads({})
 			setBackgroundImageUploads({})
 			onClose()
-		} catch (error: any) {
+		} catch (error) {
 			console.error('Failed to save:', error)
-			toast.error(`保存失败: ${error?.message || '未知错误'}`)
+			toast.error(`保存失败: ${getErrorMessage(error, '未知错误')}`)
 		} finally {
 			setIsSaving(false)
 		}
@@ -157,12 +161,10 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 		setCardStyles(originalCardStyles)
 		regenerateBubbles()
 		// Restore document title and meta if they were changed by preview
-		if (typeof document !== 'undefined') {
-			document.title = originalData.meta.title
-			const metaDescription = document.querySelector('meta[name="description"]')
-			if (metaDescription) {
-				metaDescription.setAttribute('content', originalData.meta.description)
-			}
+		document.title = originalData.meta.title
+		const metaDescription = document.querySelector('meta[name="description"]')
+		if (metaDescription) {
+			metaDescription.setAttribute('content', originalData.meta.description)
 		}
 		updateThemeVariables(originalData.theme)
 		restoreTimeTheme()
@@ -173,9 +175,7 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 		onClose()
 	}
 
-	const updateThemeVariables = (theme?: SiteContent['theme']) => {
-		if (typeof document === 'undefined' || !theme) return
-
+	const updateThemeVariables = (theme: SiteContent['theme']) => {
 		const { colorBrand, colorBrandSecondary, colorPrimary, colorSecondary, colorBg, colorBorder, colorCard, colorArticle } = theme
 
 		const root = document.documentElement
@@ -191,18 +191,14 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 	}
 
 	const handlePreview = () => {
-		console.log('formData', formData)
 		setSiteContent(formData)
 		setCardStyles(cardStylesData)
 		regenerateBubbles()
 
-		// Update document title
-		if (typeof document !== 'undefined') {
-			document.title = formData.meta.title
-			const metaDescription = document.querySelector('meta[name="description"]')
-			if (metaDescription) {
-				metaDescription.setAttribute('content', formData.meta.description)
-			}
+		document.title = formData.meta.title
+		const metaDescription = document.querySelector('meta[name="description"]')
+		if (metaDescription) {
+			metaDescription.setAttribute('content', formData.meta.description)
 		}
 		updateThemeVariables(formData.theme)
 		restoreTimeTheme()
@@ -211,7 +207,6 @@ export default function ConfigDialog({ open, onClose }: ConfigDialogProps) {
 	}
 
 	const restoreTimeTheme = () => {
-		if (typeof document === 'undefined') return
 		applyTimeTheme(timeTheme, document.documentElement)
 	}
 

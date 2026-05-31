@@ -50,11 +50,9 @@ function useReducedMotion() {
 }
 
 function pickAmbientEffect(themeName: TimeThemeName): AmbientEffectName {
-	if (typeof window !== 'undefined') {
-		const params = new URLSearchParams(window.location.search)
-		const override = params.get('effect') || params.get('ambient')
-		if (override === 'rain' || override === 'meteor' || override === 'none') return override
-	}
+	const params = new URLSearchParams(window.location.search)
+	const override = params.get('effect') || params.get('ambient')
+	if (override === 'rain' || override === 'meteor' || override === 'none') return override
 
 	const score = Math.random()
 	if (themeName === 'night') {

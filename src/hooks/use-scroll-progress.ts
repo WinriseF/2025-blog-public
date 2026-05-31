@@ -20,7 +20,6 @@ function getProgressValue(progress: number) {
 }
 
 function getMaxScroll() {
-	if (typeof window === 'undefined') return 0
 	return Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
 }
 

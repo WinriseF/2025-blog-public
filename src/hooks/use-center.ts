@@ -15,9 +15,6 @@ type CenterState = {
 }
 
 const computeCenter = () => {
-	if (typeof window === 'undefined') {
-		return { x: 0, y: 0, width: 0, height: 0 }
-	}
 	const width = window.innerWidth
 	const height = window.innerHeight
 	return {

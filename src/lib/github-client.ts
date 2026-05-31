@@ -55,40 +55,6 @@ export async function createInstallationToken(jwt: string, installationId: numbe
 	return data.token as string
 }
 
-export async function getFileSha(token: string, owner: string, repo: string, path: string, branch: string): Promise<string | undefined> {
-	const res = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`, {
-		headers: {
-			Authorization: `Bearer ${token}`,
-			Accept: 'application/vnd.github+json',
-			'X-GitHub-Api-Version': '2022-11-28'
-		}
-	})
-	if (res.status === 401) handle401Error()
-	if (res.status === 404) return undefined
-	if (!res.ok) throw new Error(`get file sha failed: ${res.status}`)
-	const data = await res.json()
-	return (data && data.sha) || undefined
-}
-
-export async function putFile(token: string, owner: string, repo: string, path: string, contentBase64: string, message: string, branch: string) {
-	const sha = await getFileSha(token, owner, repo, path, branch)
-	const res = await fetch(`${GH_API}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`, {
-		method: 'PUT',
-		headers: {
-			Authorization: `Bearer ${token}`,
-			Accept: 'application/vnd.github+json',
-			'X-GitHub-Api-Version': '2022-11-28',
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({ message, content: contentBase64, branch, ...(sha ? { sha } : {}) })
-	})
-	if (res.status === 401) handle401Error()
-	if (!res.ok) throw new Error(`put file failed: ${res.status}`)
-	return res.json()
-}
-
-// Batch commit APIs
-
 export async function getRef(token: string, owner: string, repo: string, ref: string): Promise<{ sha: string }> {
 	const res = await fetch(`${GH_API}/repos/${owner}/${repo}/git/ref/${encodeURIComponent(ref)}`, {
 		headers: {
@@ -171,8 +137,7 @@ export async function readTextFileFromRepo(token: string, owner: string, repo: s
 	if (res.status === 401) handle401Error()
 	if (res.status === 404) return null
 	if (!res.ok) throw new Error(`read file failed: ${res.status}`)
-	const data: any = await res.json()
-	if (Array.isArray(data) || !data.content) return null
+	const data = (await res.json()) as { content: string }
 	try {
 		return decodeURIComponent(escape(atob(data.content)))
 	} catch {
@@ -192,7 +157,7 @@ export async function listRepoFilesRecursive(token: string, owner: string, repo:
 		if (res.status === 401) handle401Error()
 		if (res.status === 404) return []
 		if (!res.ok) throw new Error(`read directory failed: ${res.status}`)
-		const data: any = await res.json()
+		const data = (await res.json()) as { type: 'file' | 'dir'; path: string }[] | { type: 'file' | 'dir'; path: string }
 		if (Array.isArray(data)) {
 			const files: string[] = []
 			for (const item of data) {
@@ -206,7 +171,6 @@ export async function listRepoFilesRecursive(token: string, owner: string, repo:
 			return files
 		}
 		if (data?.type === 'file') return [data.path]
-		if (data?.type === 'dir') return fetchPath(data.path)
 		return []
 	}
 

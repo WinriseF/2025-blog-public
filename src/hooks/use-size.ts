@@ -23,20 +23,16 @@ const initState = {
 }
 
 const computeSize = (): Omit<SizeState, 'recalc'> => {
-	if (typeof window !== 'undefined') {
-		const width = window.innerWidth
+	const width = window.innerWidth
 
-		return {
-			init: true,
-			maxXL: width < 1280,
-			maxLG: width < 1024,
-			maxMD: width < 768,
-			maxSM: width < 640,
-			maxXS: width < 360
-		}
+	return {
+		init: true,
+		maxXL: width < 1280,
+		maxLG: width < 1024,
+		maxMD: width < 768,
+		maxSM: width < 640,
+		maxXS: width < 360
 	}
-
-	return initState
 }
 
 export const useSizeStore = create<SizeState>(set => ({

@@ -1,8 +1,8 @@
 export type BlogConfig = {
-	title?: string
-	tags?: string[]
-	date?: string
-	summary?: string
+	title: string
+	tags: string[]
+	date: string
+	summary: string
 	cover?: string
 }
 
@@ -27,18 +27,12 @@ export async function loadBlog(slug: string): Promise<LoadedBlog> {
 	const cached = blogCache.get(slug)
 	if (cached) return cached
 
-	// Load config.json
-	let config: BlogConfig = {}
 	const configRes = await fetch(`/blogs/${encodeURIComponent(slug)}/config.json`, { cache: 'force-cache' })
-	if (configRes.ok) {
-		try {
-			config = await configRes.json()
-		} catch {
-			config = {}
-		}
+	if (!configRes.ok) {
+		throw new Error('Blog config not found')
 	}
+	const config = (await configRes.json()) as BlogConfig
 
-	// Load index.md
 	const mdRes = await fetch(`/blogs/${encodeURIComponent(slug)}/index.md`, { cache: 'force-cache' })
 	if (!mdRes.ok) {
 		throw new Error('Blog not found')

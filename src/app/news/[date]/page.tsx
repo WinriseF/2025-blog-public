@@ -49,8 +49,7 @@ function NewsDetailState({ title, message }: { title: string; message: string })
 }
 
 export default function NewsDetailPage() {
-	const params = useParams() as { date?: string | string[] }
-	const date = Array.isArray(params?.date) ? params.date[0] : params?.date || ''
+	const { date } = useParams<{ date: string }>()
 	const [article, setArticle] = useState<NewsArticle | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(true)
@@ -59,7 +58,6 @@ export default function NewsDetailPage() {
 		let cancelled = false
 
 		async function run() {
-			if (!date) return
 			if (!isValidNewsDate(date)) {
 				setArticle(null)
 				setError('请使用 YYYY-MM-DD 格式访问新闻日报。')
@@ -80,10 +78,10 @@ export default function NewsDetailPage() {
 				if (!cancelled) {
 					setArticle(data as NewsArticle)
 				}
-			} catch (err: any) {
+			} catch (error) {
 				if (!cancelled) {
 					setArticle(null)
-					setError(err?.message || '新闻数据加载失败')
+					setError(error instanceof Error ? error.message : '新闻数据加载失败')
 				}
 			} finally {
 				if (!cancelled) {
@@ -100,10 +98,6 @@ export default function NewsDetailPage() {
 	}, [date])
 
 	const displayDate = useMemo(() => formatNewsDate(date), [date])
-
-	if (!date) {
-		return <NewsDetailState title='新闻日期无效' message='无效的新闻链接。' />
-	}
 
 	if (loading) {
 		return <div className='text-secondary flex h-full items-center justify-center text-sm'>加载中...</div>

@@ -10,8 +10,7 @@ import { WriteActions } from '../components/actions'
 import { WritePreview } from '../components/preview'
 
 export default function EditBlogPage() {
-	const params = useParams() as { slug?: string }
-	const slug = params?.slug || ''
+	const { slug } = useParams<{ slug: string }>()
 
 	const { form, cover } = useWriteStore()
 	const { isPreview, closePreview } = usePreviewStore()
@@ -21,10 +20,6 @@ export default function EditBlogPage() {
 
 	if (loading) {
 		return <div className='text-secondary flex h-screen items-center justify-center text-sm'>加载中...</div>
-	}
-
-	if (!slug) {
-		return <div className='flex h-screen items-center justify-center text-sm text-red-500'>无效的博客 ID</div>
 	}
 
 	return isPreview ? (
