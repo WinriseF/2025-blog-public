@@ -3,18 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useCenterInit, useCenterStore } from '@/hooks/use-center'
-import { Picture } from '../page'
+import type { Picture } from '../page'
 import siteContent from '@/config/site-content.json'
 import { cn } from '@/lib/utils'
 import { useSize } from '@/hooks/use-size'
 import { getAssetUrl } from '@/lib/asset-url'
-import { OptimizedImage } from '@/components/optimized-image'
 
 interface RandomLayoutProps {
 	pictures: Picture[]
 	isEditMode?: boolean
-	onDeleteSingle?: (pictureId: string, imageIndex: number | 'single') => void
-	onDeleteGroup?: (picture: Picture) => void
+	onDeleteSingle?: (pictureId: string, imageIndex: number) => void
 }
 
 type PositionedItem = {
@@ -36,10 +34,9 @@ interface FloatingImageProps {
 	description?: string
 	uploadedAt?: string
 	pictureId: string
-	imageIndex: number | 'single'
+	imageIndex: number
 	isEditMode?: boolean
-	onDeleteSingle?: (pictureId: string, imageIndex: number | 'single') => void
-	onDeleteGroup?: () => void
+	onDeleteSingle?: (pictureId: string, imageIndex: number) => void
 }
 
 type UrlItem = {
@@ -48,39 +45,20 @@ type UrlItem = {
 	description?: string
 	uploadedAt?: string
 	pictureId: string
-	imageIndex: number | 'single'
+	imageIndex: number
 }
 
 const buildUrlList = (pictures: Picture[]): UrlItem[] => {
-	const result: UrlItem[] = []
-
-	for (const [index, picture] of pictures.entries()) {
-		if (picture.image) {
-			result.push({
-				url: picture.image,
-				groupIndex: index,
-				description: picture.description,
-				uploadedAt: picture.uploadedAt,
-				pictureId: picture.id,
-				imageIndex: 'single'
-			})
-		}
-
-		if (picture.images && picture.images.length > 0) {
-			result.push(
-				...picture.images.map((url, imageIndex) => ({
-					url,
-					groupIndex: index,
-					description: picture.description,
-					uploadedAt: picture.uploadedAt,
-					pictureId: picture.id,
-					imageIndex: imageIndex
-				}))
-			)
-		}
-	}
-
-	return result
+	return pictures.flatMap((picture, groupIndex) =>
+		picture.images.map((url, imageIndex) => ({
+			url,
+			groupIndex,
+			description: picture.description,
+			uploadedAt: picture.uploadedAt,
+			pictureId: picture.id,
+			imageIndex
+		}))
+	)
 }
 
 let lastZIndex = 10
@@ -89,7 +67,6 @@ const TOP_Z_INDEX = 9999
 const formatUploadedAt = (uploadedAt?: string) => {
 	if (!uploadedAt) return ''
 	const date = new Date(uploadedAt)
-	if (Number.isNaN(date.getTime())) return uploadedAt
 
 	const year = date.getFullYear()
 	const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -101,24 +78,12 @@ const formatUploadedAt = (uploadedAt?: string) => {
 }
 
 const loadSavedOffset = (url: string): { x: number; y: number } => {
-	try {
-		const saved = localStorage.getItem(`picture-offset-${url}`)
-		if (saved) {
-			const parsed = JSON.parse(saved)
-			return { x: parsed.x || 0, y: parsed.y || 0 }
-		}
-	} catch (error) {
-		console.error('Failed to load saved offset:', error)
-	}
-	return { x: 0, y: 0 }
+	const saved = localStorage.getItem(`picture-offset-${url}`)
+	return saved ? JSON.parse(saved) : { x: 0, y: 0 }
 }
 
 const saveOffset = (url: string, offset: { x: number; y: number }) => {
-	try {
-		localStorage.setItem(`picture-offset-${url}`, JSON.stringify(offset))
-	} catch (error) {
-		console.error('Failed to save offset:', error)
-	}
+	localStorage.setItem(`picture-offset-${url}`, JSON.stringify(offset))
 }
 
 const FloatingImage = ({
@@ -131,11 +96,10 @@ const FloatingImage = ({
 	pictureId,
 	imageIndex,
 	isEditMode,
-	onDeleteSingle,
-	onDeleteGroup
+	onDeleteSingle
 }: FloatingImageProps) => {
 	const { centerX, centerY } = useCenterStore()
-	const { maxSM, init } = useSize()
+	const { maxSM } = useSize()
 	const bodyRef = useRef(document.body)
 	const mouseDownTimeRef = useRef<number | null>(null)
 	const [zIndex, setZIndex] = useState(index)
@@ -174,10 +138,6 @@ const FloatingImage = ({
 			return { width: 200, height: 200 }
 		}
 
-		if (typeof window === 'undefined') {
-			return originalSize
-		}
-
 		const padding = 24
 		const maxWidth = document.documentElement.clientWidth - padding * 2
 		const maxHeight = document.documentElement.clientHeight - padding * 2
@@ -193,7 +153,7 @@ const FloatingImage = ({
 	const [isZoomed, setIsZoomed] = useState(false)
 	const dragStartOffsetRef = useRef({ x: 0, y: 0 })
 
-	if (!position || !show) return null
+	if (!show) return null
 
 	return (
 		<>
@@ -293,11 +253,11 @@ const FloatingImage = ({
 					'pointer-events-auto absolute origin-center -translate-1/2 cursor-pointer shadow-xl transition-[scale]',
 					!isEditMode && !isZoomed && 'hover:scale-105'
 				)}>
-				<OptimizedImage
+				<motion.img
 					src={imageUrl}
 					alt=''
-					fill
-					sizes={isZoomed ? '100vw' : '200px'}
+					loading='lazy'
+					decoding='async'
 					onLoad={event => {
 						const img = event.currentTarget
 						setOriginalSize({ width: img.naturalWidth, height: img.naturalHeight })
@@ -347,16 +307,12 @@ const FloatingImage = ({
 	)
 }
 
-// 基于唯一标识生成稳定的位置
-// 使用 ref 存储稳定的位置映射
 const positionCacheRef = new Map<string, PositionedItem>()
 const getStablePosition = (uniqueId: string, width: number, height: number): PositionedItem => {
-	// 如果已有缓存，直接返回
 	if (positionCacheRef.has(uniqueId)) {
 		return positionCacheRef.get(uniqueId)!
 	}
 
-	// 使用 uniqueId 的哈希值来生成稳定的索引
 	let hash = 0
 	for (let i = 0; i < uniqueId.length; i++) {
 		const char = uniqueId.charCodeAt(i)
@@ -368,7 +324,6 @@ const getStablePosition = (uniqueId: string, width: number, height: number): Pos
 	const maxRadius = Math.min(width, height) / 2 - 100
 	const goldenAngle = Math.PI * (3 - Math.sqrt(5))
 
-	// 使用稳定索引来计算位置，而不是数组索引
 	const t = (stableIndex % 1000) / 1000
 	const radius = Math.pow(t, 0.8) * maxRadius
 	const angle = stableIndex * goldenAngle
@@ -376,7 +331,6 @@ const getStablePosition = (uniqueId: string, width: number, height: number): Pos
 	const baseX = radius * Math.cos(angle)
 	const baseY = radius * Math.sin(angle)
 
-	// 使用 uniqueId 生成稳定的 jitter，确保每次都是相同的位置
 	const jitterSeed = Math.abs(hash) % 1000
 	const jitterRadius = 12
 	const jitterX = (jitterSeed % (jitterRadius * 2)) - jitterRadius
@@ -394,7 +348,7 @@ const getStablePosition = (uniqueId: string, width: number, height: number): Pos
 	return position
 }
 
-export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle, onDeleteGroup }: RandomLayoutProps) => {
+export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle }: RandomLayoutProps) => {
 	useCenterInit()
 	const { width, height } = useCenterStore()
 	const [show, setShow] = useState(false)
@@ -407,14 +361,6 @@ export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle, onD
 
 	const urls = useMemo(() => buildUrlList(pictures), [pictures])
 
-	const pictureMap = useMemo(() => {
-		const map = new Map<string, Picture>()
-		pictures.forEach(picture => {
-			map.set(picture.id, picture)
-		})
-		return map
-	}, [pictures])
-
 	if (!urls.length || !width || !height) {
 		return null
 	}
@@ -426,7 +372,6 @@ export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle, onD
 	return (
 		<>
 			{urls.map((item, index) => {
-				const picture = pictureMap.get(item.pictureId)
 				const uniqueId = item.url
 				const position = getStablePosition(uniqueId, width, height)
 
@@ -443,7 +388,6 @@ export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle, onD
 						imageIndex={item.imageIndex}
 						isEditMode={isEditMode}
 						onDeleteSingle={onDeleteSingle}
-						onDeleteGroup={picture ? () => onDeleteGroup?.(picture) : undefined}
 					/>
 				)
 			})}

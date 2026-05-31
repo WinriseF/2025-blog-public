@@ -48,7 +48,7 @@ export default function ShareCard() {
 				<Link href='/share' className='mt-2 block space-y-2'>
 					<div className='flex items-center'>
 						<div className='relative mr-3 h-12 w-12 shrink-0 overflow-hidden rounded-xl'>
-							<OptimizedImage src={getAssetUrl(randomItem.logo)} alt={randomItem.name} fill sizes='48px' className='object-contain' />
+							<OptimizedImage src={getAssetUrl(randomItem.logo)} alt={randomItem.name} fill className='object-contain' />
 						</div>
 						<h3 className='text-sm font-medium'>{randomItem.name}</h3>
 					</div>

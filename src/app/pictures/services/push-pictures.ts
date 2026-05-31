@@ -5,11 +5,11 @@ import { GITHUB_CONFIG } from '@/consts'
 import type { ImageItem } from '../../projects/components/image-upload-dialog'
 import { getFileExt } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Picture } from '../page'
+import type { Picture } from '../page'
 
 export type PushPicturesParams = {
 	pictures: Picture[]
-	imageItems?: Map<string, ImageItem>
+	imageItems: Map<string, ImageItem>
 }
 
 export async function pushPictures(params: PushPicturesParams): Promise<void> {
@@ -29,7 +29,7 @@ export async function pushPictures(params: PushPicturesParams): Promise<void> {
 	const uploadedHashes = new Set<string>()
 	let updatedPictures = [...pictures]
 
-	if (imageItems && imageItems.size > 0) {
+	if (imageItems.size > 0) {
 		toast.info('正在上传图片...')
 		for (const [key, imageItem] of imageItems.entries()) {
 			if (imageItem.type === 'file') {
@@ -57,32 +57,22 @@ export async function pushPictures(params: PushPicturesParams): Promise<void> {
 				updatedPictures = updatedPictures.map(p => {
 					if (p.id !== groupId) return p
 
-					const currentImages = p.images && p.images.length > 0 ? p.images : p.image ? [p.image] : []
-
-					const nextImages = currentImages.map((img, idx) => (idx === imageIndex ? publicPath : img))
+					const images = p.images.map((img, idx) => (idx === imageIndex ? publicPath : img))
 
 					return {
 						...p,
-						image: undefined,
-						images: nextImages
+						images
 					}
 				})
 			}
 		}
 	}
 
-	// 收集当前所有使用的图片 URL
 	const currentImageUrls = new Set<string>()
 	for (const picture of updatedPictures) {
-		if (picture.image) {
-			currentImageUrls.add(picture.image)
-		}
-		if (picture.images && picture.images.length > 0) {
-			picture.images.forEach(url => currentImageUrls.add(url))
-		}
+		picture.images.forEach(url => currentImageUrls.add(url))
 	}
 
-	// 读取之前的 list.json，找出不再使用的图片文件
 	toast.info('正在检查需要删除的文件...')
 	const previousListJson = await readTextFileFromRepo(
 		token,
@@ -96,20 +86,13 @@ export async function pushPictures(params: PushPicturesParams): Promise<void> {
 		try {
 			const previousPictures: Picture[] = JSON.parse(previousListJson)
 			const previousImageUrls = new Set<string>()
-			
+
 			for (const picture of previousPictures) {
-				if (picture.image) {
-					previousImageUrls.add(picture.image)
-				}
-				if (picture.images && picture.images.length > 0) {
-					picture.images.forEach(url => previousImageUrls.add(url))
-				}
+				picture.images.forEach(url => previousImageUrls.add(url))
 			}
 
-			// 找出不再使用的图片 URL
 			for (const url of previousImageUrls) {
 				if (!currentImageUrls.has(url) && url.startsWith('/images/pictures/')) {
-					// 这是一个本地图片文件，需要删除
 					const filename = url.replace('/images/pictures/', '')
 					const path = `public/images/pictures/${filename}`
 					treeItems.push({

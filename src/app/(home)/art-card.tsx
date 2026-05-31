@@ -31,7 +31,6 @@ export default function ArtCard() {
 						src={artUrl}
 						alt='wall art'
 						fill
-						sizes={`${styles.width}px`}
 						className='rounded-[32px] object-cover'
 					/>
 				</div>
