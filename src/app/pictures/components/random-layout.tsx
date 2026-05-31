@@ -77,6 +77,8 @@ const formatUploadedAt = (uploadedAt?: string) => {
 	return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
+const withAlpha = (hex: string, alpha: string) => `${hex}${alpha}`
+
 const loadSavedOffset = (url: string): { x: number; y: number } => {
 	const saved = localStorage.getItem(`picture-offset-${url}`)
 	return saved ? JSON.parse(saved) : { x: 0, y: 0 }
@@ -106,6 +108,7 @@ const FloatingImage = ({
 	const [show, setShow] = useState(false)
 	const [dragOffset, setDragOffset] = useState(() => loadSavedOffset(url))
 	const imageUrl = getAssetUrl(url)
+	const noteAccent = siteContent.backgroundColors[groupIndex % siteContent.backgroundColors.length]
 
 	useEffect(() => {
 		setTimeout(() => {
@@ -290,17 +293,23 @@ const FloatingImage = ({
 					drag
 					dragConstraints={maxSM ? undefined : bodyRef}
 					dragMomentum={false}
-					className='fixed min-h-[150px] w-[200px] cursor-pointer p-6 shadow'
+					className='fixed w-[240px] max-w-[calc(100vw-24px)] cursor-grab overflow-hidden rounded-2xl border border-white/70 p-5 text-[#30474b] shadow-[0_24px_60px_-30px_rgba(37,52,57,0.58)] backdrop-blur-2xl active:cursor-grabbing max-sm:w-[calc(100vw-24px)] max-sm:p-4'
 					style={{
-						backgroundColor: siteContent.backgroundColors[groupIndex % siteContent.backgroundColors.length],
+						background: `radial-gradient(circle at 18% 12%, ${withAlpha(noteAccent, '36')} 0%, transparent 42%), radial-gradient(circle at 92% 92%, rgba(31, 201, 231, 0.18) 0%, transparent 46%), linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.66))`,
+						borderColor: withAlpha(noteAccent, '44'),
 						zIndex: TOP_Z_INDEX + 1,
 						right: maxSM ? 12 : centerX / 3,
 						top: maxSM ? 12 : centerY
 					}}
-					initial={{ opacity: 0, scale: 0.4 }}
-					animate={{ opacity: 1, scale: 1 }}>
-					<div className='text-secondary mb-2 text-xs'>{formatUploadedAt(uploadedAt)}</div>
-					<div className='text-sm'>{description}</div>
+					initial={{ opacity: 0, scale: 0.82, y: 12, rotate: maxSM ? 0 : -2 }}
+					animate={{ opacity: 1, scale: 1, y: 0, rotate: maxSM ? 0 : -2 }}>
+					<div className='pointer-events-none absolute inset-x-4 top-0 h-px bg-white/80' />
+					<div className='pointer-events-none absolute -right-8 -bottom-10 h-24 w-24 rounded-full bg-white/35' />
+					<div className='mb-3 flex items-center gap-2 text-xs font-medium text-[#7b888e]'>
+						<span className='h-1.5 w-1.5 rounded-full shadow-sm' style={{ backgroundColor: noteAccent }} />
+						<span>{formatUploadedAt(uploadedAt)}</span>
+					</div>
+					<div className='relative text-[15px] leading-7 font-medium text-[#2f484c]'>{description}</div>
 				</motion.div>
 			)}
 		</>

@@ -25,6 +25,7 @@ const SOLAR_TERM_OFFSET = 0.026
 const INITIAL_RENDER_DATE = new Date(Date.UTC(2026, 0, 1, 0, 0, 0))
 const INITIAL_VIEW: Coordinates = { lat: 18, lon: 108 }
 const INITIAL_SELECTION: Coordinates = { lat: 31.23, lon: 121.47 }
+const TEXTURE_LOAD_DELAY_MS = 400
 const BASE_MAPS = [
 	{ key: 'winter-standard', label: '冬季标清', src: getAssetUrl('/world-clock/earth-blue-marble-5400.jpg') },
 	{ key: 'winter-high', label: '冬季高清', src: getAssetUrl('/world-clock/earth-winter-8192.jpg') },
@@ -237,6 +238,7 @@ export default function WorldClockClient() {
 	const [showSubsolar, setShowSubsolar] = useState(true)
 	const [showSolarTerms, setShowSolarTerms] = useState(true)
 	const [baseMapKey, setBaseMapKey] = useState<(typeof BASE_MAPS)[number]['key']>(() => getBaseMapKeyForDate(INITIAL_RENDER_DATE))
+	const [sceneReady, setSceneReady] = useState(false)
 	const currentBaseMap = useMemo(() => BASE_MAPS.find(item => item.key === baseMapKey) || BASE_MAPS[0], [baseMapKey])
 	const annualTrack = useMemo(() => createAnnualSubsolarTrack(trackSampleTime), [trackSampleTime])
 	const solarTerms = useMemo(() => buildSolarTermPoints(trackSampleTime.getUTCFullYear(), trackSampleTime), [trackSampleTime])
@@ -272,6 +274,7 @@ export default function WorldClockClient() {
 			trackCursorRef.current = nextCursor
 			setTrackCursor(nextCursor)
 			if (!baseMapTouchedRef.current) setBaseMapKey(getBaseMapKeyForDate(nextNow))
+			setSceneReady(true)
 		}
 
 		syncCurrentTime()
@@ -301,7 +304,7 @@ export default function WorldClockClient() {
 
 	useEffect(() => {
 		const container = containerRef.current
-		if (!container) return
+		if (!container || !sceneReady) return
 		let disposed = false
 
 		const scene = new THREE.Scene()
@@ -338,22 +341,24 @@ export default function WorldClockClient() {
 		const earth = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS, 128, 80), earthMaterial)
 		scene.add(earth)
 
-		textureLoader.load(currentBaseMap.src, texture => {
-			if (disposed) {
-				texture.dispose()
-				return
-			}
-			earthMaterial.uniforms.dayMap.value = configureTexture(texture)
-			disposableTextures.add(texture)
-		})
-		textureLoader.load(getAssetUrl('/world-clock/earth-night-8192.jpg'), texture => {
-			if (disposed) {
-				texture.dispose()
-				return
-			}
-			earthMaterial.uniforms.nightMap.value = configureTexture(texture)
-			disposableTextures.add(texture)
-		})
+		const textureLoadTimer = window.setTimeout(() => {
+			textureLoader.load(currentBaseMap.src, texture => {
+				if (disposed) {
+					texture.dispose()
+					return
+				}
+				earthMaterial.uniforms.dayMap.value = configureTexture(texture)
+				disposableTextures.add(texture)
+			})
+			textureLoader.load(getAssetUrl('/world-clock/earth-night-8192.jpg'), texture => {
+				if (disposed) {
+					texture.dispose()
+					return
+				}
+				earthMaterial.uniforms.nightMap.value = configureTexture(texture)
+				disposableTextures.add(texture)
+			})
+		}, TEXTURE_LOAD_DELAY_MS)
 
 		scene.add(createGraticule())
 		scene.add(createStarField())
@@ -520,6 +525,7 @@ export default function WorldClockClient() {
 
 		return () => {
 			disposed = true
+			window.clearTimeout(textureLoadTimer)
 			window.cancelAnimationFrame(frame)
 			resizeObserver.disconnect()
 			hideSolarTermLabels()
@@ -540,7 +546,7 @@ export default function WorldClockClient() {
 			renderer.dispose()
 			renderer.domElement.remove()
 		}
-	}, [annualTrack, currentBaseMap.src, solarTerms])
+	}, [annualTrack, currentBaseMap.src, sceneReady, solarTerms])
 
 	const resetView = () => {
 		const camera = cameraRef.current
