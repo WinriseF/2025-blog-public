@@ -49,20 +49,20 @@ function MarkdownTool() {
 			<motion.section
 				initial={{ opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
-				className='card static flex min-h-[640px] flex-col rounded-[32px] p-5 max-sm:min-h-0 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
+				className='flex min-h-[640px] flex-col max-sm:min-h-0'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>
 						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>{fileName}</p>
 						<h2 className='mt-1 text-lg font-semibold'>Markdown</h2>
 					</div>
 					<div className='flex flex-wrap gap-2 text-xs'>
-						<button className='rounded-full border border-border bg-card px-3 py-1.5 font-medium' onClick={() => navigator.clipboard.writeText(markdown)}>
+						<button className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => navigator.clipboard.writeText(markdown)}>
 							复制
 						</button>
-						<button className='rounded-full border border-border bg-card px-3 py-1.5 font-medium' onClick={() => downloadText(fileName || 'preview.md', markdown)}>
+						<button className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => downloadText(fileName || 'preview.md', markdown)}>
 							下载
 						</button>
-						<button className='rounded-full border border-rose-300/50 bg-card px-3 py-1.5 font-medium text-rose-400' onClick={() => setMarkdown('')}>
+						<button className='rounded-full border border-rose-300/50 px-3 py-1.5 font-medium text-rose-400' onClick={() => setMarkdown('')}>
 							清空
 						</button>
 					</div>
@@ -88,7 +88,7 @@ function MarkdownTool() {
 				initial={{ opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ delay: ANIMATION_DELAY }}
-				className='card bg-article static min-h-[640px] overflow-auto rounded-[32px] p-6 max-sm:min-h-[360px] max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
+				className='min-h-[640px] overflow-auto max-sm:min-h-[360px]'>
 				<div className='text-secondary border-b border-border pb-3 text-xs tracking-[0.18em] uppercase'>Preview</div>
 				<div className='prose mt-5 max-w-none cursor-text'>{loading ? <div className='text-secondary text-sm'>渲染中...</div> : content}</div>
 			</motion.section>
@@ -112,12 +112,12 @@ export function ToolboxClient() {
 					<p className='text-secondary'>图片处理和 Markdown 预览都在浏览器本地完成</p>
 				</motion.div>
 
-				<div className='card static mt-6 grid grid-cols-2 gap-3 rounded-[28px] p-2 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
+				<div className='mt-6 grid grid-cols-2 gap-3 border-b border-border pb-5'>
 					{tools.map(tool => (
 						<button
 							key={tool.id}
 							onClick={() => setActiveTool(tool.id)}
-							className={`rounded-[22px] px-4 py-3 text-left transition ${activeTool === tool.id ? 'bg-article shadow' : 'hover:bg-card'}`}>
+							className={`rounded-xl px-3 py-2 text-left transition ${activeTool === tool.id ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
 							<span className='block text-sm font-semibold'>{tool.label}</span>
 							<span className='text-secondary mt-1 block text-xs'>{tool.desc}</span>
 						</button>

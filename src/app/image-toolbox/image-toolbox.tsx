@@ -299,6 +299,12 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 		}
 	}, [])
 
+	const uploadClassName = `group hover:border-brand/20 relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article ${
+		embedded ? 'rounded-2xl border border-dashed border-brand/20 bg-brand/5 p-5' : 'card'
+	} ${isDragging ? 'border-brand bg-article' : ''}`
+
+	const panelClassName = embedded ? 'relative' : 'card relative'
+
 	return (
 		<div className={embedded ? 'relative text-sm' : 'relative px-6 pt-32 pb-12 text-sm max-sm:px-4 max-sm:pt-24'}>
 			<div className='mx-auto flex max-w-3xl flex-col gap-6'>
@@ -322,9 +328,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					onDragOver={handleDragOver}
 					onDragLeave={handleDragLeave}
 					onDrop={handleDrop}
-					className={`group hover:border-brand/20 card relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0 ${
-						isDragging ? 'border-brand bg-article' : ''
-					}`}>
+					className={uploadClassName}>
 					<input type='file' accept='image/*' multiple className='hidden' onChange={event => handleFiles(event.target.files)} />
 					<div className='bg-brand/10 text-brand/60 group-hover:bg-brand/10 flex h-20 w-20 items-center justify-center rounded-full text-3xl transition'>
 						📷
@@ -339,7 +343,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					<motion.div
 						initial={{ opacity: 0, scale: 0.9 }}
 						animate={{ opacity: 1, scale: 1 }}
-						className='card relative max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
+						className={panelClassName}>
 						<div className='text-secondary flex items-center justify-between border-b border-border pb-3 text-xs tracking-[0.2em] uppercase'>
 							<span>已选择 {images.length} 张图片</span>
 							<span>{totalSize}</span>
@@ -397,7 +401,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + 2 * ANIMATION_DELAY }}
-					className='card relative max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
+					className={panelClassName}>
 					<div className='flex flex-wrap items-center gap-4 max-sm:flex-col max-sm:items-stretch'>
 						<div className='flex-1 space-y-4'>
 							<div>
