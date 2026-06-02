@@ -49,33 +49,36 @@ function formatBytes(bytes: number) {
 
 async function fileToWebp(file: File, quality: number, maxWidth?: number) {
 	const bitmap = await createImageBitmap(file)
-	const canvas = document.createElement('canvas')
+	try {
+		const canvas = document.createElement('canvas')
 
-	let width = bitmap.width
-	let height = bitmap.height
+		let width = bitmap.width
+		let height = bitmap.height
 
-	if (maxWidth && width > maxWidth) {
-		const ratio = maxWidth / width
-		width = maxWidth
-		height = Math.round(height * ratio)
+		if (maxWidth && width > maxWidth) {
+			const ratio = maxWidth / width
+			width = maxWidth
+			height = Math.round(height * ratio)
+		}
+
+		canvas.width = width
+		canvas.height = height
+		const ctx = canvas.getContext('2d')
+		if (!ctx) throw new Error('无法初始化画布')
+		ctx.drawImage(bitmap, 0, 0, width, height)
+		return await new Promise<Blob>((resolve, reject) => {
+			canvas.toBlob(
+				result => {
+					if (result) resolve(result)
+					else reject(new Error('无法生成 WEBP 文件'))
+				},
+				'image/webp',
+				quality
+			)
+		})
+	} finally {
+		bitmap.close()
 	}
-
-	canvas.width = width
-	canvas.height = height
-	const ctx = canvas.getContext('2d')
-	if (!ctx) throw new Error('无法初始化画布')
-	ctx.drawImage(bitmap, 0, 0, width, height)
-	const blob = await new Promise<Blob>((resolve, reject) => {
-		canvas.toBlob(
-			result => {
-				if (result) resolve(result)
-				else reject(new Error('无法生成 WEBP 文件'))
-			},
-			'image/webp',
-			quality
-		)
-	})
-	return blob
 }
 
 export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
@@ -103,13 +106,15 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 
 		const nextItems = await Promise.all(
 			files.map(async file => {
-				const preview = URL.createObjectURL(file)
 				const bitmap = await createImageBitmap(file)
+				const width = bitmap.width
+				const height = bitmap.height
+				bitmap.close()
 				return {
 					file,
-					preview,
-					width: bitmap.width,
-					height: bitmap.height
+					preview: URL.createObjectURL(file),
+					width,
+					height
 				}
 			})
 		)
@@ -304,6 +309,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 	} ${isDragging ? 'border-brand bg-article' : ''}`
 
 	const panelClassName = embedded ? 'relative' : 'card relative'
+	const compareImage = compareIndex !== null ? images[compareIndex] : undefined
 
 	return (
 		<div className={embedded ? 'relative text-sm' : 'relative px-6 pt-32 pb-12 text-sm max-sm:px-4 max-sm:pt-24'}>
@@ -467,30 +473,35 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 				</motion.div>
 			</div>
 
-			{compareIndex !== null && images[compareIndex]?.converted && (
-				<DialogModal open={true} onClose={handleCloseCompare} className='w-full'>
-					<div className='grid w-full grid-cols-2 gap-4 max-sm:grid-cols-1' onClick={handleCloseCompare}>
-						<div className='flex flex-col items-end p-4 max-sm:items-center max-sm:p-2'>
-							<div>
-								<div className='text-secondary text-center text-sm font-medium'>原图 ({formatBytes(images[compareIndex].file.size)})</div>
+			{compareImage?.converted && (
+				<DialogModal open={true} onClose={handleCloseCompare} className='w-full max-w-6xl max-sm:max-h-[calc(100dvh-2rem)] max-sm:overflow-y-auto'>
+					<div className='mb-3 hidden justify-end max-sm:flex'>
+						<button onClick={handleCloseCompare} className='rounded-full border border-border bg-card px-3 py-1 text-xs font-medium'>
+							关闭
+						</button>
+					</div>
+					<div className='grid w-full grid-cols-2 items-start gap-4 max-sm:grid-cols-1'>
+						<div className='flex min-w-0 flex-col items-center p-4 max-sm:p-0'>
+							<div className='w-full'>
+								<div className='text-secondary text-center text-sm font-medium'>原图 ({formatBytes(compareImage.file.size)})</div>
 								<img
-									src={images[compareIndex].preview}
+									src={compareImage.preview}
 									alt='Original'
 									loading='lazy'
 									decoding='async'
-									className='mt-3 h-auto max-h-[90vh] max-w-full rounded-xl bg-card'
+									className='mx-auto mt-3 h-auto max-h-[calc(100vh-8rem)] max-w-full rounded-xl bg-card object-contain max-sm:max-h-[36dvh] max-sm:w-full'
 								/>
 							</div>
 						</div>
-						<div className='flex flex-col items-start p-4 max-sm:items-center max-sm:p-2'>
-							<div>
-								<div className='text-secondary text-center text-sm font-medium'>WEBP ({formatBytes(images[compareIndex].converted!.size)})</div>
+						<div className='flex min-w-0 flex-col items-center p-4 max-sm:p-0'>
+							<div className='w-full'>
+								<div className='text-secondary text-center text-sm font-medium'>WEBP ({formatBytes(compareImage.converted.size)})</div>
 								<img
-									src={images[compareIndex].converted!.url}
+									src={compareImage.converted.url}
 									alt='Converted'
 									loading='lazy'
 									decoding='async'
-									className='mt-3 h-auto max-h-[90vh] max-w-full rounded-xl bg-card'
+									className='mx-auto mt-3 h-auto max-h-[calc(100vh-8rem)] max-w-full rounded-xl bg-card object-contain max-sm:max-h-[36dvh] max-sm:w-full'
 								/>
 							</div>
 						</div>

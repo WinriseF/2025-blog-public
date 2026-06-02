@@ -111,9 +111,10 @@ const FloatingImage = ({
 	const noteAccent = siteContent.backgroundColors[groupIndex % siteContent.backgroundColors.length]
 
 	useEffect(() => {
-		setTimeout(() => {
+		const timer = setTimeout(() => {
 			setShow(true)
 		}, 200 * index)
+		return () => clearTimeout(timer)
 	}, [])
 
 	const [originalSize, setOriginalSize] = useState<OriginalSize | null>(null)
@@ -391,9 +392,10 @@ export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle }: R
 	const [show, setShow] = useState(false)
 
 	useEffect(() => {
-		setTimeout(() => {
+		const timer = setTimeout(() => {
 			setShow(true)
 		}, 1000)
+		return () => clearTimeout(timer)
 	}, [])
 
 	const urls = useMemo(() => buildUrlList(pictures), [pictures])

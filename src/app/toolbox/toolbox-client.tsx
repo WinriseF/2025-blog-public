@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, type DragEvent } from 'react'
+import { useDeferredValue, useState, type DragEvent } from 'react'
 import { motion } from 'motion/react'
-import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
+import { INIT_DELAY } from '@/consts'
 import { readFileAsText } from '@/lib/file-utils'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
 import { ImageToolbox } from '../image-toolbox/image-toolbox'
@@ -15,6 +15,7 @@ const tools: Array<{ id: ToolId; label: string; desc: string }> = [
 ]
 
 const defaultMarkdown = '# Markdown 查看器\n\n把 Markdown 文件拖进来，或直接在左侧编辑。'
+const markdownRenderOptions = { worker: false } as const
 
 function downloadText(filename: string, text: string) {
 	const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }))
@@ -30,7 +31,8 @@ function downloadText(filename: string, text: string) {
 function MarkdownTool() {
 	const [markdown, setMarkdown] = useState(defaultMarkdown)
 	const [fileName, setFileName] = useState('preview.md')
-	const { content, loading } = useMarkdownRender(markdown, { worker: false })
+	const deferredMarkdown = useDeferredValue(markdown)
+	const { content, loading } = useMarkdownRender(deferredMarkdown, markdownRenderOptions)
 
 	const handleFiles = async (files: FileList | null) => {
 		const file = files?.[0]
@@ -46,10 +48,7 @@ function MarkdownTool() {
 
 	return (
 		<div className='grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
-			<motion.section
-				initial={{ opacity: 0, scale: 0.96 }}
-				animate={{ opacity: 1, scale: 1 }}
-				className='flex min-h-[640px] flex-col max-sm:min-h-0'>
+			<section className='flex min-h-[640px] flex-col max-sm:min-h-0'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>
 						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>{fileName}</p>
@@ -82,16 +81,12 @@ function MarkdownTool() {
 					className='mt-4 min-h-[480px] flex-1 resize-none rounded-2xl border border-border bg-article p-4 font-mono text-sm leading-6 text-primary max-sm:min-h-[320px]'
 					spellCheck={false}
 				/>
-			</motion.section>
+			</section>
 
-			<motion.section
-				initial={{ opacity: 0, scale: 0.96 }}
-				animate={{ opacity: 1, scale: 1 }}
-				transition={{ delay: ANIMATION_DELAY }}
-				className='min-h-[640px] overflow-auto max-sm:min-h-[360px]'>
+			<section className='min-h-[640px] overflow-auto max-sm:min-h-[360px]'>
 				<div className='text-secondary border-b border-border pb-3 text-xs tracking-[0.18em] uppercase'>Preview</div>
 				<div className='prose mt-5 max-w-none cursor-text'>{loading ? <div className='text-secondary text-sm'>渲染中...</div> : content}</div>
-			</motion.section>
+			</section>
 		</div>
 	)
 }

@@ -42,24 +42,32 @@ export default function SocialButtons() {
 
 	useEffect(() => {
 		const baseDelay = order * ANIMATION_DELAY * 1000
+		const timers: Array<ReturnType<typeof setTimeout>> = []
 
 		sortedButtons.forEach((button, index) => {
 			const showDelay = baseDelay + index * delay
-			setTimeout(() => {
-				setShowStates(prev => ({ ...prev, [button.id]: true }))
-			}, showDelay)
+			timers.push(
+				setTimeout(() => {
+					setShowStates(prev => ({ ...prev, [button.id]: true }))
+				}, showDelay)
+			)
 		})
 
-		setTimeout(() => {
-			setShowStates(prev => ({ ...prev, container: true }))
-		}, baseDelay)
-
-		setTimeout(
-			() => {
-				setShowStates(prev => ({ ...prev, sphereEntry: true }))
-			},
-			baseDelay + sortedButtons.length * delay
+		timers.push(
+			setTimeout(() => {
+				setShowStates(prev => ({ ...prev, container: true }))
+			}, baseDelay)
 		)
+
+		timers.push(
+			setTimeout(() => {
+				setShowStates(prev => ({ ...prev, sphereEntry: true }))
+			}, baseDelay + sortedButtons.length * delay)
+		)
+
+		return () => {
+			timers.forEach(timer => clearTimeout(timer))
+		}
 	}, [order, delay, sortedButtons])
 
 	const width = styles.width + SPHERE_ENTRY_WIDTH + TOOLBOX_ENTRY_WIDTH
