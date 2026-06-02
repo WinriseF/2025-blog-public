@@ -294,9 +294,9 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 			resizeObserver.observe(container)
 			resize()
 
-			const clock = new THREE.Clock()
+			const startTime = performance.now()
 			const animate = () => {
-				const time = clock.getElapsedTime()
+				const time = (performance.now() - startTime) / 1000
 				const hover = hoverRef.current ? 1 : 0
 				const pointer = pointerRef.current
 				const activation = activationRef.current

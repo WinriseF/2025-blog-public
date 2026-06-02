@@ -10,11 +10,11 @@ import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useSize } from '@/hooks/use-size'
 import { HomeDraggableLayer } from './home-draggable-layer'
-import { Gamepad2 } from 'lucide-react'
+import { Wrench } from 'lucide-react'
 
 type SocialButtonType = 'github' | 'juejin' | 'email' | 'link'
 const SPHERE_ENTRY_WIDTH = 64
-const GAME_ENTRY_WIDTH = 64
+const TOOLBOX_ENTRY_WIDTH = 64
 
 interface SocialButtonConfig {
 	id: string
@@ -62,7 +62,7 @@ export default function SocialButtons() {
 		)
 	}, [order, delay, sortedButtons])
 
-	const width = styles.width + SPHERE_ENTRY_WIDTH + GAME_ENTRY_WIDTH
+	const width = styles.width + SPHERE_ENTRY_WIDTH + TOOLBOX_ENTRY_WIDTH
 	const x = styles.offsetX !== null ? center.x + styles.offsetX : center.x + hiCardStyles.width / 2 - width
 	const y = styles.offsetY !== null ? center.y + styles.offsetY : center.y + hiCardStyles.height / 2 + CARD_SPACING
 
@@ -160,11 +160,11 @@ export default function SocialButtons() {
 							</motion.div>
 							<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
 								<Link
-									href='/game'
-									aria-label='打开小游戏'
-									title='小游戏'
+									href='/toolbox'
+									aria-label='打开工具箱'
+									title='工具箱'
 									className='card group relative flex h-12 w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-xl p-0'>
-									<Gamepad2 className='text-brand h-7 w-7 drop-shadow-[0_0_10px_var(--color-brand)]' strokeWidth={2.35} />
+									<Wrench className='text-brand h-7 w-7 drop-shadow-[0_0_10px_var(--color-brand)]' strokeWidth={2.35} />
 								</Link>
 							</motion.div>
 						</>

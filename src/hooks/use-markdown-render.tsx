@@ -10,6 +10,10 @@ type MarkdownRenderResult = {
 	loading: boolean
 }
 
+type MarkdownRenderOptions = {
+	worker?: boolean
+}
+
 type WorkerResponse =
 	| {
 			id: number
@@ -79,13 +83,14 @@ function parseMarkdownHtml(html: string): ReactElement {
 	return parse(processedHtml, options) as ReactElement
 }
 
-export function useMarkdownRender(markdown: string): MarkdownRenderResult {
+export function useMarkdownRender(markdown: string, options?: MarkdownRenderOptions): MarkdownRenderResult {
 	const [content, setContent] = useState<ReactElement | null>(null)
 	const [toc, setToc] = useState<TocItem[]>([])
 	const [loading, setLoading] = useState<boolean>(true)
 	const workerRef = useRef<Worker | null>(null)
 	const requestIdRef = useRef(0)
-	const canUseWorker = useMemo(() => typeof window !== 'undefined' && typeof Worker !== 'undefined', [])
+	const useWorker = options?.worker !== false
+	const canUseWorker = useMemo(() => useWorker && typeof window !== 'undefined' && typeof Worker !== 'undefined', [useWorker])
 
 	useEffect(() => {
 		let cancelled = false
