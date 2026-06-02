@@ -155,6 +155,28 @@ const FloatingImage = ({
 
 	const [isZoomed, setIsZoomed] = useState(false)
 	const dragStartOffsetRef = useRef({ x: 0, y: 0 })
+	const notePosition = useMemo(() => {
+		if (maxSM) {
+			return {
+				left: 12,
+				top: 12
+			}
+		}
+
+		const noteWidth = 260
+		const noteHeight = 118
+		const gap = 18
+		const padding = 24
+		const viewportWidth = document.documentElement.clientWidth
+		const viewportHeight = document.documentElement.clientHeight
+		const imageRight = centerX + zoomedSize.width / 2
+		const imageBottom = centerY + zoomedSize.height / 2
+
+		return {
+			left: Math.min(Math.max(padding, imageRight - noteWidth - gap), viewportWidth - noteWidth - padding),
+			top: Math.min(Math.max(padding, imageBottom - noteHeight - gap), viewportHeight - noteHeight - padding)
+		}
+	}, [centerX, centerY, maxSM, zoomedSize.height, zoomedSize.width])
 
 	if (!show) return null
 
@@ -293,23 +315,29 @@ const FloatingImage = ({
 					drag
 					dragConstraints={maxSM ? undefined : bodyRef}
 					dragMomentum={false}
-					className='fixed w-[240px] max-w-[calc(100vw-24px)] cursor-grab overflow-hidden rounded-2xl border border-white/70 p-5 text-[#30474b] shadow-[0_24px_60px_-30px_rgba(37,52,57,0.58)] backdrop-blur-2xl active:cursor-grabbing max-sm:w-[calc(100vw-24px)] max-sm:p-4'
+					className='fixed w-[260px] max-w-[calc(100vw-24px)] cursor-grab overflow-visible rounded-[14px] border px-5 pt-5 pb-4 text-[#31484a] shadow-[0_18px_34px_-24px_rgba(28,38,40,0.72),inset_0_1px_0_rgba(255,255,255,0.82)] active:cursor-grabbing max-sm:w-[calc(100vw-24px)] max-sm:px-4 max-sm:pt-5 max-sm:pb-4'
 					style={{
-						background: `radial-gradient(circle at 18% 12%, ${withAlpha(noteAccent, '36')} 0%, transparent 42%), radial-gradient(circle at 92% 92%, rgba(31, 201, 231, 0.18) 0%, transparent 46%), linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.66))`,
-						borderColor: withAlpha(noteAccent, '44'),
+						background: `radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.92) 0 1px, transparent 1px), linear-gradient(135deg, rgba(255, 252, 240, 0.94), rgba(249, 244, 229, 0.84) 58%, rgba(255, 255, 255, 0.76))`,
+						backgroundSize: '7px 7px, auto',
+						borderColor: 'rgba(255, 255, 255, 0.72)',
 						zIndex: TOP_Z_INDEX + 1,
-						right: maxSM ? 12 : centerX / 3,
-						top: maxSM ? 12 : centerY
+						left: notePosition.left,
+						top: notePosition.top
 					}}
-					initial={{ opacity: 0, scale: 0.82, y: 12, rotate: maxSM ? 0 : -2 }}
-					animate={{ opacity: 1, scale: 1, y: 0, rotate: maxSM ? 0 : -2 }}>
-					<div className='pointer-events-none absolute inset-x-4 top-0 h-px bg-white/80' />
-					<div className='pointer-events-none absolute -right-8 -bottom-10 h-24 w-24 rounded-full bg-white/35' />
-					<div className='mb-3 flex items-center gap-2 text-xs font-medium text-[#7b888e]'>
+					initial={{ opacity: 0, scale: 0.86, y: 14, rotate: maxSM ? 0 : -1.8 }}
+					animate={{ opacity: 1, scale: 1, y: 0, rotate: maxSM ? 0 : -1.8 }}>
+					<div
+						className='pointer-events-none absolute -top-3 left-1/2 h-7 w-28 -translate-x-1/2 rotate-[-2deg] rounded-[5px] border border-white/28 shadow-[0_8px_18px_-14px_rgba(29,39,42,0.68)] backdrop-blur-[2px]'
+						style={{
+							background: `linear-gradient(90deg, rgba(255,255,255,0.48), ${withAlpha(noteAccent, '2E')} 42%, rgba(255,255,255,0.42))`
+						}}
+					/>
+					<div className='pointer-events-none absolute inset-x-3 top-2 h-px bg-white/70' />
+					<div className='mb-2.5 flex items-center gap-2 text-[11px] leading-none font-medium text-[#8a8276]'>
 						<span className='h-1.5 w-1.5 rounded-full shadow-sm' style={{ backgroundColor: noteAccent }} />
 						<span>{formatUploadedAt(uploadedAt)}</span>
 					</div>
-					<div className='relative text-[15px] leading-7 font-medium text-[#2f484c]'>{description}</div>
+					<div className='relative break-words text-[16px] leading-7 font-semibold text-[#2f484c]'>{description}</div>
 				</motion.div>
 			)}
 		</>
