@@ -33,13 +33,13 @@ type WordCloudLayout = {
 }
 
 const COLORS = [
-	'var(--color-brand)',
-	'var(--color-brand-secondary)',
-	'var(--color-primary)',
-	'#2F7D73',
-	'#3A72A6',
-	'color-mix(in srgb, var(--color-primary) 74%, var(--color-brand-secondary))',
-	'color-mix(in srgb, var(--color-brand) 72%, var(--color-primary))'
+	'var(--word-cloud-word-1)',
+	'var(--word-cloud-word-2)',
+	'var(--word-cloud-word-3)',
+	'var(--word-cloud-word-4)',
+	'var(--word-cloud-word-5)',
+	'var(--word-cloud-word-6)',
+	'var(--word-cloud-word-7)'
 ]
 
 function createSeededRandom(seed: string) {
@@ -174,20 +174,20 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 	return (
 		<div
 			ref={rootRef}
-			className={cn(
-				'relative w-full overflow-hidden rounded-2xl border bg-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_24px_60px_-42px_rgba(0,0,0,0.35)]',
-				className
-			)}
+			className={cn('year-word-cloud relative w-full overflow-hidden rounded-2xl border', className)}
 			style={{ height }}
 			aria-label='年度文章词云图'>
 			<div
-				className='pointer-events-none absolute inset-0 opacity-80'
+				className='pointer-events-none absolute inset-0'
 				style={{
-					backgroundImage:
-						'radial-gradient(circle at 44% 42%, rgba(255,255,255,0.96), rgba(255,255,255,0.72) 46%, rgba(255,255,255,0.42)), linear-gradient(135deg, rgba(255,255,255,0.72), rgba(255,255,255,0.24))'
+					backgroundImage: 'var(--word-cloud-surface-overlay)',
+					opacity: 'var(--word-cloud-surface-overlay-opacity)'
 				}}
 			/>
-			<div className='pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent' />
+			<div
+				className='pointer-events-none absolute inset-x-6 top-0 h-px'
+				style={{ background: 'linear-gradient(to right, transparent, var(--word-cloud-highlight), transparent)' }}
+			/>
 
 			{width === 0 || layout === null ? (
 				<div className='text-secondary relative z-10 flex h-full items-center justify-center text-sm'>生成中...</div>
@@ -200,15 +200,15 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 					textRendering='geometricPrecision'>
 					<defs>
 						<linearGradient id={`${svgId}-brand`} x1='0%' y1='0%' x2='100%' y2='100%'>
-							<stop offset='0%' stopColor='var(--color-brand)' />
-							<stop offset='100%' stopColor='var(--color-brand-secondary)' />
+							<stop offset='0%' stopColor='var(--word-cloud-brand-start)' />
+							<stop offset='100%' stopColor='var(--word-cloud-brand-end)' />
 						</linearGradient>
 						<linearGradient id={`${svgId}-ink`} x1='0%' y1='0%' x2='100%' y2='100%'>
-							<stop offset='0%' stopColor='var(--color-primary)' />
-							<stop offset='100%' stopColor='#2F7D73' />
+							<stop offset='0%' stopColor='var(--word-cloud-ink-start)' />
+							<stop offset='100%' stopColor='var(--word-cloud-ink-end)' />
 						</linearGradient>
 						<filter id={`${svgId}-soft-shadow`} x='-30%' y='-30%' width='160%' height='160%'>
-							<feDropShadow dx='0' dy='5' stdDeviation='4' floodColor='rgba(0,0,0,0.16)' />
+							<feDropShadow dx='0' dy='5' stdDeviation='4' floodColor='var(--word-cloud-text-shadow)' />
 						</filter>
 					</defs>
 					{(() => {

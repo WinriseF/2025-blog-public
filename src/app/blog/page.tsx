@@ -223,9 +223,9 @@ export default function BlogPage() {
 									</div>
 
 									{wordCloudError ? (
-										<div className='text-secondary flex h-[300px] items-center justify-center rounded-2xl border bg-white/35 text-sm'>词云数据加载失败</div>
+										<div className='year-word-cloud text-secondary flex h-[300px] items-center justify-center rounded-2xl border text-sm'>词云数据加载失败</div>
 									) : wordCloudLoading ? (
-										<div className='text-secondary flex h-[300px] items-center justify-center rounded-2xl border bg-white/35 text-sm'>生成中...</div>
+										<div className='year-word-cloud text-secondary flex h-[300px] items-center justify-center rounded-2xl border text-sm'>生成中...</div>
 									) : (
 										<YearWordCloud words={cloud?.words || []} height={300} maxWords={90} />
 									)}
