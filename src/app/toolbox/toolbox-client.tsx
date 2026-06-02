@@ -49,7 +49,7 @@ function MarkdownTool() {
 			<motion.section
 				initial={{ opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
-				className='card static flex min-h-[640px] flex-col rounded-[32px] p-5 max-sm:min-h-0 max-sm:rounded-[24px] max-sm:p-4'>
+				className='card static flex min-h-[640px] flex-col rounded-[32px] p-5 max-sm:min-h-0 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>
 						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>{fileName}</p>
@@ -88,7 +88,7 @@ function MarkdownTool() {
 				initial={{ opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ delay: ANIMATION_DELAY }}
-				className='card bg-article static min-h-[640px] overflow-auto rounded-[32px] p-6 max-sm:min-h-[360px] max-sm:rounded-[24px] max-sm:p-4'>
+				className='card bg-article static min-h-[640px] overflow-auto rounded-[32px] p-6 max-sm:min-h-[360px] max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
 				<div className='text-secondary border-b border-border pb-3 text-xs tracking-[0.18em] uppercase'>Preview</div>
 				<div className='prose mt-5 max-w-none cursor-text'>{loading ? <div className='text-secondary text-sm'>渲染中...</div> : content}</div>
 			</motion.section>
@@ -100,15 +100,19 @@ export function ToolboxClient() {
 	const [activeTool, setActiveTool] = useState<ToolId>('image')
 
 	return (
-		<div className='relative px-6 pt-32 pb-12 text-sm max-sm:px-4 max-sm:pt-24'>
-			<div className='mx-auto flex max-w-6xl flex-col gap-6'>
+		<div className='mx-auto flex max-w-[1140px] justify-center gap-6 px-6 pt-28 pb-12 text-sm max-sm:px-0'>
+			<motion.article
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{ delay: INIT_DELAY }}
+				className='card bg-article static flex-1 overflow-auto rounded-xl p-8'>
 				<motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: INIT_DELAY }} className='space-y-2 text-center'>
 					<p className='text-secondary text-xs tracking-[0.2em] uppercase'>Toolbox</p>
 					<h1 className='text-2xl font-semibold'>客户端工具箱</h1>
 					<p className='text-secondary'>图片处理和 Markdown 预览都在浏览器本地完成</p>
 				</motion.div>
 
-				<div className='card static grid gap-3 rounded-[28px] p-2 sm:grid-cols-2'>
+				<div className='card static mt-6 grid grid-cols-2 gap-3 rounded-[28px] p-2 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
 					{tools.map(tool => (
 						<button
 							key={tool.id}
@@ -121,7 +125,7 @@ export function ToolboxClient() {
 				</div>
 
 				{activeTool === 'image' ? <ImageToolbox embedded /> : <MarkdownTool />}
-			</div>
+			</motion.article>
 		</div>
 	)
 }

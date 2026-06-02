@@ -322,7 +322,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					onDragOver={handleDragOver}
 					onDragLeave={handleDragLeave}
 					onDrop={handleDrop}
-					className={`group hover:border-brand/20 card relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article max-sm:p-5 ${
+					className={`group hover:border-brand/20 card relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0 ${
 						isDragging ? 'border-brand bg-article' : ''
 					}`}>
 					<input type='file' accept='image/*' multiple className='hidden' onChange={event => handleFiles(event.target.files)} />
@@ -336,7 +336,10 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 				</motion.label>
 
 				{hasImages && (
-					<motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className='card relative'>
+					<motion.div
+						initial={{ opacity: 0, scale: 0.9 }}
+						animate={{ opacity: 1, scale: 1 }}
+						className='card relative max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
 						<div className='text-secondary flex items-center justify-between border-b border-border pb-3 text-xs tracking-[0.2em] uppercase'>
 							<span>已选择 {images.length} 张图片</span>
 							<span>{totalSize}</span>
@@ -394,7 +397,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + 2 * ANIMATION_DELAY }}
-					className='card relative'>
+					className='card relative max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none max-sm:backdrop-blur-0'>
 					<div className='flex flex-wrap items-center gap-4 max-sm:flex-col max-sm:items-stretch'>
 						<div className='flex-1 space-y-4'>
 							<div>
