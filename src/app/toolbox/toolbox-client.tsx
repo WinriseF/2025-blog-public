@@ -46,7 +46,10 @@ function MarkdownTool() {
 
 	return (
 		<div className='grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
-			<motion.section initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className='card static flex min-h-[640px] flex-col rounded-[32px] p-5'>
+			<motion.section
+				initial={{ opacity: 0, scale: 0.96 }}
+				animate={{ opacity: 1, scale: 1 }}
+				className='card static flex min-h-[640px] flex-col rounded-[32px] p-5 max-sm:min-h-0 max-sm:rounded-[24px] max-sm:p-4'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>
 						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>{fileName}</p>
@@ -76,7 +79,7 @@ function MarkdownTool() {
 				<textarea
 					value={markdown}
 					onChange={event => setMarkdown(event.target.value)}
-					className='mt-4 min-h-[480px] flex-1 resize-none rounded-2xl border border-border bg-article p-4 font-mono text-sm leading-6 text-primary'
+					className='mt-4 min-h-[480px] flex-1 resize-none rounded-2xl border border-border bg-article p-4 font-mono text-sm leading-6 text-primary max-sm:min-h-[320px]'
 					spellCheck={false}
 				/>
 			</motion.section>
@@ -85,7 +88,7 @@ function MarkdownTool() {
 				initial={{ opacity: 0, scale: 0.96 }}
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ delay: ANIMATION_DELAY }}
-				className='card bg-article static min-h-[640px] overflow-auto rounded-[32px] p-6'>
+				className='card bg-article static min-h-[640px] overflow-auto rounded-[32px] p-6 max-sm:min-h-[360px] max-sm:rounded-[24px] max-sm:p-4'>
 				<div className='text-secondary border-b border-border pb-3 text-xs tracking-[0.18em] uppercase'>Preview</div>
 				<div className='prose mt-5 max-w-none cursor-text'>{loading ? <div className='text-secondary text-sm'>渲染中...</div> : content}</div>
 			</motion.section>
@@ -97,7 +100,7 @@ export function ToolboxClient() {
 	const [activeTool, setActiveTool] = useState<ToolId>('image')
 
 	return (
-		<div className='relative px-6 pt-32 pb-12 text-sm max-sm:pt-28'>
+		<div className='relative px-6 pt-32 pb-12 text-sm max-sm:px-4 max-sm:pt-24'>
 			<div className='mx-auto flex max-w-6xl flex-col gap-6'>
 				<motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: INIT_DELAY }} className='space-y-2 text-center'>
 					<p className='text-secondary text-xs tracking-[0.2em] uppercase'>Toolbox</p>

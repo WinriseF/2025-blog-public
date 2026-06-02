@@ -300,7 +300,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 	}, [])
 
 	return (
-		<div className={embedded ? 'relative text-sm' : 'relative px-6 pt-32 pb-12 text-sm max-sm:pt-28'}>
+		<div className={embedded ? 'relative text-sm' : 'relative px-6 pt-32 pb-12 text-sm max-sm:px-4 max-sm:pt-24'}>
 			<div className='mx-auto flex max-w-3xl flex-col gap-6'>
 				{!embedded && (
 					<motion.div
@@ -322,7 +322,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					onDragOver={handleDragOver}
 					onDragLeave={handleDragLeave}
 					onDrop={handleDrop}
-					className={`group hover:border-brand/20 card relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article ${
+					className={`group hover:border-brand/20 card relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article max-sm:p-5 ${
 						isDragging ? 'border-brand bg-article' : ''
 					}`}>
 					<input type='file' accept='image/*' multiple className='hidden' onChange={event => handleFiles(event.target.files)} />
@@ -341,22 +341,22 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 							<span>已选择 {images.length} 张图片</span>
 							<span>{totalSize}</span>
 						</div>
-						<ul className='divide-y divide-slate-200'>
+						<ul className='divide-y divide-border'>
 							{images.map((item, index) => {
 								const { file, preview, converted, converting } = item
 								return (
-									<li key={`${file.name}-${index}`} className='flex items-center gap-4 py-3'>
+									<li key={`${file.name}-${index}`} className='grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 py-3 max-sm:grid-cols-[48px_minmax(0,1fr)]'>
 										<div className='h-12 w-12 overflow-hidden rounded-xl border border-border bg-card'>
 											<OptimizedImage src={preview} alt={file.name} width={48} height={48} className='h-full w-full object-cover' />
 										</div>
-										<div className='flex flex-1 flex-col'>
-											<p className='font-medium'>{formatFileName(file.name)}</p>
+										<div className='flex min-w-0 flex-col'>
+											<p className='truncate font-medium'>{formatFileName(file.name)}</p>
 											<p className='text-secondary text-xs'>
 												{item.width} × {item.height} · {formatBytes(file.size)}
 												{converted ? `（转换后 ${formatBytes(converted.size)}）` : ''}
 											</p>
 										</div>
-										<div className='flex flex-wrap justify-end gap-2 text-xs'>
+										<div className='flex flex-wrap justify-end gap-2 text-xs max-sm:col-span-2 max-sm:justify-start'>
 											<button
 												onClick={() => handleConvertImage(index)}
 												disabled={!!converting}
@@ -379,7 +379,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 											) : null}
 											<button
 												onClick={() => handleRemoveImage(index)}
-												className='rounded-full border border-red-200 px-3 py-1 font-medium text-rose-400 transition hover:bg-rose-50'>
+												className='rounded-full border border-red-200/60 px-3 py-1 font-medium text-rose-400 transition hover:bg-rose-500/10'>
 												移除
 											</button>
 										</div>
@@ -395,7 +395,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + 2 * ANIMATION_DELAY }}
 					className='card relative'>
-					<div className='flex flex-wrap items-center gap-4'>
+					<div className='flex flex-wrap items-center gap-4 max-sm:flex-col max-sm:items-stretch'>
 						<div className='flex-1 space-y-4'>
 							<div>
 								<p className='text-secondary text-xs tracking-[0.2em] uppercase'>质量</p>
@@ -442,17 +442,17 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 								)}
 							</div>
 						</div>
-						<div className='flex flex-wrap gap-2 text-sm'>
+						<div className='flex flex-wrap gap-2 text-sm max-sm:w-full'>
 							<button
 								onClick={handleConvertAll}
 								disabled={!hasConvertible || batchConverting}
-								className='rounded-full border border-border px-4 py-2 font-medium transition disabled:cursor-not-allowed disabled:text-secondary/45'>
+								className='rounded-full border border-border px-4 py-2 font-medium transition disabled:cursor-not-allowed disabled:text-secondary/45 max-sm:flex-1'>
 								{batchConverting ? '全部转换中…' : '全部转换'}
 							</button>
 							<button
 								onClick={handleDownloadAll}
 								disabled={!hasConverted}
-								className='border-brand text-brand rounded-full border px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:border-border disabled:text-secondary/45'>
+								className='border-brand text-brand rounded-full border px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:border-border disabled:text-secondary/45 max-sm:flex-1'>
 								全部下载
 							</button>
 						</div>
@@ -462,8 +462,8 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 
 			{compareIndex !== null && images[compareIndex]?.converted && (
 				<DialogModal open={true} onClose={handleCloseCompare} className='w-full'>
-					<div className='grid w-full grid-cols-2 gap-4' onClick={handleCloseCompare}>
-						<div className='flex flex-col items-end p-4'>
+					<div className='grid w-full grid-cols-2 gap-4 max-sm:grid-cols-1' onClick={handleCloseCompare}>
+						<div className='flex flex-col items-end p-4 max-sm:items-center max-sm:p-2'>
 							<div>
 								<div className='text-secondary text-center text-sm font-medium'>原图 ({formatBytes(images[compareIndex].file.size)})</div>
 								<img
@@ -475,7 +475,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 								/>
 							</div>
 						</div>
-						<div className='flex flex-col items-start p-4'>
+						<div className='flex flex-col items-start p-4 max-sm:items-center max-sm:p-2'>
 							<div>
 								<div className='text-secondary text-center text-sm font-medium'>WEBP ({formatBytes(images[compareIndex].converted!.size)})</div>
 								<img
