@@ -2,6 +2,8 @@
 
 WinriseF 的个人站点仓库。
 
+架构概览和维护入口见 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+
 ## Stack
 
 - Next.js 16
