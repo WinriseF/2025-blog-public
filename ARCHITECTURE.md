@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-06-03.
+Last updated: 2026-06-04.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -94,7 +94,7 @@ Main route groups and pages:
 - `/bloggers`: blogroll from `src/app/bloggers/`.
 - `/about`: about page from `src/app/about/`.
 - `/news` and `/news/[date]`: news index/detail.
-- `/calendar`, `/world-clock`, `/toolbox`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages.
+- `/calendar`, `/world-clock`, `/music`, `/toolbox`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.

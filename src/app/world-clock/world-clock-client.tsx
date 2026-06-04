@@ -16,6 +16,8 @@ import {
 } from '@/lib/world-clock/solar'
 import { buildSolarTermPoints, formatSolarTermDate, type SolarTermPoint } from '@/lib/world-clock/solar-terms'
 import { getAssetUrl } from '@/lib/asset-url'
+import { useTimeTheme } from '@/components/time-theme-provider'
+import type { TimeThemeName } from '@/lib/time-theme'
 
 const EARTH_RADIUS = 2.2
 const SURFACE_MARKER_OFFSET = 0.008
@@ -31,6 +33,43 @@ const BASE_MAPS = [
 	{ key: 'winter-high', label: '冬季高清', src: getAssetUrl('/world-clock/earth-winter-8192.jpg') },
 	{ key: 'summer-high', label: '夏季高清', src: getAssetUrl('/world-clock/earth-summer-8192.jpg') }
 ] as const
+const WORLD_CLOCK_SCENES: Record<
+	TimeThemeName,
+	{
+		root: string
+		vignette: string
+		topShade: string
+		navBackplate: string
+	}
+> = {
+	dawn: {
+		root: 'bg-[#dff2f5]',
+		vignette:
+			'bg-[radial-gradient(circle_at_48%_50%,transparent_0%,transparent_45%,rgba(150,202,213,0.18)_68%,rgba(68,128,150,0.36)_100%),linear-gradient(180deg,rgba(255,246,222,0.36)_0%,rgba(184,225,232,0.18)_44%,rgba(12,35,52,0.38)_100%)]',
+		topShade: 'bg-linear-to-b from-[#f8fff8]/82 via-[#dff2f5]/54 to-transparent',
+		navBackplate: 'bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.88)_0%,rgba(230,247,246,0.76)_35%,rgba(204,230,235,0.18)_68%,transparent_100%)]'
+	},
+	noon: {
+		root: 'bg-[#d6eef2]',
+		vignette:
+			'bg-[radial-gradient(circle_at_48%_50%,transparent_0%,transparent_45%,rgba(113,185,204,0.16)_68%,rgba(54,119,145,0.34)_100%),linear-gradient(180deg,rgba(246,255,252,0.42)_0%,rgba(199,235,237,0.2)_45%,rgba(10,38,56,0.38)_100%)]',
+		topShade: 'bg-linear-to-b from-[#f6fffb]/88 via-[#d6eef2]/56 to-transparent',
+		navBackplate: 'bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.92)_0%,rgba(223,245,244,0.82)_35%,rgba(188,223,230,0.2)_68%,transparent_100%)]'
+	},
+	sunset: {
+		root: 'bg-[#eadfe2]',
+		vignette:
+			'bg-[radial-gradient(circle_at_48%_50%,transparent_0%,transparent_45%,rgba(212,156,154,0.18)_68%,rgba(91,70,94,0.36)_100%),linear-gradient(180deg,rgba(255,241,224,0.46)_0%,rgba(234,215,226,0.18)_45%,rgba(28,31,54,0.42)_100%)]',
+		topShade: 'bg-linear-to-b from-[#fff0e2]/84 via-[#eadfe2]/52 to-transparent',
+		navBackplate: 'bg-[radial-gradient(ellipse_at_top_left,rgba(255,250,240,0.9)_0%,rgba(244,226,225,0.76)_35%,rgba(226,196,211,0.2)_68%,transparent_100%)]'
+	},
+	night: {
+		root: 'bg-[#071623]',
+		vignette: 'bg-[radial-gradient(circle_at_48%_50%,transparent_0%,transparent_44%,rgba(6,18,30,0.24)_68%,rgba(4,10,18,0.72)_100%)]',
+		topShade: 'bg-linear-to-b from-[#06111e]/75 to-transparent',
+		navBackplate: 'bg-[radial-gradient(ellipse_at_top_left,rgba(6,17,30,0.18)_0%,rgba(6,17,30,0.08)_42%,transparent_72%)]'
+	}
+}
 
 function getBaseMapKeyForDate(date: Date) {
 	return getSubsolarPoint(date).lat >= 0 ? 'summer-high' : 'winter-high'
@@ -207,19 +246,20 @@ const fragmentShader = `
 		vec3 dayTexture = texture2D(dayMap, vUv).rgb;
 		vec3 nightTexture = texture2D(nightMap, vUv).rgb;
 		float light = dot(normalize(vNormal), normalize(sunDirection));
-		float daylight = smoothstep(-0.08, 0.14, light);
-		float terminator = 1.0 - smoothstep(0.0, 0.10, abs(light));
+		float daylight = smoothstep(-0.04, 0.18, light);
+		float terminator = 1.0 - smoothstep(0.0, 0.11, abs(light));
 		float limb = pow(1.0 - max(light, 0.0), 2.0);
-		vec3 night = nightTexture * 1.42 + dayTexture * 0.075;
-		vec3 day = dayTexture * (1.02 + max(light, 0.0) * 0.62);
+		vec3 night = nightTexture * 1.28 + dayTexture * 0.038;
+		vec3 day = dayTexture * (1.1 + max(light, 0.0) * 0.7);
 		vec3 color = mix(night, day, daylight);
-		color += vec3(1.0, 0.68, 0.32) * terminator * 0.18;
+		color += vec3(1.0, 0.68, 0.32) * terminator * 0.16;
 		color += vec3(0.36, 0.72, 1.0) * limb * 0.025;
 		gl_FragColor = vec4(color, 1.0);
 	}
 `
 
 export default function WorldClockClient() {
+	const { theme } = useTimeTheme()
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const controlsRef = useRef<OrbitControls | null>(null)
 	const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -240,6 +280,7 @@ export default function WorldClockClient() {
 	const [baseMapKey, setBaseMapKey] = useState<(typeof BASE_MAPS)[number]['key']>(() => getBaseMapKeyForDate(INITIAL_RENDER_DATE))
 	const [sceneReady, setSceneReady] = useState(false)
 	const currentBaseMap = useMemo(() => BASE_MAPS.find(item => item.key === baseMapKey) || BASE_MAPS[0], [baseMapKey])
+	const scenePalette = WORLD_CLOCK_SCENES[theme.name]
 	const annualTrack = useMemo(() => createAnnualSubsolarTrack(trackSampleTime), [trackSampleTime])
 	const solarTerms = useMemo(() => buildSolarTermPoints(trackSampleTime.getUTCFullYear(), trackSampleTime), [trackSampleTime])
 	const activeTrackPoint = annualTrack[Math.min(trackCursor, annualTrack.length - 1)] || annualTrack[0]
@@ -564,10 +605,11 @@ export default function WorldClockClient() {
 	}
 
 	return (
-		<div className='relative h-dvh overflow-hidden bg-[#071623] text-white'>
+		<div className={`relative h-dvh overflow-hidden text-white ${scenePalette.root}`}>
 			<div ref={containerRef} className='absolute inset-0' />
-			<div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_48%_50%,transparent_0%,transparent_44%,rgba(6,18,30,0.24)_68%,rgba(4,10,18,0.72)_100%)]' />
-			<div className='pointer-events-none absolute inset-x-0 top-0 h-32 bg-linear-to-b from-[#06111e]/75 to-transparent' />
+			<div className={`pointer-events-none absolute inset-0 ${scenePalette.vignette}`} />
+			<div className={`pointer-events-none absolute inset-x-0 top-0 h-32 ${scenePalette.topShade}`} />
+			<div className={`pointer-events-none absolute top-0 left-0 h-36 w-[580px] max-w-full ${scenePalette.navBackplate}`} />
 			<div className='pointer-events-none absolute inset-0 z-10'>
 				{solarTerms
 					.filter(term => visibleSolarTermLabels.has(term.name))
