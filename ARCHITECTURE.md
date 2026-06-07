@@ -374,7 +374,7 @@ Important constraints:
 - `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the browser UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open fails.
 - Passwords are never sent to the server, but the server does receive a password-derived proof for access control.
 - Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
-- Transfer size limits are 1MB for text and 100MB for files.
+- Transfer size limits are 1MB for text and 20MB for files, staying below the EdgeOne Blob single-object limit.
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
 - EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
 - The feature intentionally does not use or change Supabase.

@@ -5,7 +5,7 @@ export const TRANSFER_UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 export const TRANSFER_LIMITS = {
 	minPasswordLength: 6,
 	maxTextBytes: 1024 * 1024,
-	maxFileBytes: 100 * 1024 * 1024,
+	maxFileBytes: 20 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60
 } as const

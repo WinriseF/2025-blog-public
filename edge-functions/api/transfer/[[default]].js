@@ -5,7 +5,7 @@ const UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000
 const LIMITS = {
 	maxTextBytes: 1024 * 1024,
-	maxFileBytes: 100 * 1024 * 1024,
+	maxFileBytes: 20 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60
 }

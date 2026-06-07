@@ -46,6 +46,8 @@ const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 	hour12: false
 })
 const transferApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
+const textLimitLabel = '1MB'
+const fileLimitLabel = '20MB'
 
 function normalizeCode(value: string) {
 	return value.trim().toUpperCase()
@@ -110,7 +112,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		if (kind === 'text') {
 			const plain = encodeTextPayload(text)
 			if (!plain.length) throw new Error('请先输入要中转的文本')
-			if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error('文本最多 1MB')
+			if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error(`文本最多 ${textLimitLabel}`)
 			return {
 				plain,
 				name: 'message.txt',
@@ -119,7 +121,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 			}
 		}
 		if (!file) throw new Error('请先选择文件')
-		if (file.size > TRANSFER_LIMITS.maxFileBytes) throw new Error('文件最多 100MB')
+		if (file.size > TRANSFER_LIMITS.maxFileBytes) throw new Error(`文件最多 ${fileLimitLabel}`)
 		return {
 			plain: new Uint8Array(await file.arrayBuffer()),
 			name: file.name || 'transfer-file',
@@ -229,8 +231,8 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	}
 
 	return (
-		<div className='grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
-			<section className='space-y-5'>
+		<div className='grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]'>
+			<section className='min-w-0 space-y-5'>
 				<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
 					<button onClick={() => setMode('create')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'create' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
 						创建中转
@@ -245,11 +247,11 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 						<div className='grid grid-cols-2 gap-2'>
 							<button onClick={() => setKind('text')} className={`rounded-xl border px-4 py-3 text-left ${kind === 'text' ? 'border-brand bg-brand/10' : 'border-border'}`}>
 								<span className='block font-semibold'>文本</span>
-								<span className='text-secondary text-xs'>最多 1MB</span>
+								<span className='text-secondary text-xs'>最多 {textLimitLabel}</span>
 							</button>
 							<button onClick={() => setKind('file')} className={`rounded-xl border px-4 py-3 text-left ${kind === 'file' ? 'border-brand bg-brand/10' : 'border-border'}`}>
 								<span className='block font-semibold'>文件</span>
-								<span className='text-secondary text-xs'>最多 100MB</span>
+								<span className='text-secondary text-xs'>最多 {fileLimitLabel}</span>
 							</button>
 						</div>
 
@@ -261,7 +263,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 								className='min-h-[260px] w-full resize-none rounded-2xl border border-border bg-article p-4 text-sm leading-6 text-primary'
 							/>
 						) : (
-							<label className='border-brand/20 bg-brand/5 text-secondary flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center text-sm'>
+							<label className='border-brand/20 bg-brand/5 text-secondary flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center text-sm xl:min-h-[260px]'>
 								<UploadCloud className='mb-3' size={28} />
 								<input type='file' className='hidden' onChange={event => setFile(event.target.files?.[0] || null)} />
 								<span>{file ? file.name : '选择要中转的文件'}</span>
@@ -299,7 +301,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				)}
 			</section>
 
-			<section className='space-y-4 rounded-2xl border border-border bg-background/30 p-5'>
+			<section className='min-w-0 space-y-4 rounded-2xl border border-border bg-background/30 p-5 xl:sticky xl:top-24'>
 				<div>
 					<p className='text-secondary text-xs tracking-[0.18em] uppercase'>Transfer</p>
 					<h2 className='mt-1 text-lg font-semibold'>加密消息中转站</h2>

@@ -106,7 +106,7 @@ export function ToolboxClient({ initialTool = 'image', initialCode }: ToolboxCli
 	const [activeTool, setActiveTool] = useState<ToolId>(initialTool)
 
 	return (
-		<div className='mx-auto flex max-w-[1140px] justify-center gap-6 px-6 pt-28 pb-12 text-sm max-sm:px-0'>
+		<div className='mx-auto flex max-w-[1280px] justify-center gap-6 px-6 pt-28 pb-12 text-sm max-sm:px-0'>
 			<motion.article
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
