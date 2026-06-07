@@ -1,5 +1,3 @@
-import { getStore, PreconditionFailedError } from '@edgeone/pages-blob'
-
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 6
 const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/
@@ -20,11 +18,30 @@ class TransferError extends Error {
 	}
 }
 
+let blobApiPromise
+
+async function getBlobApi() {
+	blobApiPromise ||= import('@edgeone/pages-blob')
+	try {
+		return await blobApiPromise
+	} catch (error) {
+		throw new TransferError(503, 'blob_unavailable', error instanceof Error ? error.message : 'EdgeOne Blob SDK unavailable')
+	}
+}
+
+function isPreconditionFailed(error, PreconditionFailedError) {
+	return error instanceof PreconditionFailedError || error?.code === 'PRECONDITION_FAILED'
+}
+
 function corsHeaders(request, env) {
-	const origin = request.headers.get('origin') || '*'
-	const allowed = env.TRANSFER_ALLOWED_ORIGIN || '*'
+	const origin = request.headers.get('origin') || ''
+	const allowed = String(env.TRANSFER_ALLOWED_ORIGIN || '*')
+		.split(',')
+		.map(item => item.trim())
+		.filter(Boolean)
+	const allowOrigin = allowed.includes('*') || !origin ? '*' : allowed.includes(origin) ? origin : allowed[0] || '*'
 	return {
-		'Access-Control-Allow-Origin': allowed === '*' ? '*' : origin === allowed ? origin : allowed,
+		'Access-Control-Allow-Origin': allowOrigin,
 		'Access-Control-Allow-Headers': 'authorization, content-type, x-transfer-cleanup-secret',
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 		'Cache-Control': 'no-store'
@@ -32,7 +49,13 @@ function corsHeaders(request, env) {
 }
 
 function json(data, status, request, env) {
-	return Response.json(data, { status, headers: corsHeaders(request, env) })
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: {
+			...corsHeaders(request, env),
+			'Content-Type': 'application/json; charset=utf-8'
+		}
+	})
 }
 
 function errorResponse(error, request, env) {
@@ -58,7 +81,8 @@ function getRequiredEnv(env, name) {
 	return value
 }
 
-function getTransferStore(env) {
+async function getTransferStore(env) {
+	const { getStore } = await getBlobApi()
 	return getStore({
 		name: env.EDGEONE_BLOB_STORE || 'message-transfer',
 		consistency: 'strong'
@@ -195,7 +219,8 @@ async function enforceCreateRateLimit(store, env, ip) {
 
 async function createTransfer(input, request, env) {
 	assertCreateRequest(input)
-	const store = getTransferStore(env)
+	const store = await getTransferStore(env)
+	const { PreconditionFailedError } = await getBlobApi()
 	await enforceCreateRateLimit(store, env, getClientIp(request))
 
 	for (let attempt = 0; attempt < 8; attempt++) {
@@ -215,7 +240,7 @@ async function createTransfer(input, request, env) {
 			await store.setJSON(keys.expireKey, { id, code, expireAt }, { cacheControl: 'no-store' })
 			return { code, uploadUrl: upload.url, uploadExpiresAt: upload.expiresAt, expireAt }
 		} catch (error) {
-			if (error instanceof PreconditionFailedError) {
+			if (isPreconditionFailed(error, PreconditionFailedError)) {
 				await Promise.all([store.delete(keys.metaKey), store.delete(keys.expireKey)]).catch(() => {})
 				continue
 			}
@@ -229,7 +254,7 @@ async function createTransfer(input, request, env) {
 
 async function completeTransfer(input, env) {
 	const code = assertCode(input.code)
-	const store = getTransferStore(env)
+	const store = await getTransferStore(env)
 	const meta = await readMeta(store, code)
 	if (Date.now() >= meta.expireAt) await expireTransfer(store, meta)
 	if (meta.status === 'ready') return publicMeta(meta)
@@ -243,7 +268,7 @@ async function completeTransfer(input, env) {
 
 async function getTransferMeta(request, env) {
 	const code = assertCode(new URL(request.url).searchParams.get('code') || '')
-	const store = getTransferStore(env)
+	const store = await getTransferStore(env)
 	const meta = await readMeta(store, code)
 	if (Date.now() >= meta.expireAt) await expireTransfer(store, meta)
 	return publicMeta(meta)
@@ -252,7 +277,8 @@ async function getTransferMeta(request, env) {
 async function openTransfer(input, env) {
 	const code = assertCode(input.code)
 	assertBase64Url(input.proof, 'proof')
-	const store = getTransferStore(env)
+	const store = await getTransferStore(env)
+	const { PreconditionFailedError } = await getBlobApi()
 	const meta = await readMeta(store, code)
 	if (Date.now() >= meta.expireAt) await expireTransfer(store, meta)
 	if (meta.status !== 'ready') throw new TransferError(409, 'upload_pending', 'Transfer is still uploading')
@@ -268,7 +294,7 @@ async function openTransfer(input, env) {
 	try {
 		await store.setJSON(keys.consumedKey, { id: meta.id, code, consumedAt: Date.now() }, { onlyIfNew: true, cacheControl: 'no-store' })
 	} catch (error) {
-		if (error instanceof PreconditionFailedError) throw new TransferError(410, 'consumed', 'Transfer has already been destroyed')
+		if (isPreconditionFailed(error, PreconditionFailedError)) throw new TransferError(410, 'consumed', 'Transfer has already been destroyed')
 		throw error
 	}
 
@@ -277,7 +303,7 @@ async function openTransfer(input, env) {
 }
 
 async function cleanupExpiredTransfers(env, limit = 500) {
-	const store = getTransferStore(env)
+	const store = await getTransferStore(env)
 	const now = Date.now()
 	const { blobs } = await store.list({ prefix: 'transfer/expires/', limit, consistency: 'strong' })
 	let cleaned = 0
