@@ -4,8 +4,8 @@ const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/
 const UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000
 const LIMITS = {
-	maxTextBytes: 200 * 1024,
-	maxFileBytes: 20 * 1024 * 1024,
+	maxTextBytes: 1024 * 1024,
+	maxFileBytes: 100 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60
 }
@@ -30,7 +30,7 @@ async function getBlobApi() {
 }
 
 function isPreconditionFailed(error, PreconditionFailedError) {
-	return error instanceof PreconditionFailedError || error?.code === 'PRECONDITION_FAILED'
+	return (typeof PreconditionFailedError === 'function' && error instanceof PreconditionFailedError) || error?.code === 'PRECONDITION_FAILED'
 }
 
 function corsHeaders(request, env) {
@@ -72,7 +72,7 @@ async function readJson(request) {
 }
 
 function getClientIp(request) {
-	return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || 'unknown'
+	return request.headers.get('eo-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || 'unknown'
 }
 
 function getRequiredEnv(env, name) {
@@ -140,6 +140,10 @@ function getNextBeijingCleanupAt(now = Date.now()) {
 	let cleanupAt = Date.UTC(y, m, d, 2, 0, 0, 0) - BEIJING_OFFSET_MS
 	if (cleanupAt <= now) cleanupAt += 24 * 60 * 60 * 1000
 	return cleanupAt
+}
+
+function isBeijingCleanupWindow(now = Date.now()) {
+	return new Date(now + BEIJING_OFFSET_MS).getUTCHours() === 2
 }
 
 function keySet(id, code, expireAt) {
@@ -351,7 +355,10 @@ export async function onRequest(context) {
 				}
 			})
 		}
-		if (request.method === 'POST' && action === 'cleanup') return json({ ok: true, ...(await cleanupExpiredTransfers(env)) }, 200, request, env)
+		if (request.method === 'POST' && action === 'cleanup') {
+			if (!isBeijingCleanupWindow()) throw new TransferError(403, 'cleanup_window', 'Cleanup only runs during the scheduled window')
+			return json({ ok: true, ...(await cleanupExpiredTransfers(env)) }, 200, request, env)
+		}
 		throw new TransferError(404, 'not_found', 'Transfer endpoint not found')
 	} catch (error) {
 		return errorResponse(error, request, env)

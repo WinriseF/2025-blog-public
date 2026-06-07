@@ -98,7 +98,7 @@ Main route groups and pages:
 - `/bloggers`: blogroll from `src/app/bloggers/`.
 - `/about`: about page from `src/app/about/`.
 - `/news` and `/news/[date]`: news index/detail.
-- `/calendar`, `/world-clock`, `/music`, `/toolbox`, `/toolbox/transfer/[code]`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages.
+- `/calendar`, `/world-clock`, `/music`, `/t`, `/t/[code]`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages. `/toolbox` and `/toolbox/transfer/[code]` redirect to the shorter toolbox routes.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.
@@ -365,15 +365,16 @@ Flow:
 3. The browser calls `${NEXT_PUBLIC_TRANSFER_API_BASE}/api/transfer/create`, which is an EdgeOne Edge Function endpoint.
 4. The Edge Function creates a six-character code, minimal metadata, a short-lived Blob upload URL, and an expiry index.
 5. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable.
-6. A recipient opens `/toolbox/transfer/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
+6. A recipient opens `/t/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
 7. `/api/transfer/open` validates the proof, returns encrypted bytes once, and deletes the active payload, metadata, and code.
-8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes expired residual data.
+8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes expired residual data. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
 
 Important constraints:
 
 - `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the browser UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open fails.
 - Passwords are never sent to the server, but the server does receive a password-derived proof for access control.
 - Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
+- Transfer size limits are 1MB for text and 100MB for files.
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
 - EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
 - The feature intentionally does not use or change Supabase.

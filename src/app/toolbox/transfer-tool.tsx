@@ -103,14 +103,14 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		setOpenCode(code)
 	}, [initialCode])
 
-	const resultLink = result && typeof window !== 'undefined' ? `${window.location.origin}/toolbox/transfer/${result.code}` : ''
+	const resultLink = result && typeof window !== 'undefined' ? `${window.location.origin}/t/${result.code}` : ''
 
 	const createPayload = async () => {
 		if (password.length < TRANSFER_LIMITS.minPasswordLength) throw new Error(`密码至少 ${TRANSFER_LIMITS.minPasswordLength} 位`)
 		if (kind === 'text') {
 			const plain = encodeTextPayload(text)
 			if (!plain.length) throw new Error('请先输入要中转的文本')
-			if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error('文本最多 200KB')
+			if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error('文本最多 1MB')
 			return {
 				plain,
 				name: 'message.txt',
@@ -119,7 +119,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 			}
 		}
 		if (!file) throw new Error('请先选择文件')
-		if (file.size > TRANSFER_LIMITS.maxFileBytes) throw new Error('文件最多 20MB')
+		if (file.size > TRANSFER_LIMITS.maxFileBytes) throw new Error('文件最多 100MB')
 		return {
 			plain: new Uint8Array(await file.arrayBuffer()),
 			name: file.name || 'transfer-file',
@@ -245,11 +245,11 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 						<div className='grid grid-cols-2 gap-2'>
 							<button onClick={() => setKind('text')} className={`rounded-xl border px-4 py-3 text-left ${kind === 'text' ? 'border-brand bg-brand/10' : 'border-border'}`}>
 								<span className='block font-semibold'>文本</span>
-								<span className='text-secondary text-xs'>最多 200KB</span>
+								<span className='text-secondary text-xs'>最多 1MB</span>
 							</button>
 							<button onClick={() => setKind('file')} className={`rounded-xl border px-4 py-3 text-left ${kind === 'file' ? 'border-brand bg-brand/10' : 'border-border'}`}>
 								<span className='block font-semibold'>文件</span>
-								<span className='text-secondary text-xs'>最多 20MB</span>
+								<span className='text-secondary text-xs'>最多 100MB</span>
 							</button>
 						</div>
 

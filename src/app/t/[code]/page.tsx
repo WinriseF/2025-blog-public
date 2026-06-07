@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { ToolboxClient } from '../../toolbox/toolbox-client'
 
 type TransferPageContext = {
 	params: Promise<{
@@ -8,5 +8,5 @@ type TransferPageContext = {
 
 export default async function Page({ params }: TransferPageContext) {
 	const { code } = await params
-	redirect(`/t/${code}`)
+	return <ToolboxClient initialTool='transfer' initialCode={code} />
 }
