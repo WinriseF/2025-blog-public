@@ -7,6 +7,9 @@ settings:
 importers:
   .:
     dependencies:
+      '@edgeone/pages-blob':
+        specifier: ^0.0.12
+        version: 0.0.12
       '@types/jsrsasign':
         specifier: ^10.5.15
         version: 10.5.15
@@ -696,6 +699,10 @@ packages:
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: { integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow== }
+
+  '@edgeone/pages-blob@0.0.12':
+    resolution: { integrity: sha512-HSrlwg8E9OpHhwQHwv6KW5REmyyKs81P+l01yU6LV7yrxjME5asnKdHMwIz0YAAncQf15CTDvhaGZenXDBz6Rg== }
+    engines: { node: '>=18.0.0' }
 
   '@emnapi/runtime@1.6.0':
     resolution: { integrity: sha512-obtUmAHTMjll499P+D9A3axeJFlhdjOWdKUNs/U6QIGT7V5RjcUW1xToAzjvmgTSQhDbYn/NwfTRoJcQ2rNBxA== }
@@ -2775,6 +2782,8 @@ snapshots:
       - supports-color
 
   '@dimforge/rapier3d-compat@0.12.0': {}
+
+  '@edgeone/pages-blob@0.0.12': {}
 
   '@emnapi/runtime@1.6.0':
     dependencies:

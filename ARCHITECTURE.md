@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-06-04.
+Last updated: 2026-06-07.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -13,6 +13,7 @@ This document is written for future AI agents and maintainers. Read it before do
 - Hidden browser-side authoring tools that write content back to GitHub through the Git Data API.
 - A small amount of server-side routing for RSS and news proxy/parsing.
 - A separate Supabase Edge Function for likes.
+- An encrypted message/file transfer tool backed by EdgeOne Edge Functions and Pages Blob.
 
 This is not a traditional CMS-backed blog. Most content is JSON, Markdown, and image references committed to the repo.
 
@@ -31,6 +32,7 @@ Primary stack:
 - `lucide-react` and local SVG files for icons.
 - Netlify deployment through `@netlify/plugin-nextjs`.
 - Supabase Edge Function for the like endpoint.
+- EdgeOne Edge Functions and Pages Blob for the encrypted message transfer toolbox feature.
 
 Important config files:
 
@@ -38,6 +40,7 @@ Important config files:
 - `next.config.ts`: Next config, SVG handling, redirects, React Compiler.
 - `tsconfig.json`: TypeScript config and `@/*` path alias.
 - `netlify.toml`: Netlify build and cache headers.
+- `edgeone.json`: EdgeOne scheduled cleanup for the transfer function.
 
 Important note: `next.config.ts` currently has `typescript.ignoreBuildErrors: true`. Do not assume production builds catch TypeScript errors.
 
@@ -55,6 +58,7 @@ Important note: `next.config.ts` currently has `typescript.ignoreBuildErrors: tr
 - `public/images/`: local image paths mirrored from the image repository when present.
 - `scripts/`: build-time helper scripts.
 - `supabase/`: like function and database migration.
+- `edge-functions/`: EdgeOne Edge Functions used by the transfer toolbox.
 
 ## Global App Shell
 
@@ -94,7 +98,7 @@ Main route groups and pages:
 - `/bloggers`: blogroll from `src/app/bloggers/`.
 - `/about`: about page from `src/app/about/`.
 - `/news` and `/news/[date]`: news index/detail.
-- `/calendar`, `/world-clock`, `/music`, `/toolbox`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages.
+- `/calendar`, `/world-clock`, `/music`, `/toolbox`, `/toolbox/transfer/[code]`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.
@@ -340,6 +344,41 @@ Flow:
 
 This is better isolated than the GitHub write-back flow because privileged credentials live server-side.
 
+## Message Transfer Toolbox
+
+Frontend:
+
+- `src/app/toolbox/toolbox-client.tsx`
+- `src/app/toolbox/transfer-tool.tsx`
+- `src/app/toolbox/transfer/[code]/page.tsx`
+- `src/lib/transfer-crypto.ts`
+
+Backend:
+
+- `edge-functions/api/transfer/[[default]].js`
+- `edgeone.json`
+
+Flow:
+
+1. User creates a text or file transfer from the toolbox.
+2. The browser derives an AES-GCM key from the password with fixed PBKDF2-SHA256 settings and encrypts the payload locally.
+3. The browser calls `${NEXT_PUBLIC_TRANSFER_API_BASE}/api/transfer/create`, which is an EdgeOne Edge Function endpoint.
+4. The Edge Function creates a six-character code, minimal metadata, a short-lived Blob upload URL, and an expiry index.
+5. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable.
+6. A recipient opens `/toolbox/transfer/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
+7. `/api/transfer/open` validates the proof, returns encrypted bytes once, and deletes the active payload, metadata, and code.
+8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes expired residual data.
+
+Important constraints:
+
+- `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the browser UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open fails.
+- Passwords are never sent to the server, but the server does receive a password-derived proof for access control.
+- Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
+- EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
+- EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
+- The feature intentionally does not use or change Supabase.
+- Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus the scheduled cleanup function.
+
 ## Build And Generated Files
 
 Scripts in `package.json`:
@@ -368,6 +407,12 @@ Netlify settings:
 - publish directory: `.next`
 - Node version: 22
 - plugin: `@netlify/plugin-nextjs`
+
+EdgeOne settings:
+
+- `edge-functions/api/transfer/[[default]].js` exposes `/api/transfer/*` for transfer create, complete, meta, open, and cleanup.
+- `edgeone.json` schedules transfer cleanup at 02:00 Asia/Shanghai.
+- The frontend must set `NEXT_PUBLIC_TRANSFER_API_BASE` to the EdgeOne Functions origin, for example `https://transfer.example.com`.
 
 Cache headers are configured for:
 

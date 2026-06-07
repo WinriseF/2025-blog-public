@@ -1,0 +1,11 @@
+{
+	"schedules": [
+		{
+			"name": "transfer-cleanup",
+			"cron": "0 2 * * *",
+			"path": "/api/transfer/cleanup",
+			"method": "POST",
+			"timezone": "Asia/Shanghai"
+		}
+	]
+}

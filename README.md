@@ -55,4 +55,5 @@ NEXT_PUBLIC_GITHUB_APP_ID=你的 GitHub App ID
 
 - 首页欢迎卡片显示名来自 `site-content.json` 的 `meta.title`
 - 点赞功能默认关闭；如需启用，配置 `NEXT_PUBLIC_LIKE_ENDPOINT`
+- 消息中转站只调用 EdgeOne Edge Functions；如需启用，配置 `NEXT_PUBLIC_TRANSFER_API_BASE`
 - 站点内容替换中，空列表页面属于正常状态

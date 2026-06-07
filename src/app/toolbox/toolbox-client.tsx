@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useDeferredValue, useState, type DragEvent } from 'react'
 import { motion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
@@ -7,15 +8,20 @@ import { readFileAsText } from '@/lib/file-utils'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
 import { ImageToolbox } from '../image-toolbox/image-toolbox'
 
-type ToolId = 'image' | 'markdown'
+type ToolId = 'image' | 'markdown' | 'transfer'
 
 const tools: Array<{ id: ToolId; label: string; desc: string }> = [
 	{ id: 'image', label: '图片压缩', desc: 'PNG / JPG 转 WEBP' },
-	{ id: 'markdown', label: 'Markdown 查看器', desc: '本地预览 .md 文件' }
+	{ id: 'markdown', label: 'Markdown 查看器', desc: '本地预览 .md 文件' },
+	{ id: 'transfer', label: '消息中转站', desc: '密码加密 + 阅后即焚' }
 ]
 
 const defaultMarkdown = '# Markdown 查看器\n\n把 Markdown 文件拖进来，或直接在左侧编辑。'
 const markdownRenderOptions = { worker: false } as const
+const TransferTool = dynamic(() => import('./transfer-tool').then(mod => mod.TransferTool), {
+	ssr: false,
+	loading: () => <div className='text-secondary rounded-2xl border border-border bg-article px-4 py-3 text-sm'>中转站加载中...</div>
+})
 
 function downloadText(filename: string, text: string) {
 	const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }))
@@ -91,8 +97,13 @@ function MarkdownTool() {
 	)
 }
 
-export function ToolboxClient() {
-	const [activeTool, setActiveTool] = useState<ToolId>('image')
+type ToolboxClientProps = {
+	initialTool?: ToolId
+	initialCode?: string
+}
+
+export function ToolboxClient({ initialTool = 'image', initialCode }: ToolboxClientProps) {
+	const [activeTool, setActiveTool] = useState<ToolId>(initialTool)
 
 	return (
 		<div className='mx-auto flex max-w-[1140px] justify-center gap-6 px-6 pt-28 pb-12 text-sm max-sm:px-0'>
@@ -104,10 +115,10 @@ export function ToolboxClient() {
 				<motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: INIT_DELAY }} className='space-y-2 text-center'>
 					<p className='text-secondary text-xs tracking-[0.2em] uppercase'>Toolbox</p>
 					<h1 className='text-2xl font-semibold'>客户端工具箱</h1>
-					<p className='text-secondary'>图片处理和 Markdown 预览都在浏览器本地完成</p>
+					<p className='text-secondary'>本地处理常用内容，也支持加密的站内消息中转</p>
 				</motion.div>
 
-				<div className='mt-6 grid grid-cols-2 gap-3 border-b border-border pb-5'>
+				<div className='mt-6 grid grid-cols-3 gap-3 border-b border-border pb-5 max-sm:grid-cols-1'>
 					{tools.map(tool => (
 						<button
 							key={tool.id}
@@ -119,7 +130,9 @@ export function ToolboxClient() {
 					))}
 				</div>
 
-				{activeTool === 'image' ? <ImageToolbox embedded /> : <MarkdownTool />}
+				{activeTool === 'image' && <ImageToolbox embedded />}
+				{activeTool === 'markdown' && <MarkdownTool />}
+				{activeTool === 'transfer' && <TransferTool initialCode={initialCode} />}
 			</motion.article>
 		</div>
 	)
