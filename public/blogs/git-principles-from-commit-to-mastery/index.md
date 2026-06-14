@@ -65,16 +65,15 @@ Git 在逻辑上不是这样设计的。Git 更接近于：**每次提交都指�
 
 可以先把关系想成：
 
-```text
-commit（封面卡片）
-│
-├── 指向本次项目快照
-│   └── 目录
-│       ├── 文件内容
-│       └── 子目录
-│           └── 文件内容
-│
-└── 指向上一次 commit
+```mermaid
+flowchart TD
+  commit["commit（封面卡片）"]
+  commit --> snapshot["指向本次项目快照"]
+  snapshot --> dir["目录"]
+  dir --> file["文件内容"]
+  dir --> subdir["子目录"]
+  subdir --> subfile["文件内容"]
+  commit --> prev["指向上一次 commit"]
 ```
 
 ---
@@ -158,20 +157,10 @@ git commit -m "记录第二版内容"
 
 把这个过程画出来：
 
-```text
-提交前：
-
-main ──> C1
-HEAD ──> main
-
-提交后：
-
-         parent
-C1 <──────── C2
-              ↑
-             main
-              ↑
-             HEAD
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
 ```
 
 这里没有"把 C1 修改成 C2"。C1 仍然存在且不可变。Git 创建了一个新的 C2，再把 `main` 这枚书签从 C1 移到 C2。
@@ -216,11 +205,12 @@ copy-b.txt 内容也为 hello
 
 Git 可以让它们引用同一个 blob，因为 blob 只保存内容，不保存"这个内容叫哪个文件名"。
 
-```text
-目录清单：
-  copy-a.txt ─┐
-              ├──> blob: "hello"
-  copy-b.txt ─┘
+```mermaid
+flowchart LR
+  subgraph 目录清单
+    a["copy-a.txt"] --> blob["blob: hello"]
+    b["copy-b.txt"] --> blob
+  end
 ```
 
 这就是内容相同可以天然复用的原因。
@@ -330,8 +320,10 @@ HEAD 中的 app.js：修改前
 
 ### 4.2 `status` 和 `diff` 其实都在做比较
 
-```text
-HEAD 快照  <----比较---->  暂存区  <----比较---->  工作区
+```mermaid
+flowchart LR
+  HEAD["HEAD 快照"] -- 比较 --> staging["暂存区"]
+  staging -- 比较 --> workdir["工作区"]
 ```
 
 - `git diff`：默认比较工作区和暂存区，看到"还没放进下一次提交"的改动；
@@ -374,18 +366,21 @@ Git 分支本质上只是一枚可移动书签，记录一个 commit ID。
 
 假设历史是：
 
-```text
-C1 <- C2 <- C3
-            ↑
-           main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
 ```
 
 创建 `feature` 分支后：
 
-```text
-C1 <- C2 <- C3
-            ↑ ↑
-         main feature
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
+  branch feature
 ```
 
 没有复制 C1、C2、C3，也没有复制所有文件。只是多了一个名字，同样指向 C3。
@@ -396,20 +391,23 @@ HEAD 表示你当前检出的位置。
 
 最常见的状态是：
 
-```text
-HEAD -> refs/heads/feature -> C3
+```mermaid
+flowchart LR
+  HEAD --> refs_heads_feature["refs/heads/feature"] --> C3
 ```
 
 意思是：你当前在 `feature` 分支上，而 `feature` 指向 C3。
 
 在 `feature` 上提交 C4 后：
 
-```text
-C1 <- C2 <- C3 <- C4
-            ↑       ↑
-           main   feature
-                    ↑
-                   HEAD
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
+  branch feature
+  checkout feature
+  commit id: "C4"
 ```
 
 Git 知道应当移动 `feature`，因为 HEAD 指向它；`main` 留在原地。
@@ -418,18 +416,21 @@ Git 知道应当移动 `feature`，因为 HEAD 指向它；`main` 留在原地�
 
 你也可以直接检出某个 commit，而不是某个分支：
 
-```text
-HEAD -> C2
+```mermaid
+flowchart LR
+  HEAD --> C2
 ```
 
 这叫 detached HEAD。它不是仓库损坏，只是当前没有分支书签跟随你移动。
 
 如果你在这个状态创建了新提交：
 
-```text
-C1 <- C2 <- X1 <- X2
-       ↑
-      HEAD 最初在此，后来移动到 X2
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "X1"
+  commit id: "X2"
 ```
 
 X1、X2 真实存在，但没有普通分支名字指向它们。切走后它们容易变得难找。
@@ -461,20 +462,31 @@ git switch -c experiment
 
 ### 6.1 普通提交看起来像链表
 
-```text
-C1 <- C2 <- C3 <- C4
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
+  commit id: "C4"
 ```
 
 箭头表示"新提交记录父提交"。从 C4 可以一路沿 parent 找到过去。
 
 ### 6.2 分叉后变成图
 
-```text
-          A1 <- A2   feature
-         /
-C1 <- C2
-         \
-          B1 <- B2   main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature
+  checkout feature
+  commit id: "A1"
+  commit id: "A2"
+  checkout main
+  branch main_b
+  checkout main_b
+  commit id: "B1"
+  commit id: "B2"
 ```
 
 A1 和 B1 都把 C2 作为 parent。两个开发方向共享此前历史，没有复制。
@@ -483,12 +495,21 @@ A1 和 B1 都把 C2 作为 parent。两个开发方向共享此前历史，没�
 
 合并后可能出现一个有两个 parent 的提交：
 
-```text
-          A1 <- A2
-         /         \
-C1 <- C2             M
-         \           /
-          B1 <- B2 --
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature
+  checkout feature
+  commit id: "A1"
+  commit id: "A2"
+  checkout main
+  branch main_b
+  checkout main_b
+  commit id: "B1"
+  commit id: "B2"
+  checkout feature
+  merge main_b id: "M"
 ```
 
 M 的两个 parent 是 A2 和 B2。所有箭头仍然只指向更早已经存在的提交，所以不会沿 parent 回到 M。
@@ -517,18 +538,29 @@ M 的两个 parent 是 A2 和 B2。所有箭头仍然只指向更早已经存在
 
 假设你从 `main` 创建了 `feature`，之后 `main` 没有产生新提交：
 
-```text
-C1 <- C2 <- F1 <- F2
-      ↑          ↑
-     main      feature
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature
+  checkout feature
+  commit id: "F1"
+  commit id: "F2"
+  checkout main
 ```
 
 此时把 `feature` 合回 `main`，`main` 只需要向前移动到 F2：
 
-```text
-C1 <- C2 <- F1 <- F2
-                  ↑ ↑
-               main feature
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature
+  checkout feature
+  commit id: "F1"
+  commit id: "F2"
+  checkout main
+  merge feature
 ```
 
 没有必要创建合并提交，因为历史本来就是一条直线。这叫 fast-forward。
@@ -541,12 +573,19 @@ C1 <- C2 <- F1 <- F2
 
 如果两边都继续开发：
 
-```text
-          F1 <- F2   feature
-         /
-C1 <- C2
-         \
-          M1 <- M2   main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature
+  checkout feature
+  commit id: "F1"
+  commit id: "F2"
+  checkout main
+  branch main_b
+  checkout main_b
+  commit id: "M1"
+  commit id: "M2"
 ```
 
 只比较 F2 和 M2 不够。假设同一行内容不同，你无法判断：
@@ -659,16 +698,33 @@ merge 并不是简单把两个目录覆盖到一起，而是在提交图上寻�
 
 原历史：
 
-```text
-          A <- B   feature
-         /
-C1 <- C2 <- M1 <- M2   main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature
+  checkout feature
+  commit id: "A"
+  commit id: "B"
+  checkout main
+  branch main_b
+  checkout main_b
+  commit id: "M1"
+  commit id: "M2"
 ```
 
 feature 是从 C2 分出的，但现在 main 已经到了 M2。执行 rebase 后，看起来像：
 
-```text
-C1 <- C2 <- M1 <- M2 <- A' <- B'   feature
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "M1"
+  commit id: "M2"
+  branch feature
+  checkout feature
+  commit id: "A'"
+  commit id: "B'"
 ```
 
 注意是 A'、B'，不是原来的 A、B。
@@ -697,14 +753,23 @@ B' 的 parent 又变成 A'，所以 B' 也不同。
 
 假设你已经把 A、B 推给同事，同事在 B 上继续创建 C：
 
-```text
-C2 <- A <- B <- C   同事历史
+```mermaid
+gitGraph
+  commit id: "C2"
+  commit id: "A"
+  commit id: "B"
+  commit id: "C"
 ```
 
 你本地 rebase 后得到 A'、B' 并强推：
 
-```text
-M2 <- A' <- B'
+```mermaid
+gitGraph
+  commit id: "M2"
+  branch feature
+  checkout feature
+  commit id: "A'"
+  commit id: "B'"
 ```
 
 从 Git 看，A 和 A' 是两个不同提交，B 和 B' 也是。之后双方再次同步时，历史可能出现重复提交、复杂冲突或需要人工重整。
@@ -762,16 +827,23 @@ M2 <- A' <- B'
 
 假设提交 C 的父提交是 P。C 引入的变化可以理解为：
 
-```text
-P 的快照 -> C 的快照
+```mermaid
+flowchart LR
+  P["P 的快照"] --> C["C 的快照"]
 ```
 
 cherry-pick 会尝试把这份变化应用到当前 HEAD 上，并创建一个新提交 C'。
 
-```text
-原分支：P <- C
-
-当前分支：X <- Y <- C'
+```mermaid
+gitGraph
+  commit id: "P"
+  commit id: "C"
+  checkout main
+  branch current
+  checkout current
+  commit id: "X"
+  commit id: "Y"
+  commit id: "C'"
 ```
 
 C' 的 parent 是 Y，时间等元数据也可能不同，所以它不是 C 本身。
@@ -782,8 +854,11 @@ C' 的 parent 是 Y，时间等元数据也可能不同，所以它不是 C 本�
 
 假设 C 把"开关=false"改成"开关=true"。revert C 会创建一个新提交 R，把效果反向改回去：
 
-```text
-P <- C <- R
+```mermaid
+gitGraph
+  commit id: "P"
+  commit id: "C"
+  commit id: "R"
 ```
 
 历史仍然清楚地显示：曾经引入 C，后来通过 R 撤销。
@@ -797,17 +872,20 @@ reset 的核心动作是把当前分支移动到指定提交。
 假设：
 
 ```text
-C1 <- C2 <- C3
-            ↑
-           main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
 ```
 
 把 main reset 到 C1 后：
 
-```text
-C1 <- C2 <- C3
-↑
-main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
 ```
 
 C2、C3 没被立刻删除，只是不再被 main 指向。
@@ -842,18 +920,12 @@ restore 更像"从某个来源取回文件内容，写到工作区或暂存区"�
 
 ### 9.5 一张选择图
 
-```text
-想安全撤销共享提交，并保留历史？
-  -> revert
-
-想把另一条线中的单个修复带过来？
-  -> cherry-pick
-
-想移动当前分支到另一个提交？
-  -> reset（先判断 soft/mixed/hard）
-
-只想恢复某个文件或暂存状态？
-  -> restore
+```mermaid
+flowchart TD
+  q1["想安全撤销共享提交，并保留历史？"] --> revert
+  q2["想把另一条线中的单个修复带过来？"] --> cp["cherry-pick"]
+  q3["想移动当前分支到另一个提交？"] --> reset["reset（先判断 soft/mixed/hard）"]
+  q4["只想恢复某个文件或暂存状态？"] --> restore
 ```
 
 ---
@@ -876,9 +948,10 @@ restore 更像"从某个来源取回文件内容，写到工作区或暂存区"�
 
 本地常见几个名字：
 
-```text
-main          本地分支
-origin/main   本地保存的"上次获取时远程 main 在哪里"
+```mermaid
+flowchart LR
+  main["main：本地分支"]
+  origin["origin/main：本地保存的上次获取时远程 main 的位置"]
 ```
 
 当服务器 main 前进后，你本地的 `origin/main` 不会自动变化。执行 fetch 后，Git 才更新远程跟踪引用。
@@ -898,9 +971,12 @@ fetch 可以粗略分为两件事：
 
 执行 fetch 后可能出现：
 
-```text
-本地 main：       C1 <- C2
-远程跟踪记录：   C1 <- C2 <- C3 <- C4  origin/main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "C3"
+  commit id: "C4"
 ```
 
 接下来由你决定用 merge、rebase、fast-forward 或其他方式整合。
@@ -929,22 +1005,32 @@ pull 是组合操作：先 fetch，再按照配置执行整合。
 
 假设服务器 main 在 S2：
 
-```text
-S1 <- S2   远程 main
+```mermaid
+gitGraph
+  commit id: "S1"
+  commit id: "S2"
 ```
 
 你的本地因为没更新，从 S1 创建了 L2：
 
-```text
-S1 <- L2   本地 main
+```mermaid
+gitGraph
+  commit id: "S1"
+  branch local
+  checkout local
+  commit id: "L2"
+  checkout main
 ```
 
 如果直接 push，服务器必须把 main 从 S2 改指向 L2。这样 S2 将不再从 main 可达，等于覆盖别人已经推送的历史。普通 push 因此拒绝非快进更新。
 
 正确做法通常是先获取 S2，把本地工作整合到它之后，再推送：
 
-```text
-S1 <- S2 <- L2'
+```mermaid
+gitGraph
+  commit id: "S1"
+  commit id: "S2"
+  commit id: "L2'"
 ```
 
 此时服务器旧位置 S2 是新位置 L2' 的祖先，属于 fast-forward 更新。
@@ -1005,9 +1091,10 @@ blob 12\0hello world\n
 
 所以正常工作方式不是"编辑旧对象"，而是：
 
-```text
-旧内容 -> 旧对象 ID
-新内容 -> 新对象 ID
+```mermaid
+flowchart LR
+  old["旧内容"] --> old_id["旧对象 ID"]
+  new["新内容"] --> new_id["新对象 ID"]
 ```
 
 这种内容寻址带来几个好处：
@@ -1319,8 +1406,9 @@ git push --force-with-lease
 
 思路：
 
-```text
-错误提交对象是好的；错的是书签位置。
+```mermaid
+flowchart LR
+  bad["错误提交对象是好的"] --> tag["错的是书签位置"]
 ```
 
 典型步骤：
@@ -1409,16 +1497,14 @@ git commit
 
 简化后的链路是：
 
-```text
-读取工作区路径
-  ↓
-判断文件状态、模式和内容
-  ↓
-把内容写成 blob（若对象已存在则复用）
-  ↓
-更新内存中的 index 条目
-  ↓
-通过锁文件原子写回 .git/index
+```mermaid
+flowchart TD
+  step1["读取工作区路径"]
+  step2["判断文件状态、模式和内容"]
+  step3["把内容写成 blob（若对象已存在则复用）"]
+  step4["更新内存中的 index 条目"]
+  step5["通过锁文件原子写回 .git/index"]
+  step1 --> step2 --> step3 --> step4 --> step5
 ```
 
 为什么要锁文件？假设两个进程同时直接覆盖 index，仓库可能得到半写入状态。Git 常见做法是先写 `.lock` 临时文件，完成后原子改名替换目标。
@@ -1429,18 +1515,15 @@ git commit
 
 简化为：
 
-```text
-读取 index
-  ↓
-根据路径层级写出 tree 对象
-  ↓
-读取当前 HEAD，确定 parent
-  ↓
-构造 commit 内容并写对象
-  ↓
-原子更新当前分支引用
-  ↓
-追加 reflog
+```mermaid
+flowchart TD
+  s1["读取 index"]
+  s2["根据路径层级写出 tree 对象"]
+  s3["读取当前 HEAD，确定 parent"]
+  s4["构造 commit 内容并写对象"]
+  s5["原子更新当前分支引用"]
+  s6["追加 reflog"]
+  s1 --> s2 --> s3 --> s4 --> s5 --> s6
 ```
 
 如果写完 commit 对象后，引用更新失败，会出现对象已经存在但暂时不可达的情况。这通常不会破坏原历史，因为旧引用还没被替换。
@@ -1776,57 +1859,92 @@ git cat-file -p <commit>
 
 最初：
 
-```text
-C1 <- C2   main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
 ```
 
 小明创建 `feature/coupon`。这只是新建引用：
 
-```text
-C1 <- C2
-      ↑  ↑
-   main feature/coupon
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature/coupon
 ```
 
 之后小明提交 A、B：
 
-```text
-C1 <- C2 <- A <- B   feature/coupon
-      ↑
-     main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch feature/coupon
+  checkout feature/coupon
+  commit id: "A"
+  commit id: "B"
+  checkout main
 ```
 
 ### 18.2 小红先把修复合入 main
 
 服务器主线前进：
 
-```text
-C1 <- C2 <- P   main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "P"
 ```
 
 小明本地 fetch 后：
 
-```text
-本地 feature: C2 <- A <- B
-远程记录:    C2 <- P   origin/main
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch origin/main
+  checkout origin/main
+  commit id: "P"
+  checkout main
+  branch feature
+  checkout feature
+  commit id: "A"
+  commit id: "B"
 ```
 
 ### 18.3 小明如何选择整合策略
 
 如果 A、B 尚未共享，团队偏好线性历史，小明可以 rebase：
 
-```text
-C1 <- C2 <- P <- A' <- B'
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  commit id: "P"
+  branch feature
+  checkout feature
+  commit id: "A'"
+  commit id: "B'"
 ```
 
 如果功能分支多人协作，或团队需要保留真实分叉，则可以 merge main：
 
-```text
-          A <- B
-         /      \
-C1 <- C2          M
-         \       /
-          P -----
+```mermaid
+gitGraph
+  commit id: "C1"
+  commit id: "C2"
+  branch origin
+  checkout origin
+  commit id: "P"
+  checkout main
+  branch feature
+  checkout feature
+  commit id: "A"
+  commit id: "B"
+  checkout main
+  merge feature id: "M"
 ```
 
 两种结果都可能正确。关键是团队语义与历史是否允许重写。
@@ -1835,8 +1953,10 @@ C1 <- C2          M
 
 如果 B 已经进入共享 main，最稳妥的方法通常是创建 revert 提交 R：
 
-```text
-... <- B <- R
+```mermaid
+gitGraph
+  commit id: "B"
+  commit id: "R"
 ```
 
 如果只是小明私人分支，还没推送，可以通过 reset、交互式 rebase 或 amend 整理。
@@ -1861,12 +1981,14 @@ C1 <- C2          M
 
 把 Git 状态拆成五层：
 
-```text
-工作区
-暂存区 index
-对象数据库
-引用与 HEAD
-远程引用/另一仓库
+```mermaid
+flowchart TD
+  remote["远程引用/另一仓库"]
+  refs["引用与 HEAD"]
+  objects["对象数据库"]
+  index["暂存区 index"]
+  workdir["工作区"]
+  workdir --> index --> objects --> refs --> remote
 ```
 
 任何操作先判断：
@@ -1932,36 +2054,34 @@ Git 中最昂贵的事故，往往不是第一次错误，而是慌乱中的第�
 
 ## 20. 最终心智模型——把所有知识压缩成一张图
 
-```text
-                         远程仓库
-                     对象 + 远程引用
-                           ▲  │
-                      push │  │ fetch
-                           │  ▼
-┌──────────────────────────────────────────────────────┐
-│                    本地 .git 仓库                    │
-│                                                      │
-│  引用层：HEAD -> branch -> commit                    │
-│                         │                            │
-│                         ▼                            │
-│  对象层：commit -> root tree -> tree/blob            │
-│             │                                        │
-│             └------------> parent commit(s)           │
-│                                                      │
-│  辅助存储：reflog、pack、commit-graph、引用后端等     │
-└──────────────────────────────────────────────────────┘
-                           ▲
-                    commit │
-                           │
-┌──────────────────────────────────────────────────────┐
-│  index：下一次提交候选快照，冲突时可含 stage 1/2/3   │
-└──────────────────────────────────────────────────────┘
-                           ▲
-                       add │
-                           │
-┌──────────────────────────────────────────────────────┐
-│  工作区：用户当前看到和编辑的文件                    │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+  subgraph 远程仓库
+    remote_objects["对象"]
+    remote_refs["远程引用"]
+  end
+  remote_refs -- fetch --> remote_objects
+  remote_objects -- push --> remote_refs
+
+  subgraph dotgit["本地 .git 仓库"]
+    ref_layer["引用层：HEAD → branch → commit"]
+    obj_layer["对象层：commit → root tree → tree/blob"]
+    obj_layer -.-> parent["parent commit(s)"]
+    ref_layer --> obj_layer
+    aux["辅助存储：reflog、pack、commit-graph"]
+  end
+
+  subgraph index_layer["index"]
+    idx["下一次提交候选快照<br/>冲突时可含 stage 1/2/3"]
+  end
+
+  subgraph work_layer["工作区"]
+    ws["用户当前看到和编辑的文件"]
+  end
+
+  remote_objects --> dotgit
+  dotgit -- commit --> idx
+  idx -- add --> ws
 ```
 
 然后把主要操作放回这张图：
@@ -2104,8 +2224,9 @@ git rev-list <revision-range>
 
 使用 `cat-file` 和 `ls-files --stage`，手工追踪：
 
-```text
-branch -> commit -> tree -> blob
+```mermaid
+flowchart LR
+  branch --> commit --> tree --> blob
 ```
 
 目标：不再把 commit 当作"装着所有文件的压缩包"。
@@ -2161,9 +2282,10 @@ branch -> commit -> tree -> blob
 
 不看资料，用一张纸解释：
 
-```text
-工作区 -> index -> objects
-HEAD -> branch -> commit -> tree -> blob
+```mermaid
+flowchart LR
+  ws["工作区"] --> index --> objects
+  HEAD --> branch --> commit --> tree --> blob
 ```
 
 再解释 merge 和 rebase 的区别。如果能让没有 Git 基础的人听懂，说明模型真正建立了。
