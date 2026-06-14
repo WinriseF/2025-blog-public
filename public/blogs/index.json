@@ -1,5 +1,12 @@
 [
 	{
+		"slug": "git-principles-from-commit-to-mastery",
+		"title": "Git 原理：从一次提交到真正精通",
+		"tags": ["Git", "版本控制", "底层原理"],
+		"date": "2026-06-14",
+		"summary": "用一套可以从头推导的模型，把 Git 为什么这样工作讲清楚。覆盖对象模型、分支、暂存区、merge/rebase、远程协作和事故恢复，附四个动手实验。"
+	},
+	{
 		"slug": "mysql-innodb-underlying-mechanism",
 		"title": "MySQL / InnoDB 底层机制深度解析",
 		"tags": ["MySQL", "InnoDB", "数据库底层", "后端开发"],
