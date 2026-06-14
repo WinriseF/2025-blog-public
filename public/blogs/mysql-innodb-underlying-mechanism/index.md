@@ -6,24 +6,24 @@
 
 MySQL 一条 SQL 从客户端发过来，大致经过：
 
-```text
-客户端
-  ↓
-连接器：认证、权限、连接管理
-  ↓
-分析器：词法分析、语法分析
-  ↓
-优化器：选择索引、决定 join 顺序、决定扫描方式
-  ↓
-执行器：调用存储引擎接口
-  ↓
-InnoDB 存储引擎
-  ├─ Buffer Pool：缓存数据页
-  ├─ B+ 树索引：定位数据
-  ├─ Undo Log：回滚、多版本
-  ├─ Redo Log：崩溃恢复
-  ├─ Lock / MVCC：并发控制
-  └─ 磁盘文件：表空间、页、段、区、行记录
+```mermaid
+flowchart TD
+  client["客户端"]
+  conn["连接器：认证、权限、连接管理"]
+  parser["分析器：词法分析、语法分析"]
+  opt["优化器：选择索引、决定 join 顺序、决定扫描方式"]
+  exec["执行器：调用存储引擎接口"]
+
+  subgraph innodb["InnoDB 存储引擎"]
+    bp["Buffer Pool：缓存数据页"]
+    btree["B+ 树索引：定位数据"]
+    undo["Undo Log：回滚、多版本"]
+    redo["Redo Log：崩溃恢复"]
+    lock["Lock / MVCC：并发控制"]
+    disk["磁盘文件：表空间、页、段、区、行记录"]
+  end
+
+  client --> conn --> parser --> opt --> exec --> innodb
 ```
 
 ![](/blogs/mysql-innodb-underlying-mechanism/sql-execution-flow.png)
@@ -55,16 +55,14 @@ InnoDB 存储引擎
 
 InnoDB 不是“一行一行”地直接操作磁盘。它的存储层级大致是：
 
-```text
-表空间 Tablespace
-  ↓
-段 Segment
-  ↓
-区 Extent
-  ↓
-页 Page
-  ↓
-行 Record
+```mermaid
+flowchart TD
+  ts["表空间 Tablespace"]
+  seg["段 Segment"]
+  ext["区 Extent"]
+  page["页 Page"]
+  rec["行 Record"]
+  ts --> seg --> ext --> page --> rec
 ```
 
 ### 表空间 Tablespace
@@ -431,14 +429,13 @@ SELECT * FROM user WHERE id = 18;
 
 执行过程：
 
-```text
-从根页开始
-  ↓
-根据 id = 18 找到下一层页
-  ↓
-继续定位到叶子页
-  ↓
-在叶子页中找到 id = 18 的完整行
+```mermaid
+flowchart TD
+  root["从根页开始"]
+  next["根据 id = 18 找到下一层页"]
+  leaf["继续定位到叶子页"]
+  found["在叶子页中找到 id = 18 的完整行"]
+  root --> next --> leaf --> found
 ```
 
 如果树高是 3，大致需要访问：
@@ -1048,10 +1045,12 @@ binlog 写了，redo log 没写
 
 所以 MySQL 使用两阶段提交：
 
-```text
-1. redo log prepare
-2. 写 binlog
-3. redo log commit
+```mermaid
+flowchart LR
+  rp["redo log prepare"]
+  wb["写 binlog"]
+  rc["redo log commit"]
+  rp --> wb --> rc
 ```
 
 崩溃恢复时根据 redo log 和 binlog 状态判断事务是否提交。
@@ -1663,26 +1662,19 @@ ROW 更常用，因为更安全、复制更准确，但日志量更大。
 
 应该按链路排查：
 
-```text
-SQL 写法
-  ↓
-执行计划
-  ↓
-索引设计
-  ↓
-扫描行数
-  ↓
-回表次数
-  ↓
-排序/临时表
-  ↓
-锁等待
-  ↓
-Buffer Pool 命中
-  ↓
-磁盘 IO / CPU / 网络
-  ↓
-表结构和架构设计
+```mermaid
+flowchart TD
+  sql["SQL 写法"]
+  plan["执行计划"]
+  idx["索引设计"]
+  scan["扫描行数"]
+  back["回表次数"]
+  sort["排序/临时表"]
+  lock["锁等待"]
+  bp["Buffer Pool 命中"]
+  io["磁盘 IO / CPU / 网络"]
+  design["表结构和架构设计"]
+  sql --> plan --> idx --> scan --> back --> sort --> lock --> bp --> io --> design
 ```
 
 ### 22.1 第一步：看执行计划
@@ -1808,14 +1800,21 @@ MySQL 主从复制主要依赖 binlog。
 
 简图：
 
-```text
-Master
-  ├─ binlog
-  └─ dump thread
-        ↓
-Slave
-  ├─ IO thread → relay log
-  └─ SQL thread → apply
+```mermaid
+flowchart TD
+  subgraph master["Master"]
+    binlog["binlog"]
+    dump["dump thread"]
+  end
+  subgraph slave["Slave"]
+    io["IO thread"]
+    relay["relay log"]
+    sql["SQL thread"]
+    apply["apply"]
+  end
+  dump --> io
+  io --> relay
+  relay --> sql --> apply
 ```
 
 ![](/blogs/mysql-innodb-underlying-mechanism/master-slave-replication.png)

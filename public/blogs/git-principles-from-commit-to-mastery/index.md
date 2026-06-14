@@ -871,7 +871,6 @@ reset 的核心动作是把当前分支移动到指定提交。
 
 假设：
 
-```text
 ```mermaid
 gitGraph
   commit id: "C1"
@@ -2060,8 +2059,8 @@ flowchart TD
     remote_objects["对象"]
     remote_refs["远程引用"]
   end
-  remote_refs -- fetch --> remote_objects
-  remote_objects -- push --> remote_refs
+  remote_objects -- fetch --> dotgit
+  dotgit -- push --> remote_objects
 
   subgraph dotgit["本地 .git 仓库"]
     ref_layer["引用层：HEAD → branch → commit"]
@@ -2079,9 +2078,8 @@ flowchart TD
     ws["用户当前看到和编辑的文件"]
   end
 
-  remote_objects --> dotgit
-  dotgit -- commit --> idx
-  idx -- add --> ws
+  idx -- commit --> dotgit
+  ws -- add --> idx
 ```
 
 然后把主要操作放回这张图：

@@ -134,22 +134,23 @@ Dify 的定位是开源 LLM 应用开发平台。它把 AI workflow、RAG pipeli
 
 可以把 Dify 理解成下面几层：
 
-```text
-业务用户 / 运营 / 开发者
-        |
-        v
-Web 控制台：应用、工作流、知识库、Prompt、模型、日志
-        |
-        v
-后端 API：应用运行、对话、工作流执行、文件/知识库管理
-        |
-        +--> Workflow / Agent 编排
-        +--> RAG Pipeline / Dataset / Retrieval
-        +--> Model Provider 抽象
-        +--> LLMOps / 日志 / 标注 / 观测
-        |
-        v
-数据库 / 对象存储 / 向量索引 / 外部模型服务 / 外部工具
+```mermaid
+flowchart TD
+  users["业务用户 / 运营 / 开发者"]
+  console["Web 控制台：应用、工作流、知识库、Prompt、模型、日志"]
+  api["后端 API：应用运行、对话、工作流执行、文件/知识库管理"]
+  wf["Workflow / Agent 编排"]
+  rag["RAG Pipeline / Dataset / Retrieval"]
+  model["Model Provider 抽象"]
+  ops["LLMOps / 日志 / 标注 / 观测"]
+  infra["数据库 / 对象存储 / 向量索引 / 外部模型服务 / 外部工具"]
+
+  users --> console --> api
+  api --> wf
+  api --> rag
+  api --> model
+  api --> ops
+  wf & rag & model & ops --> infra
 ```
 
 它的核心价值在“平台层”：
@@ -189,15 +190,17 @@ Dify 适合这些场景：
 
 企业里的 RAG 问题经常不是“检索后回答”这么简单。更常见的是：
 
-```text
-用户问题
-  -> 判断问题类型
-  -> 查知识库
-  -> 调用业务系统
-  -> 根据权限过滤
-  -> 生成答案
-  -> 写入工单
-  -> 记录日志和反馈
+```mermaid
+flowchart LR
+  q["用户问题"]
+  type["判断问题类型"]
+  kb["查知识库"]
+  biz["调用业务系统"]
+  acl["根据权限过滤"]
+  answer["生成答案"]
+  ticket["写入工单"]
+  log["记录日志和反馈"]
+  q --> type --> kb --> biz --> acl --> answer --> ticket --> log
 ```
 
 这种链路如果全写在后端代码里，会很快变硬。Dify 的 workflow 说明了一个趋势：RAG 应用需要可视化编排层。
@@ -269,23 +272,15 @@ RAGFlow 的定位是开源 RAG 引擎，重点放在 deep document understanding
 
 RAGFlow 可以按下面方式理解：
 
-```text
-文件 / 网页 / 结构化数据 / 外部数据源
-        |
-        v
-DeepDoc / 文档解析
-        |
-        v
-模板化 Chunk / 可视化 Chunk / 人工检查
-        |
-        v
-索引层：全文检索 + 向量检索 + 元数据
-        |
-        v
-多路召回 / Rerank / 引用定位
-        |
-        v
-Chat / Agent / API / Web UI
+```mermaid
+flowchart TD
+  src["文件 / 网页 / 结构化数据 / 外部数据源"]
+  parse["DeepDoc / 文档解析"]
+  chunk["模板化 Chunk / 可视化 Chunk / 人工检查"]
+  index["索引层：全文检索 + 向量检索 + 元数据"]
+  recall["多路召回 / Rerank / 引用定位"]
+  output["Chat / Agent / API / Web UI"]
+  src --> parse --> chunk --> index --> recall --> output
 ```
 
 部署上，它不是一个轻量脚本。RAGFlow 的自托管依赖 Docker Compose，包含后端服务、前端、文档引擎、对象存储、数据库、Redis 等组件。README 中也明确给出了较高的机器要求。这说明它的目标不是“十行代码跑 RAG”，而是“把 RAG 做成可运营的复杂文档系统”。
@@ -379,13 +374,15 @@ LightRAG 不只是“向量库 + Prompt”。它强调把文档中的实体和�
 
 可以这样理解：
 
-```text
-文档
-  -> 文本切分
-  -> LLM 抽取实体和关系
-  -> 写入图存储 / KV / 向量存储
-  -> 查询时结合局部实体、全局关系和语义向量
-  -> 生成答案并返回上下文
+```mermaid
+flowchart LR
+  doc["文档"]
+  split["文本切分"]
+  extract["LLM 抽取实体和关系"]
+  store["写入图存储 / KV / 向量存储"]
+  query["查询时结合局部实体、全局关系和语义向量"]
+  gen["生成答案并返回上下文"]
+  doc --> split --> extract --> store --> query --> gen
 ```
 
 这种路线适合回答普通向量检索不擅长的问题：
@@ -402,23 +399,15 @@ LightRAG 也提供 WebUI 和 API server，并支持多种存储后端、Reranker
 
 RAG-Anything 在 LightRAG 之上处理多模态文档。它的主线大致是：
 
-```text
-PDF / Office / 图片 / Markdown / TXT
-        |
-        v
-Parser：MinerU / Docling / PaddleOCR / 外部 content_list
-        |
-        v
-Modal processors：文本、图片、表格、公式、通用内容
-        |
-        v
-多模态实体和跨模态关系
-        |
-        v
-LightRAG：向量 + 图关系 + 混合检索
-        |
-        v
-Text query / multimodal query / VLM-enhanced query
+```mermaid
+flowchart TD
+  src["PDF / Office / 图片 / Markdown / TXT"]
+  parser["Parser：MinerU / Docling / PaddleOCR / 外部 content_list"]
+  modals["Modal processors：文本、图片、表格、公式、通用内容"]
+  entity["多模态实体和跨模态关系"]
+  lightrag["LightRAG：向量 + 图关系 + 混合检索"]
+  query["Text query / multimodal query / VLM-enhanced query"]
+  src --> parser --> modals --> entity --> lightrag --> query
 ```
 
 它的关键不是“把图片 OCR 成文字”，而是把文档里的不同模态拆成不同对象，并保留它们之间的关系。
@@ -580,20 +569,18 @@ PrivateGPT 的 README 把 API 分成两类：
 
 架构上可以这样理解：
 
-```text
-Client / Gradio UI / 业务系统
-        |
-        v
-FastAPI：OpenAI API 风格接口
-        |
-        +--> 高层 RAG API：ingest / chat / completions
-        +--> 低层 primitives：embeddings / chunks retrieval
-        |
-        v
-LlamaIndex 抽象：LLM / Embedding / VectorStore
-        |
-        v
-本地模型 / 本地向量库 / 文档存储
+```mermaid
+flowchart TD
+  client["Client / Gradio UI / 业务系统"]
+  fastapi["FastAPI：OpenAI API 风格接口"]
+  high["高层 RAG API：ingest / chat / completions"]
+  low["低层 primitives：embeddings / chunks retrieval"]
+  llama["LlamaIndex 抽象：LLM / Embedding / VectorStore"]
+  local["本地模型 / 本地向量库 / 文档存储"]
+
+  client --> fastapi
+  fastapi --> high & low
+  high & low --> llama --> local
 ```
 
 它的关键架构决策包括：
@@ -663,23 +650,15 @@ Haystack 的核心是组件和 pipeline。你把 Retriever、Ranker、Prompt Bui
 
 可以这样理解：
 
-```text
-Document Store / Vector DB / Search Engine
-        |
-        v
-Retriever
-        |
-        v
-Ranker / Filter / Router
-        |
-        v
-Prompt Builder
-        |
-        v
-Generator
-        |
-        v
-Answer + Metadata + Trace
+```mermaid
+flowchart TD
+  store["Document Store / Vector DB / Search Engine"]
+  ret["Retriever"]
+  ranker["Ranker / Filter / Router"]
+  prompt["Prompt Builder"]
+  gen["Generator"]
+  answer["Answer + Metadata + Trace"]
+  store --> ret --> ranker --> prompt --> gen --> answer
 ```
 
 Haystack 的突出点：
@@ -710,20 +689,14 @@ LlamaIndex 的核心问题是：如何把私有数据接入 LLM 应用。
 
 典型使用方式是：
 
-```text
-Data Connectors
-        |
-        v
-Documents / Nodes
-        |
-        v
-Index / VectorStore / Graph / Summary
-        |
-        v
-Retriever / Query Engine
-        |
-        v
-LLM Response
+```mermaid
+flowchart TD
+  dc["Data Connectors"]
+  dn["Documents / Nodes"]
+  idx["Index / VectorStore / Graph / Summary"]
+  ret["Retriever / Query Engine"]
+  llm["LLM Response"]
+  dc --> dn --> idx --> ret --> llm
 ```
 
 LlamaIndex 的优势是生态广、抽象多、上手快。代价是新手容易在高层 API 和低层自定义之间摇摆，最后写出不清晰的系统边界。
@@ -767,13 +740,15 @@ Quivr core 的关键抽象是 Brain。它把文件摄取、向量化、检索和
 
 同时，它支持用 YAML 配置 basic RAG workflow，例如：
 
-```text
-START
-  -> filter_history
-  -> rewrite
-  -> retrieve
-  -> generate_rag
-  -> END
+```mermaid
+flowchart LR
+  start["START"]
+  fh["filter_history"]
+  rw["rewrite"]
+  ret["retrieve"]
+  gr["generate_rag"]
+  e["END"]
+  start --> fh --> rw --> ret --> gr --> e
 ```
 
 这个 workflow 形态很重要，因为它说明一个成熟 RAG 问答并不只有 retrieve 和 generate：
@@ -840,17 +815,19 @@ AutoRAG 的观点非常务实：RAG pipeline 很多，但你不知道哪个最�
 
 AutoRAG 的流程可以拆成两段：数据创建和 pipeline 优化。
 
-```text
-原始文档
-  -> Parsing
-  -> Chunking
-  -> QA dataset / Corpus dataset
-  -> 配置候选模块
-  -> 批量运行试验
-  -> 指标评测
-  -> Dashboard 分析
-  -> 导出最佳 pipeline
-  -> 代码/API/Web 部署
+```mermaid
+flowchart LR
+  doc["原始文档"]
+  parse["Parsing"]
+  chunk["Chunking"]
+  data["QA dataset / Corpus dataset"]
+  config["配置候选模块"]
+  batch["批量运行试验"]
+  eval["指标评测"]
+  dash["Dashboard 分析"]
+  export["导出最佳 pipeline"]
+  deploy["代码/API/Web 部署"]
+  doc --> parse --> chunk --> data --> config --> batch --> eval --> dash --> export --> deploy
 ```
 
 它要求你准备两类数据：
@@ -1185,19 +1162,21 @@ Notebook 适合学习和验证，不适合直接进入生产。生产系统还�
 
 综合这些项目，可以看到成熟 RAG 系统逐渐形成一套共同架构。
 
-```text
-数据源
-  -> 连接器 / 文件上传 / 同步任务
-  -> 解析器：PDF / Office / HTML / OCR / 表格 / 图片
-  -> 清洗和结构化：标题、段落、表格、图注、页码、权限
-  -> Chunk 策略：固定、语义、标题层级、Parent-Child、表格专项
-  -> 索引：向量、全文、图谱、元数据
-  -> 检索：向量、BM25、Hybrid、Graph、Router
-  -> Rerank / Filter / Deduplicate
-  -> Prompt / Context assembly
-  -> LLM / VLM / Tool
-  -> 答案、引用、反馈、日志
-  -> 评测、调参、监控、回归
+```mermaid
+flowchart LR
+  ds["数据源"]
+  conn["连接器 / 文件上传 / 同步任务"]
+  parser["解析器：PDF / Office / HTML / OCR / 表格 / 图片"]
+  clean["清洗和结构化：标题、段落、表格、图注、页码、权限"]
+  chunk["Chunk 策略：固定、语义、标题层级、Parent-Child、表格专项"]
+  index["索引：向量、全文、图谱、元数据"]
+  ret["检索：向量、BM25、Hybrid、Graph、Router"]
+  rerank["Rerank / Filter / Deduplicate"]
+  prompt["Prompt / Context assembly"]
+  llm["LLM / VLM / Tool"]
+  answer["答案、引用、反馈、日志"]
+  eval["评测、调参、监控、回归"]
+  ds --> conn --> parser --> clean --> chunk --> index --> ret --> rerank --> prompt --> llm --> answer --> eval
 ```
 
 这个结构比“向量数据库 + Prompt”复杂得多，但也更接近真实系统。

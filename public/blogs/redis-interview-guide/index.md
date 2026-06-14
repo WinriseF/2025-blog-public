@@ -315,13 +315,12 @@ Redis 的底层数据结构是专门为速度设计的：
 
 **用在缓存穿透上：**
 
-```
-数据库写入数据时 → 同步加入布隆过滤器
-
-用户请求 →
-  布隆过滤器判断：
-    → 不存在 → 100% 不存在，直接返回，不查 Redis 和数据库
-    → 可能存在 → 继续查 Redis 和数据库
+```mermaid
+flowchart TD
+  write["数据库写入数据时"] --> bloom["同步加入布隆过滤器"]
+  req["用户请求"] --> check{"布隆过滤器判断"}
+  check -- "不存在 → 100% 不存在" --> ret["直接返回，不查 Redis 和数据库"]
+  check -- "可能存在" --> cache["继续查 Redis 和数据库"]
 ```
 
 100 万个不存在的 id，在布隆过滤器这一关就全部拦截，数据库丝毫不受影响。
@@ -344,21 +343,27 @@ Redis 的底层数据结构是专门为速度设计的：
 
 想象这个场景：某个明星突然爆出大新闻，全国网友疯狂刷新，这条新闻的缓存恰好在这个瞬间过期了。
 
-```
-热点 key 过期的瞬间 →
-  1000 个请求同时查 Redis → 全部 miss →
-  1000 个请求同时去查数据库 →
-  数据库瞬间崩溃
+```mermaid
+flowchart TD
+  expire["热点 key 过期的瞬间"]
+  miss["1000 个请求同时查 Redis → 全部 miss"]
+  db["1000 个请求同时去查数据库"]
+  crash["数据库瞬间崩溃"]
+  expire --> miss --> db --> crash
 ```
 
 #### 解决方案一：互斥锁
 
 只让**一个请求**去查数据库，其他请求等待：
 
-```
-缓存 miss → 尝试加分布式锁
-  → 加锁成功（只有一个） → 查数据库 → 写入缓存 → 释放锁
-  → 加锁失败（其他所有请求）→ 等待一会 → 重试 → 此时缓存已有数据 → 直接返回
+```mermaid
+flowchart TD
+  miss["缓存 miss"] --> try["尝试加分布式锁"]
+  try -- "加锁成功（只有一个）" --> db["查数据库"]
+  db --> write["写入缓存"] --> unlock["释放锁"]
+  try -- "加锁失败（其他所有请求）" --> wait["等待一会"]
+  wait --> retry["重试"]
+  retry --> hit["此时缓存已有数据 → 直接返回"]
 ```
 
 **优点**：数据强一致，缓存重建期间不会有脏数据。
@@ -378,12 +383,16 @@ Redis 的底层数据结构是专门为速度设计的：
 
 请求来了：
 
-```
-查 Redis → 有数据（永不过期）→
-  检查 expireTime 是否过期：
-    → 没过期 → 直接返回
-    → 过期了 → 返回旧数据（不阻塞用户）
-              → 异步开新线程去查数据库、更新缓存
+```mermaid
+flowchart TD
+  redis["查 Redis → 有数据（永不过期）"]
+  check{"检查 expireTime 是否过期"}
+  not_expired["没过期"] --> direct["直接返回"]
+  expired["过期了"] --> old["返回旧数据（不阻塞用户）"]
+  old --> async["异步开新线程去查数据库、更新缓存"]
+  redis --> check
+  check -- "→ 没过期" --> direct
+  check -- "→ 过期了" --> old
 ```
 
 **优点**：用户不会被阻塞，始终有数据返回。
@@ -411,12 +420,15 @@ Redis 的底层数据结构是专门为速度设计的：
 
 比如你的系统上线时，给所有商品设置了相同的过期时间（比如都是凌晨 12 点过期），那凌晨 12 点之后，所有商品缓存全部失效，大量请求同时打到数据库。
 
-```
-凌晨 12 点 →
-  商品A 缓存过期 → 请求打到数据库
-  商品B 缓存过期 → 请求打到数据库
-  商品C 缓存过期 → 请求打到数据库
-  ...（成千上万个）→ 数据库崩溃
+```mermaid
+flowchart TD
+  midnight["凌晨 12 点"]
+  a["商品A 缓存过期 → 请求打到数据库"]
+  b["商品B 缓存过期 → 请求打到数据库"]
+  c["商品C 缓存过期 → 请求打到数据库"]
+  more["...（成千上万个）"]
+  crash["数据库崩溃"]
+  midnight --> a & b & c & more --> crash
 ```
 
 **场景二：Redis 实例宕机**
@@ -445,8 +457,13 @@ Redis 的底层数据结构是专门为速度设计的：
 
 此外还可以加**本地缓存（如 Caffeine）**作为第二道防线：
 
-```
-请求 → 本地缓存（第一道） → Redis（第二道） → 数据库（最后手段）
+```mermaid
+flowchart LR
+  req["请求"]
+  local["本地缓存（第一道）"]
+  redis["Redis（第二道）"]
+  db["数据库（最后手段）"]
+  req --> local --> redis --> db
 ```
 
 Redis 挂了，本地缓存还能兜底，不会所有请求全部打到数据库。
@@ -553,10 +570,14 @@ appendfsync no                    # 由操作系统决定何时同步（最快�
 
 #### AOF 工作原理
 
-```
-写命令（SET、DEL 等）→ 追加到 AOF 缓冲区 →
-  根据 appendfsync 策略同步到磁盘 →
-  AOF 文件越来越大 → 触发 AOF 重写（压缩）
+```mermaid
+flowchart LR
+  cmd["写命令（SET、DEL 等）"]
+  buf["追加到 AOF 缓冲区"]
+  sync["根据 appendfsync 策略同步到磁盘"]
+  grow["AOF 文件越来越大"]
+  rewrite["触发 AOF 重写（压缩）"]
+  cmd --> buf --> sync --> grow --> rewrite
 ```
 
 #### AOF 重写
@@ -565,10 +586,13 @@ AOF 文件会越来越大，因为记录了所有写命令，包括重复操作�
 
 AOF 重写就是解决这个问题：
 
-```
-BGREWRITEAOF → fork 子进程 →
-  子进程遍历当前内存数据，生成最精简的命令集 →
-  用新文件替换旧 AOF 文件
+```mermaid
+flowchart LR
+  bg["BGREWRITEAOF"]
+  fork["fork 子进程"]
+  gen["子进程遍历当前内存数据，生成最精简的命令集"]
+  replace["用新文件替换旧 AOF 文件"]
+  bg --> fork --> gen --> replace
 ```
 
 重写后的 AOF 文件只包含恢复当前数据所需的最少命令，体积大幅减小。
@@ -660,12 +684,19 @@ maxmemory-policy noeviction  # 内存满时的淘汰策略
 
 当 Redis 使用的内存达到 maxmemory 限制时，行为取决于 `maxmemory-policy` 配置：
 
-```
-新写入请求 → Redis 检查内存是否已满 →
-  已满 → 根据淘汰策略处理 →
-    → 淘汰旧 key，腾出空间
-    → 或者拒绝写入（noeviction）
-  未满 → 正常写入
+```mermaid
+flowchart TD
+  req["新写入请求"]
+  check{"Redis 检查内存是否已满"}
+  full["已满：根据淘汰策略处理"]
+  evict["淘汰旧 key，腾出空间"]
+  reject["拒绝写入（noeviction）"]
+  ok["未满：正常写入"]
+  req --> check
+  check -- "已满" --> full
+  full --> evict
+  full --> reject
+  check -- "未满" --> ok
 ```
 
 ---
@@ -853,11 +884,19 @@ redis.eval(luaScript, 1, "lock_key", lockValue);
 
 **解决方案：后台线程自动续期**
 
-```
-获取锁成功 → 启动后台定时任务 →
-  每隔一段时间（比如过期时间的 1/3）检查：
-    → 业务还在执行 → 延长锁的过期时间
-    → 业务已完成 → 停止续期
+```mermaid
+flowchart TD
+  locked["获取锁成功"]
+  task["启动后台定时任务"]
+  check{"每隔一段时间检查"}
+  running["业务还在执行"]
+  extend["延长锁的过期时间"]
+  done["业务已完成"]
+  stop["停止续期"]
+  locked --> task --> check
+  check -- "业务还在执行" --> running --> extend
+  extend --> check
+  check -- "业务已完成" --> done --> stop
 ```
 
 这就是 Redisson 等客户端的 **Watch Dog（看门狗）** 机制。实际开发中，推荐直接使用 Redisson，而不是自己实现分布式锁。
@@ -868,11 +907,17 @@ redis.eval(luaScript, 1, "lock_key", lockValue);
 
 单个 Redis 节点有宕机风险，Redis 作者提出了 **Redlock** 算法，在多个独立的 Redis 实例上获取锁：
 
-```
-客户端 → 依次向 N 个独立的 Redis 实例请求加锁 →
-  统计成功加锁的数量和耗时 →
-    → 超过半数（N/2+1）成功，且总耗时 < 锁有效期 → 加锁成功
-    → 否则 → 加锁失败，向所有实例释放锁
+```mermaid
+flowchart TD
+  client["客户端"]
+  request["依次向 N 个独立的 Redis 实例请求加锁"]
+  stats["统计成功加锁的数量和耗时"]
+  success{"超过半数（N/2+1）成功<br/>且总耗时 < 锁有效期"}
+  ok["加锁成功"]
+  fail["加锁失败，向所有实例释放锁"]
+  client --> request --> stats --> success
+  success -- "是" --> ok
+  success -- "否" --> fail
 ```
 
 Redlock 保证了即使个别 Redis 节点宕机，锁机制依然能正常工作。但实现复杂，争议也较大，大多数场景下单实例 + 哨兵已经够用。
@@ -912,12 +957,15 @@ Redis 单机部署宕机会导致缓存雪崩，所以生产环境都要用集�
 
 **结构：**
 
-```
-主节点（Master）← 负责写入
-    ↓ 数据同步
-从节点1（Slave）← 负责读取
-从节点2（Slave）← 负责读取
-从节点3（Slave）← 负责读取
+```mermaid
+flowchart TD
+  master["主节点（Master）← 负责写入"]
+  sync["数据同步"]
+  s1["从节点1（Slave）← 负责读取"]
+  s2["从节点2（Slave）← 负责读取"]
+  s3["从节点3（Slave）← 负责读取"]
+  master --> sync
+  sync --> s1 & s2 & s3
 ```
 
 **工作方式：**
@@ -937,23 +985,30 @@ Redis 单机部署宕机会导致缓存雪崩，所以生产环境都要用集�
 
 在主从复制的基础上，加了**哨兵节点**来自动监控和切换。
 
-```
-哨兵1  哨兵2  哨兵3  ← 互相监控，避免误判
-    ↓     ↓     ↓
-主节点（Master）
-    ↓ 数据同步
-从节点1  从节点2
+```mermaid
+flowchart TD
+  subgraph sentinels["哨兵"]
+    s1["哨兵1"]
+    s2["哨兵2"]
+    s3["哨兵3"]
+  end
+  s1 & s2 & s3 --> master["主节点（Master）"]
+  master --> sync["数据同步"]
+  sync --> sl1["从节点1"]
+  sync --> sl2["从节点2"]
 ```
 
 **当主节点挂掉：**
 
-```
-哨兵发现主节点无响应
-  → 超过半数哨兵确认主节点挂了
-  → 哨兵投票选出一个从节点
-  → 将该从节点升级为新主节点
-  → 通知其他从节点和客户端
-  → 自动完成，无需人工干预
+```mermaid
+flowchart TD
+  detect["哨兵发现主节点无响应"]
+  confirm["超过半数哨兵确认主节点挂了"]
+  vote["哨兵投票选出一个从节点"]
+  promote["将该从节点升级为新主节点"]
+  notify["通知其他从节点和客户端"]
+  done["自动完成，无需人工干预"]
+  detect --> confirm --> vote --> promote --> notify --> done
 ```
 
 **优点**：故障自动转移，不需要手动操作。
@@ -1003,22 +1058,34 @@ Redis Cluster 把所有数据分成 **16384 个槽（slot）**，每个节点负
 
 会，但概率极低。因为主从同步是**异步**的：
 
-```
-主节点写入数据 → 立即返回给客户端 → 后台异步同步给从节点
-                                      ↑
-                           如果主节点在这里挂掉，数据就丢了
+```mermaid
+flowchart LR
+  master["主节点写入数据"]
+  client["立即返回给客户端"]
+  sync["后台异步同步给从节点"]
+  risk["↑ 如果主节点在这里挂掉，数据就丢了"]
+  master --> client
+  master -.-> sync
+  sync --> risk
 ```
 
 还有一种情况叫**脑裂**：
 
-```
-主节点 和 从节点/哨兵之间网络断开
-  → 哨兵认为主节点挂了 → 选出新主节点
-  → 旧主节点以为自己还是主节点 → 继续接受写入
-  
-两个"主节点"同时工作 → 网络恢复后 →
-旧主节点降级为从节点 → 从新主节点同步数据 →
-旧主节点这段时间写入的数据全部丢失
+```mermaid
+flowchart TD
+  net["主节点 和 从节点/哨兵之间网络断开"]
+  sentinel["哨兵认为主节点挂了"]
+  elect["选出新主节点"]
+  old["旧主节点以为自己还是主节点"]
+  write["继续接受写入"]
+  dual["两个“主节点”同时工作"]
+  recover["网络恢复后"]
+  demote["旧主节点降级为从节点"]
+  resync["从新主节点同步数据"]
+  lost["旧主节点这段时间写入的数据全部丢失"]
+  net --> sentinel --> elect
+  net --> old --> write
+  elect & write --> dual --> recover --> demote --> resync --> lost
 ```
 
 这个数据丢失在大多数缓存业务里是**可以接受的**，因为缓存丢了最多是从数据库重新加载，不会影响数据的正确性。
