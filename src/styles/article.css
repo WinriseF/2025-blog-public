@@ -235,6 +235,54 @@ html[data-time-theme='night'] .prose .code-block-copy-btn:hover {
 	transform: scale(0.95);
 }
 
+/* Mermaid diagrams */
+.prose .mermaid-diagram {
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	background: color-mix(in srgb, var(--color-article) 86%, #fff);
+	border-radius: 12px;
+	margin: 1em 0 2em;
+	padding: 1rem;
+	overflow-x: auto;
+	overflow-y: hidden;
+	text-align: center;
+}
+
+.prose .mermaid-diagram svg {
+	display: inline-block;
+	max-width: 100%;
+	height: auto;
+	min-width: min-content;
+}
+
+.prose .mermaid-diagram-loading {
+	color: var(--color-secondary);
+	font-size: 0.9em;
+}
+
+.prose .mermaid-diagram-error {
+	text-align: left;
+}
+
+.prose .mermaid-diagram-error-title {
+	color: #dc2626;
+	font-weight: 600;
+	margin-bottom: 0.75rem;
+}
+
+.prose .mermaid-diagram-error pre {
+	margin: 0;
+	white-space: pre-wrap;
+}
+
+html[data-time-theme='night'] .prose .mermaid-diagram {
+	border-color: rgba(255, 255, 255, 0.12);
+	background: rgba(16, 25, 29, 0.86);
+}
+
+html[data-time-theme='night'] .prose .mermaid-diagram-error-title {
+	color: #fca5a5;
+}
+
 /* Images */
 .prose img {
 	max-width: 40%;

@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-06-07.
+Last updated: 2026-06-14.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -27,7 +27,7 @@ Primary stack:
 - Tailwind CSS 4.
 - Zustand for client state stores.
 - SWR for client-side data fetching and cache behavior.
-- `marked`, `shiki`, and `html-react-parser` for Markdown rendering.
+- `marked`, `shiki`, `mermaid`, and `html-react-parser` for Markdown rendering.
 - `motion` for animation.
 - `lucide-react` and local SVG files for icons.
 - Netlify deployment through `@netlify/plugin-nextjs`.
@@ -177,6 +177,7 @@ Relevant files:
 - `src/components/blog-preview.tsx`
 - `src/components/code-block.tsx`
 - `src/components/markdown-image.tsx`
+- `src/components/mermaid-diagram.tsx`
 
 Pipeline:
 
@@ -189,6 +190,7 @@ Pipeline:
 7. External links receive safe target attributes.
 8. `<img>` nodes are replaced with `MarkdownImage`.
 9. Shiki code blocks are wrapped with `CodeBlock` for UI features such as copy.
+10. Fenced `mermaid` code blocks are emitted as placeholders by the worker renderer and rendered on the client by `MermaidDiagram`; keep text-only command output, file trees, conflict examples, and raw object examples as ordinary code blocks.
 
 ## Homepage Architecture
 

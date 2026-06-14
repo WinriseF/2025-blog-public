@@ -9,6 +9,15 @@ export interface MarkdownRenderResult {
 	toc: TocItem[]
 }
 
+function escapeHtmlAttribute(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+}
+
 export function slugify(text: string): string {
 	return text
 		.toLowerCase()
@@ -37,6 +46,8 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 	for (const token of tokens) {
 		if (token.type === 'code') {
 			const codeToken = token as Tokens.Code
+			if ((codeToken.lang || '').trim().toLowerCase() === 'mermaid') continue
+
 			const originalCode = codeToken.text
 			try {
 				const html = await codeToHtml(originalCode, {
@@ -67,17 +78,16 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 	}
 
 	renderer.code = (token: Tokens.Code) => {
+		if ((token.lang || '').trim().toLowerCase() === 'mermaid') {
+			return `<div class="mermaid-diagram-placeholder" data-mermaid-code="${escapeHtmlAttribute(token.text)}"></div>`
+		}
+
 		// Check if this code block was pre-processed
 		const codeData = codeBlockMap.get(token.text)
 		if (codeData) {
 			// Add data-code attribute with original code for copy functionality
 			// Escape HTML entities for attribute value
-			const escapedCode = codeData.original
-				.replace(/&/g, '&amp;')
-				.replace(/"/g, '&quot;')
-				.replace(/'/g, '&#39;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
+			const escapedCode = escapeHtmlAttribute(codeData.original)
 			if (codeData.html) {
 				// Shiki highlighted code
 				return `<pre data-code="${escapedCode}">${codeData.html}</pre>`

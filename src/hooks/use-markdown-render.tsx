@@ -3,6 +3,7 @@ import parse, { type HTMLReactParserOptions, Element, type DOMNode } from 'html-
 import type { MarkdownRenderResult as RawMarkdownRenderResult, TocItem } from '@/lib/markdown-renderer'
 import { MarkdownImage } from '@/components/markdown-image'
 import { CodeBlock } from '@/components/code-block'
+import { MermaidDiagram } from '@/components/mermaid-diagram'
 
 type MarkdownRenderResult = {
 	content: ReactElement | null
@@ -26,16 +27,20 @@ type WorkerResponse =
 			payload: string
 	  }
 
+function decodeHtmlAttribute(value: string): string {
+	return value
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&amp;/g, '&')
+}
+
 function parseMarkdownHtml(html: string): ReactElement {
 	const codeBlocks: Array<{ placeholder: string; code: string; preHtml: string }> = []
 	const processedHtml = html.replace(/<pre\s+data-code="([^"]*)"([^>]*)>([\s\S]*?)<\/pre>/g, (match, codeAttr, attrs, content) => {
 		const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`
-		const code = codeAttr
-			.replace(/&quot;/g, '"')
-			.replace(/&#39;/g, "'")
-			.replace(/&lt;/g, '<')
-			.replace(/&gt;/g, '>')
-			.replace(/&amp;/g, '&')
+		const code = decodeHtmlAttribute(codeAttr)
 		codeBlocks.push({
 			placeholder,
 			code,
@@ -46,6 +51,10 @@ function parseMarkdownHtml(html: string): ReactElement {
 
 	const options: HTMLReactParserOptions = {
 		replace(domNode: DOMNode) {
+			if (domNode instanceof Element && domNode.name === 'div' && domNode.attribs['data-mermaid-code']) {
+				return <MermaidDiagram chart={decodeHtmlAttribute(domNode.attribs['data-mermaid-code'])} />
+			}
+
 			if (domNode instanceof Element && domNode.name === 'a') {
 				const { href } = domNode.attribs
 				const isExternal = href && (href.startsWith('http://') || href.startsWith('https://'))
