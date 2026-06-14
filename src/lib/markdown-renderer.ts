@@ -79,7 +79,7 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 
 	renderer.code = (token: Tokens.Code) => {
 		if ((token.lang || '').trim().toLowerCase() === 'mermaid') {
-			return `<div class="mermaid-diagram-placeholder" data-mermaid-code="${escapeHtmlAttribute(token.text)}"></div>`
+			return `<div data-mermaid-code="${escapeHtmlAttribute(token.text)}"></div>`
 		}
 
 		// Check if this code block was pre-processed
