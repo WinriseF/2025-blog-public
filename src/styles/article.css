@@ -242,9 +242,14 @@ html[data-time-theme='night'] .prose .code-block-copy-btn:hover {
 	border-radius: 12px;
 	margin: 1em 0 2em;
 	padding: 1rem;
+	letter-spacing: 0;
 	overflow-x: auto;
 	overflow-y: hidden;
 	text-align: center;
+}
+
+.prose .mermaid-diagram * {
+	letter-spacing: 0;
 }
 
 .prose .mermaid-diagram svg {
@@ -252,6 +257,7 @@ html[data-time-theme='night'] .prose .code-block-copy-btn:hover {
 	max-width: 100%;
 	height: auto;
 	min-width: min-content;
+	overflow: visible;
 }
 
 .prose .mermaid-diagram-loading {

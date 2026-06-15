@@ -44,7 +44,15 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
 					startOnLoad: false,
 					securityLevel: 'strict',
 					theme,
-					fontFamily: 'inherit'
+					fontFamily: 'var(--font-sans)',
+					flowchart: {
+						diagramPadding: 16,
+						useMaxWidth: true
+					},
+					gitGraph: {
+						diagramPadding: 16,
+						useMaxWidth: true
+					}
 				})
 
 				const diagramId = `mermaid-${reactId.replace(/[^a-zA-Z0-9_-]/g, '')}-${++renderSerial}`
