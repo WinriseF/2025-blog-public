@@ -30,6 +30,7 @@ Primary stack:
 - `marked`, `shiki`, `mermaid`, and `html-react-parser` for Markdown rendering.
 - `motion` for animation.
 - `lucide-react` and local SVG files for icons.
+- `qrcode` for browser-side QR code generation in the transfer toolbox.
 - Netlify deployment through `@netlify/plugin-nextjs`.
 - Supabase Edge Function for the like endpoint.
 - EdgeOne Edge Functions and Pages Blob for the encrypted message transfer toolbox feature.
@@ -371,11 +372,12 @@ Flow:
 7. `/api/transfer/open` validates the proof, returns encrypted bytes once, and deletes the active payload, metadata, and code.
 8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes every object under the `transfer/` prefix in the Blob store. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
 9. `/api/transfer/stats` is a read-only admin endpoint protected by `TRANSFER_ADMIN_PASSWORD_HASH`; it lists Blob objects, reads object metadata, and returns storage totals plus the largest objects. Per-object metadata failures are reported in the response instead of failing the whole stats request.
+10. Created transfers show a QR code whose URL hash can carry the read password as `/t/<code>#p=<password>`; the read page consumes the hash client-side and removes it from the address bar before any API call.
 
 Important constraints:
 
 - `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the browser UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open fails.
-- Passwords are never sent to the server, but the server does receive a password-derived proof for access control.
+- Passwords are never sent to the server, but the server does receive a password-derived proof for access control. QR-code password sharing uses URL hash fragments so the password stays browser-side.
 - Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
 - Transfer size limits are 1MB for text and 20MB for files, staying below the EdgeOne Blob single-object limit.
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.

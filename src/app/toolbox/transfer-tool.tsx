@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Copy, Download, Lock, UploadCloud } from 'lucide-react'
+import { Copy, Download, Link as LinkIcon, Lock, QrCode, UploadCloud } from 'lucide-react'
+import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
 import {
 	decodeTextPayload,
@@ -80,6 +81,15 @@ function downloadBytes(filename: string, bytes: Uint8Array, contentType: string)
 	setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+function downloadDataUrl(filename: string, url: string) {
+	const link = document.createElement('a')
+	link.href = url
+	link.download = filename
+	document.body.appendChild(link)
+	link.click()
+	link.remove()
+}
+
 function formatExpireAt(value?: number) {
 	if (!value) return ''
 	return expireFormatter.format(value)
@@ -94,6 +104,9 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [openCode, setOpenCode] = useState(normalizeCode(initialCode))
 	const [openPassword, setOpenPassword] = useState('')
 	const [result, setResult] = useState<TransferCreateResponse | null>(null)
+	const [resultPassword, setResultPassword] = useState('')
+	const [qrDataUrl, setQrDataUrl] = useState('')
+	const [qrError, setQrError] = useState('')
 	const [openedText, setOpenedText] = useState('')
 	const [status, setStatus] = useState('')
 	const [busy, setBusy] = useState(false)
@@ -105,10 +118,53 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		setOpenCode(code)
 	}, [initialCode])
 
-	const resultLink = result && typeof window !== 'undefined' ? `${window.location.origin}/t/${result.code}` : ''
+	useEffect(() => {
+		if (typeof window === 'undefined') return
+		const hash = window.location.hash.replace(/^#/, '')
+		if (!hash) return
+		const hashPassword = new URLSearchParams(hash).get('p')
+		if (!hashPassword) return
+		setMode('open')
+		setOpenPassword(hashPassword)
+		window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+	}, [])
 
-	const createPayload = async () => {
-		if (password.length < TRANSFER_LIMITS.minPasswordLength) throw new Error(`密码至少 ${TRANSFER_LIMITS.minPasswordLength} 位`)
+	const resultLink = result && typeof window !== 'undefined' ? `${window.location.origin}/t/${result.code}` : ''
+	const privateResultLink = resultLink && resultPassword ? `${resultLink}#p=${encodeURIComponent(resultPassword)}` : ''
+
+	useEffect(() => {
+		if (!privateResultLink) {
+			setQrDataUrl('')
+			setQrError('')
+			return
+		}
+
+		let cancelled = false
+		setQrDataUrl('')
+		setQrError('')
+		QRCode.toDataURL(privateResultLink, {
+			errorCorrectionLevel: 'M',
+			margin: 2,
+			width: 220,
+			color: {
+				dark: '#1f4b4d',
+				light: '#ffffffff'
+			}
+		})
+			.then(url => {
+				if (!cancelled) setQrDataUrl(url)
+			})
+			.catch(() => {
+				if (!cancelled) setQrError('二维码生成失败，可继续复制链接分享')
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [privateResultLink])
+
+	const createPayload = async (createPassword: string) => {
+		if (createPassword.length < TRANSFER_LIMITS.minPasswordLength) throw new Error(`密码至少 ${TRANSFER_LIMITS.minPasswordLength} 位`)
 		if (kind === 'text') {
 			const plain = encodeTextPayload(text)
 			if (!plain.length) throw new Error('请先输入要中转的文本')
@@ -134,12 +190,14 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		setBusy(true)
 		setStatus('')
 		setResult(null)
+		setResultPassword('')
 		try {
+			const createPassword = password
 			const createUrl = transferApiUrl('create')
 			const completeUrl = transferApiUrl('complete')
-			const payload = await createPayload()
+			const payload = await createPayload(createPassword)
 			setStatus('正在本地加密...')
-			const encrypted = await encryptTransferPayload(payload.plain, password)
+			const encrypted = await encryptTransferPayload(payload.plain, createPassword)
 			setStatus('正在创建中转链接...')
 			const created = await fetchJson<TransferCreateResponse>(createUrl, {
 				method: 'POST',
@@ -170,6 +228,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				body: JSON.stringify({ code: created.code })
 			})
 			setResult(created)
+			setResultPassword(createPassword)
 			setOpenCode(created.code)
 			setStatus('生成完成')
 		} catch (error) {
@@ -228,6 +287,17 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		if (!resultLink) return
 		await navigator.clipboard.writeText(resultLink)
 		toast('链接已复制')
+	}
+
+	const copyPrivateResult = async () => {
+		if (!privateResultLink) return
+		await navigator.clipboard.writeText(privateResultLink)
+		toast('私密链接已复制')
+	}
+
+	const downloadQrCode = () => {
+		if (!qrDataUrl || !result) return
+		downloadDataUrl(`transfer-${result.code}.png`, qrDataUrl)
 	}
 
 	return (
@@ -309,17 +379,44 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				</div>
 
 				{result && (
-					<div className='space-y-3 rounded-2xl border border-brand/30 bg-brand/5 p-4'>
-						<div>
-							<p className='text-secondary text-xs'>提取码</p>
-							<p className='font-mono text-2xl tracking-[0.25em]'>{result.code}</p>
+					<div className='space-y-4 rounded-2xl border border-brand/30 bg-brand/5 p-4'>
+						<div className='grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px] xl:grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_150px]'>
+							<div className='min-w-0 space-y-3'>
+								<div>
+									<p className='text-secondary text-xs'>提取码</p>
+									<p className='font-mono text-2xl tracking-[0.25em]'>{result.code}</p>
+								</div>
+								<p className='break-all text-xs text-secondary'>{resultLink}</p>
+								<p className='text-secondary text-xs'>最晚清理时间：{formatExpireAt(result.expireAt)}</p>
+							</div>
+							<div className='flex flex-col items-center gap-2'>
+								<div className='flex size-[150px] items-center justify-center rounded-2xl border border-white/80 bg-white p-2 shadow-sm'>
+									{qrDataUrl ? (
+										<img src={qrDataUrl} alt='包含读取密码的中转二维码' className='size-full rounded-lg' />
+									) : (
+										<div className='text-secondary flex flex-col items-center gap-2 text-center text-xs'>
+											<QrCode size={28} />
+											<span>{qrError || '生成二维码中'}</span>
+										</div>
+									)}
+								</div>
+								<p className='text-secondary text-center text-[11px] leading-4'>二维码包含读取密码</p>
+							</div>
 						</div>
-						<p className='break-all text-xs text-secondary'>{resultLink}</p>
-						<p className='text-secondary text-xs'>最晚清理时间：{formatExpireAt(result.expireAt)}</p>
-						<button onClick={() => void copyResult()} className='flex items-center gap-2 rounded-full border border-border px-3 py-2 text-xs font-medium'>
-							<Copy size={14} />
-							复制链接
-						</button>
+						<div className='flex flex-wrap gap-2'>
+							<button onClick={() => void copyResult()} className='flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium'>
+								<LinkIcon size={14} />
+								复制链接
+							</button>
+							<button onClick={() => void copyPrivateResult()} className='flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium'>
+								<Copy size={14} />
+								复制私密链接
+							</button>
+							<button disabled={!qrDataUrl} onClick={downloadQrCode} className='flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium disabled:opacity-50'>
+								<Download size={14} />
+								下载二维码
+							</button>
+						</div>
 					</div>
 				)}
 
