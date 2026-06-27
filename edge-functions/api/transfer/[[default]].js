@@ -313,30 +313,31 @@ async function openTransfer(input, env) {
 	return payload
 }
 
-async function cleanupExpiredTransfers(env, limit = 500) {
+async function cleanupExpiredTransfers(env) {
 	const store = await getTransferStore(env)
-	const now = Date.now()
-	const { blobs } = await store.list({ prefix: 'transfer/expires/', limit, consistency: 'strong' })
+	const { blobs } = await store.list({ prefix: 'transfer/', consistency: 'strong' })
 	let cleaned = 0
+	const errors = []
 
-	for (const blob of blobs) {
-		const index = await store.get(blob.key, { type: 'json', consistency: 'strong' })
-		if (!index || index.expireAt > now) continue
-		const keys = keySet(index.id, index.code, index.expireAt)
-		await Promise.all([keys.payloadKey, keys.metaKey, keys.codeKey, keys.consumedKey, blob.key].map(key => store.delete(key)))
-		cleaned += 1
+	for (let index = 0; index < blobs.length; index += LIMITS.statsMetadataBatchSize) {
+		const batch = blobs.slice(index, index + LIMITS.statsMetadataBatchSize)
+		const results = await Promise.all(
+			batch.map(async blob => {
+				try {
+					await store.delete(blob.key)
+					return null
+				} catch (error) {
+					return { key: blob.key, message: compactErrorMessage(error) }
+				}
+			})
+		)
+		for (const error of results) {
+			if (error) errors.push(error)
+			else cleaned += 1
+		}
 	}
 
-	const todayRatePrefix = `transfer/rate/${formatBeijingDate(now)}/`
-	const rates = await store.list({ prefix: 'transfer/rate/', limit, consistency: 'strong' })
-	let rateCleaned = 0
-	for (const blob of rates.blobs) {
-		if (blob.key.startsWith(todayRatePrefix)) continue
-		await store.delete(blob.key)
-		rateCleaned += 1
-	}
-
-	return { cleaned, rateCleaned, scanned: blobs.length }
+	return { cleaned, scanned: blobs.length, deleteErrorCount: errors.length, errors: errors.slice(0, 50) }
 }
 
 function classifyTransferObject(key) {

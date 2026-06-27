@@ -365,11 +365,11 @@ Flow:
 1. User creates a text or file transfer from the toolbox.
 2. The browser derives an AES-GCM key from the password with fixed PBKDF2-SHA256 settings and encrypts the payload locally.
 3. The browser calls `${NEXT_PUBLIC_TRANSFER_API_BASE}/api/transfer/create`, which is an EdgeOne Edge Function endpoint.
-4. The Edge Function creates a six-character code, minimal metadata, a short-lived Blob upload URL, and an expiry index.
+4. The Edge Function creates a six-character code, minimal metadata, a short-lived Blob upload URL, and transfer indexes.
 5. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable.
 6. A recipient opens `/t/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
 7. `/api/transfer/open` validates the proof, returns encrypted bytes once, and deletes the active payload, metadata, and code.
-8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes expired residual data. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
+8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes every object under the `transfer/` prefix in the Blob store. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
 9. `/api/transfer/stats` is a read-only admin endpoint protected by `TRANSFER_ADMIN_PASSWORD_HASH`; it lists Blob objects, reads object metadata, and returns storage totals plus the largest objects. Per-object metadata failures are reported in the response instead of failing the whole stats request.
 
 Important constraints:
@@ -381,7 +381,7 @@ Important constraints:
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
 - EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `TRANSFER_ADMIN_PASSWORD_HASH` is required only for `/api/transfer/stats`, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
 - The feature intentionally does not use or change Supabase.
-- Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus the scheduled cleanup function.
+- Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus a scheduled cleanup that clears the whole `transfer/` prefix each Beijing 02:00.
 
 ## Build And Generated Files
 
@@ -414,7 +414,7 @@ Netlify settings:
 
 EdgeOne settings:
 
-- `edge-functions/api/transfer/[[default]].js` exposes `/api/transfer/*` for transfer create, complete, meta, open, and cleanup.
+- `edge-functions/api/transfer/[[default]].js` exposes `/api/transfer/*` for transfer create, complete, meta, open, stats, and cleanup.
 - `edgeone.json` schedules transfer cleanup at 02:00 Asia/Shanghai.
 - The frontend must set `NEXT_PUBLIC_TRANSFER_API_BASE` to the EdgeOne Functions origin, for example `https://transfer.example.com`.
 
