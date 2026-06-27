@@ -13,7 +13,7 @@ This document is written for future AI agents and maintainers. Read it before do
 - Hidden browser-side authoring tools that write content back to GitHub through the Git Data API.
 - A small amount of server-side routing for RSS and news proxy/parsing.
 - A separate Supabase Edge Function for likes.
-- An encrypted message/file transfer tool backed by EdgeOne Edge Functions and Pages Blob.
+- An encrypted message/file transfer tool and LAN transfer signaling backed by EdgeOne Edge Functions and Pages Blob.
 
 This is not a traditional CMS-backed blog. Most content is JSON, Markdown, and image references committed to the repo.
 
@@ -31,9 +31,10 @@ Primary stack:
 - `motion` for animation.
 - `lucide-react` and local SVG files for icons.
 - `qrcode` for browser-side QR code generation in the transfer toolbox.
+- `simple-peer` and `fflate` for browser-side LAN transfer WebRTC sessions and ZIP packaging.
 - Netlify deployment through `@netlify/plugin-nextjs`.
 - Supabase Edge Function for the like endpoint.
-- EdgeOne Edge Functions and Pages Blob for the encrypted message transfer toolbox feature.
+- EdgeOne Edge Functions and Pages Blob for the encrypted message transfer toolbox feature and LAN signaling.
 
 Important config files:
 
@@ -353,15 +354,18 @@ Frontend:
 
 - `src/app/toolbox/toolbox-client.tsx`
 - `src/app/toolbox/transfer-tool.tsx`
+- `src/app/toolbox/lan-transfer-tool.tsx`
+- `src/lib/lan-transfer/`
 - `src/app/toolbox/transfer/[code]/page.tsx`
 - `src/lib/transfer-crypto.ts`
 
 Backend:
 
 - `edge-functions/api/transfer/[[default]].js`
+- `edge-functions/api/lan/[[default]].js`
 - `edgeone.json`
 
-Flow:
+Encrypted relay flow:
 
 1. User creates a text or file transfer from the toolbox.
 2. The browser derives an AES-GCM key from the password with fixed PBKDF2-SHA256 settings and encrypts the payload locally.
@@ -374,14 +378,25 @@ Flow:
 9. `/api/transfer/stats` is a read-only admin endpoint protected by `TRANSFER_ADMIN_PASSWORD_HASH`; it lists Blob objects, reads object metadata, and returns storage totals plus the largest objects. Per-object metadata failures are reported in the response instead of failing the whole stats request.
 10. Created transfers show a QR code whose URL hash can carry the read password as `/t/<code>#p=<password>`; the read page consumes the hash client-side and removes it from the address bar before any API call.
 
+LAN transfer flow:
+
+1. The transfer toolbox has a separate `局域网互传` tab independent from `创建中转` and `读取中转`.
+2. Any device can create a pairing QR code as WebRTC `host`; another device scans `/t#mode=lan&room=<roomId>&token=<roomToken>` and joins as `guest`.
+3. EdgeOne `/api/lan/*` stores only temporary room, peer, and mailbox signaling objects in the `lan-transfer` Blob store. File bytes are never written to Blob.
+4. The browser uses `simple-peer` to exchange offer/answer/ICE through EdgeOne polling, then opens a WebRTC DataChannel named `file`.
+5. Once connected, both devices are equal peers: either side can request to send files, and the other side must accept before receiving.
+6. Single files are sent directly in 64KB DataChannel chunks. Multiple files are packaged into a ZIP with `fflate` and sent as one payload.
+7. LAN rooms expire if not paired within 10 minutes and are retained for at most 30 minutes after creation. `edgeone.json` schedules `/api/lan/cleanup` every 10 minutes.
+
 Important constraints:
 
-- `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the browser UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open fails.
+- `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the browser UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open and LAN signaling fail.
 - Passwords are never sent to the server, but the server does receive a password-derived proof for access control. QR-code password sharing uses URL hash fragments so the password stays browser-side.
 - Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
 - Transfer size limits are 1MB for text and 20MB for files, staying below the EdgeOne Blob single-object limit.
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
 - EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `TRANSFER_ADMIN_PASSWORD_HASH` is required only for `/api/transfer/stats`, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
+- LAN transfer environment variables: `EDGEONE_LAN_STORE` defaults to `lan-transfer`, and `LAN_ALLOWED_ORIGIN` is optional CORS tightening.
 - The feature intentionally does not use or change Supabase.
 - Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus a scheduled cleanup that clears the whole `transfer/` prefix each Beijing 02:00.
 
@@ -417,7 +432,8 @@ Netlify settings:
 EdgeOne settings:
 
 - `edge-functions/api/transfer/[[default]].js` exposes `/api/transfer/*` for transfer create, complete, meta, open, stats, and cleanup.
-- `edgeone.json` schedules transfer cleanup at 02:00 Asia/Shanghai.
+- `edge-functions/api/lan/[[default]].js` exposes `/api/lan/*` for LAN pairing and signaling.
+- `edgeone.json` schedules transfer cleanup at 02:00 Asia/Shanghai and LAN cleanup every 10 minutes.
 - The frontend must set `NEXT_PUBLIC_TRANSFER_API_BASE` to the EdgeOne Functions origin, for example `https://transfer.example.com`.
 
 Cache headers are configured for:

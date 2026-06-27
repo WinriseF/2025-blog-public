@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Copy, Download, Link as LinkIcon, Lock, QrCode, UploadCloud } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
+import { LanTransferTool } from './lan-transfer-tool'
 import {
 	decodeTextPayload,
 	decryptTransferPayload,
@@ -26,7 +27,7 @@ type TransferToolProps = {
 	initialCode?: string
 }
 
-type Mode = 'create' | 'open'
+type Mode = 'create' | 'open' | 'lan'
 
 const errorText: Record<string, string> = {
 	bad_password: '密码不正确',
@@ -105,6 +106,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [openPassword, setOpenPassword] = useState('')
 	const [result, setResult] = useState<TransferCreateResponse | null>(null)
 	const [resultPassword, setResultPassword] = useState('')
+	const [lanInvite, setLanInvite] = useState<{ roomId: string; token: string } | null>(null)
 	const [qrDataUrl, setQrDataUrl] = useState('')
 	const [qrError, setQrError] = useState('')
 	const [openedText, setOpenedText] = useState('')
@@ -122,7 +124,18 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		if (typeof window === 'undefined') return
 		const hash = window.location.hash.replace(/^#/, '')
 		if (!hash) return
-		const hashPassword = new URLSearchParams(hash).get('p')
+		const params = new URLSearchParams(hash)
+		if (params.get('mode') === 'lan') {
+			const roomId = params.get('room') || ''
+			const token = params.get('token') || ''
+			if (roomId && token) {
+				setMode('lan')
+				setLanInvite({ roomId, token })
+				window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+				return
+			}
+		}
+		const hashPassword = params.get('p')
 		if (!hashPassword) return
 		setMode('open')
 		setOpenPassword(hashPassword)
@@ -301,18 +314,25 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	}
 
 	return (
-		<div className='grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]'>
-			<section className='min-w-0 space-y-5'>
-				<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
-					<button onClick={() => setMode('create')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'create' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
-						创建中转
-					</button>
-					<button onClick={() => setMode('open')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'open' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
-						读取中转
-					</button>
-				</div>
+		<div className='space-y-5'>
+			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
+				<button onClick={() => setMode('create')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'create' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
+					创建中转
+				</button>
+				<button onClick={() => setMode('open')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'open' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
+					读取中转
+				</button>
+				<button onClick={() => setMode('lan')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'lan' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
+					局域网互传
+				</button>
+			</div>
 
-				{mode === 'create' ? (
+			{mode === 'lan' ? (
+				<LanTransferTool initialInvite={lanInvite} />
+			) : (
+				<div className='grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]'>
+					<section className='min-w-0 space-y-5'>
+						{mode === 'create' ? (
 					<div className='space-y-4'>
 						<div className='grid grid-cols-2 gap-2'>
 							<button onClick={() => setKind('text')} className={`rounded-xl border px-4 py-3 text-left ${kind === 'text' ? 'border-brand bg-brand/10' : 'border-border'}`}>
@@ -369,9 +389,9 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 						</button>
 					</div>
 				)}
-			</section>
+					</section>
 
-			<section className='min-w-0 space-y-4 rounded-2xl border border-border bg-background/30 p-5 xl:sticky xl:top-24'>
+					<section className='min-w-0 space-y-4 rounded-2xl border border-border bg-background/30 p-5 xl:sticky xl:top-24'>
 				<div>
 					<p className='text-secondary text-xs tracking-[0.18em] uppercase'>Transfer</p>
 					<h2 className='mt-1 text-lg font-semibold'>加密消息中转站</h2>
@@ -431,7 +451,9 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				)}
 
 				{status && <div className='rounded-2xl border border-border bg-article px-4 py-3 text-sm text-secondary'>{status}</div>}
-			</section>
+					</section>
+				</div>
+			)}
 		</div>
 	)
 }
