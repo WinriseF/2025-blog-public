@@ -7,7 +7,10 @@ const LIMITS = {
 	maxTextBytes: 1024 * 1024,
 	maxFileBytes: 20 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
-	uploadUrlSeconds: 10 * 60
+	uploadUrlSeconds: 10 * 60,
+	statsTopLimit: 50,
+	statsMaxTopLimit: 200,
+	statsMetadataBatchSize: 10
 }
 
 class TransferError extends Error {
@@ -81,10 +84,14 @@ function getRequiredEnv(env, name) {
 	return value
 }
 
+function transferStoreName(env) {
+	return env.EDGEONE_BLOB_STORE || 'message-transfer'
+}
+
 async function getTransferStore(env) {
 	const { getStore } = await getBlobApi()
 	return getStore({
-		name: env.EDGEONE_BLOB_STORE || 'message-transfer',
+		name: transferStoreName(env),
 		consistency: 'strong'
 	})
 }
@@ -332,6 +339,76 @@ async function cleanupExpiredTransfers(env, limit = 500) {
 	return { cleaned, rateCleaned, scanned: blobs.length }
 }
 
+function classifyTransferObject(key) {
+	if (key.endsWith('/payload.bin')) return 'payload'
+	if (key.endsWith('/meta.json')) return 'meta'
+	if (key.endsWith('/consumed.json')) return 'consumed'
+	if (key.startsWith('transfer/codes/')) return 'code-index'
+	if (key.startsWith('transfer/expires/')) return 'expire-index'
+	if (key.startsWith('transfer/rate/')) return 'rate'
+	return 'other'
+}
+
+function normalizeTopLimit(value) {
+	const number = Number(value)
+	if (!Number.isFinite(number)) return LIMITS.statsTopLimit
+	return Math.max(0, Math.min(LIMITS.statsMaxTopLimit, Math.floor(number)))
+}
+
+async function assertAdminPassword(input, env) {
+	const expected = getRequiredEnv(env, 'TRANSFER_ADMIN_PASSWORD_HASH')
+	const password = String(input?.password || '')
+	if (!password || !safeEqual(await sha256(password), expected)) throw new TransferError(401, 'unauthorized', 'Invalid admin password')
+}
+
+async function collectTransferStats(input, env) {
+	await assertAdminPassword(input, env)
+	const store = await getTransferStore(env)
+	const topLimit = normalizeTopLimit(input?.topLimit)
+	const { blobs } = await store.list({ prefix: 'transfer/', consistency: 'strong' })
+	const rows = []
+	const byType = {}
+	let totalBytes = 0
+
+	for (let index = 0; index < blobs.length; index += LIMITS.statsMetadataBatchSize) {
+		const batch = blobs.slice(index, index + LIMITS.statsMetadataBatchSize)
+		const details = await Promise.all(
+			batch.map(async blob => {
+				const metadata = await store.getMetadata(blob.key, { consistency: 'strong' })
+				const bytes = Number(metadata?.headers?.['content-length'] || 0)
+				const type = classifyTransferObject(blob.key)
+				return {
+					key: blob.key,
+					type,
+					bytes: Number.isFinite(bytes) ? bytes : 0,
+					contentType: metadata?.contentType || '',
+					etag: metadata?.etag || blob.etag || ''
+				}
+			})
+		)
+
+		for (const item of details) {
+			totalBytes += item.bytes
+			const bucket = byType[item.type] || { count: 0, bytes: 0 }
+			bucket.count += 1
+			bucket.bytes += item.bytes
+			byType[item.type] = bucket
+			rows.push(item)
+		}
+	}
+
+	rows.sort((a, b) => b.bytes - a.bytes)
+	return {
+		ok: true,
+		generatedAt: Date.now(),
+		store: transferStoreName(env),
+		objectCount: rows.length,
+		totalBytes,
+		byType,
+		top: rows.slice(0, topLimit)
+	}
+}
+
 function actionFromRequest(request) {
 	const match = new URL(request.url).pathname.match(/\/api\/transfer\/([^/]+)$/)
 	return match?.[1] || ''
@@ -346,6 +423,7 @@ export async function onRequest(context) {
 		if (request.method === 'POST' && action === 'create') return json(await createTransfer(await readJson(request), request, env), 200, request, env)
 		if (request.method === 'POST' && action === 'complete') return json(await completeTransfer(await readJson(request), env), 200, request, env)
 		if (request.method === 'GET' && action === 'meta') return json(await getTransferMeta(request, env), 200, request, env)
+		if (request.method === 'POST' && action === 'stats') return json(await collectTransferStats(await readJson(request), env), 200, request, env)
 		if (request.method === 'POST' && action === 'open') {
 			const payload = await openTransfer(await readJson(request), env)
 			return new Response(payload, {
