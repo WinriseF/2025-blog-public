@@ -2,12 +2,12 @@ export const LAN_LIMITS = {
 	maxBytes: 200 * 1024 * 1024,
 	chunkSize: 64 * 1024,
 	bufferHighWatermark: 1024 * 1024,
-	bufferLowWatermark: 256 * 1024,
-	pollMs: 800
+	bufferLowWatermark: 256 * 1024
 } as const
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
+export type LanSignalType = 'hello' | 'signal' | 'peer-left'
 
 export type LanPeer = {
 	id: string
@@ -17,37 +17,26 @@ export type LanPeer = {
 	joinedAt: number
 }
 
-export type LanRoomResponse = {
-	ok: true
+export type LanSession = {
 	roomId: string
-	token?: string
-	peerId: string
+	token: string
+	tokenHash: string
 	role: LanRole
-	peer?: LanPeer
-	peers?: LanPeer[]
+	peerId: string
+	localPeer: LanPeer
 	pairExpiresAt: number
 	sessionExpiresAt: number
 }
 
-export type LanMessage = {
-	id: string
-	from: string
-	type: 'peer-joined' | 'signal' | 'peer-left'
-	payload: unknown
-	createdAt: number
-}
-
-export type LanPollResponse = {
-	ok: true
+export type LanSignalMessage = {
+	type: LanSignalType
 	roomId: string
+	tokenHash: string
 	peerId: string
-	peers: LanPeer[]
-	messages: LanMessage[]
-}
-
-export type LanErrorBody = {
-	error: string
-	message: string
+	ts: number
+	to?: string
+	peer?: LanPeer
+	signal?: unknown
 }
 
 export type LanTransferRequest = {

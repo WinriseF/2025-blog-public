@@ -6,13 +6,6 @@
 			"path": "/api/transfer/cleanup",
 			"method": "POST",
 			"timezone": "Asia/Shanghai"
-		},
-		{
-			"name": "lan-cleanup",
-			"cron": "*/10 * * * *",
-			"path": "/api/lan/cleanup",
-			"method": "POST",
-			"timezone": "Asia/Shanghai"
 		}
 	]
 }

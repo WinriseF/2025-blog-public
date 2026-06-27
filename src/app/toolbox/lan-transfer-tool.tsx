@@ -6,7 +6,7 @@ import * as QRCode from 'qrcode'
 import SimplePeer from 'simple-peer'
 import { toast } from 'sonner'
 import { LanTransferStatus } from './lan-transfer-status'
-import { closeLanRoom, createLanRoom, joinLanRoom, pollLanRoom, sendLanSignal } from '@/lib/lan-transfer/signal-client'
+import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
 import {
 	decodeFrame,
 	downloadUrl,
@@ -15,7 +15,7 @@ import {
 	prepareLanFiles,
 	sendPreparedFile
 } from '@/lib/lan-transfer/file-transfer'
-import { LAN_LIMITS, type LanControlMessage, type LanPeer, type LanProgressState, type LanRoomResponse, type LanTransferRequest, type PreparedLanFile, type ReceivedLanFile } from '@/lib/lan-transfer/types'
+import { LAN_LIMITS, type LanControlMessage, type LanPeer, type LanProgressState, type LanSession, type LanSignalMessage, type LanTransferRequest, type PreparedLanFile, type ReceivedLanFile } from '@/lib/lan-transfer/types'
 type LanTransferToolProps = {
 	initialInvite?: {
 		roomId: string
@@ -23,28 +23,10 @@ type LanTransferToolProps = {
 	} | null
 }
 
-type Session = {
-	roomId: string
-	token: string
-	peerId: string
-	role: 'host' | 'guest'
-	pairExpiresAt: number
-	sessionExpiresAt: number
-}
+type Session = LanSession
 
 const rtcConfig: RTCConfiguration = {
 	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-}
-
-function sessionFromResponse(response: LanRoomResponse, token: string): Session {
-	return {
-		roomId: response.roomId,
-		token,
-		peerId: response.peerId,
-		role: response.role,
-		pairExpiresAt: response.pairExpiresAt,
-		sessionExpiresAt: response.sessionExpiresAt
-	}
 }
 
 export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) {
@@ -62,6 +44,7 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 	const [transferBusy, setTransferBusy] = useState(false)
 
 	const peerRef = useRef<SimplePeer.Instance | null>(null)
+	const signalClientRef = useRef<LanSignalingClient | null>(null)
 	const sessionRef = useRef<Session | null>(null)
 	const remotePeerRef = useRef<LanPeer | null>(null)
 	const incomingRequestRef = useRef<LanTransferRequest | null>(null)
@@ -207,9 +190,7 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 			if (peerRef.current) return peerRef.current
 			const peer = new SimplePeer({ initiator, trickle: true, channelName: 'file', config: rtcConfig })
 			peer.on('signal', signal => {
-				const current = sessionRef.current
-				if (!current) return
-				void sendLanSignal(current.roomId, current.token, current.peerId, remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '信令发送失败'))
+				void signalClientRef.current?.sendSignal(remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '信令发送失败'))
 			})
 			peer.on('connect', () => {
 				setConnected(true)
@@ -230,6 +211,55 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 		[handlePeerData]
 	)
 
+	const handleSignalMessage = useCallback(
+		(message: LanSignalMessage) => {
+			const current = sessionRef.current
+			if (!current) return
+			const knownRemote = remotePeerRef.current
+			if (knownRemote && knownRemote.id !== message.peerId) return
+
+			if (message.peer) setRemotePeer(message.peer)
+			if (message.type === 'hello') {
+				setStatus('已发现对方设备，正在建立点对点连接...')
+				if (current.role === 'host') {
+					void signalClientRef.current?.sendHello().catch(error => setStatus(error instanceof Error ? error.message : '信令发送失败'))
+					createPeer(true, message.peerId)
+				} else {
+					createPeer(false, message.peerId)
+				}
+				return
+			}
+			if (message.type === 'signal') {
+				const peer = peerRef.current || createPeer(current.role === 'host', message.peerId)
+				peer.signal(message.signal as SimplePeer.SignalData)
+				return
+			}
+			if (message.type === 'peer-left') {
+				cleanupPeer()
+				setRemotePeer(null)
+				setStatus('对方设备已离开。')
+			}
+		},
+		[cleanupPeer, createPeer]
+	)
+
+	const startSignaling = useCallback(
+		async (next: Session) => {
+			await signalClientRef.current?.close().catch(() => {})
+			const client = new LanSignalingClient(
+				next,
+				handleSignalMessage,
+				realtimeStatus => {
+					if (realtimeStatus === 'SUBSCRIBED') setStatus(next.role === 'host' ? '二维码已创建，等待另一台设备扫码。' : '已加入，正在等待对方设备回应。')
+				},
+				error => setStatus(error.message)
+			)
+			signalClientRef.current = client
+			await client.ready
+		},
+		[handleSignalMessage]
+	)
+
 	const setSessionNow = (next: Session) => {
 		sessionRef.current = next
 		setSession(next)
@@ -241,9 +271,9 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 		setRemotePeer(null)
 		setStatus('正在创建连接二维码...')
 		try {
-			const response = await createLanRoom()
-			setSessionNow(sessionFromResponse(response, response.token || ''))
-			setStatus('二维码已创建，等待另一台设备扫码。')
+			const next = await createLanSession()
+			setSessionNow(next)
+			await startSignaling(next)
 		} catch (error) {
 			setStatus(error instanceof Error ? error.message : '创建连接失败')
 		} finally {
@@ -257,20 +287,17 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 			cleanupPeer()
 			setStatus('正在加入对方设备...')
 			try {
-				const response = await joinLanRoom(roomId, token)
-				const next = sessionFromResponse(response, token)
-				const host = response.peers?.[0] || null
+				const next = await joinLanSession(roomId, token)
 				setSessionNow(next)
-				setRemotePeer(host)
-				if (host) createPeer(false, host.id)
-				setStatus('已加入，正在建立点对点连接...')
+				setRemotePeer(null)
+				await startSignaling(next)
 			} catch (error) {
 				setStatus(error instanceof Error ? error.message : '加入连接失败')
 			} finally {
 				setBusy(false)
 			}
 		},
-		[cleanupPeer, createPeer]
+		[cleanupPeer, startSignaling]
 	)
 
 	useEffect(() => {
@@ -279,49 +306,8 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 	}, [handleJoinRoom, initialInvite])
 
 	useEffect(() => {
-		if (!session) return
-		let stopped = false
-		const tick = async () => {
-			try {
-				const response = await pollLanRoom(session.roomId, session.token, session.peerId)
-				if (stopped) return
-				const firstPeer = response.peers[0]
-				if (firstPeer) setRemotePeer(firstPeer)
-				for (const message of response.messages) {
-					if (message.type === 'peer-joined') {
-						const peer = (message.payload as { peer?: LanPeer }).peer
-						if (peer) {
-							setRemotePeer(peer)
-							if (session.role === 'host') createPeer(true, peer.id)
-						}
-					}
-					if (message.type === 'signal') {
-						const remoteId = message.from
-						const peer = peerRef.current || createPeer(session.role === 'host', remoteId)
-						peer.signal(message.payload as SimplePeer.SignalData)
-					}
-					if (message.type === 'peer-left') {
-						cleanupPeer()
-						setRemotePeer(null)
-						setStatus('对方设备已离开。')
-					}
-				}
-			} catch (error) {
-				if (!stopped) setStatus(error instanceof Error ? error.message : '信令轮询失败')
-			} finally {
-				if (!stopped) setTimeout(tick, LAN_LIMITS.pollMs)
-			}
-		}
-		void tick()
 		return () => {
-			stopped = true
-		}
-	}, [cleanupPeer, createPeer, session])
-
-	useEffect(() => {
-		return () => {
-			const current = sessionRef.current
-			if (current) void closeLanRoom(current.roomId, current.token, current.peerId).catch(() => {})
+			void signalClientRef.current?.close().catch(() => {})
 			peerRef.current?.destroy()
 			receivedFilesRef.current.forEach(file => URL.revokeObjectURL(file.url))
 		}
@@ -378,8 +364,8 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 	}
 
 	const leaveSession = () => {
-		const current = sessionRef.current
-		if (current) void closeLanRoom(current.roomId, current.token, current.peerId).catch(() => {})
+		void signalClientRef.current?.close().catch(() => {})
+		signalClientRef.current = null
 		cleanupPeer()
 		setSession(null)
 		setRemotePeer(null)

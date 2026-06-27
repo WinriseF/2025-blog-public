@@ -1,32 +1,64 @@
-import type { LanDeviceType, LanPollResponse, LanRoomResponse } from './types'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { LanDeviceType, LanPeer, LanRole, LanSession, LanSignalMessage, LanSignalType } from './types'
 
-const lanApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
+const pairTtlMs = 10 * 60 * 1000
+const sessionTtlMs = 30 * 60 * 1000
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+let supabaseClient: SupabaseClient | null = null
 
-function lanApiUrl(action: string) {
-	if (!lanApiBase) throw new Error('未配置 Edge Functions API 地址，暂不能使用局域网互传')
-	return `${lanApiBase}/api/lan/${action}`
-}
+type LanChannel = ReturnType<SupabaseClient['channel']>
+type SignalHandler = (message: LanSignalMessage) => void
 
-async function readApiError(response: Response) {
-	const body = (await response.json().catch(() => null)) as { error?: string; message?: string } | null
-	const errorText: Record<string, string> = {
-		expired: '连接二维码已过期，请重新创建',
-		not_found: '连接房间不存在或已清理',
-		room_full: '这个连接已经有两台设备',
-		rate_limited: '创建连接过于频繁，请稍后再试',
-		unauthorized: '连接令牌无效'
-	}
-	return errorText[body?.error || ''] || body?.message || '局域网互传请求失败'
-}
-
-async function postLan<T>(action: string, body: unknown) {
-	const response = await fetch(lanApiUrl(action), {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(body)
+function getSupabase() {
+	if (!supabaseUrl || !supabaseKey) throw new Error('未配置 Supabase Realtime，暂不能使用局域网互传')
+	supabaseClient ||= createClient(supabaseUrl, supabaseKey, {
+		auth: {
+			autoRefreshToken: false,
+			detectSessionInUrl: false,
+			persistSession: false
+		}
 	})
-	if (!response.ok) throw new Error(await readApiError(response))
-	return (await response.json()) as T
+	return supabaseClient
+}
+
+function randomBytes(size: number) {
+	if (typeof crypto === 'undefined' || !crypto.getRandomValues) throw new Error('当前浏览器不支持安全随机数')
+	const bytes = new Uint8Array(size)
+	crypto.getRandomValues(bytes)
+	return bytes
+}
+
+function base64url(bytes: Uint8Array) {
+	let value = ''
+	for (const byte of bytes) value += String.fromCharCode(byte)
+	return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+async function sha256Base64url(value: string) {
+	if (typeof crypto === 'undefined' || !crypto.subtle) throw new Error('当前环境不支持 Web Crypto，无法创建局域网互传')
+	const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))
+	return base64url(bytes)
+}
+
+function createId(bytes = 12) {
+	return base64url(randomBytes(bytes))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === 'object')
+}
+
+function isSignalPayload(value: unknown): value is LanSignalMessage {
+	if (!isRecord(value)) return false
+	const type = value.type
+	return (
+		(type === 'hello' || type === 'signal' || type === 'peer-left') &&
+		typeof value.roomId === 'string' &&
+		typeof value.tokenHash === 'string' &&
+		typeof value.peerId === 'string' &&
+		typeof value.ts === 'number'
+	)
 }
 
 export function getLocalDevice() {
@@ -38,22 +70,104 @@ export function getLocalDevice() {
 	return { peerName: platform ? `${platform} ${label}` : label, deviceType }
 }
 
-export function createLanRoom(device = getLocalDevice()) {
-	return postLan<LanRoomResponse>('create-room', device)
+async function createSession(role: LanRole, roomId: string, token: string, device = getLocalDevice()): Promise<LanSession> {
+	const now = Date.now()
+	const peer: LanPeer = {
+		id: createId(),
+		role,
+		name: device.peerName,
+		deviceType: device.deviceType,
+		joinedAt: now
+	}
+	return {
+		roomId,
+		token,
+		tokenHash: await sha256Base64url(token),
+		role,
+		peerId: peer.id,
+		localPeer: peer,
+		pairExpiresAt: now + pairTtlMs,
+		sessionExpiresAt: now + sessionTtlMs
+	}
 }
 
-export function joinLanRoom(roomId: string, token: string, device = getLocalDevice()) {
-	return postLan<LanRoomResponse>('join-room', { roomId, token, ...device })
+export function createLanSession(device = getLocalDevice()) {
+	return createSession('host', createId(9), createId(18), device)
 }
 
-export function sendLanSignal(roomId: string, token: string, peerId: string, to: string, payload: unknown) {
-	return postLan<{ ok: true }>('send', { roomId, token, peerId, to, type: 'signal', payload })
+export function joinLanSession(roomId: string, token: string, device = getLocalDevice()) {
+	return createSession('guest', roomId, token, device)
 }
 
-export function pollLanRoom(roomId: string, token: string, peerId: string) {
-	return postLan<LanPollResponse>('poll', { roomId, token, peerId })
-}
+export class LanSignalingClient {
+	private channel: LanChannel
+	private closed = false
+	private subscribed = false
+	readonly ready: Promise<void>
 
-export function closeLanRoom(roomId: string, token: string, peerId: string) {
-	return postLan<{ ok: true }>('close', { roomId, token, peerId })
+	constructor(
+		private readonly session: LanSession,
+		private readonly onMessage: SignalHandler,
+		private readonly onStatus?: (status: string) => void,
+		private readonly onError?: (error: Error) => void
+	) {
+		this.channel = getSupabase().channel(`lan-transfer:${session.roomId}`, {
+			config: {
+				broadcast: { ack: true, self: false }
+			}
+		})
+		this.channel.on('broadcast', { event: 'lan' }, event => this.receive(event.payload))
+		this.ready = new Promise((resolve, reject) => {
+			this.channel.subscribe((status, error) => {
+				this.onStatus?.(status)
+				if (status === 'SUBSCRIBED') {
+					this.subscribed = true
+					resolve()
+				}
+				if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(error || new Error('Supabase Realtime 连接失败'))
+			})
+		})
+		this.ready.then(() => this.sendHello()).catch(error => this.onError?.(error instanceof Error ? error : new Error('Supabase Realtime 连接失败')))
+	}
+
+	private receive(payload: unknown) {
+		if (!isSignalPayload(payload)) return
+		if (payload.roomId !== this.session.roomId || payload.tokenHash !== this.session.tokenHash) return
+		if (payload.peerId === this.session.peerId) return
+		if (payload.to && payload.to !== this.session.peerId) return
+		this.onMessage(payload)
+	}
+
+	private async send(type: LanSignalType, extra: Partial<LanSignalMessage> = {}) {
+		await this.ready
+		if (this.closed) return
+		const result = await this.channel.send({
+			type: 'broadcast',
+			event: 'lan',
+			payload: {
+				...extra,
+				type,
+				roomId: this.session.roomId,
+				tokenHash: this.session.tokenHash,
+				peerId: this.session.peerId,
+				ts: Date.now()
+			}
+		})
+		if (result !== 'ok') throw new Error('Supabase Realtime 信令发送失败')
+	}
+
+	sendHello() {
+		return this.send('hello', { peer: this.session.localPeer })
+	}
+
+	sendSignal(to: string, signal: unknown) {
+		return this.send('signal', { to, signal })
+	}
+
+	async close() {
+		if (this.closed) return
+		if (this.subscribed) await this.send('peer-left').catch(() => {})
+		this.closed = true
+		await getSupabase().removeChannel(this.channel)
+	}
 }
