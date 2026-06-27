@@ -46,7 +46,7 @@ export function ToolboxClient() {
 							<span className={`pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-br ${tone}`} />
 							<span className='pointer-events-none absolute inset-x-5 top-16 h-px bg-linear-to-r from-transparent via-border to-transparent' />
 							<span className='relative flex items-start justify-between gap-4'>
-								<span className='border-brand/20 bg-background/70 text-brand flex size-12 items-center justify-center rounded-lg border transition duration-300 group-hover:bg-brand group-hover:text-background'>
+								<span className='border-brand/25 bg-brand/5 text-brand flex size-12 items-center justify-center rounded-lg border transition duration-300 group-hover:border-brand/55 group-hover:bg-brand/10 group-hover:text-brand'>
 									<Icon size={22} />
 								</span>
 								<span className='text-secondary group-hover:text-primary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition'>
