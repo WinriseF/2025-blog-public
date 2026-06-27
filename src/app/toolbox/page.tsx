@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
+import { ToolboxClient } from './toolbox-client'
 
 export default function Page() {
-	redirect('/t')
+	return <ToolboxClient />
 }

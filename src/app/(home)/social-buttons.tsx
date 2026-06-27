@@ -168,7 +168,7 @@ export default function SocialButtons() {
 							</motion.div>
 							<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
 								<Link
-									href='/t'
+									href='/toolbox'
 									aria-label='打开工具箱'
 									title='工具箱'
 									className='card group relative flex h-12 w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-xl p-0'>

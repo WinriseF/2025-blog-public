@@ -100,7 +100,11 @@ Main route groups and pages:
 - `/bloggers`: blogroll from `src/app/bloggers/`.
 - `/about`: about page from `src/app/about/`.
 - `/news` and `/news/[date]`: news index/detail.
-- `/calendar`, `/world-clock`, `/music`, `/t`, `/t/[code]`, `/image-toolbox`, `/game`, `/svgs`: utility or experimental pages. `/toolbox` and `/toolbox/transfer/[code]` redirect to the shorter toolbox routes.
+- `/calendar`, `/world-clock`, `/music`, `/game`, `/svgs`: utility or experimental pages.
+- `/toolbox`: toolbox directory page with links to `/toolbox/compress`, `/toolbox/markdown`, and `/t`.
+- `/toolbox/compress`: image compression tool.
+- `/toolbox/markdown`: local Markdown preview tool.
+- `/t` and `/t/[code]`: public encrypted transfer and LAN transfer entrypoints.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.
@@ -353,10 +357,13 @@ This is better isolated than the GitHub write-back flow because privileged crede
 Frontend:
 
 - `src/app/toolbox/toolbox-client.tsx`
+- `src/app/toolbox/tool-page-shell.tsx`
+- `src/app/toolbox/compress-tool.tsx`
+- `src/app/toolbox/markdown-tool.tsx`
 - `src/app/toolbox/transfer-tool.tsx`
 - `src/app/toolbox/lan-transfer-tool.tsx`
+- `src/app/t/transfer-page-client.tsx`
 - `src/lib/lan-transfer/`
-- `src/app/toolbox/transfer/[code]/page.tsx`
 - `src/lib/transfer-crypto.ts`
 
 Backend:
@@ -366,7 +373,7 @@ Backend:
 
 Encrypted relay flow:
 
-1. User creates a text or file transfer from the toolbox.
+1. User creates a text or file transfer from `/t`.
 2. The browser derives an AES-GCM key from the password with fixed PBKDF2-SHA256 settings and encrypts the payload locally.
 3. The browser calls `${NEXT_PUBLIC_TRANSFER_API_BASE}/api/transfer/create`, which is an EdgeOne Edge Function endpoint.
 4. The Edge Function creates a six-character code, minimal metadata, a short-lived Blob upload URL, and transfer indexes.
@@ -379,7 +386,7 @@ Encrypted relay flow:
 
 LAN transfer flow:
 
-1. The transfer toolbox has a separate `局域网互传` tab independent from `创建中转` and `读取中转`.
+1. `/t` has a separate `局域网互传` tab independent from `创建中转` and `读取中转`.
 2. Any device can create a pairing QR code as WebRTC `host`; another device scans `/t#mode=lan&room=<roomId>&token=<roomToken>` and joins as `guest`.
 3. The QR token stays in the URL hash. The browser hashes it locally and sends only `tokenHash` in Supabase Realtime payloads.
 4. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>` and broadcast the `lan` event. Every payload carries `roomId`, `tokenHash`, `peerId`, and `ts`; received messages are ignored unless `roomId` and `tokenHash` match the local session.

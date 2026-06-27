@@ -20,10 +20,6 @@ type SelectedImage = {
 	converting?: boolean
 }
 
-type ImageToolboxProps = {
-	embedded?: boolean
-}
-
 const MAX_NAME_LENGTH = 32
 
 function getFileExtension(name: string) {
@@ -81,7 +77,7 @@ async function fileToWebp(file: File, quality: number, maxWidth?: number) {
 	}
 }
 
-export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
+export function CompressTool() {
 	const [images, setImages] = useState<SelectedImage[]>([])
 	const [quality, setQuality] = useState(0.8)
 	const [limitMaxWidth, setLimitMaxWidth] = useState(false)
@@ -304,28 +300,12 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 		}
 	}, [])
 
-	const uploadClassName = `group hover:border-brand/20 relative flex cursor-pointer flex-col items-center justify-center gap-3 text-center transition-colors hover:bg-article ${
-		embedded ? 'rounded-2xl border border-dashed border-brand/20 bg-brand/5 p-5' : 'card'
-	} ${isDragging ? 'border-brand bg-article' : ''}`
-
-	const panelClassName = embedded ? 'relative' : 'card relative'
+	const uploadClassName = `group hover:border-brand/20 relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-brand/20 bg-brand/5 p-5 text-center transition-colors hover:bg-article ${isDragging ? 'border-brand bg-article' : ''}`
 	const compareImage = compareIndex !== null ? images[compareIndex] : undefined
 
 	return (
-		<div className={embedded ? 'relative text-sm' : 'relative px-6 pt-32 pb-12 text-sm max-sm:px-4 max-sm:pt-24'}>
+		<div className='relative text-sm'>
 			<div className='mx-auto flex max-w-3xl flex-col gap-6'>
-				{!embedded && (
-					<motion.div
-						initial={{ opacity: 0, scale: 0.9 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={{ delay: INIT_DELAY }}
-						className='space-y-2 text-center'>
-						<p className='text-secondary text-xs tracking-[0.2em] uppercase'>Image Toolbox</p>
-						<h1 className='text-2xl font-semibold'>PNG / JPG 转 WEBP</h1>
-						<p className='text-secondary'>选择图片 → 调整质量 → 一键转换下载</p>
-					</motion.div>
-				)}
-
 				<motion.label
 					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
@@ -349,7 +329,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					<motion.div
 						initial={{ opacity: 0, scale: 0.9 }}
 						animate={{ opacity: 1, scale: 1 }}
-						className={panelClassName}>
+						className='relative'>
 						<div className='text-secondary flex items-center justify-between border-b border-border pb-3 text-xs tracking-[0.2em] uppercase'>
 							<span>已选择 {images.length} 张图片</span>
 							<span>{totalSize}</span>
@@ -407,7 +387,7 @@ export function ImageToolbox({ embedded = false }: ImageToolboxProps = {}) {
 					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + 2 * ANIMATION_DELAY }}
-					className={panelClassName}>
+					className='relative'>
 					<div className='flex flex-wrap items-center gap-4 max-sm:flex-col max-sm:items-stretch'>
 						<div className='flex-1 space-y-4'>
 							<div>
