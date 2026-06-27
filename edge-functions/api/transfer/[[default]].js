@@ -355,6 +355,11 @@ function normalizeTopLimit(value) {
 	return Math.max(0, Math.min(LIMITS.statsMaxTopLimit, Math.floor(number)))
 }
 
+function compactErrorMessage(error) {
+	const message = error instanceof Error ? error.message : String(error)
+	return message.replace(/\s+/g, ' ').slice(0, 300)
+}
+
 async function assertAdminPassword(input, env) {
 	const expected = getRequiredEnv(env, 'TRANSFER_ADMIN_PASSWORD_HASH')
 	const password = String(input?.password || '')
@@ -367,6 +372,7 @@ async function collectTransferStats(input, env) {
 	const topLimit = normalizeTopLimit(input?.topLimit)
 	const { blobs } = await store.list({ prefix: 'transfer/', consistency: 'strong' })
 	const rows = []
+	const errors = []
 	const byType = {}
 	let totalBytes = 0
 
@@ -374,15 +380,26 @@ async function collectTransferStats(input, env) {
 		const batch = blobs.slice(index, index + LIMITS.statsMetadataBatchSize)
 		const details = await Promise.all(
 			batch.map(async blob => {
-				const metadata = await store.getMetadata(blob.key, { consistency: 'strong' })
-				const bytes = Number(metadata?.headers?.['content-length'] || 0)
 				const type = classifyTransferObject(blob.key)
-				return {
-					key: blob.key,
-					type,
-					bytes: Number.isFinite(bytes) ? bytes : 0,
-					contentType: metadata?.contentType || '',
-					etag: metadata?.etag || blob.etag || ''
+				try {
+					const metadata = await store.getMetadata(blob.key, { consistency: 'strong' })
+					const bytes = Number(metadata?.headers?.['content-length'] || 0)
+					return {
+						key: blob.key,
+						type,
+						bytes: Number.isFinite(bytes) ? bytes : 0,
+						contentType: metadata?.contentType || '',
+						etag: metadata?.etag || blob.etag || ''
+					}
+				} catch (error) {
+					return {
+						key: blob.key,
+						type,
+						bytes: 0,
+						contentType: '',
+						etag: blob.etag || '',
+						error: compactErrorMessage(error)
+					}
 				}
 			})
 		)
@@ -394,10 +411,14 @@ async function collectTransferStats(input, env) {
 			bucket.bytes += item.bytes
 			byType[item.type] = bucket
 			rows.push(item)
+			if (item.error) errors.push({ key: item.key, type: item.type, message: item.error })
 		}
 	}
 
 	rows.sort((a, b) => b.bytes - a.bytes)
+	const top = rows
+		.filter(item => !item.error)
+		.slice(0, topLimit)
 	return {
 		ok: true,
 		generatedAt: Date.now(),
@@ -405,7 +426,9 @@ async function collectTransferStats(input, env) {
 		objectCount: rows.length,
 		totalBytes,
 		byType,
-		top: rows.slice(0, topLimit)
+		metadataErrorCount: errors.length,
+		errors: errors.slice(0, topLimit),
+		top
 	}
 }
 

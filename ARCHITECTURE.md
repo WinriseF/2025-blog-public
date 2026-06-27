@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-06-14.
+Last updated: 2026-06-27.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -370,6 +370,7 @@ Flow:
 6. A recipient opens `/t/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
 7. `/api/transfer/open` validates the proof, returns encrypted bytes once, and deletes the active payload, metadata, and code.
 8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes expired residual data. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
+9. `/api/transfer/stats` is a read-only admin endpoint protected by `TRANSFER_ADMIN_PASSWORD_HASH`; it lists Blob objects, reads object metadata, and returns storage totals plus the largest objects. Per-object metadata failures are reported in the response instead of failing the whole stats request.
 
 Important constraints:
 
@@ -378,7 +379,7 @@ Important constraints:
 - Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
 - Transfer size limits are 1MB for text and 20MB for files, staying below the EdgeOne Blob single-object limit.
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
-- EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
+- EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `TRANSFER_ADMIN_PASSWORD_HASH` is required only for `/api/transfer/stats`, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
 - The feature intentionally does not use or change Supabase.
 - Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus the scheduled cleanup function.
 
