@@ -61,7 +61,7 @@ export async function prepareLanFiles(files: File[], options: PrepareLanFileOpti
 	const totalSize = files.reduce((sum, file) => sum + file.size, 0)
 	const maxBytes = options.maxBytes || LAN_LIMITS.experimentalMaxBytes
 	if (totalSize > maxBytes) throw new Error(`当前接收设备最多建议 ${formatBytes(maxBytes)}`)
-	const chunkSize = options.chunkSize || LAN_LIMITS.defaultChunkSize
+	const chunkSize = Math.min(options.chunkSize || LAN_LIMITS.defaultChunkSize, LAN_LIMITS.dataChannelSafeChunkSize)
 	const suggestedStorage = options.suggestedStorage || (totalSize <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'opfs')
 
 	if (files.length === 1) {

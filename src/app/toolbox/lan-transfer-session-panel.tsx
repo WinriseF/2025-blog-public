@@ -59,7 +59,7 @@ export function LanTransferSessionPanel({
 						{connected ? '已直连' : session ? '连接中' : '未连接'}
 					</div>
 				</div>
-				<p className='text-secondary mt-3 text-sm leading-6 max-sm:text-xs'>Chrome / Edge浏览器支持 10GB+，不支持断点续传</p>
+				<p className='text-secondary mt-3 text-sm leading-6 max-sm:text-xs'>OPFS 实验模式支持大文件；传输会按 WebRTC 安全大小切片，断线后需要重新发送</p>
 			</div>
 
 			{!session ? (
