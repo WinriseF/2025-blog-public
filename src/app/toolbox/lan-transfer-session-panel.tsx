@@ -59,7 +59,7 @@ export function LanTransferSessionPanel({
 						{connected ? '已直连' : session ? '连接中' : '未连接'}
 					</div>
 				</div>
-				<p className='text-secondary mt-3 text-sm leading-6 max-sm:text-xs'>扫码配对后，单文件将使用流式读取 + OPFS/IndexedDB 分块接收；无服务端硬性大小限制，实际能力取决于接收设备。</p>
+				<p className='text-secondary mt-3 text-sm leading-6 max-sm:text-xs'>Chrome / Edge浏览器支持 10GB+，不支持断点续传</p>
 			</div>
 
 			{!session ? (
@@ -67,12 +67,11 @@ export function LanTransferSessionPanel({
 					<button onClick={() => void handleCreateRoom()} disabled={busy} className='min-h-[150px] rounded-2xl border border-border bg-article p-5 text-left transition hover:border-brand/50 disabled:opacity-50'>
 						<QrCode className='mb-4 text-brand' size={28} />
 						<span className='block text-base font-semibold'>创建连接二维码</span>
-						<span className='text-secondary mt-2 block text-sm leading-6'>让另一台设备扫码，建立双向互传会话。</span>
+						<span className='text-secondary mt-2 block text-sm leading-6'>让另一台设备扫码，建立双向互传会话</span>
 					</button>
 					<div className='min-h-[150px] rounded-2xl border border-dashed border-border bg-background/30 p-5 text-left'>
 						<Wifi className='mb-4 text-secondary' size={28} />
-						<span className='block text-base font-semibold'>10GB+ 增强模式</span>
-						<span className='text-secondary mt-2 block text-sm leading-6'>Chrome / Edge 支持 OPFS 时会自动启用；iOS 和内置浏览器会自动降级。</span>
+						<span className='block text-base font-semibold'>OPFS 增强模式</span>
 					</div>
 				</div>
 			) : (
@@ -83,7 +82,7 @@ export function LanTransferSessionPanel({
 								<div className='min-w-0'>
 									<p className='text-secondary text-xs'>对方设备</p>
 									<p className='mt-1 truncate text-base font-semibold'>{remotePeer?.name || '等待另一台设备'}</p>
-									<p className='text-secondary mt-3 text-sm'>{connected ? '点对点通道已打开。' : '等待信令和 WebRTC 建连。'}</p>
+									<p className='text-secondary mt-3 text-sm'>{connected ? '点对点通道已打开' : '等待信令和 WebRTC 建连'}</p>
 									<p className='text-secondary mt-2 text-xs'>对方能力：{capabilityLabel(remoteCapability)}</p>
 									<p className='text-secondary mt-1 text-xs'>本机能力：{capabilityLabel(localCapability)}</p>
 								</div>

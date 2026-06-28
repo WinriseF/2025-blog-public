@@ -3,9 +3,12 @@ export const LAN_PROTOCOL_VERSION = 3
 export const LAN_LIMITS = {
 	memoryMaxBytes: 200 * 1024 * 1024,
 	multiFileZipMaxBytes: 500 * 1024 * 1024,
-	indexedDbRecommendedBytes: 2 * 1024 * 1024 * 1024,
+	indexedDbRecommendedBytes: 1 * 1024 * 1024 * 1024,
+	indexedDbExperimentalBytes: 2 * 1024 * 1024 * 1024,
 	opfsRecommendedBytes: 10 * 1024 * 1024 * 1024,
 	experimentalMaxBytes: 50 * 1024 * 1024 * 1024,
+	opfsDesktopChunkSize: 1024 * 1024,
+	opfsMobileChunkSize: 512 * 1024,
 	defaultChunkSize: 256 * 1024,
 	mobileChunkSize: 128 * 1024,
 	legacyChunkSize: 64 * 1024,
@@ -151,6 +154,7 @@ export type ReceivedLanFile = {
 	url: string
 	storage: LanStorageKind
 	receivedAt: number
+	cacheStatus: 'retained'
 }
 
 export type LanProgressState = {

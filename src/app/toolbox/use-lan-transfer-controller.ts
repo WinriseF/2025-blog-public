@@ -5,6 +5,7 @@ import SimplePeer from 'simple-peer'
 import { toast } from 'sonner'
 import { capabilityLabel, lanRtcConfig, totalSelectedSize } from './lan-transfer-controller-utils'
 import { useLanInviteQrCode } from './use-lan-invite-qrcode'
+import { useLanReceivedFiles } from './use-lan-received-files'
 import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
 import { assertCanReceiveFile, detectLanCapability, selectStorageForFile } from '@/lib/lan-transfer/capability'
 import { decodeFrame, downloadUrl, encodeControl, formatBytes, prepareLanFiles, sendPreparedFile } from '@/lib/lan-transfer/file-transfer'
@@ -23,10 +24,9 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const [incomingRequest, setIncomingRequest] = useState<LanTransferRequest | null>(null)
 	const [outgoing, setOutgoing] = useState<LanProgressState | null>(null)
 	const [incoming, setIncoming] = useState<LanProgressState | null>(null)
-	const [receivedFiles, setReceivedFiles] = useState<ReceivedLanFile[]>([])
 	const [localCapability, setLocalCapability] = useState<LanCapability | null>(null)
 	const [remoteCapability, setRemoteCapability] = useState<LanCapability | null>(null)
-	const [status, setStatus] = useState('创建二维码后，用另一台设备扫码配对。')
+	const [status, setStatus] = useState('创建二维码后，用另一台设备扫码配对')
 	const [busy, setBusy] = useState(false)
 	const [transferBusy, setTransferBusy] = useState(false)
 
@@ -39,17 +39,16 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const incomingRequestRef = useRef<LanTransferRequest | null>(null)
 	const outgoingFileRef = useRef<PreparedLanFile | null>(null)
 	const incomingFileRef = useRef<IncomingTransfer | null>(null)
-	const receivedFilesRef = useRef<ReceivedLanFile[]>([])
 	const transferBusyRef = useRef(false)
 	const ackTimerRef = useRef<number | null>(null)
 	const chunkWriteQueueRef = useRef<Promise<void>>(Promise.resolve())
+	const { receivedFiles, addReceivedFile, clearReceivedFile } = useLanReceivedFiles()
 
 	useEffect(() => void (sessionRef.current = session), [session])
 	useEffect(() => void (remotePeerRef.current = remotePeer), [remotePeer])
 	useEffect(() => void (localCapabilityRef.current = localCapability), [localCapability])
 	useEffect(() => void (remoteCapabilityRef.current = remoteCapability), [remoteCapability])
 	useEffect(() => void (incomingRequestRef.current = incomingRequest), [incomingRequest])
-	useEffect(() => void (receivedFilesRef.current = receivedFiles), [receivedFiles])
 	useEffect(() => void (transferBusyRef.current = transferBusy), [transferBusy])
 
 	const inviteLink = useMemo(() => {
@@ -146,18 +145,17 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			if (manifest.receivedBytes !== current.request.size || manifest.receivedChunks !== current.request.chunkCount) return failTransfer(`接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.request.size)}`)
 			setStatus('数据已完整接收，正在准备下载文件...')
 			const finalized = await current.engine.finalize(current.meta)
-			const received: ReceivedLanFile = { id: messageId, name: current.request.name, mime: current.request.mime, size: current.request.size, url: finalized.url, storage: current.engine.kind, receivedAt: Date.now() }
-			setReceivedFiles(files => [received, ...files].slice(0, 8))
+			const received: ReceivedLanFile = { id: messageId, name: current.request.name, mime: current.request.mime, size: current.request.size, url: finalized.url, storage: current.engine.kind, receivedAt: Date.now(), cacheStatus: 'retained' }
+			addReceivedFile(received, current.engine, current.meta.id)
 			downloadUrl(received.name, received.url)
 			setIncoming({ id: received.id, name: received.name, size: received.size, done: received.size, label: '接收完成', stage: '完成' })
 			setTransferBusy(false)
 			setStatus(`接收完成，已用 ${current.engine.kind.toUpperCase()} 模式保存，并已向对方确认。`)
 			sendControl({ type: 'transfer-received', id: messageId, received: received.size, expected: received.size, chunkCount: manifest.receivedChunks, storage: current.engine.kind })
-			cleanupIncomingStorage(current)
 			incomingFileRef.current = null
 			transferBusyRef.current = false
 		},
-		[cleanupIncomingStorage, failTransfer, sendControl]
+		[addReceivedFile, failTransfer, sendControl]
 	)
 
 	const handleControl = useCallback(
@@ -401,7 +399,6 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			cleanupIncomingStorage(incomingFileRef.current)
 			void signalClientRef.current?.close().catch(() => {})
 			peerRef.current?.destroy()
-			receivedFilesRef.current.forEach(file => URL.revokeObjectURL(file.url))
 		}
 	}, [clearAckTimer, cleanupIncomingStorage])
 
@@ -486,14 +483,14 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const leaveSession = () => {
 		void signalClientRef.current?.close().catch(() => {})
 		signalClientRef.current = null
-		closeCurrentConnection('创建二维码后，用另一台设备扫码配对。')
+		closeCurrentConnection('创建二维码后，用另一台设备扫码配对')
 		setSession(null)
 		setRemotePeer(null)
 		setSelectedFiles([])
 		onLeaveSession?.()
 	}
 
-	return { session, remotePeer, connected, qrDataUrl, selectedFiles, incomingRequest, outgoing, incoming, receivedFiles, localCapability, remoteCapability, status, busy, transferBusy, setSelectedFiles, handleCreateRoom, handleSendFiles, acceptIncoming, rejectIncoming, copyInvite, leaveSession }
+	return { session, remotePeer, connected, qrDataUrl, selectedFiles, incomingRequest, outgoing, incoming, receivedFiles, localCapability, remoteCapability, status, busy, transferBusy, setSelectedFiles, handleCreateRoom, handleSendFiles, acceptIncoming, rejectIncoming, copyInvite, leaveSession, clearReceivedFile }
 }
 
 export type LanTransferController = ReturnType<typeof useLanTransferController>

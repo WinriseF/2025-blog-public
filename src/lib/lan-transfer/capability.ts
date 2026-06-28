@@ -27,8 +27,21 @@ function hasIndexedDB() {
 	return typeof indexedDB !== 'undefined'
 }
 
-function hasOPFS() {
-	return typeof navigator !== 'undefined' && Boolean(navigator.storage && 'getDirectory' in navigator.storage)
+async function probeOPFS() {
+	if (typeof navigator === 'undefined' || !navigator.storage || !('getDirectory' in navigator.storage)) return false
+	try {
+		const root = await navigator.storage.getDirectory()
+		const dir = await root.getDirectoryHandle('winrisef-lan-probe', { create: true })
+		const file = await dir.getFileHandle('probe.bin', { create: true })
+		const writable = await file.createWritable()
+		await writable.write(new Uint8Array([1, 2, 3]))
+		await writable.close()
+		await dir.removeEntry('probe.bin').catch(() => {})
+		await root.removeEntry('winrisef-lan-probe', { recursive: true }).catch(() => {})
+		return true
+	} catch {
+		return false
+	}
 }
 
 function hasFileSystemAccess() {
@@ -46,7 +59,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 	const platform = detectPlatform()
 	const isEmbeddedBrowser = browser === 'wechat' || browser === 'qq'
 	const indexedDBSupported = hasIndexedDB()
-	const opfsSupported = hasOPFS()
+	const opfsSupported = await probeOPFS()
 	const fileSystemAccessSupported = hasFileSystemAccess()
 	const notes: string[] = []
 	let quota: number | undefined
@@ -82,15 +95,15 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 	} else if (opfsSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.opfsRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
-		recommendedChunkSize = platform === 'android' ? LAN_LIMITS.mobileChunkSize : LAN_LIMITS.defaultChunkSize
+		recommendedChunkSize = platform === 'android' ? LAN_LIMITS.opfsMobileChunkSize : LAN_LIMITS.opfsDesktopChunkSize
 		recommendedStorage = 'opfs'
-		notes.push('支持 OPFS 增强模式，可用于 10GB+ 目标传输。')
+		notes.push('支持 OPFS 增强模式，可用于 10GB+ 实验传输；断线后需要重新发送。')
 	} else if (indexedDBSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.indexedDbRecommendedBytes
-		maxExperimentalFileSize = 5 * 1024 * 1024 * 1024
+		maxExperimentalFileSize = LAN_LIMITS.indexedDbExperimentalBytes
 		recommendedChunkSize = LAN_LIMITS.mobileChunkSize
 		recommendedStorage = 'indexeddb'
-		notes.push('不支持 OPFS，已降级为 IndexedDB 分块存储。')
+		notes.push('不支持 OPFS，已降级为 IndexedDB；中大型文件导出可能不稳定，不建议超过 2GB。')
 	}
 
 	if (typeof available === 'number') {

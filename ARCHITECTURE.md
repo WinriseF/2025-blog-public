@@ -393,8 +393,9 @@ LAN transfer flow:
 5. Supported signaling messages are `hello`, `signal`, and `peer-left`. No database tables, Supabase Storage objects, service role key, or secret key are used.
 6. The browser uses `simple-peer` to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `file-v3`.
 7. Once connected, both devices are equal peers: either side can request to send files, and the other side must accept before receiving.
-8. Each send gets a fresh random transfer id. Single files are sent directly; multiple files are packaged into a ZIP with `fflate` and sent as one payload. Chunks default to 256KB, with smaller recommended chunks on mobile peers, and `fileId + chunkIndex` are used only for ordered validation and idempotent writes.
-9. The receiver writes chunks through memory, IndexedDB, or OPFS depending on browser capability and file size. Successful completion creates an object URL for the current page download, then clears intermediate chunk storage; cancel, disconnect, write failure, and validation failure paths also clear the current incoming transfer. Cross-reconnect resume is not currently promised without stronger content verification.
+8. Each send gets a fresh random transfer id. Single files are sent directly; multiple files are packaged into a ZIP with `fflate` and sent as one payload. OPFS peers use larger chunks, IndexedDB/mobile fallback uses smaller chunks, and `fileId + chunkIndex` are used only for ordered validation and idempotent writes.
+9. The receiver writes chunks through memory, IndexedDB, or OPFS depending on browser capability and file size. Successful completion creates an object URL for the current page download and keeps the completed cache until the user clears it from the received-file list; cancel, disconnect, write failure, and validation failure paths clear the current incoming partial transfer. Cross-reconnect resume is not currently promised without stronger content verification.
+10. LAN large-file support is beta-scoped: 10GB+ is only advertised for peers that pass the real OPFS write probe. IndexedDB fallback is capped to a 1GB recommendation and 2GB experimental maximum because final export still creates a Blob URL from stored chunks.
 
 Important constraints:
 

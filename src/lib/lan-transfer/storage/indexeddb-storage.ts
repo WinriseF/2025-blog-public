@@ -1,5 +1,6 @@
 import type { LanStorageEngine, TransferFileMeta, TransferManifest } from './types'
 import { addRange, type ChunkRange } from './ranges'
+import { LAN_LIMITS } from '../types'
 
 const DB_NAME = 'winrisef-lan-transfer-v3'
 const DB_VERSION = 1
@@ -111,6 +112,7 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	}
 
 	async finalize(meta: TransferFileMeta) {
+		if (meta.size > LAN_LIMITS.indexedDbExperimentalBytes) throw new Error('IndexedDB 模式不支持导出超过 2GB 的文件，请使用支持 OPFS 的 Chrome / Edge。')
 		const db = await openDb()
 		const tx = db.transaction(CHUNKS, 'readonly')
 		const store = tx.objectStore(CHUNKS)

@@ -36,7 +36,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTra
 				copyInvite={controller.copyInvite}
 				leaveSession={controller.leaveSession}
 			/>
-			<LanTransferStatus busy={controller.busy} status={controller.status} outgoing={controller.outgoing} incoming={controller.incoming} receivedFiles={controller.receivedFiles} />
+			<LanTransferStatus busy={controller.busy} status={controller.status} outgoing={controller.outgoing} incoming={controller.incoming} receivedFiles={controller.receivedFiles} onClearReceivedFile={controller.clearReceivedFile} />
 		</div>
 	)
 }

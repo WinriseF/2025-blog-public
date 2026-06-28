@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, Loader2 } from 'lucide-react'
+import { Download, Loader2, Trash2 } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanProgressState, ReceivedLanFile } from '@/lib/lan-transfer/types'
 
@@ -10,6 +10,7 @@ type LanTransferStatusProps = {
 	outgoing: LanProgressState | null
 	incoming: LanProgressState | null
 	receivedFiles: ReceivedLanFile[]
+	onClearReceivedFile: (fileId: string) => void
 }
 
 function progressPercent(progress: LanProgressState | null) {
@@ -17,7 +18,7 @@ function progressPercent(progress: LanProgressState | null) {
 	return Math.min(100, Math.round((progress.done / progress.size) * 100))
 }
 
-export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFiles }: LanTransferStatusProps) {
+export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFiles, onClearReceivedFile }: LanTransferStatusProps) {
 	const progressItems = [outgoing, incoming].filter((item): item is LanProgressState => Boolean(item))
 
 	return (
@@ -52,13 +53,18 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 				<div className='space-y-2'>
 					<p className='text-secondary text-xs'>已收到</p>
 					{receivedFiles.map(file => (
-						<a key={file.id} href={file.url} download={file.name} className='flex items-center justify-between gap-3 rounded-2xl border border-border bg-article px-4 py-3 text-sm'>
-							<span className='truncate'>{file.name}</span>
-							<span className='text-secondary flex shrink-0 items-center gap-1 text-xs'>
-								<Download size={14} />
-								{file.storage.toUpperCase()} · {formatBytes(file.size)}
-							</span>
-						</a>
+						<div key={file.id} className='flex items-center justify-between gap-3 rounded-2xl border border-border bg-article px-4 py-3 text-sm'>
+							<a href={file.url} download={file.name} className='min-w-0 flex-1'>
+								<span className='block truncate'>{file.name}</span>
+								<span className='text-secondary mt-1 flex items-center gap-1 text-xs'>
+									<Download size={14} />
+									{file.storage.toUpperCase()} · {formatBytes(file.size)}
+								</span>
+							</a>
+							<button type='button' onClick={() => onClearReceivedFile(file.id)} className='text-secondary hover:text-primary shrink-0 rounded-full border border-border p-2' title='清理缓存并移除下载链接'>
+								<Trash2 size={14} />
+							</button>
+						</div>
 					))}
 				</div>
 			)}
