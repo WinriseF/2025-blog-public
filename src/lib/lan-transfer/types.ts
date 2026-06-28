@@ -31,7 +31,7 @@ export const LAN_LIMITS = {
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
 export type LanSignalType = 'hello' | 'signal' | 'peer-left'
-export type LanStorageKind = 'memory' | 'opfs' | 'indexeddb'
+export type LanStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
 export type LanBrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari' | 'wechat' | 'qq' | 'unknown'
 export type LanPlatformKind = 'desktop' | 'android' | 'ios' | 'unknown'
 
@@ -167,7 +167,7 @@ export type ReceivedLanFile = {
 	name: string
 	mime: string
 	size: number
-	url: string
+	url?: string
 	storage: LanStorageKind
 	receivedAt: number
 	cacheStatus: 'retained'

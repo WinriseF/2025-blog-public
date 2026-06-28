@@ -54,13 +54,23 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 					<p className='text-secondary text-xs'>已收到</p>
 					{receivedFiles.map(file => (
 						<div key={file.id} className='flex items-center justify-between gap-3 rounded-2xl border border-border bg-article px-4 py-3 text-sm'>
-							<a href={file.url} download={file.name} className='min-w-0 flex-1'>
-								<span className='block truncate'>{file.name}</span>
-								<span className='text-secondary mt-1 flex items-center gap-1 text-xs'>
-									<Download size={14} />
-									{file.storage.toUpperCase()} · {formatBytes(file.size)}
-								</span>
-							</a>
+							{file.url ? (
+								<a href={file.url} download={file.name} className='min-w-0 flex-1'>
+									<span className='block truncate'>{file.name}</span>
+									<span className='text-secondary mt-1 flex items-center gap-1 text-xs'>
+										<Download size={14} />
+										{file.storage.toUpperCase()} · {formatBytes(file.size)}
+									</span>
+								</a>
+							) : (
+								<div className='min-w-0 flex-1'>
+									<span className='block truncate'>{file.name}</span>
+									<span className='text-secondary mt-1 flex items-center gap-1 text-xs'>
+										<Download size={14} />
+										已直接保存 · {formatBytes(file.size)}
+									</span>
+								</div>
+							)}
 							<button type='button' onClick={() => onClearReceivedFile(file.id)} className='text-secondary hover:text-primary shrink-0 rounded-full border border-border p-2' title='清理缓存并移除下载链接'>
 								<Trash2 size={14} />
 							</button>

@@ -7,7 +7,7 @@ import type { ReceivedLanFile } from '@/lib/lan-transfer/types'
 type CachedReceivedFile = {
 	engine: LanStorageEngine
 	fileId: string
-	url: string
+	url?: string
 }
 
 export function useLanReceivedFiles() {
@@ -23,7 +23,7 @@ export function useLanReceivedFiles() {
 		const cached = cacheRef.current.get(fileId)
 		if (cached) {
 			cacheRef.current.delete(fileId)
-			URL.revokeObjectURL(cached.url)
+			if (cached.url) URL.revokeObjectURL(cached.url)
 			void cached.engine.cleanup(cached.fileId).catch(() => {})
 		}
 		setReceivedFiles(files => files.filter(file => file.id !== fileId))
@@ -31,7 +31,7 @@ export function useLanReceivedFiles() {
 
 	useEffect(() => {
 		return () => {
-			cacheRef.current.forEach(file => URL.revokeObjectURL(file.url))
+			cacheRef.current.forEach(file => { if (file.url) URL.revokeObjectURL(file.url) })
 			cacheRef.current.clear()
 		}
 	}, [])

@@ -7,6 +7,12 @@ type FileHandle = FileSystemFileHandle
 
 const MANIFEST_FLUSH_CHUNKS = 64
 const MANIFEST_FLUSH_BYTES = 32 * 1024 * 1024
+const OPFS_BATCH_BYTES = 1024 * 1024
+
+type PendingWrite = {
+	chunkIndex: number
+	data: Uint8Array
+}
 
 type ActiveOpfsFile = {
 	dir: DirectoryHandle
@@ -16,6 +22,8 @@ type ActiveOpfsFile = {
 	pendingChunks: number
 	pendingBytes: number
 	closed: boolean
+	writeBuffer: PendingWrite[]
+	writeBufferBytes: number
 }
 
 function manifestFor(meta: TransferFileMeta): TransferManifest {
@@ -72,6 +80,18 @@ async function openWritable(handle: FileHandle, keepExistingData: boolean) {
 	return await createWritable.call(handle, { keepExistingData })
 }
 
+function combineBuffers(parts: Uint8Array[]) {
+	if (parts.length === 1) return parts[0]
+	const total = parts.reduce((sum, part) => sum + part.byteLength, 0)
+	const merged = new Uint8Array(total)
+	let offset = 0
+	for (const part of parts) {
+		merged.set(part, offset)
+		offset += part.byteLength
+	}
+	return merged
+}
+
 export class OpfsStorageEngine implements LanStorageEngine {
 	kind = 'opfs' as const
 	private manifests = new Map<string, TransferManifest>()
@@ -81,9 +101,35 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		return fileDirectory(await rootDirectory(), fileId)
 	}
 
-	private async getDataHandle(fileId: string): Promise<FileHandle> {
-		const dir = await this.getDir(fileId)
-		return await dir.getFileHandle('data.part', { create: true })
+	private async flushBufferedData(active: ActiveOpfsFile, meta: TransferFileMeta) {
+		if (!active.writeBuffer.length) return active.manifest
+		if (!active.writable || active.closed) throw new Error('OPFS 写入器已经关闭，无法继续写入')
+		const first = active.writeBuffer[0]
+		const combined = combineBuffers(active.writeBuffer.map(item => item.data))
+		await active.writable.write({
+			type: 'write',
+			position: first.chunkIndex * meta.chunkSize,
+			data: combined,
+		})
+		let manifest = active.manifest
+		for (const item of active.writeBuffer) {
+			manifest = {
+				...manifest,
+				receivedBytes: manifest.receivedBytes + item.data.byteLength,
+				receivedChunks: manifest.receivedChunks + 1,
+				receivedRanges: addRange(manifest.receivedRanges, item.chunkIndex),
+				status: manifest.receivedChunks + 1 >= meta.chunkCount ? 'complete' : 'receiving',
+				updatedAt: Date.now(),
+			}
+			active.pendingChunks += 1
+			active.pendingBytes += item.data.byteLength
+		}
+		active.writeBuffer = []
+		active.writeBufferBytes = 0
+		active.manifest = manifest
+		this.manifests.set(meta.id, manifest)
+		if (manifest.status === 'complete' || active.pendingChunks >= MANIFEST_FLUSH_CHUNKS || active.pendingBytes >= MANIFEST_FLUSH_BYTES) await this.flushManifest(meta.id)
+		return manifest
 	}
 
 	private async flushManifest(fileId: string) {
@@ -113,6 +159,8 @@ export class OpfsStorageEngine implements LanStorageEngine {
 			pendingChunks: 0,
 			pendingBytes: 0,
 			closed: false,
+			writeBuffer: [],
+			writeBufferBytes: 0,
 		}
 		this.manifests.set(meta.id, manifest)
 		this.activeFiles.set(meta.id, active)
@@ -134,6 +182,8 @@ export class OpfsStorageEngine implements LanStorageEngine {
 			pendingChunks: 0,
 			pendingBytes: 0,
 			closed: false,
+			writeBuffer: [],
+			writeBufferBytes: 0,
 		}
 		this.manifests.set(meta.id, manifest)
 		this.activeFiles.set(meta.id, active)
@@ -144,25 +194,12 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		const active = await this.ensureActive(meta)
 		let manifest = active.manifest
 		if (manifest.receivedRanges.some(([start, end]) => chunkIndex >= start && chunkIndex <= end)) return manifest
-		if (!active.writable || active.closed) throw new Error('OPFS 写入器已经关闭，无法继续写入')
-		await active.writable.write({
-			type: 'write',
-			position: chunkIndex * meta.chunkSize,
-			data,
-		})
-		manifest = {
-			...manifest,
-			receivedBytes: manifest.receivedBytes + data.byteLength,
-			receivedChunks: manifest.receivedChunks + 1,
-			receivedRanges: addRange(manifest.receivedRanges, chunkIndex),
-			status: manifest.receivedChunks + 1 >= meta.chunkCount ? 'complete' : 'receiving',
-			updatedAt: Date.now(),
-		}
-		active.manifest = manifest
-		active.pendingChunks += 1
-		active.pendingBytes += data.byteLength
-		this.manifests.set(meta.id, manifest)
-		if (manifest.status === 'complete' || active.pendingChunks >= MANIFEST_FLUSH_CHUNKS || active.pendingBytes >= MANIFEST_FLUSH_BYTES) await this.flushManifest(meta.id)
+		const expectedNextIndex = active.writeBuffer.length ? active.writeBuffer[0].chunkIndex + active.writeBuffer.length : chunkIndex
+		if (chunkIndex !== expectedNextIndex) manifest = await this.flushBufferedData(active, meta)
+		active.writeBuffer.push({ chunkIndex, data })
+		active.writeBufferBytes += data.byteLength
+		const isFinalChunk = chunkIndex + 1 >= meta.chunkCount
+		if (active.writeBufferBytes >= OPFS_BATCH_BYTES || isFinalChunk) manifest = await this.flushBufferedData(active, meta)
 		return manifest
 	}
 
@@ -182,6 +219,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 
 	async finalize(meta: TransferFileMeta) {
 		const active = await this.ensureActive(meta)
+		await this.flushBufferedData(active, meta)
 		await this.flushManifest(meta.id)
 		if (active.writable && !active.closed) {
 			await active.writable.close()

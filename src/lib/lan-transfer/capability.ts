@@ -48,7 +48,8 @@ function hasFileSystemAccess() {
 	return typeof window !== 'undefined' && 'showSaveFilePicker' in window
 }
 
-function chooseStorage(opfs: boolean, indexedDB: boolean, fileSize = 0): LanStorageKind {
+function chooseStorage(opfs: boolean, indexedDB: boolean, fileSize = 0, fileSystemAccess = false): LanStorageKind {
+	if (fileSize > LAN_LIMITS.memoryMaxBytes && fileSystemAccess) return 'file'
 	if (fileSize > LAN_LIMITS.memoryMaxBytes && opfs) return 'opfs'
 	if (fileSize > LAN_LIMITS.memoryMaxBytes && indexedDB) return 'indexeddb'
 	return 'memory'
@@ -83,7 +84,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 	let maxRecommendedFileSize = LAN_LIMITS.memoryMaxBytes
 	let maxExperimentalFileSize = LAN_LIMITS.memoryMaxBytes
 	let recommendedChunkSize = LAN_LIMITS.legacyChunkSize
-	let recommendedStorage = chooseStorage(opfsSupported, indexedDBSupported, fileSize)
+	let recommendedStorage = chooseStorage(opfsSupported, indexedDBSupported, fileSize, fileSystemAccessSupported && platform === 'desktop')
 
 	if (isEmbeddedBrowser) {
 		notes.push('当前是内置浏览器，不建议接收大文件，请使用系统 Chrome / Edge 打开。')
@@ -92,6 +93,12 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 		maxExperimentalFileSize = 2 * 1024 * 1024 * 1024
 		recommendedChunkSize = LAN_LIMITS.legacyChunkSize
 		notes.push('iOS Safari 对后台和大文件写入限制更严格，不承诺 10GB+。')
+	} else if (fileSystemAccessSupported && platform === 'desktop') {
+		maxRecommendedFileSize = LAN_LIMITS.experimentalMaxBytes
+		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
+		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
+		recommendedStorage = 'file'
+		notes.push('支持直接文件流保存；将优先写入用户选择的文件，避免 OPFS/IndexedDB 中转缓存。')
 	} else if (opfsSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.opfsRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
@@ -106,7 +113,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 		notes.push('不支持 OPFS，已降级为 IndexedDB；中大型文件导出可能不稳定，不建议超过 2GB。')
 	}
 
-	if (typeof available === 'number') {
+	if (typeof available === 'number' && recommendedStorage !== 'file') {
 		const storageSafeLimit = Math.floor(available * 0.85)
 		maxRecommendedFileSize = Math.min(maxRecommendedFileSize, storageSafeLimit)
 		maxExperimentalFileSize = Math.min(maxExperimentalFileSize, Math.floor(available * 0.95))
@@ -143,6 +150,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 export function selectStorageForFile(size: number, capability: LanCapability | null): LanStorageKind {
 	if (!capability) return size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'indexeddb'
 	if (size <= LAN_LIMITS.memoryMaxBytes) return 'memory'
+	if (capability.storage.fileSystemAccess && capability.platform === 'desktop') return 'file'
 	if (capability.storage.opfs) return 'opfs'
 	if (capability.storage.indexedDB) return 'indexeddb'
 	return 'memory'
@@ -152,6 +160,6 @@ export function assertCanReceiveFile(size: number, capability: LanCapability | n
 	if (!capability) return
 	if (capability.isEmbeddedBrowser && size > LAN_LIMITS.memoryMaxBytes) throw new Error('接收端是微信/QQ 内置浏览器，不适合大文件传输，请使用系统 Chrome / Edge 打开。')
 	if (size > LAN_LIMITS.memoryMaxBytes && !capability.storage.opfs && !capability.storage.indexedDB) throw new Error('接收端浏览器不支持 OPFS/IndexedDB 分块存储，不能接收大文件。')
-	if (typeof capability.storage.available === 'number' && size > capability.storage.available * 0.9) throw new Error('接收端浏览器可用存储空间不足，无法安全接收该文件。')
+	if (typeof capability.storage.available === 'number' && capability.limits.recommendedStorage !== 'file' && size > capability.storage.available * 0.9) throw new Error('接收端浏览器可用存储空间不足，无法安全接收该文件。')
 	if (size > capability.limits.maxExperimentalFileSize) throw new Error('文件超过当前接收设备的实验性上限，请换用桌面 Chrome/Edge 或清理空间后重试。')
 }

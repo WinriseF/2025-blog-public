@@ -179,10 +179,10 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				cacheStatus: 'retained',
 			}
 			addReceivedFile(received, current.engine, current.meta.id)
-			downloadUrl(received.name, received.url)
-			setIncoming({ id: received.id, name: received.name, size: received.size, done: received.size, label: '接收完成', stage: '完成' })
+			if (received.url) downloadUrl(received.name, received.url)
+			setIncoming({ id: received.id, name: received.name, size: received.size, done: received.size, label: finalized.directSave ? '已直接保存' : '接收完成', stage: '完成' })
 			setTransferBusy(false)
-			setStatus(`接收完成，已用 ${current.engine.kind.toUpperCase()} 模式保存，并已向对方确认。`)
+			setStatus(finalized.directSave ? '接收完成，文件已直接保存到你选择的位置，并已向对方确认。' : `接收完成，已用 ${current.engine.kind.toUpperCase()} 模式保存，并已向对方确认。`)
 			sendControl({ type: 'transfer-received', id: messageId, received: received.size, expected: received.size, chunkCount: manifest.receivedChunks, storage: current.engine.kind })
 			incomingFileRef.current = null
 			transferBusyRef.current = false

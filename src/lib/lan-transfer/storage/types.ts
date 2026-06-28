@@ -23,8 +23,9 @@ export type TransferManifest = TransferFileMeta & {
 }
 
 export type FinalizedFile = {
-	url: string
-	revoke: () => void
+	url?: string
+	revoke?: () => void
+	directSave?: boolean
 }
 
 export interface LanStorageEngine {
