@@ -11,7 +11,19 @@ import { assertCanReceiveFile, detectLanCapability, selectStorageForFile } from 
 import { decodeFrame, downloadUrl, encodeControl, formatBytes, prepareLanFiles, sendPreparedFile } from '@/lib/lan-transfer/file-transfer'
 import { createStorageEngine, chooseStorageKind } from '@/lib/lan-transfer/storage/storage-manager'
 import type { LanStorageEngine, TransferFileMeta } from '@/lib/lan-transfer/storage/types'
-import { LAN_LIMITS, LAN_PROTOCOL_VERSION, type LanCapability, type LanControlMessage, type LanPeer, type LanProgressState, type LanSession, type LanSignalMessage, type LanTransferRequest, type PreparedLanFile, type ReceivedLanFile } from '@/lib/lan-transfer/types'
+import {
+	LAN_LIMITS,
+	LAN_PROTOCOL_VERSION,
+	type LanCapability,
+	type LanControlMessage,
+	type LanPeer,
+	type LanProgressState,
+	type LanSession,
+	type LanSignalMessage,
+	type LanTransferRequest,
+	type PreparedLanFile,
+	type ReceivedLanFile,
+} from '@/lib/lan-transfer/types'
 
 type LanTransferControllerOptions = { initialInvite?: { roomId: string; token: string } | null; onLeaveSession?: () => void }
 type IncomingTransfer = { request: LanTransferRequest; meta: TransferFileMeta; engine: LanStorageEngine; received: number; chunkCount: number }
@@ -41,6 +53,8 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const incomingFileRef = useRef<IncomingTransfer | null>(null)
 	const transferBusyRef = useRef(false)
 	const ackTimerRef = useRef<number | null>(null)
+	const outgoingAckedBytesRef = useRef(0)
+	const incomingProgressAckRef = useRef({ id: '', bytes: 0, at: 0 })
 	const chunkWriteQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const { receivedFiles, addReceivedFile, clearReceivedFile } = useLanReceivedFiles()
 
@@ -64,23 +78,31 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 
 	const cleanupIncomingStorage = useCallback((current: IncomingTransfer | null) => {
 		if (!current) return
-		void chunkWriteQueueRef.current.catch(() => {}).then(() => current.engine.cleanup(current.meta.id)).catch(() => {})
+		void chunkWriteQueueRef.current
+			.catch(() => {})
+			.then(() => current.engine.cleanup(current.meta.id))
+			.catch(() => {})
 	}, [])
 
-	const resetTransferState = useCallback((nextStatus?: string) => {
-		clearAckTimer()
-		cleanupIncomingStorage(incomingFileRef.current)
-		incomingFileRef.current = null
-		incomingRequestRef.current = null
-		outgoingFileRef.current = null
-		chunkWriteQueueRef.current = Promise.resolve()
-		transferBusyRef.current = false
-		setIncomingRequest(null)
-		setIncoming(null)
-		setOutgoing(null)
-		setTransferBusy(false)
-		if (nextStatus) setStatus(nextStatus)
-	}, [clearAckTimer, cleanupIncomingStorage])
+	const resetTransferState = useCallback(
+		(nextStatus?: string) => {
+			clearAckTimer()
+			cleanupIncomingStorage(incomingFileRef.current)
+			incomingFileRef.current = null
+			incomingRequestRef.current = null
+			outgoingFileRef.current = null
+			chunkWriteQueueRef.current = Promise.resolve()
+			outgoingAckedBytesRef.current = 0
+			incomingProgressAckRef.current = { id: '', bytes: 0, at: 0 }
+			transferBusyRef.current = false
+			setIncomingRequest(null)
+			setIncoming(null)
+			setOutgoing(null)
+			setTransferBusy(false)
+			if (nextStatus) setStatus(nextStatus)
+		},
+		[clearAckTimer, cleanupIncomingStorage],
+	)
 
 	const cleanupPeer = useCallback(() => {
 		const peer = peerRef.current
@@ -114,7 +136,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			sendControl({ type: 'transfer-cancel', id: incomingFileRef.current?.request.id || outgoingFileRef.current?.id || 'unknown', reason })
 			resetTransferState(reason)
 		},
-		[resetTransferState, sendControl]
+		[resetTransferState, sendControl],
 	)
 
 	const startAckTimer = useCallback(
@@ -129,7 +151,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				setStatus('文件已经发出，但对方没有返回接收确认。请确认对方页面仍在前台，必要时重新发送。')
 			}, LAN_LIMITS.receiveAckTimeoutMs)
 		},
-		[clearAckTimer]
+		[clearAckTimer],
 	)
 
 	const finishIncomingTransfer = useCallback(
@@ -142,10 +164,20 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			if (!manifest) return failTransfer('接收端没有找到传输清单，无法完成校验')
 			if (typeof sent === 'number' && sent !== current.request.size) return failTransfer(`发送端声明大小异常：${formatBytes(sent)} / ${formatBytes(current.request.size)}`)
 			if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return failTransfer(`分片数量异常：${manifest.receivedChunks} / ${chunkCount}`)
-			if (manifest.receivedBytes !== current.request.size || manifest.receivedChunks !== current.request.chunkCount) return failTransfer(`接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.request.size)}`)
+			if (manifest.receivedBytes !== current.request.size || manifest.receivedChunks !== current.request.chunkCount)
+				return failTransfer(`接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.request.size)}`)
 			setStatus('数据已完整接收，正在准备下载文件...')
 			const finalized = await current.engine.finalize(current.meta)
-			const received: ReceivedLanFile = { id: messageId, name: current.request.name, mime: current.request.mime, size: current.request.size, url: finalized.url, storage: current.engine.kind, receivedAt: Date.now(), cacheStatus: 'retained' }
+			const received: ReceivedLanFile = {
+				id: messageId,
+				name: current.request.name,
+				mime: current.request.mime,
+				size: current.request.size,
+				url: finalized.url,
+				storage: current.engine.kind,
+				receivedAt: Date.now(),
+				cacheStatus: 'retained',
+			}
 			addReceivedFile(received, current.engine, current.meta.id)
 			downloadUrl(received.name, received.url)
 			setIncoming({ id: received.id, name: received.name, size: received.size, done: received.size, label: '接收完成', stage: '完成' })
@@ -155,7 +187,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			incomingFileRef.current = null
 			transferBusyRef.current = false
 		},
-		[addReceivedFile, failTransfer, sendControl]
+		[addReceivedFile, failTransfer, sendControl],
 	)
 
 	const handleControl = useCallback(
@@ -191,9 +223,16 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				setStatus(`对方已接收，正在以 ${message.storage.toUpperCase()} 模式流式发送...`)
 				setOutgoing({ id: file.id, name: file.name, size: file.size, done: 0, label: '正在发送', stage: '传输' })
 				try {
-					await sendPreparedFile(peer, file, done => setOutgoing({ id: file.id, name: file.name, size: file.size, done, label: '正在发送', stage: '传输' }), {
-						mobile: remoteCapabilityRef.current?.platform === 'android' || remoteCapabilityRef.current?.platform === 'ios'
-					})
+					outgoingAckedBytesRef.current = 0
+					await sendPreparedFile(
+						peer,
+						file,
+						(done) => setOutgoing({ id: file.id, name: file.name, size: file.size, done, label: `正在发送 · 对方已写入 ${formatBytes(outgoingAckedBytesRef.current)}`, stage: '传输' }),
+						{
+							mobile: remoteCapabilityRef.current?.platform === 'android' || remoteCapabilityRef.current?.platform === 'ios',
+							getAckedBytes: () => outgoingAckedBytesRef.current,
+						},
+					)
 					setOutgoing({ id: file.id, name: file.name, size: file.size, done: file.size, label: '等待对方确认', stage: '等待确认' })
 					setStatus('数据已发出，正在等待对方浏览器写入、校验并确认接收完成...')
 					startAckTimer(file)
@@ -207,10 +246,18 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				}
 				return
 			}
+			if (message.type === 'transfer-progress') {
+				const file = outgoingFileRef.current
+				if (!file || file.id !== message.id) return
+				outgoingAckedBytesRef.current = Math.max(outgoingAckedBytesRef.current, message.received)
+				setOutgoing((current) => (current && current.id === file.id ? { ...current, label: `正在发送 · 对方已写入 ${formatBytes(outgoingAckedBytesRef.current)}` } : current))
+				return
+			}
 			if (message.type === 'transfer-received') {
 				const file = outgoingFileRef.current
 				if (!file || file.id !== message.id) return
 				clearAckTimer()
+				outgoingAckedBytesRef.current = message.received
 				if (message.received !== file.size || message.expected !== file.size || message.chunkCount !== file.chunkCount) {
 					outgoingFileRef.current = null
 					transferBusyRef.current = false
@@ -231,7 +278,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			if (message.type === 'transfer-complete') return void (await finishIncomingTransfer(message.id, message.sent, message.chunkCount))
 			if (message.type === 'transfer-cancel') resetTransferState(message.reason || '传输已取消。')
 		},
-		[clearAckTimer, finishIncomingTransfer, resetTransferState, sendControl, startAckTimer]
+		[clearAckTimer, finishIncomingTransfer, resetTransferState, sendControl, startAckTimer],
 	)
 
 	const queueIncomingChunk = useCallback(
@@ -245,21 +292,34 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 					if (manifest.receivedBytes > current.request.size) throw new Error(`收到的数据超过声明大小：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.request.size)}`)
 					current.received = manifest.receivedBytes
 					current.chunkCount = manifest.receivedChunks
-					setIncoming({ id: current.request.id, name: current.request.name, size: current.request.size, done: current.received, label: `正在接收 · ${current.engine.kind.toUpperCase()}`, stage: '传输' })
+					const ack = incomingProgressAckRef.current
+					const now = Date.now()
+					if (ack.id !== current.request.id || current.received - ack.bytes >= LAN_LIMITS.progressAckBytes || now - ack.at >= LAN_LIMITS.progressAckIntervalMs || manifest.status === 'complete') {
+						incomingProgressAckRef.current = { id: current.request.id, bytes: current.received, at: now }
+						sendControl({ type: 'transfer-progress', id: current.request.id, received: current.received, chunkCount: current.chunkCount, storage: current.engine.kind })
+					}
+					setIncoming({
+						id: current.request.id,
+						name: current.request.name,
+						size: current.request.size,
+						done: current.received,
+						label: `正在接收 · ${current.engine.kind.toUpperCase()}`,
+						stage: '传输',
+					})
 				})
-				.catch(error => failTransfer(error instanceof Error ? error.message : '分片写入失败'))
+				.catch((error) => failTransfer(error instanceof Error ? error.message : '分片写入失败'))
 		},
-		[failTransfer]
+		[failTransfer, sendControl],
 	)
 
 	const handlePeerData = useCallback(
 		(data: unknown) => {
 			const frame = decodeFrame(data)
 			if (!frame) return
-			if (frame.kind === 'control') return void handleControl(frame.message).catch(error => resetTransferState(error instanceof Error ? error.message : '传输失败'))
+			if (frame.kind === 'control') return void handleControl(frame.message).catch((error) => resetTransferState(error instanceof Error ? error.message : '传输失败'))
 			queueIncomingChunk(frame.id, frame.index, frame.bytes)
 		},
-		[handleControl, queueIncomingChunk, resetTransferState]
+		[handleControl, queueIncomingChunk, resetTransferState],
 	)
 
 	const closeCurrentConnection = useCallback(
@@ -270,19 +330,19 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			remoteCapabilityRef.current = null
 			resetTransferState(nextStatus)
 		},
-		[cleanupPeer, resetTransferState]
+		[cleanupPeer, resetTransferState],
 	)
 
 	const createPeer = useCallback(
 		(initiator: boolean, remotePeerId: string) => {
 			if (peerRef.current) return peerRef.current
 			const peer = new SimplePeer({ initiator, trickle: true, channelName: 'file-v3', config: lanRtcConfig })
-			peer.on('signal', signal => void signalClientRef.current?.sendSignal(remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '信令发送失败')))
+			peer.on('signal', (signal) => void signalClientRef.current?.sendSignal(remotePeerId, signal).catch((error) => setStatus(error instanceof Error ? error.message : '信令发送失败')))
 			peer.on('connect', () => {
 				if (peerRef.current !== peer) return
 				setConnected(true)
 				setStatus('点对点连接已建立，正在检测双方大文件能力...')
-				void sendLocalCapability().catch(error => setStatus(error instanceof Error ? error.message : '能力检测失败'))
+				void sendLocalCapability().catch((error) => setStatus(error instanceof Error ? error.message : '能力检测失败'))
 			})
 			peer.on('data', handlePeerData)
 			peer.on('close', () => {
@@ -293,7 +353,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				setRemoteCapability(null)
 				resetTransferState('连接已断开，请重新扫码或重新发送。')
 			})
-			peer.on('error', error => {
+			peer.on('error', (error) => {
 				if (peerRef.current !== peer) return
 				peerRef.current = null
 				setConnected(false)
@@ -304,7 +364,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			peerRef.current = peer
 			return peer
 		},
-		[handlePeerData, resetTransferState, sendLocalCapability]
+		[handlePeerData, resetTransferState, sendLocalCapability],
 	)
 
 	const handleSignalMessage = useCallback(
@@ -320,7 +380,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			if (message.type === 'hello') {
 				setStatus('已发现对方设备，正在建立点对点连接...')
 				if (current.role === 'host') {
-					void signalClientRef.current?.sendHello().catch(error => setStatus(error instanceof Error ? error.message : '信令发送失败'))
+					void signalClientRef.current?.sendHello().catch((error) => setStatus(error instanceof Error ? error.message : '信令发送失败'))
 					createPeer(true, message.peerId)
 				} else {
 					createPeer(false, message.peerId)
@@ -330,19 +390,24 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			if (message.type === 'signal') return void (peerRef.current || createPeer(current.role === 'host', message.peerId)).signal(message.signal as SimplePeer.SignalData)
 			if (message.type === 'peer-left') closeCurrentConnection('对方设备已离开。')
 		},
-		[closeCurrentConnection, createPeer]
+		[closeCurrentConnection, createPeer],
 	)
 
 	const startSignaling = useCallback(
 		async (next: LanSession) => {
 			await signalClientRef.current?.close().catch(() => {})
-			const client = new LanSignalingClient(next, handleSignalMessage, realtimeStatus => {
-				if (realtimeStatus === 'SUBSCRIBED') setStatus(next.role === 'host' ? '二维码已创建，等待另一台设备扫码。' : '已加入，正在等待对方设备回应。')
-			}, error => setStatus(error.message))
+			const client = new LanSignalingClient(
+				next,
+				handleSignalMessage,
+				(realtimeStatus) => {
+					if (realtimeStatus === 'SUBSCRIBED') setStatus(next.role === 'host' ? '二维码已创建，等待另一台设备扫码。' : '已加入，正在等待对方设备回应。')
+				},
+				(error) => setStatus(error.message),
+			)
 			signalClientRef.current = client
 			await client.ready
 		},
-		[handleSignalMessage]
+		[handleSignalMessage],
 	)
 
 	const setSessionNow = (next: LanSession) => {
@@ -385,7 +450,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				setBusy(false)
 			}
 		},
-		[closeCurrentConnection, startSignaling]
+		[closeCurrentConnection, startSignaling],
 	)
 
 	useEffect(() => {
@@ -418,19 +483,21 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			const prepared = await prepareLanFiles(selectedFiles, { chunkSize, suggestedStorage: storage, maxBytes })
 			outgoingFileRef.current = prepared
 			setOutgoing({ id: prepared.id, name: prepared.name, size: prepared.size, done: 0, label: '等待对方确认', stage: '请求' })
-			peer.send(encodeControl({
-				type: 'transfer-request',
-				protocolVersion: LAN_PROTOCOL_VERSION,
-				id: prepared.id,
-				name: prepared.name,
-				mime: prepared.mime,
-				size: prepared.size,
-				fileCount: prepared.fileCount,
-				lastModified: prepared.lastModified,
-				chunkSize: prepared.chunkSize,
-				chunkCount: prepared.chunkCount,
-				suggestedStorage: prepared.suggestedStorage
-			}))
+			peer.send(
+				encodeControl({
+					type: 'transfer-request',
+					protocolVersion: LAN_PROTOCOL_VERSION,
+					id: prepared.id,
+					name: prepared.name,
+					mime: prepared.mime,
+					size: prepared.size,
+					fileCount: prepared.fileCount,
+					lastModified: prepared.lastModified,
+					chunkSize: prepared.chunkSize,
+					chunkCount: prepared.chunkCount,
+					suggestedStorage: prepared.suggestedStorage,
+				}),
+			)
 			setStatus('已发送接收请求，等待对方确认存储模式。')
 		} catch (error) {
 			resetTransferState(error instanceof Error ? error.message : '发送失败')
@@ -449,9 +516,21 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			const storage = chooseStorageKind(incomingRequest.size, incomingRequest.suggestedStorage, capability)
 			if (storage === 'memory' && incomingRequest.size > LAN_LIMITS.memoryMaxBytes) throw new Error('当前浏览器只能使用内存模式，不能接收大文件。')
 			const engine = createStorageEngine(storage)
-			const meta: TransferFileMeta = { id: incomingRequest.id, name: incomingRequest.name, mime: incomingRequest.mime, size: incomingRequest.size, lastModified: incomingRequest.lastModified, chunkSize: incomingRequest.chunkSize, chunkCount: incomingRequest.chunkCount, storage }
+			const meta: TransferFileMeta = {
+				id: incomingRequest.id,
+				name: incomingRequest.name,
+				mime: incomingRequest.mime,
+				size: incomingRequest.size,
+				lastModified: incomingRequest.lastModified,
+				chunkSize: incomingRequest.chunkSize,
+				chunkCount: incomingRequest.chunkCount,
+				storage,
+			}
 			await engine.cleanup(meta.id).catch(() => {})
-			await engine.prepare(meta).catch(async error => { await engine.cleanup(meta.id).catch(() => {}); throw error })
+			await engine.prepare(meta).catch(async (error) => {
+				await engine.cleanup(meta.id).catch(() => {})
+				throw error
+			})
 			const manifest = await engine.getManifest(meta.id)
 			incomingFileRef.current = { request: incomingRequest, meta, engine, received: manifest?.receivedBytes || 0, chunkCount: manifest?.receivedChunks || 0 }
 			setIncoming({ id: incomingRequest.id, name: incomingRequest.name, size: incomingRequest.size, done: manifest?.receivedBytes || 0, label: `等待数据 · ${storage.toUpperCase()}`, stage: '准备' })
@@ -490,7 +569,30 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		onLeaveSession?.()
 	}
 
-	return { session, remotePeer, connected, qrDataUrl, selectedFiles, incomingRequest, outgoing, incoming, receivedFiles, localCapability, remoteCapability, status, busy, transferBusy, setSelectedFiles, handleCreateRoom, handleSendFiles, acceptIncoming, rejectIncoming, copyInvite, leaveSession, clearReceivedFile }
+	return {
+		session,
+		remotePeer,
+		connected,
+		qrDataUrl,
+		selectedFiles,
+		incomingRequest,
+		outgoing,
+		incoming,
+		receivedFiles,
+		localCapability,
+		remoteCapability,
+		status,
+		busy,
+		transferBusy,
+		setSelectedFiles,
+		handleCreateRoom,
+		handleSendFiles,
+		acceptIncoming,
+		rejectIncoming,
+		copyInvite,
+		leaveSession,
+		clearReceivedFile,
+	}
 }
 
 export type LanTransferController = ReturnType<typeof useLanTransferController>

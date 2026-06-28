@@ -7,16 +7,23 @@ export const LAN_LIMITS = {
 	indexedDbExperimentalBytes: 2 * 1024 * 1024 * 1024,
 	opfsRecommendedBytes: 10 * 1024 * 1024 * 1024,
 	experimentalMaxBytes: 50 * 1024 * 1024 * 1024,
-	dataChannelSafeChunkSize: 60 * 1024,
-	defaultChunkSize: 60 * 1024,
-	mobileChunkSize: 60 * 1024,
+	dataChannelSafeChunkSize: 2 * 1024 * 1024,
+	defaultChunkSize: 256 * 1024,
+	opfsMobileChunkSize: 1024 * 1024,
+	opfsDesktopChunkSize: 2 * 1024 * 1024,
+	indexedDbChunkSize: 512 * 1024,
+	mobileChunkSize: 256 * 1024,
 	legacyChunkSize: 60 * 1024,
 	bufferHighWatermark: 8 * 1024 * 1024,
 	bufferLowWatermark: 2 * 1024 * 1024,
 	mobileBufferHighWatermark: 4 * 1024 * 1024,
 	mobileBufferLowWatermark: 1 * 1024 * 1024,
 	bufferDrainTimeoutMs: 60 * 1000,
-	receiveAckTimeoutMs: 10 * 60 * 1000
+	receiveAckTimeoutMs: 10 * 60 * 1000,
+	progressAckBytes: 16 * 1024 * 1024,
+	progressAckIntervalMs: 1000,
+	maxSenderAheadBytes: 64 * 1024 * 1024,
+	mobileMaxSenderAheadBytes: 32 * 1024 * 1024,
 } as const
 
 export type LanRole = 'host' | 'guest'
@@ -124,13 +131,21 @@ export type LanTransferReceived = {
 	storage: LanStorageKind
 }
 
+export type LanTransferProgress = {
+	type: 'transfer-progress'
+	id: string
+	received: number
+	chunkCount: number
+	storage: LanStorageKind
+}
+
 export type LanTransferCancel = {
 	type: 'transfer-cancel'
 	id: string
 	reason?: string
 }
 
-export type LanControlMessage = LanCapability | LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferReceived | LanTransferCancel
+export type LanControlMessage = LanCapability | LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferReceived | LanTransferProgress | LanTransferCancel
 
 export type PreparedLanFile = {
 	id: string

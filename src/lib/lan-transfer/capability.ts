@@ -95,13 +95,13 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 	} else if (opfsSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.opfsRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
-		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
+		recommendedChunkSize = platform === 'desktop' ? LAN_LIMITS.opfsDesktopChunkSize : LAN_LIMITS.opfsMobileChunkSize
 		recommendedStorage = 'opfs'
-		notes.push('支持 OPFS 增强模式；传输帧按 WebRTC 安全大小切片，断线后需要重新发送。')
+		notes.push('支持 OPFS 增强模式；将使用大分片和长生命周期写入器提升大文件接收速度，断线后需要重新发送。')
 	} else if (indexedDBSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.indexedDbRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.indexedDbExperimentalBytes
-		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
+		recommendedChunkSize = LAN_LIMITS.indexedDbChunkSize
 		recommendedStorage = 'indexeddb'
 		notes.push('不支持 OPFS，已降级为 IndexedDB；中大型文件导出可能不稳定，不建议超过 2GB。')
 	}
@@ -128,15 +128,15 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 			quota,
 			usage,
 			available,
-			persisted
+			persisted,
 		},
 		limits: {
 			maxRecommendedFileSize,
 			maxExperimentalFileSize,
 			recommendedChunkSize,
-			recommendedStorage
+			recommendedStorage,
 		},
-		notes
+		notes,
 	}
 }
 

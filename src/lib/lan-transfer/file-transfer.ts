@@ -30,11 +30,7 @@ function uniqueName(name: string, used: Set<string>) {
 }
 
 function timestampName() {
-	const value = new Date()
-		.toISOString()
-		.replace(/[-:]/g, '')
-		.replace(/\..+$/, '')
-		.replace('T', '-')
+	const value = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-')
 	return `winrisef-lan-${value}.zip`
 }
 
@@ -76,7 +72,7 @@ export async function prepareLanFiles(files: File[], options: PrepareLanFileOpti
 			chunkSize,
 			chunkCount: Math.ceil(file.size / chunkSize),
 			file,
-			suggestedStorage
+			suggestedStorage,
 		} satisfies PreparedLanFile
 	}
 
@@ -96,7 +92,7 @@ export async function prepareLanFiles(files: File[], options: PrepareLanFileOpti
 		chunkSize,
 		chunkCount: Math.ceil(zipFile.size / chunkSize),
 		file: zipFile,
-		suggestedStorage: zipFile.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : suggestedStorage
+		suggestedStorage: zipFile.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : suggestedStorage,
 	} satisfies PreparedLanFile
 }
 
@@ -228,16 +224,27 @@ async function waitForLowWatermark(peer: SimplePeer.Instance, lowWatermark: numb
 	}
 }
 
+async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, sent: number, maxAheadBytes: number) {
+	if (!getAckedBytes) return
+	const startedAt = Date.now()
+	while (sent - getAckedBytes() > maxAheadBytes) {
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('接收端写入速度跟不上，发送已暂停超时。请确认对方浏览器仍在前台并有足够存储空间。')
+		await new Promise((resolve) => window.setTimeout(resolve, 100))
+	}
+}
+
 export async function sendPreparedFile(
 	peer: SimplePeer.Instance,
 	file: PreparedLanFile,
 	onProgress: (sent: number) => void,
-	options: { mobile?: boolean } = {}
+	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number } = {},
 ) {
 	const highWatermark = options.mobile ? LAN_LIMITS.mobileBufferHighWatermark : LAN_LIMITS.bufferHighWatermark
 	const lowWatermark = options.mobile ? LAN_LIMITS.mobileBufferLowWatermark : LAN_LIMITS.bufferLowWatermark
+	const maxAheadBytes = options.maxAheadBytes || (options.mobile ? LAN_LIMITS.mobileMaxSenderAheadBytes : LAN_LIMITS.maxSenderAheadBytes)
 	let sent = 0
 	for (let chunkIndex = 0; chunkIndex < file.chunkCount; chunkIndex += 1) {
+		await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
 		await waitForChannelBelow(peer, highWatermark, lowWatermark)
 		const offset = chunkIndex * file.chunkSize
 		if (offset >= file.size) continue
@@ -248,14 +255,15 @@ export async function sendPreparedFile(
 		sent += chunk.byteLength
 		onProgress(Math.min(file.size, sent))
 	}
+	await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
 	await waitForLowWatermark(peer, lowWatermark)
 	peer.send(
 		encodeControl({
 			type: 'transfer-complete',
 			id: file.id,
 			sent: file.size,
-			chunkCount: file.chunkCount
-		})
+			chunkCount: file.chunkCount,
+		}),
 	)
 }
 
