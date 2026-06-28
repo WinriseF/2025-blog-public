@@ -58,6 +58,7 @@ export async function prepareLanFiles(files: File[]) {
 			mime: file.type || 'application/octet-stream',
 			size: bytes.byteLength,
 			fileCount: 1,
+			chunkCount: Math.ceil(bytes.byteLength / LAN_LIMITS.chunkSize),
 			bytes
 		} satisfies PreparedLanFile
 	}
@@ -72,6 +73,7 @@ export async function prepareLanFiles(files: File[]) {
 		mime: 'application/zip',
 		size: bytes.byteLength,
 		fileCount: files.length,
+		chunkCount: Math.ceil(bytes.byteLength / LAN_LIMITS.chunkSize),
 		bytes
 	} satisfies PreparedLanFile
 }
@@ -110,31 +112,104 @@ function getDataChannel(peer: SimplePeer.Instance) {
 	return (peer as unknown as { _channel?: RTCDataChannel })._channel
 }
 
-async function waitForBufferedAmount(peer: SimplePeer.Instance) {
+function getOpenDataChannel(peer: SimplePeer.Instance) {
 	const channel = getDataChannel(peer)
-	if (!channel || channel.bufferedAmount <= LAN_LIMITS.bufferHighWatermark) return
-	await new Promise<void>(resolve => {
-		let done = false
-		const finish = () => {
-			if (done) return
-			done = true
-			channel.removeEventListener('bufferedamountlow', finish)
-			resolve()
-		}
-		channel.bufferedAmountLowThreshold = LAN_LIMITS.bufferLowWatermark
-		channel.addEventListener('bufferedamountlow', finish)
-		setTimeout(finish, 1000)
-	})
+	if (!channel || channel.readyState !== 'open') throw new Error('点对点通道已断开，请重新连接后再发送')
+	return channel
+}
+
+async function waitForBufferedAmount(peer: SimplePeer.Instance) {
+	const startedAt = Date.now()
+	let channel = getOpenDataChannel(peer)
+	channel.bufferedAmountLowThreshold = LAN_LIMITS.bufferLowWatermark
+	while (channel.bufferedAmount > LAN_LIMITS.bufferHighWatermark) {
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送缓冲区长时间未释放，可能是对方页面已断开或手机浏览器被系统暂停')
+		await new Promise<void>((resolve, reject) => {
+			let done = false
+			const cleanup = () => {
+				channel.removeEventListener('bufferedamountlow', onLow)
+				channel.removeEventListener('close', onClose)
+				channel.removeEventListener('error', onClose)
+				window.clearTimeout(timer)
+			}
+			const finish = () => {
+				if (done) return
+				done = true
+				cleanup()
+				resolve()
+			}
+			const fail = () => {
+				if (done) return
+				done = true
+				cleanup()
+				reject(new Error('点对点通道已断开，请重新连接后再发送'))
+			}
+			const onLow = () => finish()
+			const onClose = () => fail()
+			const timer = window.setTimeout(finish, 120)
+			channel.addEventListener('bufferedamountlow', onLow)
+			channel.addEventListener('close', onClose, { once: true })
+			channel.addEventListener('error', onClose, { once: true })
+		})
+		channel = getOpenDataChannel(peer)
+	}
+}
+
+async function waitForLowWatermark(peer: SimplePeer.Instance) {
+	const startedAt = Date.now()
+	let channel = getOpenDataChannel(peer)
+	channel.bufferedAmountLowThreshold = LAN_LIMITS.bufferLowWatermark
+	while (channel.bufferedAmount > LAN_LIMITS.bufferLowWatermark) {
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送队列没有及时清空，请确认对方设备页面仍在前台')
+		await new Promise<void>((resolve, reject) => {
+			let done = false
+			const cleanup = () => {
+				channel.removeEventListener('bufferedamountlow', onLow)
+				channel.removeEventListener('close', onClose)
+				channel.removeEventListener('error', onClose)
+				window.clearTimeout(timer)
+			}
+			const finish = () => {
+				if (done) return
+				done = true
+				cleanup()
+				resolve()
+			}
+			const fail = () => {
+				if (done) return
+				done = true
+				cleanup()
+				reject(new Error('点对点通道已断开，请重新连接后再发送'))
+			}
+			const onLow = () => finish()
+			const onClose = () => fail()
+			const timer = window.setTimeout(finish, 120)
+			channel.addEventListener('bufferedamountlow', onLow)
+			channel.addEventListener('close', onClose, { once: true })
+			channel.addEventListener('error', onClose, { once: true })
+		})
+		channel = getOpenDataChannel(peer)
+	}
 }
 
 export async function sendPreparedFile(peer: SimplePeer.Instance, file: PreparedLanFile, onProgress: (sent: number) => void) {
 	for (let offset = 0; offset < file.bytes.byteLength; offset += LAN_LIMITS.chunkSize) {
 		await waitForBufferedAmount(peer)
 		const chunk = file.bytes.subarray(offset, Math.min(offset + LAN_LIMITS.chunkSize, file.bytes.byteLength))
+		getOpenDataChannel(peer)
 		peer.send(encodeChunk(chunk))
 		onProgress(Math.min(offset + chunk.byteLength, file.bytes.byteLength))
 	}
-	peer.send(encodeControl({ type: 'transfer-complete', id: file.id }))
+	await waitForLowWatermark(peer)
+	peer.send(
+		encodeControl({
+			type: 'transfer-complete',
+			id: file.id,
+			sent: file.bytes.byteLength,
+			chunkCount: file.chunkCount,
+			completedAt: Date.now()
+		})
+	)
 }
 
 export function downloadUrl(name: string, url: string) {

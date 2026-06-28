@@ -50,6 +50,7 @@ const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 const transferApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
 const textLimitLabel = '1MB'
 const fileLimitLabel = '20MB'
+const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v2'
 
 function normalizeCode(value: string) {
 	return value.trim().toUpperCase()
@@ -123,24 +124,42 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	useEffect(() => {
 		if (typeof window === 'undefined') return
 		const hash = window.location.hash.replace(/^#/, '')
-		if (!hash) return
-		const params = new URLSearchParams(hash)
-		if (params.get('mode') === 'lan') {
-			const roomId = params.get('room') || ''
-			const token = params.get('token') || ''
-			if (roomId && token) {
-				setMode('lan')
-				setLanInvite({ roomId, token })
-				window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-				return
+		if (hash) {
+			const params = new URLSearchParams(hash)
+			if (params.get('mode') === 'lan') {
+				const roomId = params.get('room') || ''
+				const token = params.get('token') || ''
+				if (roomId && token) {
+					const invite = { roomId, token }
+					setMode('lan')
+					setLanInvite(invite)
+					sessionStorage.setItem(LAN_INVITE_STORAGE_KEY, JSON.stringify(invite))
+					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+					return
+				}
 			}
+			const hashPassword = params.get('p')
+			if (!hashPassword) return
+			setMode('open')
+			setOpenPassword(hashPassword)
+			window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+			return
 		}
-		const hashPassword = params.get('p')
-		if (!hashPassword) return
-		setMode('open')
-		setOpenPassword(hashPassword)
-		window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-	}, [])
+
+		if (normalizeCode(initialCode)) return
+
+		const savedInvite = sessionStorage.getItem(LAN_INVITE_STORAGE_KEY)
+		if (!savedInvite) return
+		try {
+			const invite = JSON.parse(savedInvite) as { roomId?: unknown; token?: unknown }
+			if (typeof invite.roomId === 'string' && typeof invite.token === 'string' && invite.roomId && invite.token) {
+				setMode('lan')
+				setLanInvite({ roomId: invite.roomId, token: invite.token })
+			}
+		} catch {
+			sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
+		}
+	}, [initialCode])
 
 	const resultLink = result && typeof window !== 'undefined' ? `${window.location.origin}/t/${result.code}` : ''
 	const privateResultLink = resultLink && resultPassword ? `${resultLink}#p=${encodeURIComponent(resultPassword)}` : ''
@@ -328,7 +347,13 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 			</div>
 
 			{mode === 'lan' ? (
-				<LanTransferTool initialInvite={lanInvite} />
+				<LanTransferTool
+					initialInvite={lanInvite}
+					onLeaveSession={() => {
+						setLanInvite(null)
+						if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
+					}}
+				/>
 			) : (
 				<div className='grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]'>
 					<section className='min-w-0 space-y-5'>

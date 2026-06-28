@@ -15,21 +15,34 @@ import {
 	prepareLanFiles,
 	sendPreparedFile
 } from '@/lib/lan-transfer/file-transfer'
-import { LAN_LIMITS, type LanControlMessage, type LanPeer, type LanProgressState, type LanSession, type LanSignalMessage, type LanTransferRequest, type PreparedLanFile, type ReceivedLanFile } from '@/lib/lan-transfer/types'
+import { LAN_LIMITS, LAN_PROTOCOL_VERSION, type LanControlMessage, type LanPeer, type LanProgressState, type LanSession, type LanSignalMessage, type LanTransferRequest, type PreparedLanFile, type ReceivedLanFile } from '@/lib/lan-transfer/types'
+
 type LanTransferToolProps = {
 	initialInvite?: {
 		roomId: string
 		token: string
 	} | null
+	onLeaveSession?: () => void
 }
 
 type Session = LanSession
+
+type IncomingTransfer = {
+	request: LanTransferRequest
+	chunks: Uint8Array[]
+	received: number
+	chunkCount: number
+}
 
 const rtcConfig: RTCConfiguration = {
 	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 }
 
-export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) {
+function safeBlobPart(bytes: Uint8Array) {
+	return bytes as unknown as BlobPart
+}
+
+export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTransferToolProps) {
 	const [session, setSession] = useState<Session | null>(null)
 	const [remotePeer, setRemotePeer] = useState<LanPeer | null>(null)
 	const [connected, setConnected] = useState(false)
@@ -49,9 +62,10 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 	const remotePeerRef = useRef<LanPeer | null>(null)
 	const incomingRequestRef = useRef<LanTransferRequest | null>(null)
 	const outgoingFileRef = useRef<PreparedLanFile | null>(null)
-	const incomingFileRef = useRef<{ request: LanTransferRequest; chunks: Uint8Array[]; received: number } | null>(null)
+	const incomingFileRef = useRef<IncomingTransfer | null>(null)
 	const receivedFilesRef = useRef<ReceivedLanFile[]>([])
 	const transferBusyRef = useRef(false)
+	const ackTimerRef = useRef<number | null>(null)
 
 	useEffect(() => void (sessionRef.current = session), [session])
 	useEffect(() => void (remotePeerRef.current = remotePeer), [remotePeer])
@@ -83,45 +97,119 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 		}
 	}, [inviteLink])
 
+	const clearAckTimer = useCallback(() => {
+		if (ackTimerRef.current !== null) window.clearTimeout(ackTimerRef.current)
+		ackTimerRef.current = null
+	}, [])
+
+	const resetTransferState = useCallback(
+		(nextStatus?: string) => {
+			clearAckTimer()
+			incomingFileRef.current = null
+			incomingRequestRef.current = null
+			outgoingFileRef.current = null
+			transferBusyRef.current = false
+			setIncomingRequest(null)
+			setIncoming(null)
+			setOutgoing(null)
+			setTransferBusy(false)
+			if (nextStatus) setStatus(nextStatus)
+		},
+		[clearAckTimer]
+	)
+
 	const cleanupPeer = useCallback(() => {
-		peerRef.current?.destroy()
+		const peer = peerRef.current
 		peerRef.current = null
+		if (peer) peer.destroy()
 		setConnected(false)
 	}, [])
 
 	const sendControl = useCallback((message: LanControlMessage) => {
 		const peer = peerRef.current
 		if (!peer?.connected) return false
-		peer.send(encodeControl(message))
-		return true
+		try {
+			peer.send(encodeControl(message))
+			return true
+		} catch {
+			return false
+		}
 	}, [])
 
-	const finishIncomingTransfer = useCallback((id: string) => {
-		const current = incomingFileRef.current
-		if (!current || current.request.id !== id) return
-		const blob = new Blob(current.chunks.map(chunk => chunk.slice().buffer as ArrayBuffer), { type: current.request.mime || 'application/octet-stream' })
-		const url = URL.createObjectURL(blob)
-		const received = {
-			id,
-			name: current.request.name,
-			mime: current.request.mime,
-			size: current.request.size,
-			url,
-			receivedAt: Date.now()
-		}
-		setReceivedFiles(files => [received, ...files].slice(0, 8))
-		downloadUrl(received.name, url)
-		incomingFileRef.current = null
-		setIncoming(null)
-		setTransferBusy(false)
-		setStatus('接收完成，文件已准备下载。')
-	}, [])
+	const failTransfer = useCallback(
+		(reason: string) => {
+			sendControl({ type: 'transfer-cancel', id: incomingFileRef.current?.request.id || outgoingFileRef.current?.id || 'unknown', reason })
+			resetTransferState(reason)
+		},
+		[resetTransferState, sendControl]
+	)
+
+	const startAckTimer = useCallback(
+		(file: PreparedLanFile) => {
+			clearAckTimer()
+			ackTimerRef.current = window.setTimeout(() => {
+				if (outgoingFileRef.current?.id !== file.id) return
+				outgoingFileRef.current = null
+				transferBusyRef.current = false
+				setTransferBusy(false)
+				setOutgoing({ id: file.id, name: file.name, size: file.size, done: file.size, label: '等待确认超时' })
+				setStatus('文件已经发出，但对方没有返回接收确认。请确认手机页面没有刷新、锁屏或切到后台。')
+			}, LAN_LIMITS.receiveAckTimeoutMs)
+		},
+		[clearAckTimer]
+	)
+
+	const finishIncomingTransfer = useCallback(
+		(messageId: string, sent?: number, chunkCount?: number) => {
+			const current = incomingFileRef.current
+			if (!current || current.request.id !== messageId) return
+			if (typeof sent === 'number' && sent !== current.request.size) {
+				failTransfer(`发送端声明大小异常：${formatBytes(sent)} / ${formatBytes(current.request.size)}`)
+				return
+			}
+			if (typeof chunkCount === 'number' && chunkCount !== current.chunkCount) {
+				failTransfer(`分片数量异常：${current.chunkCount} / ${chunkCount}`)
+				return
+			}
+			if (current.received !== current.request.size) {
+				failTransfer(`接收不完整：${formatBytes(current.received)} / ${formatBytes(current.request.size)}`)
+				return
+			}
+			const blob = new Blob(current.chunks.map(safeBlobPart), { type: current.request.mime || 'application/octet-stream' })
+			const url = URL.createObjectURL(blob)
+			const received = {
+				id: messageId,
+				name: current.request.name,
+				mime: current.request.mime,
+				size: current.request.size,
+				url,
+				receivedAt: Date.now()
+			}
+			setReceivedFiles(files => [received, ...files].slice(0, 8))
+			downloadUrl(received.name, url)
+			incomingFileRef.current = null
+			transferBusyRef.current = false
+			setIncoming({ id: received.id, name: received.name, size: received.size, done: received.size, label: '接收完成' })
+			setTransferBusy(false)
+			setStatus('接收完成，文件已准备下载，并已向对方确认。')
+			sendControl({ type: 'transfer-received', id: messageId, received: received.size, expected: received.size, receivedAt: Date.now() })
+		},
+		[failTransfer, sendControl]
+	)
 
 	const handleControl = useCallback(
 		async (message: LanControlMessage) => {
 			if (message.type === 'transfer-request') {
+				if (message.protocolVersion !== LAN_PROTOCOL_VERSION) {
+					sendControl({ type: 'transfer-reject', id: message.id, reason: '双方局域网互传协议版本不一致，请刷新两个页面后重试' })
+					return
+				}
 				if (transferBusyRef.current || incomingRequestRef.current) {
 					sendControl({ type: 'transfer-reject', id: message.id, reason: '当前有传输正在进行' })
+					return
+				}
+				if (message.size > LAN_LIMITS.maxBytes) {
+					sendControl({ type: 'transfer-reject', id: message.id, reason: `单次最多 ${formatBytes(LAN_LIMITS.maxBytes)}` })
 					return
 				}
 				setIncomingRequest(message)
@@ -132,34 +220,55 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 				const file = outgoingFileRef.current
 				const peer = peerRef.current
 				if (!file || !peer || file.id !== message.id) return
-				setStatus('对方已接收，正在发送文件...')
+				setStatus('对方已接收，正在稳定发送文件...')
 				setOutgoing({ id: file.id, name: file.name, size: file.size, done: 0, label: '正在发送' })
-				await sendPreparedFile(peer, file, done => setOutgoing({ id: file.id, name: file.name, size: file.size, done, label: '正在发送' }))
+				try {
+					await sendPreparedFile(peer, file, done => setOutgoing({ id: file.id, name: file.name, size: file.size, done, label: '正在发送' }))
+					setOutgoing({ id: file.id, name: file.name, size: file.size, done: file.size, label: '等待对方确认' })
+					setStatus('文件已发出，正在等待对方浏览器确认接收完成...')
+					startAckTimer(file)
+				} catch (error) {
+					outgoingFileRef.current = null
+					transferBusyRef.current = false
+					setTransferBusy(false)
+					setOutgoing({ id: file.id, name: file.name, size: file.size, done: 0, label: '发送失败' })
+					setStatus(error instanceof Error ? error.message : '发送失败')
+				}
+				return
+			}
+			if (message.type === 'transfer-received') {
+				const file = outgoingFileRef.current
+				if (!file || file.id !== message.id) return
+				clearAckTimer()
+				if (message.received !== file.size || message.expected !== file.size) {
+					outgoingFileRef.current = null
+					transferBusyRef.current = false
+					setTransferBusy(false)
+					setOutgoing({ id: file.id, name: file.name, size: file.size, done: message.received, label: '对方接收异常' })
+					setStatus(`对方接收大小异常：${formatBytes(message.received)} / ${formatBytes(file.size)}`)
+					return
+				}
 				outgoingFileRef.current = null
-				setOutgoing({ id: file.id, name: file.name, size: file.size, done: file.size, label: '发送完成' })
-				setSelectedFiles([])
+				transferBusyRef.current = false
 				setTransferBusy(false)
-				setStatus('发送完成。')
+				setSelectedFiles([])
+				setOutgoing({ id: file.id, name: file.name, size: file.size, done: file.size, label: '对方已接收' })
+				setStatus('对方已确认接收完成。')
 				return
 			}
 			if (message.type === 'transfer-reject') {
-				outgoingFileRef.current = null
-				setOutgoing(null)
-				setTransferBusy(false)
-				setStatus(message.reason || '对方拒绝接收。')
+				resetTransferState(message.reason || '对方拒绝接收。')
 				return
 			}
-			if (message.type === 'transfer-complete') finishIncomingTransfer(message.id)
+			if (message.type === 'transfer-complete') {
+				finishIncomingTransfer(message.id, message.sent, message.chunkCount)
+				return
+			}
 			if (message.type === 'transfer-cancel') {
-				incomingFileRef.current = null
-				outgoingFileRef.current = null
-				setIncoming(null)
-				setOutgoing(null)
-				setTransferBusy(false)
-				setStatus(message.reason || '传输已取消。')
+				resetTransferState(message.reason || '传输已取消。')
 			}
 		},
-		[finishIncomingTransfer, sendControl]
+		[clearAckTimer, finishIncomingTransfer, resetTransferState, sendControl, startAckTimer]
 	)
 
 	const handlePeerData = useCallback(
@@ -167,13 +276,19 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 			const frame = decodeFrame(data)
 			if (!frame) return
 			if (frame.kind === 'control') {
-				void handleControl(frame.message).catch(error => (setTransferBusy(false), setStatus(error instanceof Error ? error.message : '传输失败')))
+				void handleControl(frame.message).catch(error => (resetTransferState(error instanceof Error ? error.message : '传输失败')))
 				return
 			}
 			const current = incomingFileRef.current
 			if (!current) return
+			const nextReceived = current.received + frame.bytes.byteLength
+			if (nextReceived > current.request.size) {
+				failTransfer(`收到的数据超过声明大小：${formatBytes(nextReceived)} / ${formatBytes(current.request.size)}`)
+				return
+			}
 			current.chunks.push(frame.bytes)
-			current.received += frame.bytes.byteLength
+			current.received = nextReceived
+			current.chunkCount += 1
 			setIncoming({
 				id: current.request.id,
 				name: current.request.name,
@@ -182,33 +297,46 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 				label: '正在接收'
 			})
 		},
-		[handleControl]
+		[failTransfer, handleControl, resetTransferState]
 	)
+
+	const closeCurrentConnection = useCallback((nextStatus = '连接已断开，可以重新扫码连接。') => {
+		cleanupPeer()
+		setRemotePeer(null)
+		resetTransferState(nextStatus)
+	}, [cleanupPeer, resetTransferState])
 
 	const createPeer = useCallback(
 		(initiator: boolean, remotePeerId: string) => {
 			if (peerRef.current) return peerRef.current
-			const peer = new SimplePeer({ initiator, trickle: true, channelName: 'file', config: rtcConfig })
+			const peer = new SimplePeer({ initiator, trickle: true, channelName: 'file-v2', config: rtcConfig })
 			peer.on('signal', signal => {
 				void signalClientRef.current?.sendSignal(remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '信令发送失败'))
 			})
 			peer.on('connect', () => {
+				if (peerRef.current !== peer) return
 				setConnected(true)
 				setStatus('点对点连接已建立，双方都可以发送文件。')
 			})
 			peer.on('data', handlePeerData)
 			peer.on('close', () => {
+				if (peerRef.current !== peer) return
+				peerRef.current = null
 				setConnected(false)
-				setStatus('连接已断开。')
+				setRemotePeer(null)
+				resetTransferState('连接已断开，可以重新扫码连接。')
 			})
 			peer.on('error', error => {
+				if (peerRef.current !== peer) return
+				peerRef.current = null
 				setConnected(false)
-				setStatus(error instanceof Error ? error.message : 'WebRTC 连接失败')
+				setRemotePeer(null)
+				resetTransferState(error instanceof Error ? error.message : 'WebRTC 连接失败')
 			})
 			peerRef.current = peer
 			return peer
 		},
-		[handlePeerData]
+		[handlePeerData, resetTransferState]
 	)
 
 	const handleSignalMessage = useCallback(
@@ -216,7 +344,10 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 			const current = sessionRef.current
 			if (!current) return
 			const knownRemote = remotePeerRef.current
-			if (knownRemote && knownRemote.id !== message.peerId) return
+			if (knownRemote && knownRemote.id !== message.peerId) {
+				if (message.type !== 'hello') return
+				closeCurrentConnection('检测到对方刷新或重新扫码，正在重建连接...')
+			}
 
 			if (message.peer) setRemotePeer(message.peer)
 			if (message.type === 'hello') {
@@ -235,12 +366,10 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 				return
 			}
 			if (message.type === 'peer-left') {
-				cleanupPeer()
-				setRemotePeer(null)
-				setStatus('对方设备已离开。')
+				closeCurrentConnection('对方设备已离开。')
 			}
 		},
-		[cleanupPeer, createPeer]
+		[closeCurrentConnection, createPeer]
 	)
 
 	const startSignaling = useCallback(
@@ -267,9 +396,7 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 
 	const handleCreateRoom = async () => {
 		setBusy(true)
-		cleanupPeer()
-		setRemotePeer(null)
-		setStatus('正在创建连接二维码...')
+		closeCurrentConnection('正在创建连接二维码...')
 		try {
 			const next = await createLanSession()
 			setSessionNow(next)
@@ -284,8 +411,7 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 	const handleJoinRoom = useCallback(
 		async (roomId: string, token: string) => {
 			setBusy(true)
-			cleanupPeer()
-			setStatus('正在加入对方设备...')
+			closeCurrentConnection('正在加入对方设备...')
 			try {
 				const next = await joinLanSession(roomId, token)
 				setSessionNow(next)
@@ -297,7 +423,7 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 				setBusy(false)
 			}
 		},
-		[cleanupPeer, startSignaling]
+		[closeCurrentConnection, startSignaling]
 	)
 
 	useEffect(() => {
@@ -307,16 +433,18 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 
 	useEffect(() => {
 		return () => {
+			clearAckTimer()
 			void signalClientRef.current?.close().catch(() => {})
 			peerRef.current?.destroy()
 			receivedFilesRef.current.forEach(file => URL.revokeObjectURL(file.url))
 		}
-	}, [])
+	}, [clearAckTimer])
 
 	const handleSendFiles = async () => {
 		const peer = peerRef.current
 		if (!peer?.connected || transferBusy || incomingRequest) return
 		setTransferBusy(true)
+		transferBusyRef.current = true
 		setStatus('正在准备文件...')
 		try {
 			const prepared = await prepareLanFiles(selectedFiles)
@@ -325,27 +453,30 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 			peer.send(
 				encodeControl({
 					type: 'transfer-request',
+					protocolVersion: LAN_PROTOCOL_VERSION,
 					id: prepared.id,
 					name: prepared.name,
 					mime: prepared.mime,
 					size: prepared.size,
-					fileCount: prepared.fileCount
+					fileCount: prepared.fileCount,
+					chunkSize: LAN_LIMITS.chunkSize,
+					chunkCount: prepared.chunkCount,
+					createdAt: Date.now()
 				})
 			)
 			setStatus('已发送接收请求，等待对方确认。')
 		} catch (error) {
-			setTransferBusy(false)
-			setOutgoing(null)
-			setStatus(error instanceof Error ? error.message : '发送失败')
+			resetTransferState(error instanceof Error ? error.message : '发送失败')
 		}
 	}
 
 	const acceptIncoming = () => {
 		if (!incomingRequest) return
-		incomingFileRef.current = { request: incomingRequest, chunks: [], received: 0 }
+		incomingFileRef.current = { request: incomingRequest, chunks: [], received: 0, chunkCount: 0 }
 		setIncoming({ id: incomingRequest.id, name: incomingRequest.name, size: incomingRequest.size, done: 0, label: '等待数据' })
+		transferBusyRef.current = true
 		setTransferBusy(true)
-		sendControl({ type: 'transfer-accept', id: incomingRequest.id })
+		sendControl({ type: 'transfer-accept', id: incomingRequest.id, acceptedAt: Date.now() })
 		setIncomingRequest(null)
 		setStatus('已接收请求，正在等待文件数据。')
 	}
@@ -366,15 +497,12 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 	const leaveSession = () => {
 		void signalClientRef.current?.close().catch(() => {})
 		signalClientRef.current = null
-		cleanupPeer()
+		closeCurrentConnection('创建二维码后，用另一台设备扫码配对。')
 		setSession(null)
 		setRemotePeer(null)
 		setQrDataUrl('')
-		setIncomingRequest(null)
-		setIncoming(null)
-		setOutgoing(null)
-		setTransferBusy(false)
-		setStatus('创建二维码后，用另一台设备扫码配对。')
+		setSelectedFiles([])
+		onLeaveSession?.()
 	}
 
 	return (
@@ -403,7 +531,7 @@ export function LanTransferTool({ initialInvite = null }: LanTransferToolProps) 
 						<div className='min-h-[150px] rounded-2xl border border-dashed border-border bg-background/30 p-5 text-left'>
 							<Wifi className='mb-4 text-secondary' size={28} />
 							<span className='block text-base font-semibold'>扫码后等待连接</span>
-							<span className='text-secondary mt-2 block text-sm leading-6'>手机扫电脑、电脑扫手机都可以，角色只影响谁先发起 WebRTC。</span>
+							<span className='text-secondary mt-2 block text-sm leading-6'>手机扫电脑、电脑扫手机都可以，刷新后会自动重建连接。</span>
 						</div>
 					</div>
 				) : (

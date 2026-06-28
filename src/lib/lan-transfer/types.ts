@@ -1,9 +1,13 @@
 export const LAN_LIMITS = {
 	maxBytes: 200 * 1024 * 1024,
-	chunkSize: 64 * 1024,
-	bufferHighWatermark: 1024 * 1024,
-	bufferLowWatermark: 256 * 1024
+	chunkSize: 32 * 1024,
+	bufferHighWatermark: 512 * 1024,
+	bufferLowWatermark: 128 * 1024,
+	bufferDrainTimeoutMs: 45 * 1000,
+	receiveAckTimeoutMs: 90 * 1000
 } as const
+
+export const LAN_PROTOCOL_VERSION = 2
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
@@ -41,16 +45,21 @@ export type LanSignalMessage = {
 
 export type LanTransferRequest = {
 	type: 'transfer-request'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	id: string
 	name: string
 	mime: string
 	size: number
 	fileCount: number
+	chunkSize: number
+	chunkCount: number
+	createdAt: number
 }
 
 export type LanTransferAccept = {
 	type: 'transfer-accept'
 	id: string
+	acceptedAt: number
 }
 
 export type LanTransferReject = {
@@ -62,6 +71,17 @@ export type LanTransferReject = {
 export type LanTransferComplete = {
 	type: 'transfer-complete'
 	id: string
+	sent: number
+	chunkCount: number
+	completedAt: number
+}
+
+export type LanTransferReceived = {
+	type: 'transfer-received'
+	id: string
+	received: number
+	expected: number
+	receivedAt: number
 }
 
 export type LanTransferCancel = {
@@ -70,7 +90,7 @@ export type LanTransferCancel = {
 	reason?: string
 }
 
-export type LanControlMessage = LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferCancel
+export type LanControlMessage = LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferReceived | LanTransferCancel
 
 export type PreparedLanFile = {
 	id: string
@@ -78,6 +98,7 @@ export type PreparedLanFile = {
 	mime: string
 	size: number
 	fileCount: number
+	chunkCount: number
 	bytes: Uint8Array
 }
 
