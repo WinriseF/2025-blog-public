@@ -192,7 +192,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTra
 			setIncoming({ id: received.id, name: received.name, size: received.size, done: received.size, label: '接收完成' })
 			setTransferBusy(false)
 			setStatus('接收完成，文件已准备下载，并已向对方确认。')
-			sendControl({ type: 'transfer-received', id: messageId, received: received.size, expected: received.size, receivedAt: Date.now() })
+			sendControl({ type: 'transfer-received', id: messageId, received: received.size, expected: received.size })
 		},
 		[failTransfer, sendControl]
 	)
@@ -458,10 +458,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTra
 					name: prepared.name,
 					mime: prepared.mime,
 					size: prepared.size,
-					fileCount: prepared.fileCount,
-					chunkSize: LAN_LIMITS.chunkSize,
-					chunkCount: prepared.chunkCount,
-					createdAt: Date.now()
+					fileCount: prepared.fileCount
 				})
 			)
 			setStatus('已发送接收请求，等待对方确认。')
@@ -476,7 +473,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTra
 		setIncoming({ id: incomingRequest.id, name: incomingRequest.name, size: incomingRequest.size, done: 0, label: '等待数据' })
 		transferBusyRef.current = true
 		setTransferBusy(true)
-		sendControl({ type: 'transfer-accept', id: incomingRequest.id, acceptedAt: Date.now() })
+		sendControl({ type: 'transfer-accept', id: incomingRequest.id })
 		setIncomingRequest(null)
 		setStatus('已接收请求，正在等待文件数据。')
 	}
@@ -508,17 +505,17 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTra
 	return (
 		<div className='grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]'>
 			<section className='space-y-4'>
-				<div className='rounded-2xl border border-brand/20 bg-brand/5 p-5'>
-					<div className='flex flex-wrap items-start justify-between gap-4'>
-						<div>
+				<div className='rounded-2xl border border-brand/20 bg-brand/5 p-5 max-sm:p-4'>
+					<div className='flex flex-wrap items-center justify-between gap-3'>
+						<div className='min-w-0'>
 							<p className='text-secondary text-xs tracking-[0.18em] uppercase'>LAN SESSION</p>
 							<h2 className='mt-1 text-lg font-semibold'>局域网互传</h2>
-							<p className='text-secondary mt-2 text-sm leading-6'>二维码只负责配对。连接成功后，两台设备都能发送，也都能接收。</p>
 						</div>
-						<div className={`rounded-full px-3 py-1.5 text-xs font-medium ${connected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-background/60 text-secondary'}`}>
+						<div className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${connected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-background/60 text-secondary'}`}>
 							{connected ? '已直连' : session ? '连接中' : '未连接'}
 						</div>
 					</div>
+					<p className='text-secondary mt-3 text-sm leading-6 max-sm:text-xs'>扫码配对后，双方都能发送和接收。</p>
 				</div>
 
 				{!session ? (
@@ -537,18 +534,18 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTra
 				) : (
 					<div className='space-y-4'>
 						<div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]'>
-							<div className='rounded-2xl border border-border bg-article p-5'>
-								<div className='flex flex-wrap items-center justify-between gap-3'>
-									<div>
+							<div className='rounded-2xl border border-border bg-article p-5 max-sm:p-4'>
+								<div className='flex items-start justify-between gap-3'>
+									<div className='min-w-0'>
 										<p className='text-secondary text-xs'>对方设备</p>
-										<p className='mt-1 text-base font-semibold'>{remotePeer?.name || '等待另一台设备'}</p>
+										<p className='mt-1 truncate text-base font-semibold'>{remotePeer?.name || '等待另一台设备'}</p>
+										<p className='text-secondary mt-3 text-sm'>{connected ? '点对点通道已打开。' : '等待信令和 WebRTC 建连。'}</p>
 									</div>
-									<button onClick={leaveSession} className='flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-secondary'>
+									<button onClick={leaveSession} className='flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-secondary'>
 										<X size={14} />
 										离开
 									</button>
 								</div>
-								<p className='text-secondary mt-4 text-sm'>{connected ? '点对点通道已打开。' : '保持页面打开，正在等待信令和 WebRTC 建连。'}</p>
 							</div>
 							{session.role === 'host' && (
 								<div className='rounded-2xl border border-border bg-white p-3 text-center shadow-sm'>

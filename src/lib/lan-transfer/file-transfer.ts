@@ -206,8 +206,7 @@ export async function sendPreparedFile(peer: SimplePeer.Instance, file: Prepared
 			type: 'transfer-complete',
 			id: file.id,
 			sent: file.bytes.byteLength,
-			chunkCount: file.chunkCount,
-			completedAt: Date.now()
+			chunkCount: file.chunkCount
 		})
 	)
 }

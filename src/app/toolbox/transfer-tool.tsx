@@ -333,7 +333,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	}
 
 	return (
-		<div className='space-y-5'>
+		<div className='space-y-5 max-sm:px-4'>
 			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
 				<button onClick={() => setMode('create')} className={`rounded-full px-4 py-2 text-xs font-medium ${mode === 'create' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
 					创建中转

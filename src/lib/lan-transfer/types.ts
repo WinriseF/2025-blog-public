@@ -51,15 +51,11 @@ export type LanTransferRequest = {
 	mime: string
 	size: number
 	fileCount: number
-	chunkSize: number
-	chunkCount: number
-	createdAt: number
 }
 
 export type LanTransferAccept = {
 	type: 'transfer-accept'
 	id: string
-	acceptedAt: number
 }
 
 export type LanTransferReject = {
@@ -73,7 +69,6 @@ export type LanTransferComplete = {
 	id: string
 	sent: number
 	chunkCount: number
-	completedAt: number
 }
 
 export type LanTransferReceived = {
@@ -81,7 +76,6 @@ export type LanTransferReceived = {
 	id: string
 	received: number
 	expected: number
-	receivedAt: number
 }
 
 export type LanTransferCancel = {

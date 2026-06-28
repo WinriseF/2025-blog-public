@@ -37,7 +37,7 @@ export function MarkdownTool() {
 	}
 
 	return (
-		<div className='grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
+		<div className='grid gap-6 max-sm:px-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
 			<section className='flex min-h-[640px] flex-col max-sm:min-h-0'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>

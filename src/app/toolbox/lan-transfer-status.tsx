@@ -21,20 +21,20 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 	const progressItems = [outgoing, incoming].filter((item): item is LanProgressState => Boolean(item))
 
 	return (
-		<aside className='space-y-4 rounded-2xl border border-border bg-background/30 p-5 xl:sticky xl:top-24'>
+		<aside className='space-y-4 rounded-2xl border border-border bg-background/30 p-5 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 xl:sticky xl:top-24'>
 			<div>
-				<p className='text-secondary text-xs tracking-[0.18em] uppercase'>P2P</p>
-				<h3 className='mt-1 text-base font-semibold'>传输状态</h3>
-				<p className='text-secondary mt-2 text-sm leading-6'>文件主体只走浏览器点对点通道。传输中请保持两个页面打开。</p>
-			</div>
-
-			<div className='rounded-2xl border border-border bg-article px-4 py-3 text-sm text-secondary'>
-				{busy && <Loader2 className='mr-2 inline animate-spin' size={14} />}
-				{status}
+				<div className='flex items-center justify-between gap-3'>
+					<div>
+						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>P2P</p>
+						<h3 className='mt-1 text-base font-semibold'>传输状态</h3>
+					</div>
+					{busy && <Loader2 className='text-secondary shrink-0 animate-spin' size={16} />}
+				</div>
+				<p className='text-secondary mt-3 text-sm leading-6'>{status || '等待连接或文件操作。'}</p>
 			</div>
 
 			{progressItems.map(item => (
-				<div key={item.id} className='rounded-2xl border border-border bg-article p-4'>
+				<div key={item.id} className='rounded-2xl border border-border bg-article p-4 max-sm:p-4'>
 					<div className='flex justify-between gap-3 text-sm'>
 						<span className='truncate font-medium'>{item.name}</span>
 						<span className='text-secondary shrink-0'>{progressPercent(item)}%</span>
