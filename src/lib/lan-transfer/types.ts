@@ -1,17 +1,28 @@
-export const LAN_LIMITS = {
-	maxBytes: 200 * 1024 * 1024,
-	chunkSize: 32 * 1024,
-	bufferHighWatermark: 512 * 1024,
-	bufferLowWatermark: 128 * 1024,
-	bufferDrainTimeoutMs: 45 * 1000,
-	receiveAckTimeoutMs: 90 * 1000
-} as const
+export const LAN_PROTOCOL_VERSION = 3
 
-export const LAN_PROTOCOL_VERSION = 2
+export const LAN_LIMITS = {
+	memoryMaxBytes: 200 * 1024 * 1024,
+	multiFileZipMaxBytes: 500 * 1024 * 1024,
+	indexedDbRecommendedBytes: 2 * 1024 * 1024 * 1024,
+	opfsRecommendedBytes: 10 * 1024 * 1024 * 1024,
+	experimentalMaxBytes: 50 * 1024 * 1024 * 1024,
+	defaultChunkSize: 256 * 1024,
+	mobileChunkSize: 128 * 1024,
+	legacyChunkSize: 64 * 1024,
+	bufferHighWatermark: 8 * 1024 * 1024,
+	bufferLowWatermark: 2 * 1024 * 1024,
+	mobileBufferHighWatermark: 4 * 1024 * 1024,
+	mobileBufferLowWatermark: 1 * 1024 * 1024,
+	bufferDrainTimeoutMs: 60 * 1000,
+	receiveAckTimeoutMs: 10 * 60 * 1000
+} as const
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
 export type LanSignalType = 'hello' | 'signal' | 'peer-left'
+export type LanStorageKind = 'memory' | 'opfs' | 'indexeddb'
+export type LanBrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari' | 'wechat' | 'qq' | 'unknown'
+export type LanPlatformKind = 'desktop' | 'android' | 'ios' | 'unknown'
 
 export type LanPeer = {
 	id: string
@@ -43,6 +54,32 @@ export type LanSignalMessage = {
 	signal?: unknown
 }
 
+export type LanCapability = {
+	type: 'capability'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	platform: LanPlatformKind
+	browser: LanBrowserKind
+	isEmbeddedBrowser: boolean
+	storage: {
+		memory: true
+		opfs: boolean
+		indexedDB: boolean
+		fileSystemAccess: boolean
+		quota?: number
+		usage?: number
+		available?: number
+		persisted?: boolean
+	}
+	limits: {
+		maxRecommendedFileSize: number
+		maxExperimentalFileSize: number
+		recommendedChunkSize: number
+		recommendedStorage: LanStorageKind
+	}
+	notes: string[]
+}
+
 export type LanTransferRequest = {
 	type: 'transfer-request'
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
@@ -51,11 +88,16 @@ export type LanTransferRequest = {
 	mime: string
 	size: number
 	fileCount: number
+	lastModified: number
+	chunkSize: number
+	chunkCount: number
+	suggestedStorage: LanStorageKind
 }
 
 export type LanTransferAccept = {
 	type: 'transfer-accept'
 	id: string
+	storage: LanStorageKind
 }
 
 export type LanTransferReject = {
@@ -76,6 +118,8 @@ export type LanTransferReceived = {
 	id: string
 	received: number
 	expected: number
+	chunkCount: number
+	storage: LanStorageKind
 }
 
 export type LanTransferCancel = {
@@ -84,7 +128,7 @@ export type LanTransferCancel = {
 	reason?: string
 }
 
-export type LanControlMessage = LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferReceived | LanTransferCancel
+export type LanControlMessage = LanCapability | LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferReceived | LanTransferCancel
 
 export type PreparedLanFile = {
 	id: string
@@ -92,8 +136,11 @@ export type PreparedLanFile = {
 	mime: string
 	size: number
 	fileCount: number
+	lastModified: number
+	chunkSize: number
 	chunkCount: number
-	bytes: Uint8Array
+	file: File
+	suggestedStorage: LanStorageKind
 }
 
 export type ReceivedLanFile = {
@@ -102,6 +149,7 @@ export type ReceivedLanFile = {
 	mime: string
 	size: number
 	url: string
+	storage: LanStorageKind
 	receivedAt: number
 }
 
@@ -111,4 +159,5 @@ export type LanProgressState = {
 	size: number
 	done: number
 	label: string
+	stage?: string
 }

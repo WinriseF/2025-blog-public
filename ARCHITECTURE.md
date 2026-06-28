@@ -391,9 +391,10 @@ LAN transfer flow:
 3. The QR token stays in the URL hash. The browser hashes it locally and sends only `tokenHash` in Supabase Realtime payloads.
 4. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>` and broadcast the `lan` event. Every payload carries `roomId`, `tokenHash`, `peerId`, and `ts`; received messages are ignored unless `roomId` and `tokenHash` match the local session.
 5. Supported signaling messages are `hello`, `signal`, and `peer-left`. No database tables, Supabase Storage objects, service role key, or secret key are used.
-6. The browser uses `simple-peer` to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `file-v2`.
+6. The browser uses `simple-peer` to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `file-v3`.
 7. Once connected, both devices are equal peers: either side can request to send files, and the other side must accept before receiving.
-8. Single files are sent directly in 32KB DataChannel chunks. Multiple files are packaged into a ZIP with `fflate` and sent as one payload. The sender waits for the DataChannel buffer to drain and marks a send complete only after the receiver returns a final received acknowledgement.
+8. Each send gets a fresh random transfer id. Single files are sent directly; multiple files are packaged into a ZIP with `fflate` and sent as one payload. Chunks default to 256KB, with smaller recommended chunks on mobile peers, and `fileId + chunkIndex` are used only for ordered validation and idempotent writes.
+9. The receiver writes chunks through memory, IndexedDB, or OPFS depending on browser capability and file size. Successful completion creates an object URL for the current page download, then clears intermediate chunk storage; cancel, disconnect, write failure, and validation failure paths also clear the current incoming transfer. Cross-reconnect resume is not currently promised without stronger content verification.
 
 Important constraints:
 

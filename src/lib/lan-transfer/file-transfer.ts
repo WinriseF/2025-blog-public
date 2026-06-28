@@ -1,6 +1,6 @@
 import type SimplePeer from 'simple-peer'
 import { zipSync } from 'fflate'
-import { LAN_LIMITS, type LanControlMessage, type PreparedLanFile } from './types'
+import { LAN_LIMITS, type LanControlMessage, type LanStorageKind, type PreparedLanFile } from './types'
 
 const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
@@ -39,42 +39,64 @@ function timestampName() {
 }
 
 export function formatBytes(bytes: number) {
+	if (!Number.isFinite(bytes)) return '未知'
 	if (bytes < 1024) return `${bytes} B`
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-	return `${(bytes / 1024 / 1024).toFixed(bytes < 100 * 1024 * 1024 ? 1 : 0)} MB`
+	if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(bytes < 100 * 1024 * 1024 ? 1 : 0)} MB`
+	return `${(bytes / 1024 / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 * 1024 ? 2 : 1)} GB`
 }
 
-export async function prepareLanFiles(files: File[]) {
+function safeBlobPart(bytes: Uint8Array) {
+	return bytes as unknown as BlobPart
+}
+
+export type PrepareLanFileOptions = {
+	chunkSize?: number
+	suggestedStorage?: LanStorageKind
+	maxBytes?: number
+}
+
+export async function prepareLanFiles(files: File[], options: PrepareLanFileOptions = {}) {
 	if (!files.length) throw new Error('请先选择文件')
 	const totalSize = files.reduce((sum, file) => sum + file.size, 0)
-	if (totalSize > LAN_LIMITS.maxBytes) throw new Error(`局域网互传单次最多 ${formatBytes(LAN_LIMITS.maxBytes)}`)
+	const maxBytes = options.maxBytes || LAN_LIMITS.experimentalMaxBytes
+	if (totalSize > maxBytes) throw new Error(`当前接收设备最多建议 ${formatBytes(maxBytes)}`)
+	const chunkSize = options.chunkSize || LAN_LIMITS.defaultChunkSize
+	const suggestedStorage = options.suggestedStorage || (totalSize <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'opfs')
 
 	if (files.length === 1) {
 		const file = files[0]
-		const bytes = new Uint8Array(await file.arrayBuffer())
 		return {
 			id: transferId(),
 			name: file.name || 'lan-transfer-file',
 			mime: file.type || 'application/octet-stream',
-			size: bytes.byteLength,
+			size: file.size,
 			fileCount: 1,
-			chunkCount: Math.ceil(bytes.byteLength / LAN_LIMITS.chunkSize),
-			bytes
+			lastModified: file.lastModified || Date.now(),
+			chunkSize,
+			chunkCount: Math.ceil(file.size / chunkSize),
+			file,
+			suggestedStorage
 		} satisfies PreparedLanFile
 	}
 
+	if (totalSize > LAN_LIMITS.multiFileZipMaxBytes) throw new Error(`多文件浏览器端 ZIP 打包最多 ${formatBytes(LAN_LIMITS.multiFileZipMaxBytes)}。超大多文件请先在系统文件管理器打包后再发送。`)
 	const used = new Set<string>()
 	const entries: Record<string, Uint8Array> = {}
 	for (const file of files) entries[uniqueName(file.name, used)] = new Uint8Array(await file.arrayBuffer())
 	const bytes = zipSync(entries, { level: 0 })
+	const zipFile = new File([safeBlobPart(bytes)], timestampName(), { type: 'application/zip', lastModified: Date.now() })
 	return {
 		id: transferId(),
-		name: timestampName(),
+		name: zipFile.name,
 		mime: 'application/zip',
-		size: bytes.byteLength,
+		size: zipFile.size,
 		fileCount: files.length,
-		chunkCount: Math.ceil(bytes.byteLength / LAN_LIMITS.chunkSize),
-		bytes
+		lastModified: zipFile.lastModified,
+		chunkSize,
+		chunkCount: Math.ceil(zipFile.size / chunkSize),
+		file: zipFile,
+		suggestedStorage: zipFile.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : suggestedStorage
 	} satisfies PreparedLanFile
 }
 
@@ -86,10 +108,15 @@ export function encodeControl(message: LanControlMessage) {
 	return frame
 }
 
-export function encodeChunk(bytes: Uint8Array) {
-	const frame = new Uint8Array(bytes.byteLength + 1)
+export function encodeChunk(fileId: string, chunkIndex: number, bytes: Uint8Array) {
+	const header = encoder.encode(JSON.stringify({ id: fileId, index: chunkIndex }))
+	if (header.byteLength > 0xffff) throw new Error('分片头过大')
+	const frame = new Uint8Array(1 + 2 + header.byteLength + bytes.byteLength)
 	frame[0] = CHUNK_FRAME
-	frame.set(bytes, 1)
+	frame[1] = (header.byteLength >> 8) & 0xff
+	frame[2] = header.byteLength & 0xff
+	frame.set(header, 3)
+	frame.set(bytes, 3 + header.byteLength)
 	return frame
 }
 
@@ -104,7 +131,14 @@ export function decodeFrame(data: unknown) {
 	const bytes = toBytes(data)
 	if (!bytes.length) return null
 	if (bytes[0] === CONTROL_FRAME) return { kind: 'control' as const, message: JSON.parse(decoder.decode(bytes.slice(1))) as LanControlMessage }
-	if (bytes[0] === CHUNK_FRAME) return { kind: 'chunk' as const, bytes: bytes.slice(1) }
+	if (bytes[0] === CHUNK_FRAME) {
+		if (bytes.byteLength < 3) return null
+		const headerLength = (bytes[1] << 8) | bytes[2]
+		const headerEnd = 3 + headerLength
+		if (bytes.byteLength < headerEnd) return null
+		const header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number }
+		return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: bytes.slice(headerEnd) }
+	}
 	return null
 }
 
@@ -118,19 +152,20 @@ function getOpenDataChannel(peer: SimplePeer.Instance) {
 	return channel
 }
 
-async function waitForBufferedAmount(peer: SimplePeer.Instance) {
+async function waitForChannelBelow(peer: SimplePeer.Instance, highWatermark: number, lowWatermark: number) {
 	const startedAt = Date.now()
 	let channel = getOpenDataChannel(peer)
-	channel.bufferedAmountLowThreshold = LAN_LIMITS.bufferLowWatermark
-	while (channel.bufferedAmount > LAN_LIMITS.bufferHighWatermark) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送缓冲区长时间未释放，可能是对方页面已断开或手机浏览器被系统暂停')
+	channel.bufferedAmountLowThreshold = lowWatermark
+	while (channel.bufferedAmount > highWatermark) {
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送缓冲区长时间未释放，可能是对方页面已断开、锁屏或切到后台')
 		await new Promise<void>((resolve, reject) => {
 			let done = false
+			let timer: number | null = null
 			const cleanup = () => {
 				channel.removeEventListener('bufferedamountlow', onLow)
 				channel.removeEventListener('close', onClose)
 				channel.removeEventListener('error', onClose)
-				window.clearTimeout(timer)
+				if (timer !== null) window.clearTimeout(timer)
 			}
 			const finish = () => {
 				if (done) return
@@ -146,7 +181,7 @@ async function waitForBufferedAmount(peer: SimplePeer.Instance) {
 			}
 			const onLow = () => finish()
 			const onClose = () => fail()
-			const timer = window.setTimeout(finish, 120)
+			timer = window.setTimeout(finish, 250)
 			channel.addEventListener('bufferedamountlow', onLow)
 			channel.addEventListener('close', onClose, { once: true })
 			channel.addEventListener('error', onClose, { once: true })
@@ -155,19 +190,20 @@ async function waitForBufferedAmount(peer: SimplePeer.Instance) {
 	}
 }
 
-async function waitForLowWatermark(peer: SimplePeer.Instance) {
+async function waitForLowWatermark(peer: SimplePeer.Instance, lowWatermark: number) {
 	const startedAt = Date.now()
 	let channel = getOpenDataChannel(peer)
-	channel.bufferedAmountLowThreshold = LAN_LIMITS.bufferLowWatermark
-	while (channel.bufferedAmount > LAN_LIMITS.bufferLowWatermark) {
+	channel.bufferedAmountLowThreshold = lowWatermark
+	while (channel.bufferedAmount > lowWatermark) {
 		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送队列没有及时清空，请确认对方设备页面仍在前台')
 		await new Promise<void>((resolve, reject) => {
 			let done = false
+			let timer: number | null = null
 			const cleanup = () => {
 				channel.removeEventListener('bufferedamountlow', onLow)
 				channel.removeEventListener('close', onClose)
 				channel.removeEventListener('error', onClose)
-				window.clearTimeout(timer)
+				if (timer !== null) window.clearTimeout(timer)
 			}
 			const finish = () => {
 				if (done) return
@@ -183,7 +219,7 @@ async function waitForLowWatermark(peer: SimplePeer.Instance) {
 			}
 			const onLow = () => finish()
 			const onClose = () => fail()
-			const timer = window.setTimeout(finish, 120)
+			timer = window.setTimeout(finish, 250)
 			channel.addEventListener('bufferedamountlow', onLow)
 			channel.addEventListener('close', onClose, { once: true })
 			channel.addEventListener('error', onClose, { once: true })
@@ -192,20 +228,32 @@ async function waitForLowWatermark(peer: SimplePeer.Instance) {
 	}
 }
 
-export async function sendPreparedFile(peer: SimplePeer.Instance, file: PreparedLanFile, onProgress: (sent: number) => void) {
-	for (let offset = 0; offset < file.bytes.byteLength; offset += LAN_LIMITS.chunkSize) {
-		await waitForBufferedAmount(peer)
-		const chunk = file.bytes.subarray(offset, Math.min(offset + LAN_LIMITS.chunkSize, file.bytes.byteLength))
+export async function sendPreparedFile(
+	peer: SimplePeer.Instance,
+	file: PreparedLanFile,
+	onProgress: (sent: number) => void,
+	options: { mobile?: boolean } = {}
+) {
+	const highWatermark = options.mobile ? LAN_LIMITS.mobileBufferHighWatermark : LAN_LIMITS.bufferHighWatermark
+	const lowWatermark = options.mobile ? LAN_LIMITS.mobileBufferLowWatermark : LAN_LIMITS.bufferLowWatermark
+	let sent = 0
+	for (let chunkIndex = 0; chunkIndex < file.chunkCount; chunkIndex += 1) {
+		await waitForChannelBelow(peer, highWatermark, lowWatermark)
+		const offset = chunkIndex * file.chunkSize
+		if (offset >= file.size) continue
+		const blob = file.file.slice(offset, Math.min(offset + file.chunkSize, file.size))
+		const chunk = new Uint8Array(await blob.arrayBuffer())
 		getOpenDataChannel(peer)
-		peer.send(encodeChunk(chunk))
-		onProgress(Math.min(offset + chunk.byteLength, file.bytes.byteLength))
+		peer.send(encodeChunk(file.id, chunkIndex, chunk))
+		sent += chunk.byteLength
+		onProgress(Math.min(file.size, sent))
 	}
-	await waitForLowWatermark(peer)
+	await waitForLowWatermark(peer, lowWatermark)
 	peer.send(
 		encodeControl({
 			type: 'transfer-complete',
 			id: file.id,
-			sent: file.bytes.byteLength,
+			sent: file.size,
 			chunkCount: file.chunkCount
 		})
 	)

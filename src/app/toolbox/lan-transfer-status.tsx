@@ -43,7 +43,7 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 						<div className='h-full rounded-full bg-brand transition-all' style={{ width: `${progressPercent(item)}%` }} />
 					</div>
 					<p className='text-secondary mt-2 text-xs'>
-						{item.label} · {formatBytes(item.done)} / {formatBytes(item.size)}
+						{item.stage ? `${item.stage} · ` : ''}{item.label} · {formatBytes(item.done)} / {formatBytes(item.size)}
 					</p>
 				</div>
 			))}
@@ -56,7 +56,7 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 							<span className='truncate'>{file.name}</span>
 							<span className='text-secondary flex shrink-0 items-center gap-1 text-xs'>
 								<Download size={14} />
-								{formatBytes(file.size)}
+								{file.storage.toUpperCase()} · {formatBytes(file.size)}
 							</span>
 						</a>
 					))}
