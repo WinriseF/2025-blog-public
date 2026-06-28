@@ -250,8 +250,12 @@ export async function sendPreparedFile(
 		if (offset >= file.size) continue
 		const blob = file.file.slice(offset, Math.min(offset + file.chunkSize, file.size))
 		const chunk = new Uint8Array(await blob.arrayBuffer())
+		const frame = encodeChunk(file.id, chunkIndex, chunk)
+		if (frame.byteLength > 64 * 1024) {
+			throw new Error('单个 WebRTC 分片过大，请降低 DataChannel 分片大小后重试')
+		}
 		getOpenDataChannel(peer)
-		peer.send(encodeChunk(file.id, chunkIndex, chunk))
+		peer.send(frame)
 		sent += chunk.byteLength
 		onProgress(Math.min(file.size, sent))
 	}

@@ -7,8 +7,10 @@ export const LAN_LIMITS = {
 	indexedDbExperimentalBytes: 2 * 1024 * 1024 * 1024,
 	opfsRecommendedBytes: 10 * 1024 * 1024 * 1024,
 	experimentalMaxBytes: 50 * 1024 * 1024 * 1024,
-	dataChannelSafeChunkSize: 2 * 1024 * 1024,
-	defaultChunkSize: 256 * 1024,
+	// WebRTC DataChannel max-message-size can be much lower than OPFS/IDB write capacity.
+	// Keep every peer.send() frame safely below 64 KiB including our small frame header.
+	dataChannelSafeChunkSize: 60 * 1024,
+	defaultChunkSize: 60 * 1024,
 	opfsMobileChunkSize: 1024 * 1024,
 	opfsDesktopChunkSize: 2 * 1024 * 1024,
 	indexedDbChunkSize: 512 * 1024,
