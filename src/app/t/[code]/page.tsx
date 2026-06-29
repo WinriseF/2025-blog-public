@@ -10,7 +10,7 @@ type TransferPageContext = {
 export default async function Page({ params }: TransferPageContext) {
 	const { code } = await params
 	return (
-		<ToolPageShell eyebrow='Transfer' title='快传' description='公网中转 / 局域网互传' mobileFlush>
+		<ToolPageShell mobileFlush>
 			<TransferPageClient initialCode={code} />
 		</ToolPageShell>
 	)
