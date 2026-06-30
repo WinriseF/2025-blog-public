@@ -2,7 +2,7 @@ import type { LanStorageEngine, TransferFileMeta, TransferManifest } from './typ
 import { addRange, type ChunkRange } from './ranges'
 import { LAN_LIMITS } from '../types'
 
-const DB_NAME = 'winrisef-lan-transfer-v3'
+export const LAN_INDEXEDDB_NAME = 'winrisef-lan-transfer-v3'
 const DB_VERSION = 1
 const MANIFESTS = 'manifests'
 const CHUNKS = 'chunks'
@@ -52,7 +52,7 @@ let dbPromise: Promise<IDBDatabase> | null = null
 function openDb() {
 	if (dbPromise) return dbPromise
 	dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION)
+		const request = indexedDB.open(LAN_INDEXEDDB_NAME, DB_VERSION)
 		request.onupgradeneeded = () => {
 			const db = request.result
 			if (!db.objectStoreNames.contains(MANIFESTS)) db.createObjectStore(MANIFESTS, { keyPath: 'id' })
@@ -65,6 +65,13 @@ function openDb() {
 		request.onerror = () => reject(request.error || new Error('无法准备接收文件'))
 	})
 	return dbPromise
+}
+
+export async function closeLanIndexedDb() {
+	if (!dbPromise) return
+	const db = await dbPromise.catch(() => null)
+	db?.close()
+	dbPromise = null
 }
 
 export class IndexedDbStorageEngine implements LanStorageEngine {

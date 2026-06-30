@@ -2,7 +2,7 @@ import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanCapability } from '@/lib/lan-transfer/types'
 
 export const lanRtcConfig: RTCConfiguration = {
-	iceServers: [],
+	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 	iceCandidatePoolSize: 2
 }
 

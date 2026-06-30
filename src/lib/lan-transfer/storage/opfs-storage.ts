@@ -8,6 +8,7 @@ type FileHandle = FileSystemFileHandle
 const MANIFEST_FLUSH_CHUNKS = 64
 const MANIFEST_FLUSH_BYTES = 32 * 1024 * 1024
 const OPFS_BATCH_BYTES = 1024 * 1024
+export const LAN_OPFS_DIRECTORY_NAME = 'winrisef-lan-transfer-v3'
 
 type PendingWrite = {
 	chunkIndex: number
@@ -43,7 +44,7 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 async function rootDirectory() {
 	if (!navigator.storage || !('getDirectory' in navigator.storage)) throw new Error('当前浏览器不支持接收大文件')
 	const root = await navigator.storage.getDirectory()
-	return await root.getDirectoryHandle('winrisef-lan-transfer-v3', {
+	return await root.getDirectoryHandle(LAN_OPFS_DIRECTORY_NAME, {
 		create: true,
 	})
 }
