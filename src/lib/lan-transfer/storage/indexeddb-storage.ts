@@ -35,15 +35,15 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 function requestToPromise<T>(request: IDBRequest<T>) {
 	return new Promise<T>((resolve, reject) => {
 		request.onsuccess = () => resolve(request.result)
-		request.onerror = () => reject(request.error || new Error('IndexedDB 操作失败'))
+		request.onerror = () => reject(request.error || new Error('文件写入失败'))
 	})
 }
 
 function transactionDone(tx: IDBTransaction) {
 	return new Promise<void>((resolve, reject) => {
 		tx.oncomplete = () => resolve()
-		tx.onerror = () => reject(tx.error || new Error('IndexedDB 事务失败'))
-		tx.onabort = () => reject(tx.error || new Error('IndexedDB 事务被取消'))
+		tx.onerror = () => reject(tx.error || new Error('文件写入失败'))
+		tx.onabort = () => reject(tx.error || new Error('文件写入已取消'))
 	})
 }
 
@@ -62,7 +62,7 @@ function openDb() {
 			}
 		}
 		request.onsuccess = () => resolve(request.result)
-		request.onerror = () => reject(request.error || new Error('无法打开 IndexedDB'))
+		request.onerror = () => reject(request.error || new Error('无法准备接收文件'))
 	})
 	return dbPromise
 }
@@ -112,7 +112,7 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	}
 
 	async finalize(meta: TransferFileMeta) {
-		if (meta.size > LAN_LIMITS.indexedDbExperimentalBytes) throw new Error('IndexedDB 模式不支持导出超过 2GB 的文件，请使用支持 OPFS 的 Chrome / Edge。')
+		if (meta.size > LAN_LIMITS.indexedDbExperimentalBytes) throw new Error('当前浏览器不能接收这么大的文件。')
 		const db = await openDb()
 		const tx = db.transaction(CHUNKS, 'readonly')
 		const store = tx.objectStore(CHUNKS)

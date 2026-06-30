@@ -2,13 +2,13 @@ import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanCapability } from '@/lib/lan-transfer/types'
 
 export const lanRtcConfig: RTCConfiguration = {
-	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+	iceServers: [],
+	iceCandidatePoolSize: 2
 }
 
-export function capabilityLabel(capability: LanCapability | null) {
-	if (!capability) return '等待能力检测'
-	const storage = capability.limits.recommendedStorage.toUpperCase()
-	return `${capability.platform} · ${capability.browser} · ${storage} · 推荐 ${formatBytes(capability.limits.maxRecommendedFileSize)}`
+export function capabilityLimitLabel(capability: LanCapability | null) {
+	if (!capability) return '等待连接'
+	return `最高可接收 ${formatBytes(capability.limits.maxExperimentalFileSize)}`
 }
 
 export function totalSelectedSize(files: File[]) {

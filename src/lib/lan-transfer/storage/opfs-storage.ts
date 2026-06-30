@@ -41,7 +41,7 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 }
 
 async function rootDirectory() {
-	if (!navigator.storage || !('getDirectory' in navigator.storage)) throw new Error('当前浏览器不支持 OPFS')
+	if (!navigator.storage || !('getDirectory' in navigator.storage)) throw new Error('当前浏览器不支持接收大文件')
 	const root = await navigator.storage.getDirectory()
 	return await root.getDirectoryHandle('winrisef-lan-transfer-v3', {
 		create: true,
@@ -76,7 +76,7 @@ async function openWritable(handle: FileHandle, keepExistingData: boolean) {
 			createWritable?: (options?: { keepExistingData?: boolean }) => Promise<FileSystemWritableFileStream>
 		}
 	).createWritable
-	if (typeof createWritable !== 'function') throw new Error('当前浏览器 OPFS 不支持可写文件流，请改用 Chrome / Edge 或降级 IndexedDB。')
+	if (typeof createWritable !== 'function') throw new Error('当前浏览器不支持接收大文件')
 	return await createWritable.call(handle, { keepExistingData })
 }
 
@@ -103,7 +103,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 
 	private async flushBufferedData(active: ActiveOpfsFile, meta: TransferFileMeta) {
 		if (!active.writeBuffer.length) return active.manifest
-		if (!active.writable || active.closed) throw new Error('OPFS 写入器已经关闭，无法继续写入')
+		if (!active.writable || active.closed) throw new Error('文件写入已中断，请重新接收')
 		const first = active.writeBuffer[0]
 		const combined = combineBuffers(active.writeBuffer.map(item => item.data))
 		await active.writable.write({
@@ -228,7 +228,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		}
 		await this.flushManifest(meta.id)
 		const file = await active.dataHandle.getFile()
-		if (file.size !== meta.size) throw new Error(`OPFS 文件大小异常：${file.size} / ${meta.size}`)
+		if (file.size !== meta.size) throw new Error(`文件大小异常：${file.size} / ${meta.size}`)
 		const blob = new Blob([file], {
 			type: meta.mime || 'application/octet-stream',
 		})

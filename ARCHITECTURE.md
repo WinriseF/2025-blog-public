@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-06-28.
+Last updated: 2026-06-30.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -13,7 +13,7 @@ This document is written for future AI agents and maintainers. Read it before do
 - Hidden browser-side authoring tools that write content back to GitHub through the Git Data API.
 - A small amount of server-side routing for RSS and news proxy/parsing.
 - A separate Supabase Edge Function for likes.
-- An encrypted message/file transfer tool backed by EdgeOne Edge Functions and Pages Blob, plus LAN transfer signaling backed by Supabase Realtime Broadcast.
+- An encrypted message/file transfer tool backed by EdgeOne Edge Functions and Pages Blob, plus LAN transfer signaling backed by Supabase Realtime Presence and Broadcast.
 
 This is not a traditional CMS-backed blog. Most content is JSON, Markdown, and image references committed to the repo.
 
@@ -33,7 +33,7 @@ Primary stack:
 - `qrcode` for browser-side QR code generation in the transfer toolbox.
 - `simple-peer` and `fflate` for browser-side LAN transfer WebRTC sessions and ZIP packaging.
 - Netlify deployment through `@netlify/plugin-nextjs`.
-- Supabase Edge Function for the like endpoint and Supabase Realtime Broadcast for LAN transfer signaling.
+- Supabase Edge Function for the like endpoint and Supabase Realtime Presence and Broadcast for LAN transfer signaling.
 - EdgeOne Edge Functions and Pages Blob for the encrypted message transfer toolbox feature.
 
 Important config files:
@@ -389,9 +389,9 @@ LAN transfer flow:
 1. `/t` has a separate `局域网互传` tab independent from `创建中转` and `读取中转`.
 2. Any device can create a pairing QR code as WebRTC `host`; another device scans `/t#mode=lan&room=<roomId>&token=<roomToken>` and joins as `guest`.
 3. The QR token stays in the URL hash. The browser hashes it locally and sends only `tokenHash` in Supabase Realtime payloads.
-4. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>` and broadcast the `lan` event. Every payload carries `roomId`, `tokenHash`, `peerId`, and `ts`; received messages are ignored unless `roomId` and `tokenHash` match the local session.
-5. Supported signaling messages are `hello`, `signal`, and `peer-left`. No database tables, Supabase Storage objects, service role key, or secret key are used.
-6. The browser uses `simple-peer` to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `file-v3`.
+4. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>`, track peer presence, and use Broadcast only for the `lan` signaling event. Presence payloads carry `peerId`, `role`, `peer`, `tokenHash`, and `joinedAt`; Broadcast payloads carry `roomId`, `tokenHash`, `from`, `to`, `seq`, and `ts`.
+5. Supported signaling messages are `announce`, `signal`, and `peer-left`. `announce` is retried until connection or a short timeout, and can also be synthesized from Presence state so late joins and missed broadcasts can still discover the other peer. No database tables, Supabase Storage objects, service role key, or secret key are used.
+6. The browser uses `simple-peer` with LAN-only RTC config (`iceServers: []`) to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `file-v3`. There is intentionally no TURN server, STUN server, or WebSocket file relay fallback for this hotspot transfer mode.
 7. Once connected, both devices are equal peers: either side can request to send files, and the other side must accept before receiving.
 8. Each send gets a fresh random transfer id. Single files are sent directly; multiple files are packaged into a ZIP with `fflate` and sent as one payload. WebRTC DataChannel messages are capped to a conservative safe frame size before storage writes, and `fileId + chunkIndex` are used only for ordered validation and idempotent writes.
 9. The receiver writes chunks through memory, IndexedDB, or OPFS depending on browser capability and file size. Successful completion creates an object URL for the current page download and keeps the completed cache until the user clears it from the received-file list; cancel, disconnect, write failure, and validation failure paths clear the current incoming partial transfer. Cross-reconnect resume is not currently promised without stronger content verification.

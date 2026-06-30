@@ -1,10 +1,10 @@
 'use client'
 
 import type { ChangeEvent } from 'react'
-import { Copy, QrCode, Send, UploadCloud, Wifi, X } from 'lucide-react'
+import { Copy, QrCode, Send, UploadCloud, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import { LAN_LIMITS } from '@/lib/lan-transfer/types'
-import { capabilityLabel, totalSelectedSize } from './lan-transfer-controller-utils'
+import { totalSelectedSize } from './lan-transfer-controller-utils'
 import type { LanTransferController } from './use-lan-transfer-controller'
 
 type LanTransferSessionPanelProps = Pick<
@@ -12,11 +12,10 @@ type LanTransferSessionPanelProps = Pick<
 	| 'session'
 	| 'remotePeer'
 	| 'connected'
+	| 'connectionState'
 	| 'qrDataUrl'
 	| 'selectedFiles'
 	| 'incomingRequest'
-	| 'localCapability'
-	| 'remoteCapability'
 	| 'busy'
 	| 'transferBusy'
 	| 'setSelectedFiles'
@@ -32,11 +31,10 @@ export function LanTransferSessionPanel({
 	session,
 	remotePeer,
 	connected,
+	connectionState,
 	qrDataUrl,
 	selectedFiles,
 	incomingRequest,
-	localCapability,
-	remoteCapability,
 	busy,
 	transferBusy,
 	setSelectedFiles,
@@ -47,6 +45,16 @@ export function LanTransferSessionPanel({
 	copyInvite,
 	leaveSession
 }: LanTransferSessionPanelProps) {
+	const connectionLabel = {
+		idle: '未连接',
+		signaling: '连接中',
+		discovered: '连接中',
+		connecting: '连接中',
+		connected: '已连接',
+		failed: '连接失败'
+	}[connectionState]
+	const connectionTone = connectionState === 'connected' ? 'bg-emerald-500/10 text-emerald-500' : connectionState === 'failed' ? 'bg-red-500/10 text-red-500' : session ? 'bg-brand/10 text-brand' : 'bg-background/60 text-secondary'
+
 	return (
 		<section className='space-y-4'>
 			<div className='rounded-2xl border border-brand/20 bg-brand/5 p-5 max-sm:p-4'>
@@ -55,24 +63,17 @@ export function LanTransferSessionPanel({
 						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>LAN SESSION V3</p>
 						<h2 className='mt-1 text-lg font-semibold'>局域网互传</h2>
 					</div>
-					<div className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${connected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-background/60 text-secondary'}`}>
-						{connected ? '已直连' : session ? '连接中' : '未连接'}
-					</div>
+					<div className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${connectionTone}`}>{connectionLabel}</div>
 				</div>
-				<p className='text-secondary mt-3 text-sm leading-6 max-sm:text-xs'>OPFS 实验模式支持大文件；传输会按 WebRTC 安全大小切片，断线后需要重新发送</p>
 			</div>
 
 			{!session ? (
-				<div className='grid gap-3 sm:grid-cols-2'>
+				<div className='grid gap-3'>
 					<button onClick={() => void handleCreateRoom()} disabled={busy} className='min-h-[150px] rounded-2xl border border-border bg-article p-5 text-left transition hover:border-brand/50 disabled:opacity-50'>
 						<QrCode className='mb-4 text-brand' size={28} />
 						<span className='block text-base font-semibold'>创建连接二维码</span>
-						<span className='text-secondary mt-2 block text-sm leading-6'>让另一台设备扫码，建立双向互传会话</span>
+						<span className='text-secondary mt-2 block text-sm leading-6'>让另一台设备扫码连接</span>
 					</button>
-					<div className='min-h-[150px] rounded-2xl border border-dashed border-border bg-background/30 p-5 text-left'>
-						<Wifi className='mb-4 text-secondary' size={28} />
-						<span className='block text-base font-semibold'>OPFS 增强模式</span>
-					</div>
 				</div>
 			) : (
 				<div className='space-y-4'>
@@ -82,9 +83,7 @@ export function LanTransferSessionPanel({
 								<div className='min-w-0'>
 									<p className='text-secondary text-xs'>对方设备</p>
 									<p className='mt-1 truncate text-base font-semibold'>{remotePeer?.name || '等待另一台设备'}</p>
-									<p className='text-secondary mt-3 text-sm'>{connected ? '点对点通道已打开' : '等待信令和 WebRTC 建连'}</p>
-									<p className='text-secondary mt-2 text-xs'>对方能力：{capabilityLabel(remoteCapability)}</p>
-									<p className='text-secondary mt-1 text-xs'>本机能力：{capabilityLabel(localCapability)}</p>
+									<p className='text-secondary mt-3 text-sm'>{connected ? '已连接' : connectionState === 'failed' ? '连接失败' : '正在连接'}</p>
 								</div>
 								<button onClick={leaveSession} className='flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs text-secondary'>
 									<X size={14} />
@@ -107,7 +106,7 @@ export function LanTransferSessionPanel({
 						<UploadCloud className='mb-3 text-brand' size={30} />
 						<input type='file' multiple className='hidden' onChange={(event: ChangeEvent<HTMLInputElement>) => setSelectedFiles(Array.from(event.target.files || []))} />
 						<span className='font-semibold'>{selectedFiles.length ? `已选择 ${selectedFiles.length} 个文件` : '选择要发送的文件'}</span>
-						<span className='text-secondary mt-1 text-xs'>单文件大文件走流式传输；多文件会先 ZIP，建议不超过 {formatBytes(LAN_LIMITS.multiFileZipMaxBytes)}</span>
+						<span className='text-secondary mt-1 text-xs'>多文件建议不超过 {formatBytes(LAN_LIMITS.multiFileZipMaxBytes)}</span>
 					</label>
 
 					{selectedFiles.length > 0 && (
@@ -135,7 +134,7 @@ export function LanTransferSessionPanel({
 				<div className='rounded-2xl border border-brand/40 bg-brand/10 p-4'>
 					<p className='font-semibold'>{remotePeer?.name || '对方设备'} 想发送文件</p>
 					<p className='text-secondary mt-1 text-sm'>
-						{incomingRequest.name} · {incomingRequest.fileCount} 个文件 · {formatBytes(incomingRequest.size)} · {incomingRequest.suggestedStorage.toUpperCase()} 模式
+						{incomingRequest.name} · {incomingRequest.fileCount} 个文件 · {formatBytes(incomingRequest.size)}
 					</p>
 					<div className='mt-3 flex gap-2'>
 						<button onClick={() => void acceptIncoming()} className='bg-brand text-background rounded-full px-4 py-2 text-xs font-semibold'>

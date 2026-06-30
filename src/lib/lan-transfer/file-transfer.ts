@@ -76,7 +76,7 @@ export async function prepareLanFiles(files: File[], options: PrepareLanFileOpti
 		} satisfies PreparedLanFile
 	}
 
-	if (totalSize > LAN_LIMITS.multiFileZipMaxBytes) throw new Error(`多文件浏览器端 ZIP 打包最多 ${formatBytes(LAN_LIMITS.multiFileZipMaxBytes)}。超大多文件请先在系统文件管理器打包后再发送。`)
+	if (totalSize > LAN_LIMITS.multiFileZipMaxBytes) throw new Error(`多文件最多 ${formatBytes(LAN_LIMITS.multiFileZipMaxBytes)}，更大的文件请先打包后再发送。`)
 	const used = new Set<string>()
 	const entries: Record<string, Uint8Array> = {}
 	for (const file of files) entries[uniqueName(file.name, used)] = new Uint8Array(await file.arrayBuffer())
@@ -106,7 +106,7 @@ export function encodeControl(message: LanControlMessage) {
 
 export function encodeChunk(fileId: string, chunkIndex: number, bytes: Uint8Array) {
 	const header = encoder.encode(JSON.stringify({ id: fileId, index: chunkIndex }))
-	if (header.byteLength > 0xffff) throw new Error('分片头过大')
+	if (header.byteLength > 0xffff) throw new Error('文件发送失败，请重新发送')
 	const frame = new Uint8Array(1 + 2 + header.byteLength + bytes.byteLength)
 	frame[0] = CHUNK_FRAME
 	frame[1] = (header.byteLength >> 8) & 0xff
@@ -228,7 +228,7 @@ async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, 
 	if (!getAckedBytes) return
 	const startedAt = Date.now()
 	while (sent - getAckedBytes() > maxAheadBytes) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('接收端写入速度跟不上，发送已暂停超时。请确认对方浏览器仍在前台并有足够存储空间。')
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('对方接收太慢，发送已超时。请确认对方页面仍在前台并有足够空间。')
 		await new Promise((resolve) => window.setTimeout(resolve, 100))
 	}
 }
@@ -252,7 +252,7 @@ export async function sendPreparedFile(
 		const chunk = new Uint8Array(await blob.arrayBuffer())
 		const frame = encodeChunk(file.id, chunkIndex, chunk)
 		if (frame.byteLength > 64 * 1024) {
-			throw new Error('单个 WebRTC 分片过大，请降低 DataChannel 分片大小后重试')
+			throw new Error('文件发送分片过大，请重新发送或选择更小的文件')
 		}
 		getOpenDataChannel(peer)
 		peer.send(frame)

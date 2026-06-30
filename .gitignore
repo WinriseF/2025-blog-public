@@ -43,3 +43,4 @@ supabase/.temp/
 .codex/
 AGENTS.md
 .firecrawl
+.tmp

@@ -30,7 +30,8 @@ export const LAN_LIMITS = {
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
-export type LanSignalType = 'hello' | 'signal' | 'peer-left'
+export type LanSignalType = 'announce' | 'signal' | 'peer-left'
+export type LanConnectionState = 'idle' | 'signaling' | 'discovered' | 'connecting' | 'connected' | 'failed'
 export type LanStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
 export type LanBrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari' | 'wechat' | 'qq' | 'unknown'
 export type LanPlatformKind = 'desktop' | 'android' | 'ios' | 'unknown'
@@ -58,11 +59,20 @@ export type LanSignalMessage = {
 	type: LanSignalType
 	roomId: string
 	tokenHash: string
-	peerId: string
+	from: string
+	to: string
+	seq: number
 	ts: number
-	to?: string
 	peer?: LanPeer
 	signal?: unknown
+}
+
+export type LanPresencePayload = {
+	peerId: string
+	role: LanRole
+	peer: LanPeer
+	tokenHash: string
+	joinedAt: number
 }
 
 export type LanCapability = {

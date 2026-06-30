@@ -26,12 +26,11 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 			<div>
 				<div className='flex items-center justify-between gap-3'>
 					<div>
-						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>P2P</p>
-						<h3 className='mt-1 text-base font-semibold'>传输状态</h3>
+						<h3 className='text-base font-semibold'>传输状态</h3>
 					</div>
 					{busy && <Loader2 className='text-secondary shrink-0 animate-spin' size={16} />}
 				</div>
-				<p className='text-secondary mt-3 text-sm leading-6'>{status || '等待连接或文件操作。'}</p>
+				<p className='text-secondary mt-3 text-sm leading-6'>{status || '等待连接。'}</p>
 			</div>
 
 			{progressItems.map(item => (
@@ -59,7 +58,7 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 									<span className='block truncate'>{file.name}</span>
 									<span className='text-secondary mt-1 flex items-center gap-1 text-xs'>
 										<Download size={14} />
-										{file.storage.toUpperCase()} · {formatBytes(file.size)}
+										{formatBytes(file.size)}
 									</span>
 								</a>
 							) : (
@@ -71,7 +70,7 @@ export function LanTransferStatus({ busy, status, outgoing, incoming, receivedFi
 									</span>
 								</div>
 							)}
-							<button type='button' onClick={() => onClearReceivedFile(file.id)} className='text-secondary hover:text-primary shrink-0 rounded-full border border-border p-2' title='清理缓存并移除下载链接'>
+							<button type='button' onClick={() => onClearReceivedFile(file.id)} className='text-secondary hover:text-primary shrink-0 rounded-full border border-border p-2' title='移除记录'>
 								<Trash2 size={14} />
 							</button>
 						</div>
