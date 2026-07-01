@@ -302,7 +302,6 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 					</div>
 				</div>
 				<div className='max-w-[360px] space-y-2 text-right text-xs leading-5 text-secondary max-sm:text-left'>
-					<p>内容最多 {contentLimitLabel}，可直接粘贴文本或图片；公网中转文件最多 {fileLimitLabel}</p>
 					<p>同一局域网建议使用局域网互传</p>
 					{status && <p className='rounded-full border border-border bg-article px-3 py-1.5'>{status}</p>}
 				</div>
