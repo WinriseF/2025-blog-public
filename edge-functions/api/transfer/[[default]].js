@@ -302,28 +302,15 @@ async function createTransfer(input, request, env) {
 	throw new TransferError(503, 'code_collision', 'Could not allocate transfer code')
 }
 
-async function verifyChunkUploads(store, meta, keys) {
-	const chunks = await Promise.all(
-		meta.chunks.map(async chunk => {
-			const uploaded = await store.getMetadata(keys.chunkKey(chunk.index), { consistency: 'strong' })
-			if (!uploaded) throw new TransferError(400, 'upload_missing', `Chunk ${chunk.index} was not uploaded`)
-			const bytes = Number(uploaded?.headers?.['content-length'] || 0)
-			if (chunk.cipherSize && Number.isFinite(bytes) && bytes > 0 && bytes !== chunk.cipherSize) throw new TransferError(400, 'upload_missing', `Chunk ${chunk.index} size mismatch`)
-			return { ...chunk, ...(Number.isFinite(bytes) && bytes > 0 ? { cipherSize: bytes } : {}) }
-		})
-	)
-	return { chunks, encryptedSize: chunks.reduce((sum, chunk) => sum + (chunk.cipherSize || 0), 0) }
-}
-
 async function completeTransfer(input, env) {
 	const code = assertCode(input.code)
 	const store = await getTransferStore(env)
 	const meta = await readMeta(store, code)
 	if (Date.now() >= meta.expireAt) await expireTransfer(store, meta)
 	if (meta.status === 'ready') return publicMeta(meta)
+	const encryptedSize = meta.chunks.reduce((sum, chunk) => sum + (chunk.cipherSize || 0), 0)
+	const nextMeta = { ...meta, encryptedSize, status: 'ready' }
 	const keys = keySet(meta.id, meta.code, meta.expireAt)
-	const verified = await verifyChunkUploads(store, meta, keys)
-	const nextMeta = { ...meta, ...verified, status: 'ready' }
 	await store.setJSON(keys.metaKey, nextMeta, { cacheControl: 'no-store' })
 	return publicMeta(nextMeta)
 }

@@ -381,7 +381,7 @@ Encrypted relay flow:
 3. The browser calls `${NEXT_PUBLIC_TRANSFER_API_BASE}/api/transfer/create`, which is an EdgeOne Edge Function endpoint.
 4. The Edge Function creates a six-character code, minimal metadata, short-lived Blob upload URL data, and transfer indexes.
 5. Text transfers and file transfers both use the same chunk manifest protocol. Text is a single encrypted chunk; files use 4MB plaintext chunks. Every chunk has its own AES-GCM IV and its own Pages Blob object under `transfer/items/<id>/chunks/`.
-6. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable.
+6. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable. `complete` trusts the uploaded chunk manifest and must not `HEAD`/metadata-check every chunk because Pages Blob/COS HEAD calls can time out on larger multi-chunk transfers; missing chunks are surfaced during recipient-side chunk download.
 7. A recipient opens `/t/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
 8. `/api/transfer/open` validates the proof and returns a one-time chunk download manifest with direct Pages Blob GET URLs. It does not read file bytes or text bytes through the Edge Function response. Old non-chunked records are intentionally unsupported and left for scheduled prefix cleanup.
 9. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes every object under the `transfer/` prefix in the Blob store. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
