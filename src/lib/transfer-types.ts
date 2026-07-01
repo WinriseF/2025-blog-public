@@ -4,8 +4,8 @@ export const TRANSFER_UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 
 export const TRANSFER_LIMITS = {
 	minPasswordLength: 6,
-	maxTextBytes: 1024 * 1024,
 	publicRelayChunkBytes: 4 * 1024 * 1024,
+	maxTextBytes: 4 * 1024 * 1024,
 	maxFileBytes: 200 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60
@@ -83,4 +83,35 @@ export type TransferOpenResponse = Omit<TransferPublicMeta, 'chunks'> & {
 export type TransferErrorBody = {
 	error: string
 	message: string
+}
+
+export type TransferStatsObjectType = 'chunk' | 'meta' | 'consumed' | 'code-index' | 'expire-index' | 'rate' | 'other'
+
+export type TransferStatsObject = {
+	key: string
+	type: TransferStatsObjectType
+	bytes: number
+	contentType: string
+	etag: string
+	error?: string
+}
+
+export type TransferStatsResponse = {
+	ok: true
+	generatedAt: number
+	store: string
+	objectCount: number
+	totalBytes: number
+	byType: Partial<Record<TransferStatsObjectType, { count: number; bytes: number }>>
+	metadataErrorCount: number
+	errors: Array<{ key: string; type: TransferStatsObjectType; message: string }>
+	top: TransferStatsObject[]
+}
+
+export type TransferCleanupResponse = {
+	ok: true
+	cleaned: number
+	scanned: number
+	deleteErrorCount: number
+	errors: Array<{ key: string; message: string }>
 }

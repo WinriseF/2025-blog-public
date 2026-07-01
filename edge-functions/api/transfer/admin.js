@@ -19,14 +19,14 @@ function compactErrorMessage(error) {
 	return message.replace(/\s+/g, ' ').slice(0, 300)
 }
 
-async function assertAdminPassword(input, context) {
+export async function assertTransferAdminPassword(input, context) {
 	const expected = context.getRequiredEnv(context.env, 'TRANSFER_ADMIN_PASSWORD_HASH')
 	const password = String(input?.password || '')
 	if (!password || !context.safeEqual(await context.sha256(password), expected)) throw new context.TransferError(401, 'unauthorized', 'Invalid admin password')
 }
 
 export async function collectTransferStats(input, context) {
-	await assertAdminPassword(input, context)
+	await assertTransferAdminPassword(input, context)
 	const store = await context.getTransferStore(context.env)
 	const topLimit = normalizeTopLimit(input?.topLimit, context.limits)
 	const { blobs } = await store.list({ prefix: 'transfer/', consistency: 'strong' })

@@ -1,4 +1,4 @@
-import { collectTransferStats } from './admin.js'
+import { assertTransferAdminPassword, collectTransferStats } from './admin.js'
 import { createDownloadUrl } from './cos-download-url.js'
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -7,8 +7,8 @@ const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/
 const UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000
 const LIMITS = {
-	maxTextBytes: 1024 * 1024,
 	publicRelayChunkBytes: 4 * 1024 * 1024,
+	maxTextBytes: 4 * 1024 * 1024,
 	maxFileBytes: 200 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60,
@@ -76,6 +76,14 @@ async function readJson(request) {
 		return await request.json()
 	} catch {
 		throw new TransferError(400, 'invalid_json', 'Invalid JSON body')
+	}
+}
+
+async function readOptionalJson(request) {
+	try {
+		return await request.json()
+	} catch {
+		return {}
 	}
 }
 
@@ -378,6 +386,11 @@ async function cleanupExpiredTransfers(env) {
 	return { cleaned, scanned: blobs.length, deleteErrorCount: errors.length, errors: errors.slice(0, 50) }
 }
 
+async function assertCleanupAllowed(request, env) {
+	if (isBeijingCleanupWindow()) return
+	await assertTransferAdminPassword(await readOptionalJson(request), { env, getRequiredEnv, sha256, safeEqual, TransferError })
+}
+
 function compactErrorMessage(error) {
 	const message = error instanceof Error ? error.message : String(error)
 	return message.replace(/\s+/g, ' ').slice(0, 300)
@@ -402,7 +415,7 @@ export async function onRequest(context) {
 			return json(await openTransfer(await readJson(request), env), 200, request, env)
 		}
 		if (request.method === 'POST' && action === 'cleanup') {
-			if (!isBeijingCleanupWindow()) throw new TransferError(403, 'cleanup_window', 'Cleanup only runs during the scheduled window')
+			await assertCleanupAllowed(request, env)
 			return json({ ok: true, ...(await cleanupExpiredTransfers(env)) }, 200, request, env)
 		}
 		throw new TransferError(404, 'not_found', 'Transfer endpoint not found')

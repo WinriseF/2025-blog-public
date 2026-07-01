@@ -21,7 +21,7 @@ import {
 	type TransferPublicMeta
 } from './transfer-types'
 
-const textLimitLabel = '1MB'
+const contentLimitLabel = '4MB'
 const AES_GCM_TAG_BYTES = 16
 
 const errorText: Record<string, string> = {
@@ -47,6 +47,8 @@ type CreateRelayOptions = {
 	password: string
 	createUrl: string
 	completeUrl: string
+	fileLimitBytes?: number
+	fileTooLargeMessage?: string
 	onStatus?: StatusSink
 }
 
@@ -66,6 +68,16 @@ type PreparedPayload = {
 	plain?: Uint8Array
 	file?: File
 }
+
+export type OpenedRelayFile = {
+	name: string
+	contentType: string
+	size: number
+	url: string
+	isImage: boolean
+}
+
+export type OpenedRelayTransfer = { text: string; file?: never } | { text?: never; file: OpenedRelayFile }
 
 export async function readTransferApiError(response: Response) {
 	const body = (await response.json().catch(() => null)) as TransferErrorBody | null
@@ -117,15 +129,13 @@ function concatBytes(chunks: Uint8Array[]) {
 	return output
 }
 
-function downloadBlobParts(filename: string, parts: BlobPart[], contentType: string) {
-	const url = URL.createObjectURL(new Blob(parts, { type: contentType || 'application/octet-stream' }))
+function downloadObjectUrl(filename: string, url: string) {
 	const link = document.createElement('a')
 	link.href = url
 	link.download = filename || 'transfer-file'
 	document.body.appendChild(link)
 	link.click()
 	link.remove()
-	setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 async function uploadCipher(url: string, cipher: Uint8Array, message: string) {
@@ -149,7 +159,7 @@ function preparePayload(options: CreateRelayOptions): PreparedPayload {
 	if (options.kind === 'text') {
 		const plain = encodeTextPayload(options.text)
 		if (!plain.length) throw new Error('请先输入要中转的文本')
-		if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error(`文本最多 ${textLimitLabel}`)
+		if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error(`内容最多 ${contentLimitLabel}`)
 		return {
 			kind: 'text',
 			name: 'message.txt',
@@ -162,7 +172,8 @@ function preparePayload(options: CreateRelayOptions): PreparedPayload {
 	const file = options.file
 	if (!file) throw new Error('请先选择文件')
 	if (file.size <= 0) throw new Error('请选择非空文件')
-	if (file.size > TRANSFER_LIMITS.maxFileBytes) throw new Error('公网中转最多支持 200MB，大文件请使用局域网互传')
+	const fileLimitBytes = options.fileLimitBytes ?? TRANSFER_LIMITS.maxFileBytes
+	if (file.size > fileLimitBytes) throw new Error(options.fileTooLargeMessage || '公网中转最多支持 200MB，大文件请使用局域网互传')
 	return {
 		kind: 'file',
 		name: file.name || 'transfer-file',
@@ -233,7 +244,7 @@ function sortOpenChunks(opened: TransferOpenResponse) {
 	return chunks
 }
 
-async function openChunkManifest(response: Response, password: string, meta: TransferPublicMeta, onStatus?: StatusSink) {
+async function openChunkManifest(response: Response, password: string, meta: TransferPublicMeta, onStatus?: StatusSink): Promise<OpenedRelayTransfer> {
 	const opened = (await response.json()) as TransferOpenResponse
 	const chunks = sortOpenChunks(opened)
 	const { key } = await deriveTransferProof(password, meta)
@@ -255,8 +266,16 @@ async function openChunkManifest(response: Response, password: string, meta: Tra
 
 	onStatus?.('正在本地合并/解密')
 	if (opened.kind === 'text') return { text: decodeTextPayload(concatBytes(parts)) }
-	downloadBlobParts(opened.name, parts.map(bytesToArrayBuffer), opened.contentType)
-	return { text: '' }
+	const contentType = opened.contentType || 'application/octet-stream'
+	const file: OpenedRelayFile = {
+		name: opened.name || 'transfer-file',
+		contentType,
+		size: opened.size,
+		url: URL.createObjectURL(new Blob(parts.map(bytesToArrayBuffer), { type: contentType })),
+		isImage: contentType.toLowerCase().startsWith('image/')
+	}
+	if (!file.isImage) downloadObjectUrl(file.name, file.url)
+	return { file }
 }
 
 export async function openRelayTransfer(options: OpenRelayOptions) {
@@ -274,6 +293,7 @@ export async function openRelayTransfer(options: OpenRelayOptions) {
 	if (!response.ok) throw new Error(await readTransferApiError(response))
 
 	const opened = await openChunkManifest(response, options.password, meta, options.onStatus)
-	options.onStatus?.(opened.text ? '读取成功，提取入口已销毁' : '文件已开始下载，提取入口已销毁，下载链接短时有效')
+	if ('file' in opened) options.onStatus?.(opened.file.isImage ? '图片读取成功，提取入口已销毁' : '文件已开始下载，提取入口已销毁，下载链接短时有效')
+	else options.onStatus?.('读取成功，提取入口已销毁')
 	return opened
 }
