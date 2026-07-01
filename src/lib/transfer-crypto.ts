@@ -72,25 +72,30 @@ async function derive(password: string, salt: Uint8Array) {
 	return { key, proof }
 }
 
-export async function encryptTransferPayload(plain: Uint8Array, password: string) {
+export async function createTransferEncryptionContext(password: string) {
 	const salt = crypto.getRandomValues(new Uint8Array(16))
-	const iv = crypto.getRandomValues(new Uint8Array(12))
 	const { key, proof } = await derive(password, salt)
+	return {
+		key,
+		proof,
+		salt: bytesToBase64Url(salt)
+	}
+}
+
+export async function encryptTransferChunk(plain: Uint8Array, key: CryptoKey, ivValue?: string | Uint8Array) {
+	const iv = typeof ivValue === 'string' ? base64UrlToBytes(ivValue) : ivValue || crypto.getRandomValues(new Uint8Array(12))
 	const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: bytesToArrayBuffer(iv) }, key, bytesToArrayBuffer(plain))
 	return {
 		cipher: new Uint8Array(cipher),
-		salt: bytesToBase64Url(salt),
-		iv: bytesToBase64Url(iv),
-		proof
+		iv: bytesToBase64Url(iv)
 	}
+}
+
+export async function decryptTransferChunk(cipher: ArrayBuffer, key: CryptoKey, iv: string) {
+	const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytesToArrayBuffer(base64UrlToBytes(iv)) }, key, cipher)
+	return new Uint8Array(plain)
 }
 
 export async function deriveTransferProof(password: string, meta: TransferPublicMeta) {
 	return derive(password, base64UrlToBytes(meta.salt))
-}
-
-export async function decryptTransferPayload(cipher: ArrayBuffer, password: string, meta: TransferPublicMeta) {
-	const { key } = await deriveTransferProof(password, meta)
-	const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytesToArrayBuffer(base64UrlToBytes(meta.iv)) }, key, cipher)
-	return new Uint8Array(plain)
 }

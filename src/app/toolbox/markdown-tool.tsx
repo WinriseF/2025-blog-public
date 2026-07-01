@@ -41,8 +41,8 @@ export function MarkdownTool() {
 			<section className='flex min-h-[640px] flex-col max-sm:min-h-0'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>
-						<p className='text-secondary text-xs tracking-[0.18em] uppercase'>{fileName}</p>
-						<h2 className='mt-1 text-lg font-semibold'>Markdown</h2>
+						<h2 className='text-lg font-semibold'>Markdown</h2>
+						<p className='text-secondary mt-1 text-xs tracking-[0.18em] uppercase'>{fileName}</p>
 					</div>
 					<div className='flex flex-wrap gap-2 text-xs'>
 						<button className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => navigator.clipboard.writeText(markdown)}>

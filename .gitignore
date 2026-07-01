@@ -44,3 +44,4 @@ supabase/.temp/
 AGENTS.md
 .firecrawl
 .tmp
+.pnpm-store

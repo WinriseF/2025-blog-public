@@ -1,3 +1,6 @@
+import { collectTransferStats } from './admin.js'
+import { createDownloadUrl } from './cos-download-url.js'
+
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 6
 const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/
@@ -5,9 +8,11 @@ const UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000
 const LIMITS = {
 	maxTextBytes: 1024 * 1024,
-	maxFileBytes: 20 * 1024 * 1024,
+	publicRelayChunkBytes: 4 * 1024 * 1024,
+	maxFileBytes: 200 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60,
+	downloadUrlSeconds: 30 * 60,
 	statsTopLimit: 50,
 	statsMaxTopLimit: 200,
 	statsMetadataBatchSize: 10
@@ -156,7 +161,7 @@ function isBeijingCleanupWindow(now = Date.now()) {
 function keySet(id, code, expireAt) {
 	const expireDate = formatBeijingDate(expireAt)
 	return {
-		payloadKey: `transfer/items/${id}/payload.bin`,
+		chunkKey: index => `transfer/items/${id}/chunks/part-${String(index).padStart(5, '0')}.bin`,
 		metaKey: `transfer/items/${id}/meta.json`,
 		codeKey: `transfer/codes/${code}.json`,
 		expireKey: `transfer/expires/${expireDate}/${id}.json`,
@@ -174,15 +179,46 @@ function assertBase64Url(value, field) {
 	if (!/^[A-Za-z0-9_-]{16,256}$/.test(String(value || ''))) throw new TransferError(400, 'invalid_payload', `Invalid ${field}`)
 }
 
+function assertChunkManifest(input) {
+	if (input.chunkSize !== LIMITS.publicRelayChunkBytes) throw new TransferError(400, 'invalid_payload', 'Invalid chunk size')
+	if (!Number.isInteger(input.chunkCount) || input.chunkCount <= 0) throw new TransferError(400, 'invalid_payload', 'Invalid chunk count')
+	if (input.kind === 'text' && input.chunkCount !== 1) throw new TransferError(400, 'invalid_payload', 'Invalid text chunk count')
+	if (input.kind === 'file' && input.chunkCount !== Math.ceil(input.size / LIMITS.publicRelayChunkBytes)) throw new TransferError(400, 'invalid_payload', 'Invalid file chunk count')
+	if (!Array.isArray(input.chunks) || input.chunks.length !== input.chunkCount) throw new TransferError(400, 'invalid_payload', 'Invalid chunk manifest')
+	let total = 0
+	const ivs = new Set()
+	for (let index = 0; index < input.chunks.length; index++) {
+		const chunk = input.chunks[index]
+		if (chunk?.index !== index) throw new TransferError(400, 'invalid_payload', 'Invalid chunk index')
+		if (!Number.isInteger(chunk.plainSize) || chunk.plainSize <= 0 || chunk.plainSize > LIMITS.publicRelayChunkBytes) throw new TransferError(400, 'invalid_payload', 'Invalid chunk size')
+		if (chunk.cipherSize != null && (!Number.isInteger(chunk.cipherSize) || chunk.cipherSize < chunk.plainSize)) throw new TransferError(400, 'invalid_payload', 'Invalid chunk cipher size')
+		assertBase64Url(chunk.iv, `chunk ${index} iv`)
+		if (ivs.has(chunk.iv)) throw new TransferError(400, 'invalid_payload', 'Duplicate chunk iv')
+		ivs.add(chunk.iv)
+		total += chunk.plainSize
+	}
+	if (total !== input.size) throw new TransferError(400, 'invalid_payload', 'Chunk sizes do not match file size')
+}
+
 function assertCreateRequest(input) {
 	if (input.kind !== 'text' && input.kind !== 'file') throw new TransferError(400, 'invalid_payload', 'Invalid content type')
 	if (!input.name || input.name.length > 160) throw new TransferError(400, 'invalid_payload', 'Invalid file name')
 	if (!Number.isFinite(input.size) || input.size <= 0) throw new TransferError(400, 'invalid_payload', 'Invalid size')
+	if (input.chunked !== true) throw new TransferError(400, 'invalid_payload', 'Chunk manifest is required')
 	if (input.kind === 'text' && input.size > LIMITS.maxTextBytes) throw new TransferError(413, 'too_large', 'Text is too large')
 	if (input.kind === 'file' && input.size > LIMITS.maxFileBytes) throw new TransferError(413, 'too_large', 'File is too large')
 	assertBase64Url(input.salt, 'salt')
-	assertBase64Url(input.iv, 'iv')
 	assertBase64Url(input.proof, 'proof')
+	assertChunkManifest(input)
+}
+
+function publicChunks(chunks = []) {
+	return chunks.map(chunk => ({
+		index: chunk.index,
+		iv: chunk.iv,
+		plainSize: chunk.plainSize,
+		...(chunk.cipherSize ? { cipherSize: chunk.cipherSize } : {})
+	}))
 }
 
 function publicMeta(meta) {
@@ -193,10 +229,14 @@ function publicMeta(meta) {
 		contentType: meta.contentType,
 		size: meta.size,
 		salt: meta.salt,
-		iv: meta.iv,
 		status: meta.status,
 		expireAt: meta.expireAt,
-		createdAt: meta.createdAt
+		createdAt: meta.createdAt,
+		chunked: true,
+		chunkSize: meta.chunkSize,
+		chunkCount: meta.chunkCount,
+		chunks: publicChunks(meta.chunks),
+		...(meta.encryptedSize ? { encryptedSize: meta.encryptedSize } : {})
 	}
 }
 
@@ -205,12 +245,13 @@ async function readMeta(store, code) {
 	if (!index) throw new TransferError(404, 'not_found', 'Transfer not found or already destroyed')
 	const meta = await store.get(index.metaKey, { type: 'json', consistency: 'strong' })
 	if (!meta) throw new TransferError(404, 'not_found', 'Transfer not found or already destroyed')
+	if (meta.chunked !== true || !Array.isArray(meta.chunks)) throw new TransferError(410, 'consumed', 'Transfer has already been destroyed')
 	return meta
 }
 
 async function deleteTransfer(store, meta, includeExpire = true) {
 	const keys = keySet(meta.id, meta.code, meta.expireAt)
-	const deleteKeys = [keys.payloadKey, keys.metaKey, keys.codeKey]
+	const deleteKeys = [keys.metaKey, keys.codeKey, ...(meta.chunks || []).map(chunk => keys.chunkKey(chunk.index))]
 	if (includeExpire) deleteKeys.push(keys.expireKey, keys.consumedKey)
 	await Promise.all(deleteKeys.map(key => store.delete(key)))
 }
@@ -239,17 +280,15 @@ async function createTransfer(input, request, env) {
 		const id = randomId()
 		const expireAt = getNextBeijingCleanupAt()
 		const keys = keySet(id, code, expireAt)
-		const meta = { ...input, id, code, status: 'pending', createdAt: Date.now(), expireAt, proofHash: await sha256(input.proof) }
+		const { proof, ...storedInput } = input
+		const meta = { ...storedInput, id, code, status: 'pending', createdAt: Date.now(), expireAt, proofHash: await sha256(proof) }
 
 		try {
-			const upload = await store.createUploadUrl(keys.payloadKey, {
-				expireSeconds: LIMITS.uploadUrlSeconds,
-				contentType: UPLOAD_CONTENT_TYPE
-			})
+			const uploads = await Promise.all(meta.chunks.map(chunk => store.createUploadUrl(keys.chunkKey(chunk.index), { expireSeconds: LIMITS.uploadUrlSeconds, contentType: UPLOAD_CONTENT_TYPE }).then(upload => ({ index: chunk.index, url: upload.url, expiresAt: upload.expiresAt }))))
 			await store.setJSON(keys.codeKey, { metaKey: keys.metaKey }, { onlyIfNew: true, cacheControl: 'no-store' })
 			await store.setJSON(keys.metaKey, meta, { cacheControl: 'no-store' })
 			await store.setJSON(keys.expireKey, { id, code, expireAt }, { cacheControl: 'no-store' })
-			return { code, uploadUrl: upload.url, uploadExpiresAt: upload.expiresAt, expireAt }
+			return { code, uploadUrls: uploads.map(({ index, url }) => ({ index, url })), uploadExpiresAt: Math.min(...uploads.map(item => item.expiresAt)), expireAt }
 		} catch (error) {
 			if (isPreconditionFailed(error, PreconditionFailedError)) {
 				await Promise.all([store.delete(keys.metaKey), store.delete(keys.expireKey)]).catch(() => {})
@@ -263,6 +302,19 @@ async function createTransfer(input, request, env) {
 	throw new TransferError(503, 'code_collision', 'Could not allocate transfer code')
 }
 
+async function verifyChunkUploads(store, meta, keys) {
+	const chunks = await Promise.all(
+		meta.chunks.map(async chunk => {
+			const uploaded = await store.getMetadata(keys.chunkKey(chunk.index), { consistency: 'strong' })
+			if (!uploaded) throw new TransferError(400, 'upload_missing', `Chunk ${chunk.index} was not uploaded`)
+			const bytes = Number(uploaded?.headers?.['content-length'] || 0)
+			if (chunk.cipherSize && Number.isFinite(bytes) && bytes > 0 && bytes !== chunk.cipherSize) throw new TransferError(400, 'upload_missing', `Chunk ${chunk.index} size mismatch`)
+			return { ...chunk, ...(Number.isFinite(bytes) && bytes > 0 ? { cipherSize: bytes } : {}) }
+		})
+	)
+	return { chunks, encryptedSize: chunks.reduce((sum, chunk) => sum + (chunk.cipherSize || 0), 0) }
+}
+
 async function completeTransfer(input, env) {
 	const code = assertCode(input.code)
 	const store = await getTransferStore(env)
@@ -270,9 +322,8 @@ async function completeTransfer(input, env) {
 	if (Date.now() >= meta.expireAt) await expireTransfer(store, meta)
 	if (meta.status === 'ready') return publicMeta(meta)
 	const keys = keySet(meta.id, meta.code, meta.expireAt)
-	const uploaded = await store.getMetadata(keys.payloadKey, { consistency: 'strong' })
-	if (!uploaded) throw new TransferError(400, 'upload_missing', 'Encrypted payload was not uploaded')
-	const nextMeta = { ...meta, status: 'ready' }
+	const verified = await verifyChunkUploads(store, meta, keys)
+	const nextMeta = { ...meta, ...verified, status: 'ready' }
 	await store.setJSON(keys.metaKey, nextMeta, { cacheControl: 'no-store' })
 	return publicMeta(nextMeta)
 }
@@ -296,12 +347,12 @@ async function openTransfer(input, env) {
 	if (!safeEqual(await sha256(input.proof), meta.proofHash)) throw new TransferError(401, 'bad_password', 'Password is incorrect')
 
 	const keys = keySet(meta.id, meta.code, meta.expireAt)
-	const payload = await store.get(keys.payloadKey, { type: 'arrayBuffer', consistency: 'strong' })
-	if (!payload) {
-		await deleteTransfer(store, meta)
-		throw new TransferError(410, 'consumed', 'Transfer has already been destroyed')
-	}
-
+	const chunks = await Promise.all(
+		meta.chunks.map(async chunk => ({
+			...publicChunks([chunk])[0],
+			url: (await createDownloadUrl(store, keys.chunkKey(chunk.index), LIMITS.downloadUrlSeconds)).url
+		}))
+	)
 	try {
 		await store.setJSON(keys.consumedKey, { id: meta.id, code, consumedAt: Date.now() }, { onlyIfNew: true, cacheControl: 'no-store' })
 	} catch (error) {
@@ -309,8 +360,8 @@ async function openTransfer(input, env) {
 		throw error
 	}
 
-	await deleteTransfer(store, meta, false)
-	return payload
+	await Promise.all([store.delete(keys.metaKey), store.delete(keys.codeKey), store.delete(keys.expireKey)])
+	return { ...publicMeta(meta), chunks }
 }
 
 async function cleanupExpiredTransfers(env) {
@@ -340,97 +391,9 @@ async function cleanupExpiredTransfers(env) {
 	return { cleaned, scanned: blobs.length, deleteErrorCount: errors.length, errors: errors.slice(0, 50) }
 }
 
-function classifyTransferObject(key) {
-	if (key.endsWith('/payload.bin')) return 'payload'
-	if (key.endsWith('/meta.json')) return 'meta'
-	if (key.endsWith('/consumed.json')) return 'consumed'
-	if (key.startsWith('transfer/codes/')) return 'code-index'
-	if (key.startsWith('transfer/expires/')) return 'expire-index'
-	if (key.startsWith('transfer/rate/')) return 'rate'
-	return 'other'
-}
-
-function normalizeTopLimit(value) {
-	const number = Number(value)
-	if (!Number.isFinite(number)) return LIMITS.statsTopLimit
-	return Math.max(0, Math.min(LIMITS.statsMaxTopLimit, Math.floor(number)))
-}
-
 function compactErrorMessage(error) {
 	const message = error instanceof Error ? error.message : String(error)
 	return message.replace(/\s+/g, ' ').slice(0, 300)
-}
-
-async function assertAdminPassword(input, env) {
-	const expected = getRequiredEnv(env, 'TRANSFER_ADMIN_PASSWORD_HASH')
-	const password = String(input?.password || '')
-	if (!password || !safeEqual(await sha256(password), expected)) throw new TransferError(401, 'unauthorized', 'Invalid admin password')
-}
-
-async function collectTransferStats(input, env) {
-	await assertAdminPassword(input, env)
-	const store = await getTransferStore(env)
-	const topLimit = normalizeTopLimit(input?.topLimit)
-	const { blobs } = await store.list({ prefix: 'transfer/', consistency: 'strong' })
-	const rows = []
-	const errors = []
-	const byType = {}
-	let totalBytes = 0
-
-	for (let index = 0; index < blobs.length; index += LIMITS.statsMetadataBatchSize) {
-		const batch = blobs.slice(index, index + LIMITS.statsMetadataBatchSize)
-		const details = await Promise.all(
-			batch.map(async blob => {
-				const type = classifyTransferObject(blob.key)
-				try {
-					const metadata = await store.getMetadata(blob.key, { consistency: 'strong' })
-					const bytes = Number(metadata?.headers?.['content-length'] || 0)
-					return {
-						key: blob.key,
-						type,
-						bytes: Number.isFinite(bytes) ? bytes : 0,
-						contentType: metadata?.contentType || '',
-						etag: metadata?.etag || blob.etag || ''
-					}
-				} catch (error) {
-					return {
-						key: blob.key,
-						type,
-						bytes: 0,
-						contentType: '',
-						etag: blob.etag || '',
-						error: compactErrorMessage(error)
-					}
-				}
-			})
-		)
-
-		for (const item of details) {
-			totalBytes += item.bytes
-			const bucket = byType[item.type] || { count: 0, bytes: 0 }
-			bucket.count += 1
-			bucket.bytes += item.bytes
-			byType[item.type] = bucket
-			rows.push(item)
-			if (item.error) errors.push({ key: item.key, type: item.type, message: item.error })
-		}
-	}
-
-	rows.sort((a, b) => b.bytes - a.bytes)
-	const top = rows
-		.filter(item => !item.error)
-		.slice(0, topLimit)
-	return {
-		ok: true,
-		generatedAt: Date.now(),
-		store: transferStoreName(env),
-		objectCount: rows.length,
-		totalBytes,
-		byType,
-		metadataErrorCount: errors.length,
-		errors: errors.slice(0, topLimit),
-		top
-	}
 }
 
 function actionFromRequest(request) {
@@ -447,15 +410,9 @@ export async function onRequest(context) {
 		if (request.method === 'POST' && action === 'create') return json(await createTransfer(await readJson(request), request, env), 200, request, env)
 		if (request.method === 'POST' && action === 'complete') return json(await completeTransfer(await readJson(request), env), 200, request, env)
 		if (request.method === 'GET' && action === 'meta') return json(await getTransferMeta(request, env), 200, request, env)
-		if (request.method === 'POST' && action === 'stats') return json(await collectTransferStats(await readJson(request), env), 200, request, env)
+		if (request.method === 'POST' && action === 'stats') return json(await collectTransferStats(await readJson(request), { env, getTransferStore, transferStoreName, getRequiredEnv, sha256, safeEqual, TransferError, limits: LIMITS }), 200, request, env)
 		if (request.method === 'POST' && action === 'open') {
-			const payload = await openTransfer(await readJson(request), env)
-			return new Response(payload, {
-				headers: {
-					...corsHeaders(request, env),
-					'Content-Type': UPLOAD_CONTENT_TYPE
-				}
-			})
+			return json(await openTransfer(await readJson(request), env), 200, request, env)
 		}
 		if (request.method === 'POST' && action === 'cleanup') {
 			if (!isBeijingCleanupWindow()) throw new TransferError(403, 'cleanup_window', 'Cleanup only runs during the scheduled window')

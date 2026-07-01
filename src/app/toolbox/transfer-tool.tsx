@@ -6,22 +6,12 @@ import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
 import { LanTransferTool } from './lan-transfer-tool'
 import { cleanupLanTransferPersistentStorage } from '@/lib/lan-transfer/storage/persistent-cleanup'
-import {
-	decodeTextPayload,
-	decryptTransferPayload,
-	deriveTransferProof,
-	bytesToArrayBuffer,
-	encodeTextPayload,
-	encryptTransferPayload
-} from '@/lib/transfer-crypto'
+import { createRelayTransfer, openRelayTransfer } from '@/lib/transfer-relay'
 import {
 	TRANSFER_CODE_PATTERN,
 	TRANSFER_LIMITS,
-	TRANSFER_UPLOAD_CONTENT_TYPE,
 	type TransferCreateResponse,
-	type TransferErrorBody,
-	type TransferKind,
-	type TransferPublicMeta
+	type TransferKind
 } from '@/lib/transfer-types'
 
 type TransferToolProps = {
@@ -30,19 +20,6 @@ type TransferToolProps = {
 
 type Mode = 'relay' | 'lan'
 
-const errorText: Record<string, string> = {
-	bad_password: '密码不正确',
-	config_missing: 'Edge Functions 还没有配置中转站环境变量',
-	consumed: '这条中转消息已经被销毁',
-	expired: '这条中转消息已经过期',
-	invalid_code: '请输入 6 位提取码',
-	not_found: '没有找到这条中转消息，可能已经被销毁',
-	rate_limited: '今天上传次数已达上限',
-	too_large: '内容超过大小限制',
-	upload_missing: '密文还没有上传完成',
-	upload_pending: '密文还在上传中，请稍后再试'
-}
-
 const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 	dateStyle: 'short',
 	timeStyle: 'short',
@@ -50,38 +27,16 @@ const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 })
 const transferApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
 const textLimitLabel = '1MB'
-const fileLimitLabel = '20MB'
+const fileLimitLabel = '200MB'
 const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v2'
 
 function normalizeCode(value: string) {
 	return value.trim().toUpperCase()
 }
 
-async function readApiError(response: Response) {
-	const body = (await response.json().catch(() => null)) as TransferErrorBody | null
-	return errorText[body?.error || ''] || body?.message || '请求失败'
-}
-
-async function fetchJson<T>(url: string, init?: RequestInit) {
-	const response = await fetch(url, init)
-	if (!response.ok) throw new Error(await readApiError(response))
-	return (await response.json()) as T
-}
-
 function transferApiUrl(action: string) {
 	if (!transferApiBase) throw new Error('未配置 Edge Functions API 地址，暂不能使用中转站')
 	return `${transferApiBase}/api/transfer/${action}`
-}
-
-function downloadBytes(filename: string, bytes: Uint8Array, contentType: string) {
-	const url = URL.createObjectURL(new Blob([bytesToArrayBuffer(bytes)], { type: contentType || 'application/octet-stream' }))
-	const link = document.createElement('a')
-	link.href = url
-	link.download = filename || 'transfer-file'
-	document.body.appendChild(link)
-	link.click()
-	link.remove()
-	setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function downloadDataUrl(filename: string, url: string) {
@@ -199,29 +154,6 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		}
 	}, [privateResultLink])
 
-	const createPayload = async (createPassword: string) => {
-		if (createPassword.length < TRANSFER_LIMITS.minPasswordLength) throw new Error(`密码至少 ${TRANSFER_LIMITS.minPasswordLength} 位`)
-		if (kind === 'text') {
-			const plain = encodeTextPayload(text)
-			if (!plain.length) throw new Error('请先输入要中转的文本')
-			if (plain.length > TRANSFER_LIMITS.maxTextBytes) throw new Error(`文本最多 ${textLimitLabel}`)
-			return {
-				plain,
-				name: 'message.txt',
-				contentType: 'text/plain;charset=utf-8',
-				size: plain.length
-			}
-		}
-		if (!file) throw new Error('请先选择文件')
-		if (file.size > TRANSFER_LIMITS.maxFileBytes) throw new Error(`文件最多 ${fileLimitLabel}`)
-		return {
-			plain: new Uint8Array(await file.arrayBuffer()),
-			name: file.name || 'transfer-file',
-			contentType: file.type || 'application/octet-stream',
-			size: file.size
-		}
-	}
-
 	const handleCreate = async () => {
 		setBusy(true)
 		setStatus('')
@@ -231,37 +163,14 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 			const createPassword = password
 			const createUrl = transferApiUrl('create')
 			const completeUrl = transferApiUrl('complete')
-			const payload = await createPayload(createPassword)
-			setStatus('正在本地加密...')
-			const encrypted = await encryptTransferPayload(payload.plain, createPassword)
-			setStatus('正在创建中转链接...')
-			const created = await fetchJson<TransferCreateResponse>(createUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					kind,
-					name: payload.name,
-					contentType: payload.contentType,
-					size: payload.size,
-					salt: encrypted.salt,
-					iv: encrypted.iv,
-					proof: encrypted.proof
-				})
-			})
-
-			setStatus('正在上传密文...')
-			const upload = await fetch(created.uploadUrl, {
-				method: 'PUT',
-				headers: { 'Content-Type': TRANSFER_UPLOAD_CONTENT_TYPE },
-				body: bytesToArrayBuffer(encrypted.cipher)
-			})
-			if (!upload.ok) throw new Error('密文上传失败')
-
-			setStatus('正在确认上传...')
-			await fetchJson<TransferPublicMeta>(completeUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ code: created.code })
+			const created = await createRelayTransfer({
+				kind,
+				text,
+				file,
+				password: createPassword,
+				createUrl,
+				completeUrl,
+				onStatus: setStatus
 			})
 			setResult(created)
 			setResultPassword(createPassword)
@@ -290,28 +199,8 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		try {
 			const metaUrl = `${transferApiUrl('meta')}?code=${encodeURIComponent(code)}`
 			const openUrl = transferApiUrl('open')
-			setStatus('正在读取元信息...')
-			const meta = await fetchJson<TransferPublicMeta>(metaUrl)
-			if (meta.status !== 'ready') throw new Error('密文还在上传中，请稍后再试')
-			setStatus('正在校验密码...')
-			const { proof } = await deriveTransferProof(openPassword, meta)
-			const response = await fetch(openUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ code, proof })
-			})
-			if (!response.ok) throw new Error(await readApiError(response))
-			const cipher = await response.arrayBuffer()
-			setStatus('正在本地解密...')
-			const plain = await decryptTransferPayload(cipher, openPassword, meta)
-
-			if (meta.kind === 'text') {
-				setOpenedText(decodeTextPayload(plain))
-				setStatus('读取成功，原始密文已销毁')
-			} else {
-				downloadBytes(meta.name, plain, meta.contentType)
-				setStatus('文件已开始下载，原始密文已销毁')
-			}
+			const opened = await openRelayTransfer({ code, password: openPassword, metaUrl, openUrl, onStatus: setStatus })
+			if (opened.text) setOpenedText(opened.text)
 		} catch (error) {
 			setStatus(error instanceof Error ? error.message : '读取失败')
 		} finally {
@@ -349,7 +238,8 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 					</div>
 				</div>
 				<div className='max-w-[360px] space-y-2 text-right text-xs leading-5 text-secondary max-sm:text-left'>
-					<p>文本和文件会在浏览器本地加密，正确读取一次后立即销毁</p>
+					<p>文本最多 {textLimitLabel}，公网中转文件最多 {fileLimitLabel}；文件会自动分片，大文件仍推荐局域网互传</p>
+					<p>公网中转适合跨网络临时分享；同一局域网建议使用局域网互传</p>
 					{status && <p className='rounded-full border border-border bg-article px-3 py-1.5'>{status}</p>}
 				</div>
 			</div>
@@ -404,7 +294,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 							</button>
 							<button onClick={() => setKind('file')} className={`rounded-xl border px-4 py-3 text-left ${kind === 'file' ? 'border-brand bg-brand/10' : 'border-border'}`}>
 								<span className='block font-semibold'>文件</span>
-								<span className='text-secondary text-xs'>最多 {fileLimitLabel}</span>
+								<span className='text-secondary text-xs'>公网中转最多 {fileLimitLabel}</span>
 							</button>
 						</div>
 
@@ -415,7 +305,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 								<UploadCloud className='mb-3' size={28} />
 								<input type='file' className='hidden' onChange={event => setFile(event.target.files?.[0] || null)} />
 								<span>{file ? file.name : '选择要中转的文件'}</span>
-								<span className='mt-1 text-xs'>上传前会先在浏览器加密</span>
+								<span className='mt-1 text-xs'>大文件会自动分片上传，超过 {fileLimitLabel} 请使用局域网互传</span>
 							</label>
 						)}
 
@@ -447,7 +337,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				<input type='password' value={openPassword} onChange={event => setOpenPassword(event.target.value)} placeholder='读取密码' className='w-full rounded-2xl border border-border bg-article px-4 py-3 text-sm' />
 				<button disabled={busy} onClick={() => void handleOpen()} className='bg-brand text-background flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50'>
 					<Download size={16} />
-					读取并销毁
+					读取并销毁入口
 				</button>
 			</div>
 

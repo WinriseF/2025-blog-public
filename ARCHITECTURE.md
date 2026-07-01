@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-06-30.
+Last updated: 2026-07-01.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -365,10 +365,13 @@ Frontend:
 - `src/app/t/transfer-page-client.tsx`
 - `src/lib/lan-transfer/`
 - `src/lib/transfer-crypto.ts`
+- `src/lib/transfer-relay.ts`
 
 Backend:
 
 - `edge-functions/api/transfer/[[default]].js`
+- `edge-functions/api/transfer/admin.js`
+- `edge-functions/api/transfer/cos-download-url.js`
 - `edgeone.json`
 
 Encrypted relay flow:
@@ -376,13 +379,14 @@ Encrypted relay flow:
 1. User creates a text or file transfer from `/t`.
 2. The browser derives an AES-GCM key from the password with fixed PBKDF2-SHA256 settings and encrypts the payload locally.
 3. The browser calls `${NEXT_PUBLIC_TRANSFER_API_BASE}/api/transfer/create`, which is an EdgeOne Edge Function endpoint.
-4. The Edge Function creates a six-character code, minimal metadata, a short-lived Blob upload URL, and transfer indexes.
-5. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable.
-6. A recipient opens `/t/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
-7. `/api/transfer/open` validates the proof, returns encrypted bytes once, and deletes the active payload, metadata, and code.
-8. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes every object under the `transfer/` prefix in the Blob store. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
-9. `/api/transfer/stats` is a read-only admin endpoint protected by `TRANSFER_ADMIN_PASSWORD_HASH`; it lists Blob objects, reads object metadata, and returns storage totals plus the largest objects. Per-object metadata failures are reported in the response instead of failing the whole stats request.
-10. Created transfers show a QR code whose URL hash can carry the read password as `/t/<code>#p=<password>`; the read page consumes the hash client-side and removes it from the address bar before any API call.
+4. The Edge Function creates a six-character code, minimal metadata, short-lived Blob upload URL data, and transfer indexes.
+5. Text transfers and file transfers both use the same chunk manifest protocol. Text is a single encrypted chunk; files use 4MB plaintext chunks. Every chunk has its own AES-GCM IV and its own Pages Blob object under `transfer/items/<id>/chunks/`.
+6. The browser uploads encrypted bytes directly to EdgeOne Pages Blob and calls `/api/transfer/complete` on the same Edge Function base to mark it readable.
+7. A recipient opens `/t/<code>`, enters the password, and the browser sends only a derived proof to the Edge Function.
+8. `/api/transfer/open` validates the proof and returns a one-time chunk download manifest with direct Pages Blob GET URLs. It does not read file bytes or text bytes through the Edge Function response. Old non-chunked records are intentionally unsupported and left for scheduled prefix cleanup.
+9. `edgeone.json` schedules `/api/transfer/cleanup` daily at 02:00 Asia/Shanghai and deletes every object under the `transfer/` prefix in the Blob store. The cleanup endpoint only accepts calls during the Beijing 02:00 hour to reduce public abuse.
+10. `/api/transfer/stats` is a read-only admin endpoint protected by `TRANSFER_ADMIN_PASSWORD_HASH`; it lists Blob objects, reads object metadata, and returns storage totals plus the largest objects. Per-object metadata failures are reported in the response instead of failing the whole stats request.
+11. Created transfers show a QR code whose URL hash can carry the read password as `/t/<code>#p=<password>`; the read page consumes the hash client-side and removes it from the address bar before any API call.
 
 LAN transfer flow:
 
@@ -401,8 +405,8 @@ Important constraints:
 
 - `NEXT_PUBLIC_TRANSFER_API_BASE` is required for the encrypted public relay UI. There is intentionally no Next/Netlify API fallback; if Edge Functions are unavailable, transfer create/open fail.
 - Passwords are never sent to the server, but the server does receive a password-derived proof for access control. QR-code password sharing uses URL hash fragments so the password stays browser-side.
-- Transfer metadata keeps only the salt, IV, proof hash, public file details, status, and expiry; KDF settings are fixed in client code.
-- Transfer size limits are 1MB for text and 20MB for files, staying below the EdgeOne Blob single-object limit.
+- Transfer metadata keeps only the salt, per-chunk IV manifest, proof hash, public details, status, and expiry; KDF settings are fixed in client code.
+- Public relay transfer size limits are 1MB for text and 200MB for files. Text uses one encrypted chunk; public relay files use 4MB plaintext chunks so Edge Functions do not read or return Blob object bodies. Old non-chunked payloads are intentionally unsupported.
 - EdgeOne Blob is accessed inside Edge Functions with platform auth. No `EDGEONE_PAGES_PROJECT_ID` or `EDGEONE_API_TOKEN` is needed for this transfer path.
 - EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `TRANSFER_ADMIN_PASSWORD_HASH` is required only for `/api/transfer/stats`, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
 - LAN transfer environment variables: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are required in the browser bundle. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted only as a compatibility fallback.

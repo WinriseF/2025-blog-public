@@ -5,7 +5,8 @@ export const TRANSFER_UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 export const TRANSFER_LIMITS = {
 	minPasswordLength: 6,
 	maxTextBytes: 1024 * 1024,
-	maxFileBytes: 20 * 1024 * 1024,
+	publicRelayChunkBytes: 4 * 1024 * 1024,
+	maxFileBytes: 200 * 1024 * 1024,
 	maxCreatePerIpPerDay: 20,
 	uploadUrlSeconds: 10 * 60
 } as const
@@ -13,19 +14,38 @@ export const TRANSFER_LIMITS = {
 export type TransferKind = 'text' | 'file'
 export type TransferStatus = 'pending' | 'ready'
 
+export type TransferChunkMeta = {
+	index: number
+	iv: string
+	plainSize: number
+	cipherSize?: number
+}
+
+export type TransferChunkUpload = {
+	index: number
+	url: string
+}
+
+export type TransferOpenChunk = TransferChunkMeta & {
+	url: string
+}
+
 export type TransferCreateRequest = {
 	kind: TransferKind
 	name: string
 	contentType: string
 	size: number
 	salt: string
-	iv: string
 	proof: string
+	chunked: true
+	chunkSize: number
+	chunkCount: number
+	chunks: TransferChunkMeta[]
 }
 
 export type TransferCreateResponse = {
 	code: string
-	uploadUrl: string
+	uploadUrls: TransferChunkUpload[]
 	uploadExpiresAt: number
 	expireAt: number
 }
@@ -46,10 +66,18 @@ export type TransferPublicMeta = {
 	contentType: string
 	size: number
 	salt: string
-	iv: string
 	status: TransferStatus
 	expireAt: number
 	createdAt: number
+	chunked: true
+	chunkSize: number
+	chunkCount: number
+	chunks: TransferChunkMeta[]
+	encryptedSize?: number
+}
+
+export type TransferOpenResponse = Omit<TransferPublicMeta, 'chunks'> & {
+	chunks: TransferOpenChunk[]
 }
 
 export type TransferErrorBody = {
