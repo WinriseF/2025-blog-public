@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react'
+import { Download, Eye, Image as ImageIcon, RefreshCw, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import { DialogModal } from '@/components/dialog-modal'
@@ -41,6 +42,11 @@ function formatBytes(bytes: number) {
 	if (bytes < 1024) return `${bytes.toFixed(0)} B`
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
 	return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+}
+
+function savingPercent(original: number, converted?: ConvertedMeta) {
+	if (!converted || !original) return null
+	return Math.max(0, Math.round((1 - converted.size / original) * 100))
 }
 
 async function fileToWebp(file: File, quality: number, maxWidth?: number) {
@@ -300,12 +306,18 @@ export function CompressTool() {
 		}
 	}, [])
 
-	const uploadClassName = `group hover:border-brand/20 relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-brand/20 bg-brand/5 p-5 text-center transition-colors hover:bg-article ${isDragging ? 'border-brand bg-article' : ''}`
+	const uploadClassName = `group relative flex min-h-[280px] cursor-pointer flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-brand/25 bg-background/25 p-8 text-center transition-colors hover:border-brand/45 hover:bg-brand/5 max-sm:min-h-[220px] max-sm:p-6 ${isDragging ? 'border-brand bg-brand/10' : ''}`
 	const compareImage = compareIndex !== null ? images[compareIndex] : undefined
+	const rangeProgress = `${Math.round(((quality - 0.3) / 0.7) * 100)}%`
 
 	return (
 		<div className='relative text-sm'>
-			<div className='mx-auto flex max-w-3xl flex-col gap-6'>
+			<div className='mx-auto flex max-w-5xl flex-col gap-8'>
+				<div>
+					<h1 className='text-2xl font-semibold tracking-normal text-primary'>图片压缩</h1>
+					<p className='text-secondary mt-3 text-sm'>本地转换为 WEBP，不上传服务器</p>
+				</div>
+
 				<motion.label
 					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
@@ -316,141 +328,125 @@ export function CompressTool() {
 					onDrop={handleDrop}
 					className={uploadClassName}>
 					<input type='file' accept='image/*' multiple className='hidden' onChange={event => handleFiles(event.target.files)} />
-					<div className='bg-brand/10 text-brand/60 group-hover:bg-brand/10 flex h-20 w-20 items-center justify-center rounded-full text-3xl transition'>
-						📷
+					<div className='bg-brand/10 text-brand group-hover:bg-brand/15 flex h-20 w-20 items-center justify-center rounded-full transition max-sm:h-16 max-sm:w-16'>
+						<ImageIcon size={34} strokeWidth={1.8} />
 					</div>
 					<div>
-						<p className='text-base font-medium'>点击或拖拽图片</p>
-						<p className='text-secondary text-xs'>支持 PNG、JPG、JPEG、HEIC 等常见格式</p>
+						<p className='text-lg font-semibold text-primary max-sm:text-base'>点击或拖拽图片到这里</p>
+						<p className='text-secondary mt-3 text-sm'>支持 PNG、JPG、JPEG、HEIC</p>
 					</div>
 				</motion.label>
-
-				{hasImages && (
-					<motion.div
-						initial={{ opacity: 0, scale: 0.9 }}
-						animate={{ opacity: 1, scale: 1 }}
-						className='relative'>
-						<div className='text-secondary flex items-center justify-between border-b border-border pb-3 text-xs tracking-[0.2em] uppercase'>
-							<span>已选择 {images.length} 张图片</span>
-							<span>{totalSize}</span>
-						</div>
-						<ul className='divide-y divide-border'>
-							{images.map((item, index) => {
-								const { file, preview, converted, converting } = item
-								return (
-									<li key={`${file.name}-${index}`} className='grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 py-3 max-sm:grid-cols-[48px_minmax(0,1fr)]'>
-										<div className='h-12 w-12 overflow-hidden rounded-xl border border-border bg-card'>
-											<OptimizedImage src={preview} alt={file.name} width={48} height={48} className='h-full w-full object-cover' />
-										</div>
-										<div className='flex min-w-0 flex-col'>
-											<p className='truncate font-medium'>{formatFileName(file.name)}</p>
-											<p className='text-secondary text-xs'>
-												{item.width} × {item.height} · {formatBytes(file.size)}
-												{converted ? `（转换后 ${formatBytes(converted.size)}）` : ''}
-											</p>
-										</div>
-										<div className='flex flex-wrap justify-end gap-2 text-xs max-sm:col-span-2 max-sm:justify-start'>
-											<button
-												onClick={() => handleConvertImage(index)}
-												disabled={!!converting}
-												className='rounded-full px-3 py-1 font-medium transition disabled:cursor-not-allowed disabled:text-secondary/45'>
-												{converting ? '转换中...' : converted ? '重新转换' : '转换'}
-											</button>
-											{converted ? (
-												<>
-													<button
-														onClick={() => handleCompareImage(index)}
-														className='border-brand text-brand hover:bg-brand/10 rounded-full border px-3 py-1 font-semibold transition'>
-														对比
-													</button>
-													<button
-														onClick={() => handleDownloadImage(index)}
-														className='border-brand text-brand hover:bg-brand/10 rounded-full border px-3 py-1 font-semibold transition'>
-														下载
-													</button>
-												</>
-											) : null}
-											<button
-												onClick={() => handleRemoveImage(index)}
-												className='rounded-full border border-red-200/60 px-3 py-1 font-medium text-rose-400 transition hover:bg-rose-500/10'>
-												移除
-											</button>
-										</div>
-									</li>
-								)
-							})}
-						</ul>
-					</motion.div>
-				)}
 
 				<motion.div
 					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + 2 * ANIMATION_DELAY }}
 					className='relative'>
-					<div className='flex flex-wrap items-center gap-4 max-sm:flex-col max-sm:items-stretch'>
-						<div className='flex-1 space-y-4'>
-							<div>
-								<p className='text-secondary text-xs tracking-[0.2em] uppercase'>质量</p>
-								<div className='flex items-center gap-3 pt-2'>
-									<input
-										type='range'
-										min={0.3}
-										max={1}
-										step={0.05}
-										value={quality}
-										onChange={event => setQuality(parseFloat(event.target.value))}
-										className='range-track'
-									/>
-									<span className='w-12 text-right text-sm font-medium'>{Math.round(quality * 100)}%</span>
+					<div className='space-y-6'>
+						<div className='grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_auto]'>
+							<div className='min-w-0'>
+								<label htmlFor='compress-quality' className='text-sm font-semibold text-primary'>质量</label>
+								<div className='mt-5 grid grid-cols-[minmax(0,1fr)_64px] items-center gap-8 max-sm:grid-cols-[minmax(0,1fr)_48px] max-sm:gap-4'>
+									<input id='compress-quality' type='range' min={0.3} max={1} step={0.05} value={quality} onChange={event => setQuality(parseFloat(event.target.value))} className='range-track' style={{ '--range-progress': rangeProgress } as CSSProperties} />
+									<span className='text-right text-base font-medium text-primary'>{Math.round(quality * 100)}%</span>
 								</div>
-								<p className='text-secondary text-xs'>使用 canvas.toDataURL('image/webp', {quality.toFixed(2)})</p>
 							</div>
-							<div className='flex items-center gap-3'>
-								<div className='flex items-center gap-2'>
-									<input
-										type='checkbox'
-										id='limit-max-width'
-										checked={limitMaxWidth}
-										onChange={event => setLimitMaxWidth(event.target.checked)}
-										className='h-4 w-4 rounded border-border'
-									/>
-									<label htmlFor='limit-max-width' className='text-secondary cursor-pointer text-xs tracking-[0.2em] uppercase'>
-										限制最大宽度
-									</label>
-								</div>
-								{limitMaxWidth && (
-									<div className='flex items-center gap-2'>
-										<input
-											type='number'
-											min={100}
-											max={10000}
-											step={100}
-											value={maxWidth}
-											onChange={event => setMaxWidth(Math.max(100, parseInt(event.target.value) || 1200))}
-											className='w-24 rounded border border-border bg-card px-2 py-1 text-sm'
-										/>
-										<span className='text-secondary text-xs'>px</span>
-									</div>
-								)}
+
+							<div className='flex items-center gap-3 max-sm:flex-wrap'>
+								<input type='checkbox' id='limit-max-width' checked={limitMaxWidth} onChange={event => setLimitMaxWidth(event.target.checked)} className='h-4 w-4 rounded border-border bg-card accent-[var(--color-brand)]' />
+								<label htmlFor='limit-max-width' className='cursor-pointer text-sm font-medium text-primary'>限制最大宽度</label>
+								<input type='number' min={100} max={10000} step={100} value={maxWidth} disabled={!limitMaxWidth} onChange={event => setMaxWidth(Math.max(100, parseInt(event.target.value) || 1200))} className='h-10 w-28 rounded-lg border border-border bg-card px-3 text-sm text-primary shadow-sm outline-none transition disabled:text-secondary/45 disabled:opacity-70' />
+								<span className='text-secondary text-sm'>px</span>
 							</div>
 						</div>
-						<div className='flex flex-wrap gap-2 text-sm max-sm:w-full'>
+
+						<div className='flex flex-wrap gap-3 text-sm'>
 							<button
 								onClick={handleConvertAll}
 								disabled={!hasConvertible || batchConverting}
-								className='rounded-full border border-border px-4 py-2 font-medium transition disabled:cursor-not-allowed disabled:text-secondary/45 max-sm:flex-1'>
+								className='bg-brand text-background flex min-w-28 items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45 max-sm:flex-1'>
+								<RefreshCw size={15} className={batchConverting ? 'animate-spin' : ''} />
 								{batchConverting ? '全部转换中…' : '全部转换'}
 							</button>
 							<button
 								onClick={handleDownloadAll}
 								disabled={!hasConverted}
-								className='border-brand text-brand rounded-full border px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:border-border disabled:text-secondary/45 max-sm:flex-1'>
+								className='flex min-w-28 items-center justify-center gap-2 rounded-xl border border-border bg-background/40 px-5 py-3 font-semibold text-primary shadow-sm transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45 max-sm:flex-1'>
+								<Download size={15} />
 								全部下载
 							</button>
 						</div>
 					</div>
 				</motion.div>
+
+				<section className='border-t border-border pt-6'>
+					{hasImages ? (
+						<motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className='relative'>
+							<div className='mb-2 flex items-center justify-between gap-3'>
+								<h2 className='text-sm font-semibold text-primary'>压缩结果（{images.length}）</h2>
+								<span className='text-secondary text-xs'>原图总计 {totalSize}</span>
+							</div>
+							<ul className='divide-y divide-border'>
+								{images.map((item, index) => {
+									const { file, preview, converted, converting } = item
+									const percent = savingPercent(file.size, converted)
+									return (
+										<li key={`${file.name}-${index}`} className='grid grid-cols-[56px_minmax(150px,1fr)_auto_auto] items-center gap-4 py-4 max-lg:grid-cols-[56px_minmax(0,1fr)_auto] max-sm:grid-cols-[52px_minmax(0,1fr)]'>
+											<div className='h-14 w-14 overflow-hidden rounded-lg border border-border bg-card max-sm:h-12 max-sm:w-12'>
+												<OptimizedImage src={preview} alt={file.name} width={56} height={56} className='h-full w-full object-cover' />
+											</div>
+											<div className='min-w-0'>
+												<p className='truncate font-medium text-primary'>{formatFileName(file.name)}</p>
+												<p className='text-secondary mt-1 text-xs'>{item.width} × {item.height}</p>
+											</div>
+											<div className='flex items-center gap-4 text-sm max-lg:col-span-2 max-lg:col-start-2 max-sm:col-span-2 max-sm:col-start-1 max-sm:flex-wrap max-sm:gap-3'>
+												<span className='text-secondary'>原始：{formatBytes(file.size)}</span>
+												<span className='text-secondary'>→</span>
+												<span className='text-primary'>WEBP：{converted ? formatBytes(converted.size) : converting ? '转换中...' : '待转换'}</span>
+												{percent !== null && <span className='rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600'>节省 {percent}%</span>}
+											</div>
+											<div className='flex justify-end gap-2 text-xs max-sm:col-span-2 max-sm:justify-start'>
+												<button
+													onClick={() => handleConvertImage(index)}
+													disabled={!!converting}
+													className='flex items-center gap-1.5 rounded-lg border border-border bg-background/40 px-3 py-2 font-medium text-primary transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45'>
+													<RefreshCw size={14} className={converting ? 'animate-spin' : ''} />
+													{converting ? '转换中' : converted ? '重转' : '转换'}
+												</button>
+												<button
+													onClick={() => handleCompareImage(index)}
+													disabled={!converted}
+													className='flex items-center gap-1.5 rounded-lg border border-border bg-background/40 px-3 py-2 font-medium text-primary transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45'>
+													<Eye size={14} />
+													对比
+												</button>
+												<button
+													onClick={() => handleDownloadImage(index)}
+													disabled={!converted}
+													className='text-brand flex items-center gap-1.5 rounded-lg border border-border bg-background/40 px-3 py-2 font-semibold transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45'>
+													<Download size={14} />
+													下载
+												</button>
+												<button
+													onClick={() => handleRemoveImage(index)}
+													className='text-secondary hover:text-primary flex items-center gap-1.5 rounded-lg border border-border bg-background/40 px-3 py-2 font-medium transition hover:border-brand/45'>
+													<Trash2 size={14} />
+													移除
+												</button>
+											</div>
+										</li>
+									)
+								})}
+							</ul>
+						</motion.div>
+					) : (
+						<div className='text-secondary flex min-h-36 flex-col items-center justify-center text-center'>
+							<ImageIcon size={34} strokeWidth={1.6} className='mb-3 opacity-35' />
+							<p className='text-sm font-medium'>暂无图片</p>
+							<p className='mt-2 text-sm'>上传图片后将在这里显示压缩结果</p>
+						</div>
+					)}
+				</section>
 			</div>
 
 			{compareImage?.converted && (
