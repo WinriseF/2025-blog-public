@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, FileText, ImageIcon, Send } from 'lucide-react'
+import { ArrowUpRight, FileText, ImageIcon, ScanFace, Send } from 'lucide-react'
 import { motion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
@@ -21,6 +21,13 @@ const tools = [
 		icon: FileText
 	},
 	{
+		href: '/toolbox/face-mask',
+		label: '人脸打码',
+		desc: '人脸遮挡编辑器',
+		tone: 'from-rose-300/25 via-pink-200/10 to-transparent',
+		icon: ScanFace
+	},
+	{
 		href: '/t',
 		label: '快传',
 		desc: '公网中转 / 局域网互传',
@@ -37,7 +44,7 @@ export function ToolboxClient() {
 				<h1 className='mt-2 text-3xl font-semibold tracking-normal text-primary max-sm:text-2xl'>客户端工具箱</h1>
 			</motion.header>
 
-			<section className='mt-8 grid gap-4 md:grid-cols-3'>
+			<section className='mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
 				{tools.map(({ href, label, desc, tone, icon: Icon }, index) => (
 					<motion.div key={href} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: INIT_DELAY + index * 0.06 }}>
 						<Link

@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-07-01.
+Last updated: 2026-07-03.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -30,6 +30,7 @@ Primary stack:
 - `marked`, `shiki`, `mermaid`, and `html-react-parser` for Markdown rendering.
 - `motion` for animation.
 - `lucide-react` and local SVG files for icons.
+- `interactjs` for pointer-based drag/resize interactions in the face privacy masking tool.
 - `qrcode` for browser-side QR code generation in the transfer toolbox.
 - `simple-peer` and `fflate` for browser-side LAN transfer WebRTC sessions and ZIP packaging.
 - Netlify deployment through `@netlify/plugin-nextjs`.
@@ -101,9 +102,10 @@ Main route groups and pages:
 - `/about`: about page from `src/app/about/`.
 - `/news` and `/news/[date]`: news index/detail.
 - `/calendar`, `/world-clock`, `/music`, `/game`, `/svgs`: utility or experimental pages.
-- `/toolbox`: toolbox directory page with links to `/toolbox/compress`, `/toolbox/markdown`, and `/t`.
+- `/toolbox`: toolbox directory page with links to `/toolbox/compress`, `/toolbox/markdown`, `/toolbox/face-mask`, and `/t`.
 - `/toolbox/compress`: image compression tool.
 - `/toolbox/markdown`: local Markdown preview tool.
+- `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
@@ -412,6 +414,25 @@ Important constraints:
 - EdgeOne Function environment variables: `TRANSFER_RATE_SALT` is required, `TRANSFER_ADMIN_PASSWORD_HASH` is required for `/api/transfer/stats` and manual `/api/transfer/cleanup`, `EDGEONE_BLOB_STORE` defaults to `message-transfer`, and `TRANSFER_ALLOWED_ORIGIN` is optional CORS tightening.
 - LAN transfer environment variables: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are required in the browser bundle. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted only as a compatibility fallback.
 - Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus a scheduled cleanup that clears the whole `transfer/` prefix each Beijing 02:00.
+
+## Face Privacy Masking Toolbox
+
+Frontend:
+
+- `src/app/toolbox/face-mask-tool.tsx`
+- `src/app/toolbox/face-mask-editor.tsx`
+- `src/app/toolbox/face-mask-controls.tsx`
+- `src/lib/face-mask/`
+
+Flow:
+
+1. `/toolbox/face-mask` loads a browser-only editor wrapped in `ToolPageShell`.
+2. Before upload, the page shows one large drop zone. After upload, that same space is replaced by the canvas editor; changing the image is a small toolbar action.
+3. Images stay in browser memory as `File`, ObjectURL, `ImageBitmap`, and canvas data. No API route receives files or detection results.
+4. Automatic face detection is loaded only after the user clicks auto detect. The browser dynamically imports MediaPipe Tasks Vision from jsDelivr and uses Google's BlazeFace full-range model URL.
+5. Mask rectangles are stored in original image coordinates. Preview rendering scales them for display, while export renders to an original-size PNG canvas.
+6. Dragging and resizing mask boxes uses `interactjs` for pointer/touch handling. Mask rendering and export use the native Canvas API.
+7. Emoji sticker UI, preview, and export use the browser/system emoji font so the exported image matches the in-browser preview.
 
 ## Build And Generated Files
 
