@@ -14,12 +14,12 @@ export default function Page() {
 	const pictures = initialList as Picture[]
 
 	return (
-		<>
+		<div className='relative min-h-dvh overflow-hidden'>
 			<RandomLayout pictures={pictures} />
 
 			{pictures.length === 0 && (
 				<div className='text-secondary flex min-h-screen items-center justify-center text-center text-sm'>还没有图片。</div>
 			)}
-		</>
+		</div>
 	)
 }
