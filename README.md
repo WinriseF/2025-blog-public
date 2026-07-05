@@ -10,14 +10,14 @@ WinriseF 的个人站点仓库。
 - React 19
 - TypeScript
 - Tailwind CSS
-- pnpm 9
+- pnpm 11
 
 ## Run
 
 项目当前使用：
 
 ```json
-"packageManager": "pnpm@9.15.9"
+"packageManager": "pnpm@11.7.0"
 ```
 
 如果在 Vercel 部署，需要启用：
@@ -26,22 +26,11 @@ WinriseF 的个人站点仓库。
 ENABLE_EXPERIMENTAL_COREPACK=1
 ```
 
-## GitHub App
-
-站点的可视化编辑功能依赖 GitHub App 写回仓库。需要配置这些环境变量：
-
-```txt
-NEXT_PUBLIC_GITHUB_OWNER=WinriseF
-NEXT_PUBLIC_GITHUB_REPO=2025-blog-public
-NEXT_PUBLIC_GITHUB_BRANCH=main
-NEXT_PUBLIC_GITHUB_APP_ID=你的 GitHub App ID
-```
-
-默认回退值在 [src/consts.ts](./src/consts.ts)。
-
 ## Content
 
-以下内容目前通过仓库内数据文件维护：
+站点内容只通过修改仓库文件并提交代码维护，不再提供网页端编辑、保存或删除入口。
+
+主要内容文件：
 
 - `src/config/site-content.json`
 - `src/app/about/list.json`

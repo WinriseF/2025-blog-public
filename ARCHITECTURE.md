@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-07-03.
+Last updated: 2026-07-05.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -10,12 +10,12 @@ This document is written for future AI agents and maintainers. Read it before do
 
 - Static, versioned content files in this repository.
 - A rich client-side frontend for reading, browsing, and visual presentation.
-- Hidden browser-side authoring tools that write content back to GitHub through the Git Data API.
+- Content maintained by editing repository files and submitting normal code commits.
 - A small amount of server-side routing for RSS and news proxy/parsing.
 - A separate Supabase Edge Function for likes.
 - An encrypted message/file transfer tool backed by EdgeOne Edge Functions and Pages Blob, plus LAN transfer signaling backed by Supabase Realtime Presence and Broadcast.
 
-This is not a traditional CMS-backed blog. Most content is JSON, Markdown, and image references committed to the repo.
+This is not a traditional CMS-backed blog. Content is JSON, Markdown, and image references committed to the repo.
 
 ## Technology Stack
 
@@ -53,7 +53,7 @@ Important note: `next.config.ts` currently has `typescript.ignoreBuildErrors: tr
 - `src/components/`: shared React components.
 - `src/hooks/`: shared client hooks.
 - `src/lib/`: business utilities, renderers, clients, parsers, and shared logic.
-- `src/config/`: site config JSON and feature flags.
+- `src/config/`: site config JSON.
 - `src/layout/`: global layout shell used by `src/app/layout.tsx`.
 - `src/styles/`: global Tailwind/CSS and article styles.
 - `src/svgs/`: local SVG assets imported as React components.
@@ -93,8 +93,6 @@ Main route groups and pages:
 - `/home`: alternate/extra home route in `src/app/home/`.
 - `/blog`: blog index from `src/app/blog/page.tsx`.
 - `/blog/[id]`: blog detail from `src/app/blog/[id]/page.tsx`.
-- `/write`: blog creation UI.
-- `/write/[slug]`: blog edit UI.
 - `/projects`: projects grid from `src/app/projects/`.
 - `/pictures`: image gallery from `src/app/pictures/`.
 - `/share`: shared links/resources from `src/app/share/`.
@@ -153,7 +151,6 @@ Global site and homepage config:
 - `src/config/site-content.json`
 - `src/config/card-styles.json`
 - `src/config/card-styles-default.json`
-- `src/config/public-admin-actions.ts`
 
 ## Blog Read Flow
 
@@ -209,15 +206,11 @@ Homepage route:
 Key modules:
 
 - `src/app/(home)/stores/config-store.ts`
-- `src/app/(home)/stores/layout-edit-store.ts`
-- `src/app/(home)/home-draggable-layer.tsx`
-- `src/app/(home)/config-dialog/`
+- `src/app/(home)/theme-toggle-card.tsx`
 - `src/config/site-content.json`
 - `src/config/card-styles.json`
 
-The homepage is a card-based dashboard/personal page. Cards read dimensions, order, enabled state, and offsets from `card-styles.json`. The config store loads site content and card styles into Zustand.
-
-Hidden edit/config behavior exists behind `SHOW_PUBLIC_ADMIN_ACTIONS` in `src/config/public-admin-actions.ts`. The flag is currently `false`, so public visitors do not see admin controls, but the related client code still exists in the project.
+The homepage is a card-based dashboard/personal page. Cards read dimensions, order, enabled state, and offsets from `card-styles.json`. The config store loads site content and card styles into Zustand. Homepage layout and card content are edited through repository files, not through an in-browser admin dialog.
 
 ## Navigation
 
@@ -226,49 +219,20 @@ Global navigation is `src/components/nav-card.tsx`.
 It is rendered by the global layout on all pages. It adapts between:
 
 - full card mode on the homepage,
-- mini mode on `/write`,
 - icon strip mode on other routes and mobile.
 
 Navigation items are currently hardcoded inside `nav-card.tsx`.
 
-## Authoring And GitHub Write-Back
+## Content Maintenance
 
-The project contains hidden authoring/editing flows for:
+The project does not expose in-browser editing, deletion, or repository mutation flows. Public pages for blogs, projects, pictures, shares, bloggers, about, and the homepage are read-only displays over committed files.
 
-- blogs
-- projects
-- pictures
-- shares
-- bloggers/about/site config in related modules
+Maintenance model:
 
-Core GitHub modules:
-
-- `src/lib/auth.ts`
-- `src/hooks/use-auth.ts`
-- `src/lib/github-client.ts`
-- `src/consts.ts`
-
-Blog write service:
-
-- `src/app/write/services/push-blog.ts`
-
-Other write services follow the same pattern:
-
-- `src/app/projects/services/push-projects.ts`
-- `src/app/pictures/services/push-pictures.ts`
-- `src/app/share/services/push-shares.ts`
-- `src/app/blog/services/batch-delete-blogs.ts`
-- similar route-local `services/` folders
-
-Write-back model:
-
-1. User imports a GitHub App private key file in the browser.
-2. `src/lib/auth.ts` signs a JWT with `jsrsasign`.
-3. The app gets a GitHub installation id and installation token.
-4. Service code creates blobs, a tree, a commit, then updates the branch ref through GitHub Git Data API.
-5. The target repo/branch comes from `GITHUB_CONFIG` in `src/consts.ts`.
-
-This is efficient for a personal site, but the private key is used in browser memory. UI hiding is not a security boundary.
+1. Edit JSON, Markdown, and config files directly in the repository.
+2. Keep image assets in the sibling image repository described below, then mirror/runtime-reference the intended public paths.
+3. Update generated artifacts only through the project script when the user explicitly asks or the artifact itself is the requested output.
+4. Submit changes through normal code commits and deployment.
 
 ## Image And Asset Model
 
@@ -352,7 +316,7 @@ Flow:
 3. POST records a daily slug/ip hash limit and increments the count.
 4. Supabase function uses `SUPABASE_SERVICE_ROLE_KEY` inside the Edge Function environment.
 
-This is better isolated than the GitHub write-back flow because privileged credentials live server-side.
+Privileged credentials live server-side inside the Supabase Edge Function environment.
 
 ## Message Transfer Toolbox
 
@@ -479,8 +443,6 @@ Cache headers are configured for:
 
 Important risks:
 
-- GitHub App private key is used in browser memory for authoring write-back.
-- `SHOW_PUBLIC_ADMIN_ACTIONS=false` hides UI only; it is not real authorization.
 - TypeScript build errors are ignored in `next.config.ts`.
 - Blog detail rendering is client-side, which weakens SEO and no-JS readability.
 - Content consistency depends on keeping JSON indexes, Markdown, generated word-cloud data, and image repository assets aligned.
@@ -518,12 +480,12 @@ If you need to work on Markdown rendering:
 3. Read `src/components/blog-preview.tsx`.
 4. Read `src/components/code-block.tsx` and `src/components/markdown-image.tsx` if needed.
 
-If you need to work on content publishing:
+If you need to update site content:
 
-1. Read `src/lib/auth.ts`.
-2. Read `src/lib/github-client.ts`.
-3. Read the route-local `services/push-*.ts` file.
-4. Treat the browser-side private-key model as a known risk.
+1. Edit the relevant JSON, Markdown, or config file directly.
+2. Keep image assets aligned with the sibling image repository policy in `AGENTS.md`.
+3. Update generated files only when the task explicitly requires the generated artifact.
+4. Submit the result through normal code review and commit flow.
 
 If you need to work on news:
 

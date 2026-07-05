@@ -2,17 +2,13 @@
 
 import { useState } from 'react'
 
-import { type LogoItem } from './components/logo-upload-dialog'
 import { ShareCard, type Share } from './components/share-card'
 
 interface GridViewProps {
 	shares: Share[]
-	isEditMode?: boolean
-	onUpdate?: (share: Share, oldShare: Share, logoItem?: LogoItem) => void
-	onDelete?: (share: Share) => void
 }
 
-export default function GridView({ shares, isEditMode = false, onUpdate, onDelete }: GridViewProps) {
+export default function GridView({ shares }: GridViewProps) {
 	const [searchTerm, setSearchTerm] = useState('')
 	const [selectedTag, setSelectedTag] = useState<string>('all')
 
@@ -58,7 +54,7 @@ export default function GridView({ shares, isEditMode = false, onUpdate, onDelet
 
 			<div className='grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3'>
 				{filteredShares.map(share => (
-					<ShareCard key={share.url} share={share} isEditMode={isEditMode} onUpdate={onUpdate} onDelete={() => onDelete?.(share)} />
+					<ShareCard key={share.url} share={share} />
 				))}
 			</div>
 

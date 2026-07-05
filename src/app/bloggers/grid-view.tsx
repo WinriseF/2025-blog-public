@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 
-import { type AvatarItem } from './components/avatar-upload-dialog'
 import { BloggerCard } from './components/blogger-card'
 
 export interface Blogger {
@@ -15,12 +14,9 @@ export interface Blogger {
 
 interface GridViewProps {
 	bloggers: Blogger[]
-	isEditMode?: boolean
-	onUpdate?: (blogger: Blogger, oldBlogger: Blogger, avatarItem?: AvatarItem) => void
-	onDelete?: (blogger: Blogger) => void
 }
 
-export default function GridView({ bloggers, isEditMode = false, onUpdate, onDelete }: GridViewProps) {
+export default function GridView({ bloggers }: GridViewProps) {
 	const [searchTerm, setSearchTerm] = useState('')
 
 	const filteredBloggers = bloggers.filter(
@@ -41,7 +37,7 @@ export default function GridView({ bloggers, isEditMode = false, onUpdate, onDel
 
 			<div className='grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3'>
 				{filteredBloggers.map(blogger => (
-					<BloggerCard key={blogger.url} blogger={blogger} isEditMode={isEditMode} onUpdate={onUpdate} onDelete={() => onDelete?.(blogger)} />
+					<BloggerCard key={blogger.url} blogger={blogger} />
 				))}
 			</div>
 

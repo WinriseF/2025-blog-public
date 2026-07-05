@@ -14,9 +14,6 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.108.2
         version: 2.110.0
-      '@types/jsrsasign':
-        specifier: ^10.5.15
-        version: 10.5.15
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -35,9 +32,6 @@ importers:
       interactjs:
         specifier: ^1.10.27
         version: 1.10.27
-      jsrsasign:
-        specifier: ^11.1.0
-        version: 11.1.3
       lucide-react:
         specifier: ^0.553.0
         version: 0.553.0(react@19.2.1)
@@ -1334,9 +1328,6 @@ packages:
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
 
-  '@types/jsrsasign@10.5.15':
-    resolution: {integrity: sha512-3stUTaSRtN09PPzVWR6aySD9gNnuymz+WviNHoTb85dKu+BjaV4uBbWWGykBBJkfwPtcNZVfTn2lbX00U+yhpQ==}
-
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -1955,9 +1946,6 @@ packages:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
     hasBin: true
-
-  jsrsasign@11.1.3:
-    resolution: {integrity: sha512-nPnK5D/4lv0Dwr7TlzrKtAd8JlLZwFTqTUUB3NQCbtdobcRcohGFxjbPySDVh74iWUudcCsapYT6OxoyhJLhhA==}
 
   katex@0.16.47:
     resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
@@ -3972,8 +3960,6 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
-  '@types/jsrsasign@10.5.15': {}
-
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -4605,8 +4591,6 @@ snapshots:
   json-parse-even-better-errors@2.3.0: {}
 
   json5@2.2.3: {}
-
-  jsrsasign@11.1.3: {}
 
   katex@0.16.47:
     dependencies:

@@ -65,9 +65,9 @@
 		"offsetY": null,
 		"enabled": true
 	},
-	"writeButtons": {
+	"themeToggle": {
 		"height": 42,
-		"width": 180,
+		"width": 42,
 		"order": 8,
 		"offsetX": null,
 		"offsetY": null,

@@ -3,44 +3,24 @@
 import Link from 'next/link'
 import dayjs from 'dayjs'
 import { motion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { useCallback, useMemo, useState } from 'react'
 import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import ShortLineSVG from '@/svgs/short-line.svg'
 import { useBlogIndex, type BlogIndexItem } from '@/hooks/use-blog-index'
 import { useBlogWordCloud } from '@/hooks/use-blog-word-cloud'
 import { useReadArticles } from '@/hooks/use-read-articles'
-import { useAuthStore } from '@/hooks/use-auth'
-import { readFileAsText } from '@/lib/file-utils'
-import { cn } from '@/lib/utils'
-import { batchDeleteBlogs } from './services/batch-delete-blogs'
-import { Check, Cloud, List } from 'lucide-react'
+import { Cloud, List } from 'lucide-react'
 import { YearWordCloud } from '@/components/year-word-cloud'
-import { SHOW_PUBLIC_ADMIN_ACTIONS } from '@/config/public-admin-actions'
 
 export default function BlogPage() {
 	const { items, loading } = useBlogIndex()
 	const { years: wordCloudYears, loading: wordCloudLoading, error: wordCloudError } = useBlogWordCloud()
 	const { isRead } = useReadArticles()
-	const { isAuth, setPrivateKey } = useAuthStore()
 
-	const keyInputRef = useRef<HTMLInputElement>(null)
-	const [editMode, setEditMode] = useState(false)
 	const [viewMode, setViewMode] = useState<'list' | 'cloud'>('list')
-	const [editableItems, setEditableItems] = useState<BlogIndexItem[]>([])
-	const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set())
-	const [saving, setSaving] = useState(false)
-
-	useEffect(() => {
-		if (!editMode) {
-			setEditableItems(items)
-		}
-	}, [items, editMode])
-
-	const displayItems = editMode ? editableItems : items
 
 	const { groupedItems, years } = useMemo(() => {
-		const sorted = [...displayItems].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+		const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 		const grouped = sorted.reduce(
 			(acc, item) => {
 				const year = dayjs(item.date).format('YYYY')
@@ -54,137 +34,29 @@ export default function BlogPage() {
 		)
 		const yearKeys = Object.keys(grouped).sort((a, b) => Number(b) - Number(a))
 		return { groupedItems: grouped, years: yearKeys }
-	}, [displayItems])
+	}, [items])
 
 	const wordCloudByYear = useMemo(() => new Map(wordCloudYears.map(group => [group.year, group])), [wordCloudYears])
-	const isCloudView = viewMode === 'cloud' && !editMode
-	const selectedCount = selectedSlugs.size
-	const buttonText = isAuth ? '保存' : '导入密钥'
+	const isCloudView = viewMode === 'cloud'
 	const viewButtonText = isCloudView ? '文章列表' : '词云图'
 
 	const toggleViewMode = useCallback(() => {
 		setViewMode(mode => (mode === 'cloud' ? 'list' : 'cloud'))
 	}, [])
 
-	const toggleEditMode = useCallback(() => {
-		if (editMode) {
-			setEditMode(false)
-			setEditableItems(items)
-			setSelectedSlugs(new Set())
-		} else {
-			setEditableItems(items)
-			setEditMode(true)
-			setViewMode('list')
-		}
-	}, [editMode, items])
-
-	const toggleSelect = useCallback((slug: string) => {
-		setSelectedSlugs(prev => {
-			const next = new Set(prev)
-			if (next.has(slug)) {
-				next.delete(slug)
-			} else {
-				next.add(slug)
-			}
-			return next
-		})
-	}, [])
-
-	const handleItemClick = useCallback(
-		(event: React.MouseEvent, slug: string) => {
-			if (!editMode) return
-			event.preventDefault()
-			event.stopPropagation()
-			toggleSelect(slug)
-		},
-		[editMode, toggleSelect]
-	)
-
-	const handleDeleteSelected = useCallback(() => {
-		if (selectedCount === 0) {
-			toast.info('请选择要删除的文章')
-			return
-		}
-		setEditableItems(prev => prev.filter(item => !selectedSlugs.has(item.slug)))
-		setSelectedSlugs(new Set())
-	}, [selectedCount, selectedSlugs])
-
-	const handleCancel = useCallback(() => {
-		setEditableItems(items)
-		setSelectedSlugs(new Set())
-		setEditMode(false)
-	}, [items])
-
-	const handleSave = useCallback(async () => {
-		const removedSlugs = items.filter(item => !editableItems.some(editItem => editItem.slug === item.slug)).map(item => item.slug)
-
-		if (removedSlugs.length === 0) {
-			toast.info('没有需要保存的改动')
-			return
-		}
-
-		try {
-			setSaving(true)
-			await batchDeleteBlogs(removedSlugs)
-			setEditMode(false)
-			setSelectedSlugs(new Set())
-		} catch (error: any) {
-			console.error(error)
-			toast.error(error?.message || '保存失败')
-		} finally {
-			setSaving(false)
-		}
-	}, [editableItems, items])
-
-	const handleSaveClick = useCallback(() => {
-		if (!isAuth) {
-			keyInputRef.current?.click()
-			return
-		}
-		void handleSave()
-	}, [handleSave, isAuth])
-
-	const handlePrivateKeySelection = useCallback(
-		async (file: File) => {
-			try {
-				const pem = await readFileAsText(file)
-				setPrivateKey(pem)
-				toast.success('密钥导入成功，请再次点击保存')
-			} catch (error) {
-				console.error(error)
-				toast.error('读取密钥失败')
-			}
-		},
-		[setPrivateKey]
-	)
-
 	return (
 		<>
-			<input
-				ref={keyInputRef}
-				type='file'
-				accept='.pem'
-				className='hidden'
-				onChange={async e => {
-					const f = e.target.files?.[0]
-					if (f) await handlePrivateKeySelection(f)
-					if (e.currentTarget) e.currentTarget.value = ''
-				}}
-			/>
-
 			<div className='flex flex-col items-center justify-center gap-6 px-6 pt-32 pb-12 max-sm:pt-28'>
-				{!editMode && (
-					<div className='hidden w-full max-w-[840px] justify-end max-sm:flex'>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={toggleViewMode}
-							className='flex items-center gap-2 rounded-xl border bg-white/60 px-4 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-							{isCloudView ? <List className='size-4' /> : <Cloud className='size-4' />}
-							{viewButtonText}
-						</motion.button>
-					</div>
-				)}
+				<div className='hidden w-full max-w-[840px] justify-end max-sm:flex'>
+					<motion.button
+						whileHover={{ scale: 1.05 }}
+						whileTap={{ scale: 0.95 }}
+						onClick={toggleViewMode}
+						className='flex items-center gap-2 rounded-xl border bg-white/60 px-4 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
+						{isCloudView ? <List className='size-4' /> : <Cloud className='size-4' />}
+						{viewButtonText}
+					</motion.button>
+				</div>
 
 				{isCloudView ? (
 					<>
@@ -254,30 +126,11 @@ export default function BlogPage() {
 								<div>
 									{groupedItems[year].map(it => {
 										const hasRead = isRead(it.slug)
-										const isSelected = selectedSlugs.has(it.slug)
 										return (
 											<Link
 												href={`/blog/${it.slug}`}
 												key={it.slug}
-												onClick={event => handleItemClick(event, it.slug)}
-												className={cn(
-													'group flex min-h-10 items-center gap-3 py-3 transition-all',
-													editMode
-														? cn(
-																'rounded-lg border px-3',
-																isSelected ? 'border-brand/60 bg-brand/5' : 'hover:border-brand/40 border-transparent hover:bg-white/60'
-															)
-														: 'cursor-pointer'
-												)}>
-												{editMode && (
-													<span
-														className={cn(
-															'flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-semibold',
-															isSelected ? 'border-brand bg-brand text-white' : 'border-[#D9D9D9] text-transparent'
-														)}>
-														<Check />
-													</span>
-												)}
+												className='group flex min-h-10 cursor-pointer items-center gap-3 py-3 transition-all'>
 												<span className='text-secondary w-[44px] shrink-0 text-sm font-medium'>{dayjs(it.date).format('MM-DD')}</span>
 
 												<div className='relative flex h-2 w-2 items-center justify-center'>
@@ -285,10 +138,7 @@ export default function BlogPage() {
 													<ShortLineSVG className='absolute bottom-4' />
 												</div>
 												<div
-													className={cn(
-														'flex-1 truncate text-sm font-medium transition-all',
-														editMode ? null : 'group-hover:text-brand group-hover:translate-x-2'
-													)}>
+													className='flex-1 truncate text-sm font-medium transition-all group-hover:text-brand group-hover:translate-x-2'>
 													{it.title || it.slug}
 													{hasRead && <span className='text-secondary ml-2 text-xs'>[已阅读]</span>}
 												</div>
@@ -312,50 +162,14 @@ export default function BlogPage() {
 			</div>
 
 			<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} className='absolute top-4 right-6 flex gap-3 max-sm:hidden'>
-				{editMode ? (
-					<>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={handleCancel}
-							disabled={saving}
-							className='rounded-xl border bg-white/60 px-6 py-2 text-sm'>
-							取消
-						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={handleDeleteSelected}
-							disabled={selectedCount === 0}
-							className='rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600 transition-colors disabled:opacity-60'>
-							删除(已选:{selectedCount}篇)
-						</motion.button>
-						<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleSaveClick} disabled={saving} className='brand-btn px-6'>
-							{saving ? '保存中...' : buttonText}
-						</motion.button>
-					</>
-				) : (
-					<>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							onClick={toggleViewMode}
-							className='flex items-center gap-2 rounded-xl border bg-white/60 px-4 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-							{isCloudView ? <List className='size-4' /> : <Cloud className='size-4' />}
-							{viewButtonText}
-						</motion.button>
-						{/* Public visitors should not see the edit entry; existing edit logic stays wired behind the flag. */}
-						{SHOW_PUBLIC_ADMIN_ACTIONS && (
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								onClick={toggleEditMode}
-								className='rounded-xl border bg-white/60 px-6 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
-								编辑
-							</motion.button>
-						)}
-					</>
-				)}
+				<motion.button
+					whileHover={{ scale: 1.05 }}
+					whileTap={{ scale: 0.95 }}
+					onClick={toggleViewMode}
+					className='flex items-center gap-2 rounded-xl border bg-white/60 px-4 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-white/80'>
+					{isCloudView ? <List className='size-4' /> : <Cloud className='size-4' />}
+					{viewButtonText}
+				</motion.button>
 			</motion.div>
 		</>
 	)

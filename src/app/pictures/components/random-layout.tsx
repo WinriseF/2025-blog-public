@@ -11,8 +11,6 @@ import { getAssetUrl } from '@/lib/asset-url'
 
 interface RandomLayoutProps {
 	pictures: Picture[]
-	isEditMode?: boolean
-	onDeleteSingle?: (pictureId: string, imageIndex: number) => void
 }
 
 type PositionedItem = {
@@ -33,10 +31,6 @@ interface FloatingImageProps {
 	position: PositionedItem
 	description?: string
 	uploadedAt?: string
-	pictureId: string
-	imageIndex: number
-	isEditMode?: boolean
-	onDeleteSingle?: (pictureId: string, imageIndex: number) => void
 }
 
 type UrlItem = {
@@ -44,19 +38,15 @@ type UrlItem = {
 	groupIndex: number
 	description?: string
 	uploadedAt?: string
-	pictureId: string
-	imageIndex: number
 }
 
 const buildUrlList = (pictures: Picture[]): UrlItem[] => {
 	return pictures.flatMap((picture, groupIndex) =>
-		picture.images.map((url, imageIndex) => ({
+		picture.images.map(url => ({
 			url,
 			groupIndex,
 			description: picture.description,
-			uploadedAt: picture.uploadedAt,
-			pictureId: picture.id,
-			imageIndex
+			uploadedAt: picture.uploadedAt
 		}))
 	)
 }
@@ -94,11 +84,7 @@ const FloatingImage = ({
 	groupIndex,
 	position,
 	description,
-	uploadedAt,
-	pictureId,
-	imageIndex,
-	isEditMode,
-	onDeleteSingle
+	uploadedAt
 }: FloatingImageProps) => {
 	const { centerX, centerY } = useCenterStore()
 	const { maxSM } = useSize()
@@ -277,7 +263,7 @@ const FloatingImage = ({
 				transition={{ type: 'tween', ease: 'easeOut' }}
 				className={cn(
 					'pointer-events-auto absolute origin-center -translate-1/2 cursor-pointer shadow-xl transition-[scale]',
-					!isEditMode && !isZoomed && 'hover:scale-105'
+					!isZoomed && 'hover:scale-105'
 				)}>
 				<motion.img
 					src={imageUrl}
@@ -291,24 +277,6 @@ const FloatingImage = ({
 					draggable={false}
 					className={cn('h-full w-full object-cover select-none')}
 				/>
-				{isEditMode && !isZoomed && (
-					<motion.button
-						initial={{ opacity: 0, scale: 0.8 }}
-						animate={{ opacity: 1, scale: 1 }}
-						onClick={e => {
-							e.stopPropagation()
-							onDeleteSingle?.(pictureId, imageIndex)
-						}}
-						onMouseUp={e => {
-							e.stopPropagation()
-						}}
-						className='absolute -top-2 -right-2 rounded-full bg-red-500 p-1.5 opacity-0 shadow-lg transition-all group-hover:opacity-100 hover:scale-105 hover:bg-red-600'
-						style={{ zIndex: 1 }}>
-						<svg xmlns='http://www.w3.org/2000/svg' className='h-3 w-3 text-white' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-							<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
-						</svg>
-					</motion.button>
-				)}
 			</motion.div>
 
 			{isZoomed && description && (
@@ -386,7 +354,7 @@ const getStablePosition = (uniqueId: string, width: number, height: number): Pos
 	return position
 }
 
-export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle }: RandomLayoutProps) => {
+export const RandomLayout = ({ pictures }: RandomLayoutProps) => {
 	useCenterInit()
 	const { width, height } = useCenterStore()
 	const [show, setShow] = useState(false)
@@ -423,10 +391,6 @@ export const RandomLayout = ({ pictures, isEditMode = false, onDeleteSingle }: R
 						position={position}
 						description={item.description}
 						uploadedAt={item.uploadedAt}
-						pictureId={item.pictureId}
-						imageIndex={item.imageIndex}
-						isEditMode={isEditMode}
-						onDeleteSingle={onDeleteSingle}
 					/>
 				)
 			})}
