@@ -55,6 +55,23 @@ function compactFileName(name: string, maxLength = 28) {
 	return `${chars.slice(0, headLength).join('')}...${suffix}`
 }
 
+function formatMessageTime(value: number) {
+	const date = new Date(value)
+	const now = new Date()
+	const sameDay = date.toDateString() === now.toDateString()
+	const yesterday = new Date(now)
+	yesterday.setDate(now.getDate() - 1)
+	const time = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+	if (sameDay) return time
+	if (date.toDateString() === yesterday.toDateString()) return `昨天 ${time}`
+	return `${date.getMonth() + 1}月${date.getDate()}日 ${time}`
+}
+
+function shouldShowTimeDivider(previous: LanChatMessage | undefined, current: LanChatMessage) {
+	if (!previous) return true
+	return current.createdAt - previous.createdAt > 5 * 60 * 1000
+}
+
 type AttachmentCardProps = {
 	attachment: LanAttachment
 	onDownload: (name: string, url: string) => void
@@ -154,36 +171,67 @@ function AttachmentCard(props: AttachmentCardProps) {
 
 function MessageBubble({
 	message,
+	peerName,
 	onDownload,
 	onStartReceive,
 }: {
 	message: LanChatMessage
+	peerName: string
 	onDownload: (name: string, url: string) => void
 	onStartReceive: (id: string) => void
 }) {
 	if (message.direction === 'system') return <div className='mx-auto w-fit rounded-full border border-border bg-article px-3 py-1 text-xs text-secondary'>{message.text}</div>
 	const outgoing = message.direction === 'out'
 	return (
-		<div className={`flex gap-3 max-sm:gap-2 ${outgoing ? 'justify-end' : 'justify-start'}`}>
+		<div className={cn('flex gap-3 max-sm:gap-2', outgoing ? 'justify-end' : 'justify-start')}>
 			{!outgoing && <DeviceAvatar active />}
-			<div className={`flex max-w-[calc(100%-64px)] flex-col space-y-2 sm:max-w-[76%] ${outgoing ? 'items-end' : 'items-start'}`}>
+			<div className={cn('flex max-w-[calc(100%-58px)] flex-col space-y-2 sm:max-w-[72%]', outgoing ? 'items-end' : 'items-start')}>
+				{!outgoing && <p className='text-secondary max-w-full truncate px-1 text-xs'>{peerName}</p>}
 				{message.text && (
-					<div className={cn('break-words rounded-2xl border px-4 py-3 text-sm leading-6 shadow-sm', outgoing ? 'border-brand/30 bg-brand/10' : 'border-border bg-article')}>
+					<div className={cn('max-w-full break-words rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary')}>
 						{message.text}
 					</div>
 				)}
 				{message.attachments.length > 0 && (
-					<div className='w-full max-w-full space-y-2'>
+					<div className={cn('max-w-full space-y-2', outgoing ? 'flex flex-col items-end' : 'flex flex-col items-start')}>
 						{message.attachments.map(attachment => <AttachmentCard key={attachment.id} attachment={attachment} onDownload={onDownload} onStartReceive={onStartReceive} />)}
 					</div>
 				)}
-				<div className={`flex items-center gap-1 text-[11px] text-secondary ${outgoing ? 'justify-end' : 'justify-start'}`}>
-					<span>{new Date(message.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-					{outgoing && <CheckCheck size={13} className={message.status === 'failed' ? 'text-red-400' : 'text-brand'} />}
-				</div>
+				{outgoing && <CheckCheck size={13} className={message.status === 'failed' ? 'text-red-400' : 'text-secondary'} />}
 			</div>
 			{outgoing && <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-background'>我</div>}
 		</div>
+	)
+}
+
+function TimeDivider({ value }: { value: number }) {
+	return (
+		<div className='flex justify-center py-2'>
+			<span className='rounded-full bg-background/55 px-3 py-1 text-xs text-secondary'>{formatMessageTime(value)}</span>
+		</div>
+	)
+}
+
+function MessageList({
+	messages,
+	peerName,
+	onDownload,
+	onStartReceive,
+}: {
+	messages: LanChatMessage[]
+	peerName: string
+	onDownload: (name: string, url: string) => void
+	onStartReceive: (id: string) => void
+}) {
+	return (
+		<>
+			{messages.map((message, index) => (
+				<div key={message.id} className='space-y-3'>
+					{shouldShowTimeDivider(messages[index - 1], message) && <TimeDivider value={message.createdAt} />}
+					<MessageBubble message={message} peerName={peerName} onDownload={onDownload} onStartReceive={onStartReceive} />
+				</div>
+			))}
+		</>
 	)
 }
 
@@ -334,6 +382,7 @@ function ChatPane({
 	const scrollRef = useRef<HTMLDivElement | null>(null)
 	const lastMessage = controller.messages[controller.messages.length - 1]
 	const lastMessageKey = lastMessage ? `${lastMessage.id}:${lastMessage.attachments.length}:${lastMessage.attachments.some(item => item.previewUrl || item.url)}` : ''
+	const peerName = controller.remotePeer?.name || '对方设备'
 
 	useEffect(() => {
 		const scrollToBottom = () => {
@@ -367,7 +416,7 @@ function ChatPane({
 			</header>
 			<div ref={scrollRef} className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
 				{controller.session ? (
-					controller.messages.length ? controller.messages.map(message => <MessageBubble key={message.id} message={message} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} />) : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
+					controller.messages.length ? <MessageList messages={controller.messages} peerName={peerName} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} /> : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
 				) : !showEmptyCreate ? (
 					<div className='text-secondary py-20 text-center text-sm'>先在设备页创建或连接设备</div>
 				) : (
