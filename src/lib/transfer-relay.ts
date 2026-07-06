@@ -293,7 +293,7 @@ export async function openRelayTransfer(options: OpenRelayOptions) {
 	if (!response.ok) throw new Error(await readTransferApiError(response))
 
 	const opened = await openChunkManifest(response, options.password, meta, options.onStatus)
-	if ('file' in opened) options.onStatus?.(opened.file.isImage ? '图片读取成功，提取入口已销毁' : '文件已开始下载，提取入口已销毁，下载链接短时有效')
+	if ('file' in opened && opened.file) options.onStatus?.(opened.file.isImage ? '图片读取成功，提取入口已销毁' : '文件已开始下载，提取入口已销毁，下载链接短时有效')
 	else options.onStatus?.('读取成功，提取入口已销毁')
 	return opened
 }

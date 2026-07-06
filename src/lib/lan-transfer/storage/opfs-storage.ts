@@ -4,6 +4,11 @@ import { addRange, type ChunkRange } from './ranges'
 type DirectoryHandle = FileSystemDirectoryHandle
 
 type FileHandle = FileSystemFileHandle
+type WritableFileStream = {
+	write: (data: unknown) => Promise<void>
+	close: () => Promise<void>
+	abort: () => Promise<void>
+}
 
 const MANIFEST_FLUSH_CHUNKS = 64
 const MANIFEST_FLUSH_BYTES = 32 * 1024 * 1024
@@ -18,7 +23,7 @@ type PendingWrite = {
 type ActiveOpfsFile = {
 	dir: DirectoryHandle
 	dataHandle: FileHandle
-	writable: FileSystemWritableFileStream | null
+	writable: WritableFileStream | null
 	manifest: TransferManifest
 	pendingChunks: number
 	pendingBytes: number
@@ -66,7 +71,7 @@ async function readJsonFile<T>(directory: DirectoryHandle, name: string) {
 
 async function writeJsonFile(directory: DirectoryHandle, name: string, data: unknown) {
 	const handle = await directory.getFileHandle(name, { create: true })
-	const writable = await handle.createWritable()
+	const writable = await (handle as FileHandle & { createWritable: () => Promise<WritableFileStream> }).createWritable()
 	await writable.write(JSON.stringify(data))
 	await writable.close()
 }
@@ -74,7 +79,7 @@ async function writeJsonFile(directory: DirectoryHandle, name: string, data: unk
 async function openWritable(handle: FileHandle, keepExistingData: boolean) {
 	const createWritable = (
 		handle as FileHandle & {
-			createWritable?: (options?: { keepExistingData?: boolean }) => Promise<FileSystemWritableFileStream>
+			createWritable?: (options?: { keepExistingData?: boolean }) => Promise<WritableFileStream>
 		}
 	).createWritable
 	if (typeof createWritable !== 'function') throw new Error('当前浏览器不支持接收大文件')

@@ -28,7 +28,7 @@ const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 const transferApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
 const contentLimitLabel = '4MB'
 const fileLimitLabel = '200MB'
-const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v2'
+const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v4'
 
 function normalizeCode(value: string) {
 	return value.trim().toUpperCase()
@@ -247,8 +247,8 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 			const metaUrl = `${transferApiUrl('meta')}?code=${encodeURIComponent(code)}`
 			const openUrl = transferApiUrl('open')
 			const opened = await openRelayTransfer({ code, password: openPassword, metaUrl, openUrl, onStatus: setStatus })
-			if ('file' in opened) setOpenedFile(opened.file)
-			else setOpenedText(opened.text)
+			if ('file' in opened && opened.file) setOpenedFile(opened.file)
+			else if ('text' in opened) setOpenedText(opened.text)
 		} catch (error) {
 			setStatus(error instanceof Error ? error.message : '读取失败')
 		} finally {

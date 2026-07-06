@@ -1,6 +1,6 @@
 import type SimplePeer from 'simple-peer'
-import { zipSync } from 'fflate'
-import { LAN_LIMITS, type LanControlMessage, type LanStorageKind, type PreparedLanFile } from './types'
+import { hasChunk, type ChunkRange } from './storage/ranges'
+import { LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
 
 const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
@@ -11,27 +11,20 @@ function transferId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function uniqueName(name: string, used: Set<string>) {
-	const fallback = name || 'file'
-	if (!used.has(fallback)) {
-		used.add(fallback)
-		return fallback
-	}
-	const dot = fallback.lastIndexOf('.')
-	const base = dot > 0 ? fallback.slice(0, dot) : fallback
-	const ext = dot > 0 ? fallback.slice(dot) : ''
-	for (let index = 2; ; index += 1) {
-		const next = `${base}-${index}${ext}`
-		if (!used.has(next)) {
-			used.add(next)
-			return next
-		}
-	}
+function safeBlobPart(bytes: Uint8Array) {
+	return bytes as unknown as BlobPart
 }
 
-function timestampName() {
-	const value = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-')
-	return `winrisef-lan-${value}.zip`
+function receivedBytesFromRanges(file: PreparedLanAttachment, ranges: ChunkRange[]) {
+	let total = 0
+	for (const [start, end] of ranges) {
+		for (let index = start; index <= end; index += 1) {
+			const offset = index * file.chunkSize
+			if (offset >= file.size) continue
+			total += Math.min(file.chunkSize, file.size - offset)
+		}
+	}
+	return total
 }
 
 export function formatBytes(bytes: number) {
@@ -42,58 +35,53 @@ export function formatBytes(bytes: number) {
 	return `${(bytes / 1024 / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 * 1024 ? 2 : 1)} GB`
 }
 
-function safeBlobPart(bytes: Uint8Array) {
-	return bytes as unknown as BlobPart
+export function messageId() {
+	return transferId()
 }
 
-export type PrepareLanFileOptions = {
+export function attachmentKindForFile(file: File): LanAttachmentKind {
+	if (file.type.startsWith('image/')) return 'image'
+	return 'file'
+}
+
+export type PrepareLanAttachmentOptions = {
+	messageId: string
+	kind?: LanAttachmentKind
 	chunkSize?: number
 	suggestedStorage?: LanStorageKind
 	maxBytes?: number
+	durationMs?: number
+	name?: string
 }
 
-export async function prepareLanFiles(files: File[], options: PrepareLanFileOptions = {}) {
-	if (!files.length) throw new Error('请先选择文件')
-	const totalSize = files.reduce((sum, file) => sum + file.size, 0)
+export function fileFromBlob(blob: Blob, name: string, lastModified = Date.now()) {
+	return new File([blob], name, { type: blob.type || 'application/octet-stream', lastModified })
+}
+
+export async function imagePreviewUrl(file: File) {
+	if (!file.type.startsWith('image/') || file.size > LAN_LIMITS.imageInlinePreviewBytes) return ''
+	return URL.createObjectURL(file)
+}
+
+export function prepareLanAttachment(file: File, options: PrepareLanAttachmentOptions) {
 	const maxBytes = options.maxBytes || LAN_LIMITS.experimentalMaxBytes
-	if (totalSize > maxBytes) throw new Error(`当前接收设备最多建议 ${formatBytes(maxBytes)}`)
+	if (file.size > maxBytes) throw new Error(`当前接收设备最多建议 ${formatBytes(maxBytes)}`)
 	const chunkSize = Math.min(options.chunkSize || LAN_LIMITS.defaultChunkSize, LAN_LIMITS.dataChannelSafeChunkSize)
-	const suggestedStorage = options.suggestedStorage || (totalSize <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'opfs')
-
-	if (files.length === 1) {
-		const file = files[0]
-		return {
-			id: transferId(),
-			name: file.name || 'lan-transfer-file',
-			mime: file.type || 'application/octet-stream',
-			size: file.size,
-			fileCount: 1,
-			lastModified: file.lastModified || Date.now(),
-			chunkSize,
-			chunkCount: Math.ceil(file.size / chunkSize),
-			file,
-			suggestedStorage,
-		} satisfies PreparedLanFile
-	}
-
-	if (totalSize > LAN_LIMITS.multiFileZipMaxBytes) throw new Error(`多文件最多 ${formatBytes(LAN_LIMITS.multiFileZipMaxBytes)}，更大的文件请先打包后再发送。`)
-	const used = new Set<string>()
-	const entries: Record<string, Uint8Array> = {}
-	for (const file of files) entries[uniqueName(file.name, used)] = new Uint8Array(await file.arrayBuffer())
-	const bytes = zipSync(entries, { level: 0 })
-	const zipFile = new File([safeBlobPart(bytes)], timestampName(), { type: 'application/zip', lastModified: Date.now() })
+	const suggestedStorage = options.suggestedStorage || (file.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'opfs')
 	return {
 		id: transferId(),
-		name: zipFile.name,
-		mime: 'application/zip',
-		size: zipFile.size,
-		fileCount: files.length,
-		lastModified: zipFile.lastModified,
+		messageId: options.messageId,
+		kind: options.kind || attachmentKindForFile(file),
+		name: options.name || file.name || 'lan-session-file',
+		mime: file.type || 'application/octet-stream',
+		size: file.size,
+		lastModified: file.lastModified || Date.now(),
+		durationMs: options.durationMs,
 		chunkSize,
-		chunkCount: Math.ceil(zipFile.size / chunkSize),
-		file: zipFile,
-		suggestedStorage: zipFile.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : suggestedStorage,
-	} satisfies PreparedLanFile
+		chunkCount: Math.ceil(file.size / chunkSize),
+		suggestedStorage,
+		file,
+	} satisfies PreparedLanAttachment
 }
 
 export function encodeControl(message: LanControlMessage) {
@@ -104,8 +92,8 @@ export function encodeControl(message: LanControlMessage) {
 	return frame
 }
 
-export function encodeChunk(fileId: string, chunkIndex: number, bytes: Uint8Array) {
-	const header = encoder.encode(JSON.stringify({ id: fileId, index: chunkIndex }))
+export function encodeChunk(attachmentId: string, chunkIndex: number, bytes: Uint8Array) {
+	const header = encoder.encode(JSON.stringify({ id: attachmentId, index: chunkIndex }))
 	if (header.byteLength > 0xffff) throw new Error('文件发送失败，请重新发送')
 	const frame = new Uint8Array(1 + 2 + header.byteLength + bytes.byteLength)
 	frame[0] = CHUNK_FRAME
@@ -127,15 +115,12 @@ export function decodeFrame(data: unknown) {
 	const bytes = toBytes(data)
 	if (!bytes.length) return null
 	if (bytes[0] === CONTROL_FRAME) return { kind: 'control' as const, message: JSON.parse(decoder.decode(bytes.slice(1))) as LanControlMessage }
-	if (bytes[0] === CHUNK_FRAME) {
-		if (bytes.byteLength < 3) return null
-		const headerLength = (bytes[1] << 8) | bytes[2]
-		const headerEnd = 3 + headerLength
-		if (bytes.byteLength < headerEnd) return null
-		const header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number }
-		return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: bytes.slice(headerEnd) }
-	}
-	return null
+	if (bytes[0] !== CHUNK_FRAME || bytes.byteLength < 3) return null
+	const headerLength = (bytes[1] << 8) | bytes[2]
+	const headerEnd = 3 + headerLength
+	if (bytes.byteLength < headerEnd) return null
+	const header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number }
+	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: bytes.slice(headerEnd) }
 }
 
 function getDataChannel(peer: SimplePeer.Instance) {
@@ -229,21 +214,24 @@ async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, 
 	const startedAt = Date.now()
 	while (sent - getAckedBytes() > maxAheadBytes) {
 		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('对方接收太慢，发送已超时。请确认对方页面仍在前台并有足够空间。')
-		await new Promise((resolve) => window.setTimeout(resolve, 100))
+		await new Promise(resolve => window.setTimeout(resolve, 100))
 	}
 }
 
-export async function sendPreparedFile(
+export async function sendPreparedAttachment(
 	peer: SimplePeer.Instance,
-	file: PreparedLanFile,
+	file: PreparedLanAttachment,
 	onProgress: (sent: number) => void,
-	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number } = {},
+	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number; receivedRanges?: ChunkRange[] } = {},
 ) {
 	const highWatermark = options.mobile ? LAN_LIMITS.mobileBufferHighWatermark : LAN_LIMITS.bufferHighWatermark
 	const lowWatermark = options.mobile ? LAN_LIMITS.mobileBufferLowWatermark : LAN_LIMITS.bufferLowWatermark
 	const maxAheadBytes = options.maxAheadBytes || (options.mobile ? LAN_LIMITS.mobileMaxSenderAheadBytes : LAN_LIMITS.maxSenderAheadBytes)
-	let sent = 0
+	const receivedRanges = options.receivedRanges || []
+	let sent = receivedBytesFromRanges(file, receivedRanges)
+	onProgress(Math.min(file.size, sent))
 	for (let chunkIndex = 0; chunkIndex < file.chunkCount; chunkIndex += 1) {
+		if (hasChunk(receivedRanges, chunkIndex)) continue
 		await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
 		await waitForChannelBelow(peer, highWatermark, lowWatermark)
 		const offset = chunkIndex * file.chunkSize
@@ -251,9 +239,7 @@ export async function sendPreparedFile(
 		const blob = file.file.slice(offset, Math.min(offset + file.chunkSize, file.size))
 		const chunk = new Uint8Array(await blob.arrayBuffer())
 		const frame = encodeChunk(file.id, chunkIndex, chunk)
-		if (frame.byteLength > 64 * 1024) {
-			throw new Error('文件发送分片过大，请重新发送或选择更小的文件')
-		}
+		if (frame.byteLength > 64 * 1024) throw new Error('文件发送分片过大，请重新发送或选择更小的文件')
 		getOpenDataChannel(peer)
 		peer.send(frame)
 		sent += chunk.byteLength
@@ -263,8 +249,9 @@ export async function sendPreparedFile(
 	await waitForLowWatermark(peer, lowWatermark)
 	peer.send(
 		encodeControl({
-			type: 'transfer-complete',
+			type: 'attachment-complete',
 			id: file.id,
+			messageId: file.messageId,
 			sent: file.size,
 			chunkCount: file.chunkCount,
 		}),
@@ -274,8 +261,12 @@ export async function sendPreparedFile(
 export function downloadUrl(name: string, url: string) {
 	const link = document.createElement('a')
 	link.href = url
-	link.download = name || 'lan-transfer-file'
+	link.download = name || 'lan-session-file'
 	document.body.appendChild(link)
 	link.click()
 	link.remove()
+}
+
+export function bytesToFile(bytes: Uint8Array, name: string, type: string) {
+	return new File([safeBlobPart(bytes)], name, { type, lastModified: Date.now() })
 }

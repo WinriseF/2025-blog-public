@@ -19,7 +19,6 @@
 		"clsx": "^2.1.1",
 		"d3-cloud": "^1.2.9",
 		"dayjs": "^1.11.18",
-		"fflate": "^0.8.3",
 		"html-react-parser": "^5.2.8",
 		"interactjs": "^1.10.27",
 		"lucide-react": "^0.553.0",

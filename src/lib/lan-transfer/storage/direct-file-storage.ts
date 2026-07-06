@@ -2,10 +2,18 @@ import type { LanStorageEngine, TransferFileMeta, TransferManifest } from './typ
 import { addRange, type ChunkRange } from './ranges'
 
 type SaveFilePicker = (options?: { suggestedName?: string; types?: Array<{ description?: string; accept: Record<string, string[]> }> }) => Promise<FileSystemFileHandle>
+type WritableFileStream = {
+	write: (data: unknown) => Promise<void>
+	close: () => Promise<void>
+	abort: () => Promise<void>
+}
+type WritableFileHandle = FileSystemFileHandle & {
+	createWritable: () => Promise<WritableFileStream>
+}
 
 type ActiveDirectFile = {
 	fileHandle: FileSystemFileHandle
-	writable: FileSystemWritableFileStream | null
+	writable: WritableFileStream | null
 	manifest: TransferManifest
 	closed: boolean
 }
@@ -40,7 +48,7 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 		const fileHandle = await picker({
 			suggestedName: meta.name || 'lan-transfer-file',
 		})
-		const writable = await fileHandle.createWritable()
+		const writable = await (fileHandle as WritableFileHandle).createWritable()
 		const manifest = manifestFor(meta)
 		this.activeFiles.set(meta.id, { fileHandle, writable, manifest, closed: false })
 		this.manifests.set(meta.id, manifest)

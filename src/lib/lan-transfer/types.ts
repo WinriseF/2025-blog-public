@@ -1,29 +1,20 @@
-export const LAN_PROTOCOL_VERSION = 3
+export const LAN_PROTOCOL_VERSION = 4
 
 export const LAN_LIMITS = {
 	memoryMaxBytes: 200 * 1024 * 1024,
-	multiFileZipMaxBytes: 500 * 1024 * 1024,
+	imageInlinePreviewBytes: 12 * 1024 * 1024,
 	indexedDbRecommendedBytes: 1 * 1024 * 1024 * 1024,
 	indexedDbExperimentalBytes: 2 * 1024 * 1024 * 1024,
 	opfsRecommendedBytes: 10 * 1024 * 1024 * 1024,
 	experimentalMaxBytes: 50 * 1024 * 1024 * 1024,
-	// WebRTC DataChannel max-message-size can be much lower than OPFS/IDB write capacity.
-	// Keep every peer.send() frame safely below 64 KiB including our small frame header.
 	dataChannelSafeChunkSize: 60 * 1024,
 	defaultChunkSize: 60 * 1024,
-	opfsMobileChunkSize: 1024 * 1024,
-	opfsDesktopChunkSize: 2 * 1024 * 1024,
-	indexedDbChunkSize: 512 * 1024,
-	mobileChunkSize: 256 * 1024,
-	legacyChunkSize: 60 * 1024,
+	conservativeChunkSize: 60 * 1024,
 	bufferHighWatermark: 8 * 1024 * 1024,
 	bufferLowWatermark: 2 * 1024 * 1024,
 	mobileBufferHighWatermark: 4 * 1024 * 1024,
 	mobileBufferLowWatermark: 1 * 1024 * 1024,
 	bufferDrainTimeoutMs: 60 * 1000,
-	receiveAckTimeoutMs: 10 * 60 * 1000,
-	progressAckBytes: 16 * 1024 * 1024,
-	progressAckIntervalMs: 1000,
 	maxSenderAheadBytes: 64 * 1024 * 1024,
 	mobileMaxSenderAheadBytes: 32 * 1024 * 1024,
 } as const
@@ -35,6 +26,11 @@ export type LanConnectionState = 'idle' | 'signaling' | 'discovered' | 'connecti
 export type LanStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
 export type LanBrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari' | 'wechat' | 'qq' | 'unknown'
 export type LanPlatformKind = 'desktop' | 'android' | 'ios' | 'unknown'
+export type LanMessageDirection = 'in' | 'out' | 'system'
+export type LanMessageKind = 'text' | 'attachments' | 'system'
+export type LanMessageStatus = 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'received'
+export type LanAttachmentKind = 'image' | 'voice' | 'file'
+export type LanAttachmentStatus = 'queued' | 'offered' | 'receiving' | 'sending' | 'complete' | 'failed' | 'cancelled'
 
 export type LanPeer = {
 	id: string
@@ -101,93 +97,148 @@ export type LanCapability = {
 	notes: string[]
 }
 
-export type LanTransferRequest = {
-	type: 'transfer-request'
-	protocolVersion: typeof LAN_PROTOCOL_VERSION
+export type LanAttachmentManifest = {
 	id: string
+	kind: LanAttachmentKind
 	name: string
 	mime: string
 	size: number
-	fileCount: number
 	lastModified: number
+	durationMs?: number
 	chunkSize: number
 	chunkCount: number
 	suggestedStorage: LanStorageKind
 }
 
-export type LanTransferAccept = {
-	type: 'transfer-accept'
+export type LanAttachment = LanAttachmentManifest & {
+	direction: Exclude<LanMessageDirection, 'system'>
+	storage: LanStorageKind
+	status: LanAttachmentStatus
+	progress: number
+	url?: string
+	previewUrl?: string
+	error?: string
+}
+
+export type LanChatMessage = {
 	id: string
+	direction: LanMessageDirection
+	kind: LanMessageKind
+	text?: string
+	attachments: LanAttachment[]
+	status: LanMessageStatus
+	createdAt: number
+	peerId?: string
+	error?: string
+}
+
+export type LanFileRecord = {
+	id: string
+	messageId: string
+	direction: Exclude<LanMessageDirection, 'system'>
+	kind: LanAttachmentKind
+	name: string
+	mime: string
+	size: number
+	storage: LanStorageKind
+	status: LanAttachmentStatus
+	url?: string
+	createdAt: number
+	peerName?: string
+}
+
+export type LanChatMessageControl = {
+	type: 'chat-message'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	id: string
+	text: string
+	createdAt: number
+	peerId: string
+}
+
+export type LanAttachmentOffer = {
+	type: 'attachment-offer'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	messageId: string
+	createdAt: number
+	peerId: string
+	attachment: LanAttachmentManifest
+}
+
+export type LanAttachmentAccept = {
+	type: 'attachment-accept'
+	id: string
+	messageId: string
+	storage: LanStorageKind
+	receivedRanges: Array<[number, number]>
+	receivedBytes: number
+}
+
+export type LanAttachmentProgress = {
+	type: 'attachment-progress'
+	id: string
+	messageId: string
+	received: number
+	chunkCount: number
 	storage: LanStorageKind
 }
 
-export type LanTransferReject = {
-	type: 'transfer-reject'
+export type LanAttachmentComplete = {
+	type: 'attachment-complete'
 	id: string
-	reason?: string
-}
-
-export type LanTransferComplete = {
-	type: 'transfer-complete'
-	id: string
+	messageId: string
 	sent: number
 	chunkCount: number
 }
 
-export type LanTransferReceived = {
-	type: 'transfer-received'
+export type LanAttachmentReceived = {
+	type: 'attachment-received'
 	id: string
+	messageId: string
 	received: number
 	expected: number
 	chunkCount: number
 	storage: LanStorageKind
 }
 
-export type LanTransferProgress = {
-	type: 'transfer-progress'
+export type LanAttachmentCancel = {
+	type: 'attachment-cancel'
 	id: string
-	received: number
-	chunkCount: number
-	storage: LanStorageKind
-}
-
-export type LanTransferCancel = {
-	type: 'transfer-cancel'
-	id: string
+	messageId?: string
 	reason?: string
 }
 
-export type LanControlMessage = LanCapability | LanTransferRequest | LanTransferAccept | LanTransferReject | LanTransferComplete | LanTransferReceived | LanTransferProgress | LanTransferCancel
+export type LanResumeQuery = {
+	type: 'resume-query'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	ids: string[]
+}
 
-export type PreparedLanFile = {
-	id: string
-	name: string
-	mime: string
-	size: number
-	fileCount: number
-	lastModified: number
-	chunkSize: number
-	chunkCount: number
+export type LanResumeState = {
+	type: 'resume-state'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	attachments: Array<{
+		id: string
+		messageId: string
+		receivedRanges: Array<[number, number]>
+		receivedBytes: number
+		storage: LanStorageKind
+	}>
+}
+
+export type LanControlMessage =
+	| LanCapability
+	| LanChatMessageControl
+	| LanAttachmentOffer
+	| LanAttachmentAccept
+	| LanAttachmentProgress
+	| LanAttachmentComplete
+	| LanAttachmentReceived
+	| LanAttachmentCancel
+	| LanResumeQuery
+	| LanResumeState
+
+export type PreparedLanAttachment = LanAttachmentManifest & {
+	messageId: string
 	file: File
-	suggestedStorage: LanStorageKind
-}
-
-export type ReceivedLanFile = {
-	id: string
-	name: string
-	mime: string
-	size: number
-	url?: string
-	storage: LanStorageKind
-	receivedAt: number
-	cacheStatus: 'retained'
-}
-
-export type LanProgressState = {
-	id: string
-	name: string
-	size: number
-	done: number
-	label: string
-	stage?: string
 }

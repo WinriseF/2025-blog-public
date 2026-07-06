@@ -32,7 +32,7 @@ Primary stack:
 - `lucide-react` and local SVG files for icons.
 - `interactjs` for pointer-based drag/resize interactions in the face privacy masking tool.
 - `qrcode` for browser-side QR code generation in the transfer toolbox.
-- `simple-peer` and `fflate` for browser-side LAN transfer WebRTC sessions and ZIP packaging.
+- `simple-peer` for browser-side LAN transfer WebRTC sessions.
 - Netlify deployment through `@netlify/plugin-nextjs`.
 - Supabase Edge Function for the like endpoint and Supabase Realtime Presence and Broadcast for LAN transfer signaling.
 - EdgeOne Edge Functions and Pages Blob for the encrypted message transfer toolbox feature.
@@ -357,16 +357,21 @@ Encrypted relay flow:
 
 LAN transfer flow:
 
-1. `/t` has a separate `局域网互传` tab independent from `创建中转` and `读取中转`.
-2. Any device can create a pairing QR code as WebRTC `host`; another device scans `/t#mode=lan&room=<roomId>&token=<roomToken>` and joins as `guest`.
-3. The QR token stays in the URL hash. The browser hashes it locally and sends only `tokenHash` in Supabase Realtime payloads.
-4. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>`, track peer presence, and use Broadcast only for the `lan` signaling event. Presence payloads carry `peerId`, `role`, `peer`, `tokenHash`, and `joinedAt`; Broadcast payloads carry `roomId`, `tokenHash`, `from`, `to`, `seq`, and `ts`.
-5. Supported signaling messages are `announce`, `signal`, and `peer-left`. `announce` is retried until connection or a short timeout, and can also be synthesized from Presence state so late joins and missed broadcasts can still discover the other peer. No database tables, Supabase Storage objects, service role key, or secret key are used.
-6. The browser uses `simple-peer` with STUN-assisted WebRTC config (`stun:stun.l.google.com:19302`) to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `file-v3`. STUN is used only for candidate discovery; there is intentionally no TURN server or WebSocket file relay fallback for this hotspot transfer mode.
-7. Once connected, both devices are equal peers: either side can request to send files, and the other side must accept before receiving.
-8. Each send gets a fresh random transfer id. Single files are sent directly; multiple files are packaged into a ZIP with `fflate` and sent as one payload. WebRTC DataChannel messages are capped to a conservative safe frame size before storage writes, and `fileId + chunkIndex` are used only for ordered validation and idempotent writes.
-9. The receiver writes chunks through memory, IndexedDB, or OPFS depending on browser capability and file size. Successful completion creates an object URL for the current page download and keeps the completed cache until the user leaves or clears it from the received-file list; opening `/t` or `/t/<code>` also clears stale LAN IndexedDB and OPFS temporary storage from previous page sessions. Cancel, disconnect, write failure, and validation failure paths clear the current incoming partial transfer. Cross-reconnect resume is not currently promised without stronger content verification.
-10. LAN large-file support is beta-scoped: 10GB+ is only advertised for peers that pass the real OPFS write probe. IndexedDB fallback is capped to a 1GB recommendation and 2GB experimental maximum because final export still creates a Blob URL from stored chunks.
+1. `/t` has a separate `局域网互传` tab independent from the encrypted public relay UI.
+2. LAN transfer is intentionally versioned as a breaking protocol. Major LAN protocol updates do not keep compatibility branches for older LAN sessions; stale sessions must refresh and pair again.
+3. LAN Session V4 is a chat-style workbench instead of a single file-send panel. Desktop renders a session sidebar, chat stream, composer, and file panel. Mobile renders three tabs: `会话`, `设备`, and `文件`.
+4. Any device can create a pairing QR code as WebRTC `host`; another device scans `/t#mode=lan&room=<roomId>&token=<roomToken>` and joins as `guest`. The browser removes the raw token from the address bar after reading it and stores only the current V4 invite in sessionStorage.
+5. The QR token stays browser-side. The browser hashes it locally and sends only `tokenHash` in Supabase Realtime payloads.
+6. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>`, track peer presence, and use Broadcast only for the `lan` signaling event. Presence payloads carry `peerId`, `role`, `peer`, `tokenHash`, and `joinedAt`; Broadcast payloads carry `roomId`, `tokenHash`, `from`, `to`, `seq`, and `ts`.
+7. Supported signaling messages are `announce`, `signal`, and `peer-left`. `announce` is retried until connection and can be restarted after disconnect so the same page session can reconnect. No database tables, Supabase Storage objects, service role key, or secret key are used.
+8. The browser uses `simple-peer` with STUN-assisted WebRTC config (`stun:stun.l.google.com:19302`) to exchange offer/answer/ICE through Supabase Broadcast, then opens a WebRTC DataChannel named `lan-session-v4`. STUN is used only for candidate discovery; there is intentionally no TURN server or WebSocket file relay fallback for this hotspot transfer mode.
+9. Once connected, both devices are equal peers. Either side can send text messages, recorded voice messages, images, or files. Text is sent as a control frame; voice/image/file attachments use a shared chunk protocol.
+10. V4 control messages include `chat-message`, `attachment-offer`, `attachment-accept`, `attachment-progress`, `attachment-complete`, `attachment-received`, `attachment-cancel`, `resume-query`, and `resume-state`. Attachments use `attachmentId + chunkIndex` for ordered validation and idempotent writes.
+11. Multiple selected files are sent as independent attachments in one message, not as a ZIP. Each attachment has its own progress, completion, failure, and file-record state.
+12. Voice uses browser `MediaRecorder` to create a voice-message attachment. It is not a realtime voice call feature.
+13. Incoming attachment offers are shown as chat file cards first. The receiver does not send `attachment-accept` or start writing bytes until the user clicks the card's download action. After that, desktop browsers with File System Access use direct file save first, then progressively fall back to OPFS, IndexedDB, or memory when needed. Non-direct storage creates an object URL for download and keeps the completed cache until the user leaves or clears it from file management.
+14. Same-page reconnect is supported: outgoing attachment queues and incoming received ranges are retained in memory, and after WebRTC reconnect the peers exchange `resume-query` / `resume-state` so the sender can skip chunks already acknowledged by the receiver. Refresh-level or cross-device persistent resume is not promised.
+15. LAN large-file support is beta-scoped: 10GB+ is only advertised for peers that pass the real OPFS write probe. IndexedDB fallback is capped to a 1GB recommendation and 2GB experimental maximum because final export still creates a Blob URL from stored chunks.
 
 Important constraints:
 

@@ -154,7 +154,7 @@ export class LanSignalingClient {
 		if (result !== 'ok') throw new Error('连接失败')
 		if (this.closed) return
 		await this.sendAnnounce()
-		this.startAnnouncing()
+		this.restartAnnouncing()
 		this.emitPresencePeers()
 	}
 
@@ -216,7 +216,7 @@ export class LanSignalingClient {
 		if (result !== 'ok') throw new Error('连接消息发送失败')
 	}
 
-	private startAnnouncing() {
+	restartAnnouncing() {
 		this.stopAnnouncing()
 		this.announceStartedAt = Date.now()
 		this.announceTimer = setInterval(() => {

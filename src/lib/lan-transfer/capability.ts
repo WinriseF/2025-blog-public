@@ -33,7 +33,7 @@ async function probeOPFS() {
 		const root = await navigator.storage.getDirectory()
 		const dir = await root.getDirectoryHandle('winrisef-lan-probe', { create: true })
 		const file = await dir.getFileHandle('probe.bin', { create: true })
-		const writable = await file.createWritable()
+		const writable = await (file as FileSystemFileHandle & { createWritable: () => Promise<{ write: (data: unknown) => Promise<void>; close: () => Promise<void> }> }).createWritable()
 		await writable.write(new Uint8Array([1, 2, 3]))
 		await writable.close()
 		await dir.removeEntry('probe.bin').catch(() => {})
@@ -83,7 +83,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 
 	let maxRecommendedFileSize = LAN_LIMITS.memoryMaxBytes
 	let maxExperimentalFileSize = LAN_LIMITS.memoryMaxBytes
-	let recommendedChunkSize = LAN_LIMITS.legacyChunkSize
+	let recommendedChunkSize = LAN_LIMITS.conservativeChunkSize
 	let recommendedStorage = chooseStorage(opfsSupported, indexedDBSupported, fileSize, fileSystemAccessSupported && platform === 'desktop')
 
 	if (isEmbeddedBrowser) {
@@ -91,7 +91,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 	} else if (platform === 'ios') {
 		maxRecommendedFileSize = 500 * 1024 * 1024
 		maxExperimentalFileSize = 2 * 1024 * 1024 * 1024
-		recommendedChunkSize = LAN_LIMITS.legacyChunkSize
+		recommendedChunkSize = LAN_LIMITS.conservativeChunkSize
 		notes.push('iOS Safari 对后台和大文件写入限制更严格，不承诺 10GB+')
 	} else if (fileSystemAccessSupported && platform === 'desktop') {
 		maxRecommendedFileSize = LAN_LIMITS.experimentalMaxBytes
@@ -104,7 +104,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
 		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
 		recommendedStorage = 'opfs'
-		notes.push('支持 OPFS 增强模式；将使用长生命周期写入器提升大文件接收速度，断线后需要重新发送')
+		notes.push('支持 OPFS 增强模式；同一页面重连后可按已接收分片续传')
 	} else if (indexedDBSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.indexedDbRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.indexedDbExperimentalBytes
@@ -159,7 +159,7 @@ export function selectStorageForFile(size: number, capability: LanCapability | n
 export function assertCanReceiveFile(size: number, capability: LanCapability | null) {
 	if (!capability) return
 	if (capability.isEmbeddedBrowser && size > LAN_LIMITS.memoryMaxBytes) throw new Error('接收端不适合接收大文件，请换浏览器后重试')
-	if (size > LAN_LIMITS.memoryMaxBytes && !capability.storage.opfs && !capability.storage.indexedDB) throw new Error('接收端浏览器不能接收这么大的文件')
+	if (size > LAN_LIMITS.memoryMaxBytes && !capability.storage.fileSystemAccess && !capability.storage.opfs && !capability.storage.indexedDB) throw new Error('接收端浏览器缺少大文件落盘能力，请换支持直接保存、OPFS 或 IndexedDB 的浏览器')
 	if (typeof capability.storage.available === 'number' && capability.limits.recommendedStorage !== 'file' && size > capability.storage.available * 0.9) throw new Error('接收端浏览器可用存储空间不足，无法安全接收该文件')
 	if (size > capability.limits.maxExperimentalFileSize) throw new Error('文件太大，请换设备或清理空间后重试')
 }
