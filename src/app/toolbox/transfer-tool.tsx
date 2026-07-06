@@ -459,33 +459,35 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	)
 	const relaySections = isCodeEntry ? [receiveSection, sendSection] : [sendSection, receiveSection]
 
+	if (mode === 'lan') {
+		return (
+			<LanTransferTool
+				initialInvite={lanInvite}
+				onSwitchRelay={() => setMode('relay')}
+				onLeaveSession={() => {
+					setLanInvite(null)
+					if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
+				}}
+			/>
+		)
+	}
+
 	return (
-		<div className={`space-y-5 ${mode === 'lan' ? 'max-sm:px-0' : 'max-sm:px-4'}`}>
-			<div className={`flex flex-wrap gap-2 border-b border-border pb-4 ${mode === 'lan' ? 'max-sm:hidden' : ''}`}>
-				<button onClick={() => setMode('relay')} className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium ${mode === 'relay' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
+		<div className='space-y-5 max-sm:px-4'>
+			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
+				<button onClick={() => setMode('relay')} className='flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-xs font-medium text-primary'>
 					<Globe2 size={15} />
 					公网中转
 				</button>
-				<button onClick={() => setMode('lan')} className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium ${mode === 'lan' ? 'bg-brand/10 text-primary' : 'text-secondary hover:bg-brand/5'}`}>
+				<button onClick={() => setMode('lan')} className='text-secondary flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium hover:bg-brand/5'>
 					<Network size={15} />
 					局域网互传
 				</button>
 			</div>
 
-			{mode === 'lan' ? (
-				<LanTransferTool
-					initialInvite={lanInvite}
-					onSwitchRelay={() => setMode('relay')}
-					onLeaveSession={() => {
-						setLanInvite(null)
-						if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
-					}}
-				/>
-			) : (
-				<div className='grid items-start gap-5 xl:grid-cols-2'>
-					{relaySections}
-				</div>
-			)}
+			<div className='grid items-start gap-5 xl:grid-cols-2'>
+				{relaySections}
+			</div>
 		</div>
 	)
 }

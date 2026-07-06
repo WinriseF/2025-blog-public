@@ -232,18 +232,25 @@ function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onRec
 	)
 }
 
-function DesktopSidebar({ controller }: { controller: ReturnType<typeof useLanTransferController> }) {
+function DesktopSidebar({ controller, onSwitchRelay }: { controller: ReturnType<typeof useLanTransferController>; onSwitchRelay?: () => void }) {
 	const peerName = controller.remotePeer?.name || '等待另一台设备'
 	return (
-		<aside className='hidden min-h-0 w-[320px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-background/30 p-5 lg:flex'>
+		<aside className='hidden min-h-0 w-[360px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-background/30 p-5 lg:flex'>
 			<div className='flex items-center justify-between'>
 				<div>
 					<p className='text-brand text-xs font-semibold tracking-[0.18em] uppercase'>局域网互传</p>
 					<h2 className='mt-1 text-xl font-semibold'>连接设备</h2>
 				</div>
-				<button onClick={controller.handleCreateRoom} className='text-secondary flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'>
-					<Plus size={20} />
-				</button>
+				<div className='flex items-center gap-2'>
+					{onSwitchRelay && (
+						<button onClick={onSwitchRelay} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
+							中转站
+						</button>
+					)}
+					<button onClick={controller.handleCreateRoom} className='text-secondary flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'>
+						<Plus size={20} />
+					</button>
+				</div>
 			</div>
 			<div className='border-brand/20 bg-brand/5 text-brand rounded-3xl border p-4'>
 				<div className='flex items-center justify-between text-sm font-medium'>
@@ -287,7 +294,7 @@ function ChatPane({
 }) {
 	return (
 		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background/30'>
-			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-3 sm:px-5'>
+			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-3 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)] sm:px-5'>
 				<div className='flex min-w-0 items-center gap-3'>
 					{onBack ? (
 						<button onClick={onBack} className='text-secondary -ml-2 flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回设备'>
@@ -314,7 +321,7 @@ function ChatPane({
 					<EmptyChat onCreate={controller.handleCreateRoom} busy={controller.busy} />
 				)}
 			</div>
-			<div className='shrink-0 border-t border-border bg-article p-3 sm:p-4'>
+			<div className='shrink-0 border-t border-border bg-article p-3 max-lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4'>
 				<ChatComposer
 					connected={controller.connected}
 					recorderState={controller.recorder.state}
@@ -340,7 +347,7 @@ function DevicePage({
 	const peerName = controller.remotePeer?.name || '等待扫码设备'
 	return (
 		<div className='flex h-full min-h-0 flex-col bg-background/30'>
-			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4'>
+			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
 				<h2 className='text-lg font-semibold'>设备</h2>
 				<div className='flex items-center gap-2'>
 					{onSwitchRelay && (
@@ -393,9 +400,9 @@ function MobileShell({ controller, onSwitchRelay }: { controller: ReturnType<typ
 export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
 	return (
-		<div className='lan-session-v4 -m-3 overflow-hidden rounded-[32px] border border-border bg-background/30 shadow-[0_18px_60px_-42px_var(--color-primary)] max-sm:m-0 max-sm:h-[calc(100svh-6rem)] max-sm:rounded-none max-sm:border-0'>
-			<div className='hidden h-[calc(100svh-230px)] min-h-[560px] max-h-[780px] lg:grid lg:grid-cols-[320px_minmax(0,1fr)]'>
-				<DesktopSidebar controller={controller} />
+		<div className='lan-session-v4 fixed inset-0 z-[80] h-[100dvh] overflow-hidden bg-bg text-primary'>
+			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
+				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} />
 				<ChatPane controller={controller} />
 			</div>
 			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} />
