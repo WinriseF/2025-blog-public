@@ -86,7 +86,7 @@ const FloatingImage = ({
 	description,
 	uploadedAt
 }: FloatingImageProps) => {
-	const { centerX, centerY } = useCenterStore()
+	const { centerX, centerY, width: viewportWidth, height: viewportHeight } = useCenterStore()
 	const { maxSM } = useSize()
 	const bodyRef = useRef(document.body)
 	const mouseDownTimeRef = useRef<number | null>(null)
@@ -129,8 +129,8 @@ const FloatingImage = ({
 		}
 
 		const padding = 24
-		const maxWidth = document.documentElement.clientWidth - padding * 2
-		const maxHeight = document.documentElement.clientHeight - padding * 2
+		const maxWidth = (viewportWidth || document.documentElement.clientWidth) - padding * 2
+		const maxHeight = (viewportHeight || document.documentElement.clientHeight) - padding * 2
 
 		const scale = Math.min(maxWidth / originalSize.width, maxHeight / originalSize.height, 1)
 
@@ -138,7 +138,7 @@ const FloatingImage = ({
 			width: originalSize.width * scale,
 			height: originalSize.height * scale
 		}
-	}, [originalSize])
+	}, [originalSize, viewportHeight, viewportWidth])
 
 	const [isZoomed, setIsZoomed] = useState(false)
 	const dragStartOffsetRef = useRef({ x: 0, y: 0 })
@@ -154,16 +154,16 @@ const FloatingImage = ({
 		const noteHeight = 118
 		const gap = 18
 		const padding = 24
-		const viewportWidth = document.documentElement.clientWidth
-		const viewportHeight = document.documentElement.clientHeight
-		const imageRight = centerX + zoomedSize.width / 2
-		const imageBottom = centerY + zoomedSize.height / 2
+		const noteViewportWidth = viewportWidth || document.documentElement.clientWidth
+		const noteViewportHeight = viewportHeight || document.documentElement.clientHeight
+		const imageRight = noteViewportWidth / 2 + zoomedSize.width / 2
+		const imageBottom = noteViewportHeight / 2 + zoomedSize.height / 2
 
 		return {
-			left: Math.min(Math.max(padding, imageRight - noteWidth - gap), viewportWidth - noteWidth - padding),
-			top: Math.min(Math.max(padding, imageBottom - noteHeight - gap), viewportHeight - noteHeight - padding)
+			left: Math.min(Math.max(padding, imageRight - noteWidth - gap), noteViewportWidth - noteWidth - padding),
+			top: Math.min(Math.max(padding, imageBottom - noteHeight - gap), noteViewportHeight - noteHeight - padding)
 		}
-	}, [centerX, centerY, maxSM, zoomedSize.height, zoomedSize.width])
+	}, [maxSM, viewportHeight, viewportWidth, zoomedSize.height, zoomedSize.width])
 
 	if (!show) return null
 
@@ -179,105 +179,114 @@ const FloatingImage = ({
 					transition={{ duration: 0.3 }}
 					style={{ zIndex: TOP_Z_INDEX }}
 					className='bg-card fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-xl'
-				/>
-			)}
-			<motion.div
-				drag={!isZoomed}
-				dragConstraints={bodyRef}
-				dragMomentum={false}
-				onDragStart={() => {
-					if (!isZoomed) {
-						dragStartOffsetRef.current = { ...dragOffset }
-					}
-				}}
-				onMouseDown={event => {
-					lastZIndex = lastZIndex + 1
-					setZIndex(lastZIndex)
-					mouseDownTimeRef.current = event.timeStamp
-				}}
-				onMouseUp={event => {
-					if (mouseDownTimeRef.current !== null) {
-						const duration = event.timeStamp - mouseDownTimeRef.current
-						if (duration <= 150) {
-							if (!isZoomed) {
-								setIsZoomed(true)
-							} else if (maxSM) {
+				>
+					<motion.div
+						onClick={event => {
+							event.stopPropagation()
+							if (maxSM) {
 								setIsZoomed(false)
 							}
+						}}
+						initial={{ opacity: 0, scale: 0.92 }}
+						animate={{
+							opacity: 1,
+							scale: 1,
+							width: zoomedSize.width,
+							height: zoomedSize.height,
+							borderWidth: maxSM ? 12 : 24
+						}}
+						transition={{ type: 'tween', ease: 'easeOut' }}
+						className='pointer-events-auto relative cursor-pointer shadow-xl'>
+						<motion.img
+							src={imageUrl}
+							alt=''
+							loading='lazy'
+							decoding='async'
+							onLoad={event => {
+								const img = event.currentTarget
+								setOriginalSize({ width: img.naturalWidth, height: img.naturalHeight })
+							}}
+							draggable={false}
+							className='h-full w-full object-cover select-none'
+						/>
+					</motion.div>
+				</motion.div>
+			)}
+			{!isZoomed && (
+				<motion.div
+					drag
+					dragConstraints={bodyRef}
+					dragMomentum={false}
+					onDragStart={() => {
+						dragStartOffsetRef.current = { ...dragOffset }
+					}}
+					onMouseDown={event => {
+						lastZIndex = lastZIndex + 1
+						setZIndex(lastZIndex)
+						mouseDownTimeRef.current = event.timeStamp
+					}}
+					onMouseUp={event => {
+						if (mouseDownTimeRef.current !== null) {
+							const duration = event.timeStamp - mouseDownTimeRef.current
+							if (duration <= 150) {
+								setIsZoomed(true)
+							}
 						}
-					}
-					mouseDownTimeRef.current = null
-				}}
-				onDragEnd={(_, info) => {
-					if (!isZoomed) {
+						mouseDownTimeRef.current = null
+					}}
+					onDragEnd={(_, info) => {
 						const newOffset = {
 							x: dragStartOffsetRef.current.x + info.offset.x,
 							y: dragStartOffsetRef.current.y + info.offset.y
 						}
 						setDragOffset(newOffset)
 						saveOffset(url, newOffset)
-					}
-				}}
-				initial={{
-					width: displaySize.width,
-					height: displaySize.height,
-					borderWidth: 8,
-					zIndex,
-					left: centerX + position.x,
-					top: centerY + position.y,
-					rotate: position.rotation,
-					scale: 0.6,
-					opacity: 0,
-					x: dragOffset.x,
-					y: dragOffset.y
-				}}
-				animate={
-					isZoomed
-						? {
-								zIndex: TOP_Z_INDEX,
-								left: centerX,
-								top: centerY,
-								rotate: 0,
-								scale: 1,
-								opacity: 1,
-								x: 0,
-								y: 0,
-								width: zoomedSize.width,
-								height: zoomedSize.height,
-								borderWidth: maxSM ? 12 : 24
-							}
-						: {
-								zIndex,
-								scale: 1,
-								opacity: 1,
-								left: centerX + position.x,
-								top: centerY + position.y,
-								rotate: position.rotation,
-								x: dragOffset.x,
-								y: dragOffset.y,
-								width: displaySize.width,
-								height: displaySize.height,
-								borderWidth: 8
-							}
-				}
-				transition={{ type: 'tween', ease: 'easeOut' }}
-				className={cn(
-					'pointer-events-auto absolute origin-center -translate-1/2 cursor-pointer shadow-xl transition-[scale]',
-					!isZoomed && 'hover:scale-105'
-				)}>
-				<motion.img
-					src={imageUrl}
-					alt=''
-					loading='lazy'
-					decoding='async'
-					onLoad={event => {
-						const img = event.currentTarget
-						setOriginalSize({ width: img.naturalWidth, height: img.naturalHeight })
 					}}
-					draggable={false}
-					className={cn('h-full w-full object-cover select-none')}
-				/>
-			</motion.div>
+					initial={{
+						width: displaySize.width,
+						height: displaySize.height,
+						borderWidth: 8,
+						zIndex,
+						left: centerX + position.x,
+						top: centerY + position.y,
+						rotate: position.rotation,
+						scale: 0.6,
+						opacity: 0,
+						x: dragOffset.x,
+						y: dragOffset.y
+					}}
+					animate={{
+						zIndex,
+						scale: 1,
+						opacity: 1,
+						left: centerX + position.x,
+						top: centerY + position.y,
+						rotate: position.rotation,
+						x: dragOffset.x,
+						y: dragOffset.y,
+						width: displaySize.width,
+						height: displaySize.height,
+						borderWidth: 8
+					}}
+					transition={{ type: 'tween', ease: 'easeOut' }}
+					className={cn(
+						'pointer-events-auto absolute origin-center -translate-1/2 cursor-pointer shadow-xl transition-[scale]',
+						'hover:scale-105'
+					)}>
+					<motion.img
+						src={imageUrl}
+						alt=''
+						loading='lazy'
+						decoding='async'
+						onLoad={event => {
+							const img = event.currentTarget
+							setOriginalSize({ width: img.naturalWidth, height: img.naturalHeight })
+						}}
+						draggable={false}
+						className={cn('h-full w-full object-cover select-none')}
+					/>
+				</motion.div>
+			)}
 
 			{isZoomed && description && (
 				<motion.div
