@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { CheckCheck, ChevronLeft, Copy, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, Wifi, X } from 'lucide-react'
+import { CheckCheck, ChevronLeft, Copy, Download, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, Wifi, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
 import { useLanTransferController } from './use-lan-transfer-controller'
@@ -40,78 +40,116 @@ function DeviceAvatar({ type = 'desktop', active = false }: { type?: string; act
 	)
 }
 
-function fileTone(kind: LanAttachment['kind']) {
-	if (kind === 'image') return 'from-sky-400 to-blue-500'
-	if (kind === 'voice') return 'from-violet-400 to-fuchsia-500'
-	return 'from-emerald-400 to-teal-500'
-}
-
-function FileIcon({ kind, name }: { kind: LanAttachment['kind']; name: string }) {
-	return (
-		<div className={`flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${fileTone(kind)} text-xs font-bold text-white shadow-sm`}>
-			{kind === 'image' ? 'IMG' : kind === 'voice' ? 'MIC' : name.split('.').pop()?.slice(0, 3).toUpperCase() || 'FILE'}
-		</div>
-	)
-}
-
 function progressLabel(value: number) {
 	return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`
 }
 
-function AttachmentCard({
-	attachment,
-	onDownload,
-	onStartReceive,
-}: {
+function compactFileName(name: string, maxLength = 28) {
+	const normalized = name.trim() || '未命名文件'
+	const chars = Array.from(normalized)
+	if (chars.length <= maxLength) return normalized
+	const dotIndex = normalized.lastIndexOf('.')
+	const suffix = dotIndex > 0 && normalized.length - dotIndex <= 10 ? normalized.slice(dotIndex) : Array.from(normalized).slice(-6).join('')
+	const suffixLength = Array.from(suffix).length
+	const headLength = Math.max(8, maxLength - suffixLength - 3)
+	return `${chars.slice(0, headLength).join('')}...${suffix}`
+}
+
+type AttachmentCardProps = {
 	attachment: LanAttachment
 	onDownload: (name: string, url: string) => void
 	onStartReceive: (id: string) => void
-}) {
+}
+
+function ImageAttachmentCard({
+	attachment,
+	onDownload,
+}: AttachmentCardProps) {
+	const source = attachment.previewUrl || attachment.url
+	const downloadableUrl = attachment.url || attachment.previewUrl
+	const complete = attachment.status === 'complete'
+	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
+	const transferring = !complete && !failed
+	const hasFooter = transferring || Boolean(attachment.error)
+	if (!source) return null
+	return (
+		<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
+			<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
+			{transferring && (
+				<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
+					<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
+						<span>{attachment.status === 'offered' ? '等待下载' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
+						<span>{progressLabel(attachment.progress)}</span>
+					</div>
+					<div className='h-1 overflow-hidden rounded-full bg-background/50'>
+						<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				</div>
+			)}
+			{downloadableUrl && (
+				<button onClick={() => onDownload(attachment.name, downloadableUrl)} className={cn('absolute right-2 flex size-9 items-center justify-center rounded-full border border-border bg-background/80 text-primary shadow-sm backdrop-blur transition hover:border-brand/45', hasFooter ? 'bottom-12' : 'bottom-2')} aria-label='下载图片'>
+					<Download size={16} />
+				</button>
+			)}
+			{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
+		</div>
+	)
+}
+
+function FileAttachmentCard({
+	attachment,
+	onDownload,
+	onStartReceive,
+}: AttachmentCardProps) {
 	const complete = attachment.status === 'complete'
 	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
 	const waitingReceive = attachment.direction === 'in' && attachment.status === 'offered'
 	const transferring = !complete && !failed && !waitingReceive
+	const canDownload = Boolean(attachment.url)
+	const canAct = waitingReceive || canDownload
+	const displayName = compactFileName(attachment.name)
+	const handleAction = () => {
+		if (waitingReceive) return onStartReceive(attachment.id)
+		if (attachment.url) onDownload(attachment.name, attachment.url)
+	}
 	return (
-		<div className={cn('w-full min-w-0 max-w-full rounded-2xl border p-3 sm:min-w-[260px]', failed ? 'border-red-300 bg-red-500/10' : complete ? 'border-brand/30 bg-article' : 'border-brand/20 bg-brand/5')}>
-			<div className='flex items-center gap-3'>
-				{attachment.previewUrl ? (
-					<img src={attachment.previewUrl} alt={attachment.name} className='size-14 shrink-0 rounded-xl object-cover' />
-				) : (
-					<FileIcon kind={attachment.kind} name={attachment.name} />
-				)}
+		<div className={cn('w-[320px] max-w-[72vw] rounded-xl px-4 py-3 shadow-sm sm:w-[390px]', failed ? 'border border-red-300 bg-red-500/10' : 'bg-article')}>
+			<div className='flex min-w-0 items-center gap-4'>
 				<div className='min-w-0 flex-1'>
-					<p className='truncate text-sm font-semibold'>{attachment.name}</p>
-					<p className='text-secondary mt-1 text-xs'>
+					<p title={attachment.name} className='line-clamp-2 min-h-[2.9rem] break-all text-base font-semibold leading-[1.45] text-primary'>
+						{displayName}
+					</p>
+					<p className='text-secondary mt-3 text-sm'>
 						{formatBytes(attachment.size)}
 						{attachment.kind === 'voice' && attachment.durationMs ? ` · ${Math.round(attachment.durationMs / 1000)} 秒` : ''}
-						{complete ? ' · 已完成' : failed ? ' · 失败' : ''}
 					</p>
 				</div>
-				{transferring && <span className='text-lg font-semibold'>{progressLabel(attachment.progress)}</span>}
+				<button
+					onClick={handleAction}
+					disabled={!canAct}
+					className='flex size-14 shrink-0 items-center justify-center rounded-md bg-brand/40 text-background transition hover:bg-brand/55 disabled:cursor-default disabled:opacity-55'
+					aria-label={waitingReceive ? '接收文件' : '下载文件'}
+				>
+					<span className='flex size-9 items-center justify-center rounded-full bg-background/65 text-primary shadow-sm'>
+						<Download size={20} />
+					</span>
+				</button>
 			</div>
 			{transferring && (
-				<div className='mt-3 h-1.5 overflow-hidden rounded-full bg-background/40'>
+				<div className='mt-3 h-1.5 overflow-hidden rounded-full bg-background/40' title={progressLabel(attachment.progress)}>
 					<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
 				</div>
 			)}
-			{waitingReceive && (
-				<div className='mt-3 flex justify-end'>
-					<button onClick={() => onStartReceive(attachment.id)} className='rounded-full border border-border bg-background/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-brand/45'>
-						下载
-					</button>
-				</div>
-			)}
-			{attachment.url && (
-				<div className='mt-3 space-y-2'>
-					{attachment.kind === 'voice' && <audio controls src={attachment.url} className='h-9 w-full' />}
-					<button onClick={() => onDownload(attachment.name, attachment.url || '')} className='rounded-full border border-border bg-background/40 px-3 py-1.5 text-xs font-medium text-primary transition hover:border-brand/45'>
-						下载
-					</button>
-				</div>
-			)}
+			{attachment.kind === 'voice' && attachment.url && <audio controls src={attachment.url} className='mt-3 h-9 w-full' />}
 			{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}
 		</div>
 	)
+}
+
+function AttachmentCard(props: AttachmentCardProps) {
+	const imageSource = props.attachment.previewUrl || props.attachment.url
+	if (props.attachment.kind === 'image' && imageSource) return <ImageAttachmentCard {...props} />
+	return <FileAttachmentCard {...props} />
 }
 
 function MessageBubble({
@@ -293,6 +331,20 @@ function ChatPane({
 	onBack?: () => void
 	showEmptyCreate?: boolean
 }) {
+	const scrollRef = useRef<HTMLDivElement | null>(null)
+	const lastMessage = controller.messages[controller.messages.length - 1]
+	const lastMessageKey = lastMessage ? `${lastMessage.id}:${lastMessage.attachments.length}:${lastMessage.attachments.some(item => item.previewUrl || item.url)}` : ''
+
+	useEffect(() => {
+		const scrollToBottom = () => {
+			const element = scrollRef.current
+			if (element) element.scrollTop = element.scrollHeight
+		}
+		scrollToBottom()
+		const timer = window.setTimeout(scrollToBottom, 80)
+		return () => window.clearTimeout(timer)
+	}, [lastMessageKey])
+
 	return (
 		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background/30'>
 			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-3 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)] sm:px-5'>
@@ -313,7 +365,7 @@ function ChatPane({
 					<X size={17} />
 				</button>
 			</header>
-			<div className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
+			<div ref={scrollRef} className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
 				{controller.session ? (
 					controller.messages.length ? controller.messages.map(message => <MessageBubble key={message.id} message={message} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} />) : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
 				) : !showEmptyCreate ? (

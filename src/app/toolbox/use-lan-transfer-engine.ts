@@ -32,7 +32,7 @@ import {
 } from '@/lib/lan-transfer/types'
 
 type IncomingAttachment = { offer: LanAttachmentOffer; meta: TransferFileMeta; engine: LanStorageEngine; received: number; chunkCount: number }
-type PreparedEntry = { file: PreparedLanAttachment; acked: number; ranges: Array<[number, number]> }
+type PreparedEntry = { file: PreparedLanAttachment; createdAt: number; acked: number; ranges: Array<[number, number]> }
 type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; messageId: string; size: number; chunkCount: number; storage: TransferFileMeta['storage']; url?: string }
 type ProgressCheckpoint = { bytes: number; ts: number }
 
@@ -118,7 +118,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			type: 'attachment-offer',
 			protocolVersion: LAN_PROTOCOL_VERSION,
 			messageId: entry.file.messageId,
-			createdAt: Date.now(),
+			createdAt: entry.createdAt,
 			peerId: options.sessionRef.current?.peerId || '',
 			attachment: {
 				id: entry.file.id,
@@ -430,7 +430,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			chat.upsertMessage({ id, direction: 'out', kind: 'attachments', attachments, status: 'queued', createdAt, peerId: options.sessionRef.current?.peerId })
 			for (const attachment of attachments) chat.upsertFileRecord(fileRecord(id, attachment, options.remotePeerRef.current?.name))
 			for (const file of prepared) {
-				preparedRef.current.set(file.id, { file, acked: 0, ranges: [] })
+				preparedRef.current.set(file.id, { file, createdAt, acked: 0, ranges: [] })
 				queueRef.current.push(file.id)
 			}
 			pumpQueue()

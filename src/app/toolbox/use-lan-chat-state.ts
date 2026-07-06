@@ -28,7 +28,7 @@ function attachmentMessageStatus(attachments: LanAttachment[]): LanMessageStatus
 }
 
 function sortMessages(messages: LanChatMessage[]) {
-	return messages.slice().sort((a, b) => a.createdAt - b.createdAt)
+	return messages.slice().sort((a, b) => a.createdAt - b.createdAt || (a.peerId || '').localeCompare(b.peerId || '') || a.id.localeCompare(b.id))
 }
 
 function upsertMessage(messages: LanChatMessage[], message: LanChatMessage) {
