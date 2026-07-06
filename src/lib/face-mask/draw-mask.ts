@@ -19,14 +19,23 @@ function drawMosaic(ctx: CanvasRenderingContext2D, source: CanvasImageSource, ma
 }
 
 function drawBlur(ctx: CanvasRenderingContext2D, source: CanvasImageSource, mask: MaskItem) {
+	const pixelSize = 18
+	const tmp = document.createElement('canvas')
+	const tmpCtx = tmp.getContext('2d')
+	if (!tmpCtx) return
+
+	tmp.width = Math.max(1, Math.floor(mask.width / pixelSize))
+	tmp.height = Math.max(1, Math.floor(mask.height / pixelSize))
+	tmpCtx.imageSmoothingEnabled = true
+	tmpCtx.drawImage(source, mask.x, mask.y, mask.width, mask.height, 0, 0, tmp.width, tmp.height)
+
 	ctx.save()
 	ctx.beginPath()
 	ctx.rect(mask.x, mask.y, mask.width, mask.height)
 	ctx.clip()
-	ctx.filter = 'blur(28px)'
-	ctx.drawImage(source, mask.x, mask.y, mask.width, mask.height, mask.x, mask.y, mask.width, mask.height)
-	ctx.filter = 'none'
-	ctx.fillStyle = 'rgba(255, 255, 255, 0.16)'
+	ctx.imageSmoothingEnabled = true
+	ctx.drawImage(tmp, 0, 0, tmp.width, tmp.height, mask.x, mask.y, mask.width, mask.height)
+	ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'
 	ctx.fillRect(mask.x, mask.y, mask.width, mask.height)
 	ctx.restore()
 }

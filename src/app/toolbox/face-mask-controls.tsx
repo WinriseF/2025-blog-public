@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, Droplet, Minus, Plus, ScanFace, ShieldCheck, Smile, Trash2, Undo2, Upload } from 'lucide-react'
+import { Download, Droplet, Plus, ScanFace, ShieldCheck, Smile, Trash2, Upload } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { STICKERS } from '@/lib/face-mask/stickers'
 import type { MaskItem, MaskMode } from '@/lib/face-mask/types'
@@ -10,23 +10,18 @@ type FaceMaskControlsProps = {
 	selectedMask: MaskItem | null
 	defaultMode: MaskMode
 	defaultEmoji: string
-	statusText: string
 	detecting: boolean
 	creating: boolean
 	zoom: number
-	canUndo: boolean
 	onModeChange: (mode: MaskMode) => void
 	onStickerChange: (emoji: string) => void
 	onCustomSticker: () => void
 	onDetect: () => void
 	onCreate: () => void
 	onClear: () => void
-	onDeleteSelected: () => void
-	onUndo: () => void
 	onExport: () => void
 	onReplaceImage: () => void
-	onZoomIn: () => void
-	onZoomOut: () => void
+	onZoomChange: (zoom: number) => void
 }
 
 const modeOptions: Array<{ mode: MaskMode; label: string; icon: LucideIcon }> = [
@@ -46,23 +41,18 @@ export function FaceMaskControls({
 	selectedMask,
 	defaultMode,
 	defaultEmoji,
-	statusText,
 	detecting,
 	creating,
 	zoom,
-	canUndo,
 	onModeChange,
 	onStickerChange,
 	onCustomSticker,
 	onDetect,
 	onCreate,
 	onClear,
-	onDeleteSelected,
-	onUndo,
 	onExport,
 	onReplaceImage,
-	onZoomIn,
-	onZoomOut
+	onZoomChange
 }: FaceMaskControlsProps) {
 	const activeMode = selectedMask?.mode ?? defaultMode
 	const activeEmoji = selectedMask?.emoji ?? defaultEmoji
@@ -70,11 +60,7 @@ export function FaceMaskControls({
 
 	return (
 		<div className='space-y-4'>
-			<div className='flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4'>
-				<div className='text-secondary flex items-center gap-2 text-sm'>
-					<ShieldCheck size={16} className='text-rose-400' />
-					<span>{statusText}</span>
-				</div>
+			<div className='flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4'>
 				<div className='flex flex-wrap gap-2 text-sm'>
 					<button onClick={onReplaceImage} className='flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 font-medium text-primary transition hover:border-brand/45'>
 						<Upload size={15} />
@@ -118,15 +104,22 @@ export function FaceMaskControls({
 					</button>
 				</div>
 
-				<div className='flex items-center justify-end gap-2 text-sm max-lg:justify-start'>
-					<span className='text-secondary'>大小</span>
-					<button onClick={onZoomOut} className='flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45'>
-						<Minus size={15} />
-					</button>
-					<span className='w-12 text-center font-medium text-primary'>{Math.round(zoom * 100)}%</span>
-					<button onClick={onZoomIn} className='flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45'>
-						<Plus size={15} />
-					</button>
+				<div className='flex min-w-0 items-center justify-end gap-3 text-sm max-lg:justify-start'>
+					<label htmlFor='face-mask-zoom' className='text-secondary shrink-0'>
+						大小
+					</label>
+					<input
+						id='face-mask-zoom'
+						type='range'
+						min='0.5'
+						max='1.8'
+						step='0.05'
+						value={zoom}
+						onChange={event => onZoomChange(Number(event.currentTarget.value))}
+						className='h-11 w-36 cursor-pointer accent-rose-400 max-sm:w-32'
+						aria-label='预览大小'
+					/>
+					<span className='w-14 text-right font-medium tabular-nums text-primary'>{zoom.toFixed(2)}x</span>
 				</div>
 			</div>
 
@@ -139,36 +132,23 @@ export function FaceMaskControls({
 					<div className='flex flex-wrap gap-2'>
 						<button
 							onClick={onCreate}
+							aria-pressed={creating}
 							className={`flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition ${
 								creating ? 'border-rose-400 bg-rose-400 text-white' : 'border-border bg-background/50 text-primary hover:border-brand/45'
 							}`}>
 							<Plus size={15} />
-							新增区域
-						</button>
-						<button
-							onClick={onDeleteSelected}
-							disabled={!selectedMask}
-							className='flex items-center gap-2 rounded-lg border border-border bg-background/50 px-4 py-2 font-medium text-primary transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45'>
-							<Trash2 size={15} />
-							删除
-						</button>
-						<button
-							onClick={onUndo}
-							disabled={!canUndo}
-							className='flex items-center gap-2 rounded-lg border border-border bg-background/50 px-4 py-2 font-medium text-primary transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45'>
-							<Undo2 size={15} />
-							撤销
+							新增
 						</button>
 						<button
 							onClick={onClear}
 							disabled={!masks.length}
 							className='flex items-center gap-2 rounded-lg border border-border bg-background/50 px-4 py-2 font-medium text-primary transition hover:border-rose-300 disabled:cursor-not-allowed disabled:text-secondary/45'>
 							<Trash2 size={15} />
-							清空区域
+							清空
 						</button>
 						<button onClick={onExport} className='flex items-center gap-2 rounded-lg bg-rose-400 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-rose-500'>
 							<Download size={15} />
-							导出图片
+							导出
 						</button>
 					</div>
 				</div>

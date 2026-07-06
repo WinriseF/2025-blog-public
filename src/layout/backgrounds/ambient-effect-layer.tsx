@@ -57,11 +57,11 @@ function pickAmbientEffect(themeName: TimeThemeName): AmbientEffectName {
 	const score = Math.random()
 	if (themeName === 'night') {
 		if (score < 0.44) return 'meteor'
-		if (score < 0.6) return 'rain'
+		if (score < 0.52) return 'rain'
 		return 'none'
 	}
 
-	return score < 0.28 ? 'rain' : 'none'
+	return score < 0.14 ? 'rain' : 'none'
 }
 
 function setupCanvas(canvas: HTMLCanvasElement) {

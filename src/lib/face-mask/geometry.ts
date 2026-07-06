@@ -60,14 +60,15 @@ export function resizeRect(rect: Rect, width: number, height: number, imageWidth
 	)
 }
 
-export function rectFromPoints(startX: number, startY: number, endX: number, endY: number, imageWidth: number, imageHeight: number): Rect | null {
-	const x = clamp(Math.min(startX, endX), 0, imageWidth)
-	const y = clamp(Math.min(startY, endY), 0, imageHeight)
-	const right = clamp(Math.max(startX, endX), 0, imageWidth)
-	const bottom = clamp(Math.max(startY, endY), 0, imageHeight)
-	const width = right - x
-	const height = bottom - y
-
-	if (width < 8 || height < 8) return null
-	return clampRect({ x, y, width, height }, imageWidth, imageHeight)
+export function rectFromCenter(centerX: number, centerY: number, width: number, height: number, imageWidth: number, imageHeight: number): Rect {
+	return clampRect(
+		{
+			x: centerX - width / 2,
+			y: centerY - height / 2,
+			width,
+			height
+		},
+		imageWidth,
+		imageHeight
+	)
 }

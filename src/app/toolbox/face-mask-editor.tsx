@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Trash2 } from 'lucide-react'
 import { drawImageWithMasks } from '@/lib/face-mask/draw-mask'
-import { clamp, moveRect, rectFromPoints, resizeRect } from '@/lib/face-mask/geometry'
+import { clamp, moveRect, rectFromCenter, resizeRect } from '@/lib/face-mask/geometry'
 import { setupMaskInteractions } from '@/lib/face-mask/interactions'
-import type { EditorMode, LoadedImage, MaskItem, MaskMode, PreviewRect, Rect } from '@/lib/face-mask/types'
+import type { EditorMode, LoadedImage, MaskItem, PreviewRect, Rect } from '@/lib/face-mask/types'
+
+const CREATE_TAP_MOVE_THRESHOLD = 10
 
 type FaceMaskEditorProps = {
 	image: LoadedImage
 	masks: MaskItem[]
 	selectedMaskId: string | null
-	defaultMode: MaskMode
-	defaultEmoji: string
 	creating: boolean
 	zoom: number
 	onCreateMask: (rect: Rect) => void
@@ -25,11 +25,15 @@ type FaceMaskEditorProps = {
 	onInteractionEnd: () => void
 }
 
-type DraftRect = {
-	startX: number
-	startY: number
-	currentX: number
-	currentY: number
+type CreateTap = {
+	pointerId: number
+	startClientX: number
+	startClientY: number
+	point: {
+		x: number
+		y: number
+	}
+	moved: boolean
 }
 
 function useContainerWidth() {
@@ -140,17 +144,15 @@ function MaskOverlayItem({
 				<>
 					<button
 						type='button'
+						onPointerDown={event => event.stopPropagation()}
 						onClick={event => {
 							event.stopPropagation()
 							onDelete()
 						}}
-						className='absolute -top-4 -right-4 flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-500 shadow-sm transition hover:bg-rose-50'
+						className='absolute -top-3.5 -left-3.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-rose-500 text-white shadow-sm transition hover:bg-rose-600 active:scale-95'
 						aria-label='删除遮挡区域'>
-						<Trash2 size={14} />
+						<Trash2 size={13} />
 					</button>
-					<span className='absolute -top-2 -left-2 h-4 w-4 rounded-full border border-border bg-white shadow-sm' />
-					<span className='absolute -top-2 -right-2 h-4 w-4 rounded-full border border-border bg-white shadow-sm' />
-					<span className='absolute -bottom-2 -left-2 h-4 w-4 rounded-full border border-border bg-white shadow-sm' />
 					<span className='face-mask-resize-handle absolute -right-2 -bottom-2 h-5 w-5 rounded-full border-2 border-white bg-rose-400 shadow-sm' />
 				</>
 			)}
@@ -162,8 +164,6 @@ export function FaceMaskEditor({
 	image,
 	masks,
 	selectedMaskId,
-	defaultMode,
-	defaultEmoji,
 	creating,
 	zoom,
 	onCreateMask,
@@ -178,7 +178,7 @@ export function FaceMaskEditor({
 	const canvasRef = useRef<HTMLCanvasElement | null>(null)
 	const frameRef = useRef<HTMLDivElement | null>(null)
 	const { ref: containerRef, width: containerWidth } = useContainerWidth()
-	const [draft, setDraft] = useState<DraftRect | null>(null)
+	const createTapRef = useRef<CreateTap | null>(null)
 
 	const preview = useMemo<PreviewRect>(() => {
 		const baseWidth = Math.max(1, Math.min(containerWidth || image.width, image.width))
@@ -189,6 +189,12 @@ export function FaceMaskEditor({
 			scale: displayWidth / image.width
 		}
 	}, [containerWidth, image.height, image.width, zoom])
+
+	const defaultMaskSize = useMemo(() => {
+		const visualSize = clamp(Math.min(preview.displayWidth, preview.displayHeight) * 0.24, 72, 128)
+		const size = visualSize / preview.scale
+		return { width: size, height: size }
+	}, [preview.displayHeight, preview.displayWidth, preview.scale])
 
 	useEffect(() => {
 		const canvas = canvasRef.current
@@ -222,8 +228,6 @@ export function FaceMaskEditor({
 		[image.height, image.width, preview.scale]
 	)
 
-	const draftRect = draft ? rectFromPoints(draft.startX, draft.startY, draft.currentX, draft.currentY, image.width, image.height) : null
-
 	const handlePointerDown = useCallback(
 		(event: PointerEvent<HTMLDivElement>) => {
 			const target = event.target as HTMLElement
@@ -236,50 +240,55 @@ export function FaceMaskEditor({
 
 			const point = eventToOriginalPoint(event)
 			if (!point) return
-			event.preventDefault()
 			event.currentTarget.setPointerCapture(event.pointerId)
-			setDraft({
-				startX: point.x,
-				startY: point.y,
-				currentX: point.x,
-				currentY: point.y
-			})
+			createTapRef.current = {
+				pointerId: event.pointerId,
+				startClientX: event.clientX,
+				startClientY: event.clientY,
+				point,
+				moved: false
+			}
 		},
 		[creating, eventToOriginalPoint, onSelectMask]
 	)
 
 	const handlePointerMove = useCallback(
 		(event: PointerEvent<HTMLDivElement>) => {
-			if (!draft) return
-			const point = eventToOriginalPoint(event)
-			if (!point) return
-			setDraft(current => (current ? { ...current, currentX: point.x, currentY: point.y } : current))
+			const tap = createTapRef.current
+			if (!tap || tap.pointerId !== event.pointerId) return
+			const dx = event.clientX - tap.startClientX
+			const dy = event.clientY - tap.startClientY
+			if (Math.hypot(dx, dy) > CREATE_TAP_MOVE_THRESHOLD) tap.moved = true
 		},
-		[draft, eventToOriginalPoint]
+		[]
 	)
 
 	const handlePointerUp = useCallback(
 		(event: PointerEvent<HTMLDivElement>) => {
-			if (!draft) return
-			const point = eventToOriginalPoint(event)
-			const rect = point ? rectFromPoints(draft.startX, draft.startY, point.x, point.y, image.width, image.height) : null
-			setDraft(null)
+			const tap = createTapRef.current
+			if (!tap || tap.pointerId !== event.pointerId) return
+			createTapRef.current = null
+			if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+			if (!creating || tap.moved) return
+			const rect = rectFromCenter(tap.point.x, tap.point.y, defaultMaskSize.width, defaultMaskSize.height, image.width, image.height)
+			onCreateMask(rect)
 			onCreateEnd()
-			if (rect) onCreateMask(rect)
 		},
-		[draft, eventToOriginalPoint, image.height, image.width, onCreateEnd, onCreateMask]
+		[creating, defaultMaskSize.height, defaultMaskSize.width, image.height, image.width, onCreateEnd, onCreateMask]
 	)
 
 	return (
-		<div ref={containerRef} className='overflow-auto rounded-2xl border border-border bg-card/50 p-3'>
+		<div ref={containerRef} className='overflow-auto'>
 			<div
 				ref={frameRef}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
-				onPointerCancel={() => {
-					setDraft(null)
-					onCreateEnd()
+				onPointerCancel={event => {
+					const tap = createTapRef.current
+					if (!tap || tap.pointerId !== event.pointerId) return
+					createTapRef.current = null
+					if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
 				}}
 				className={`relative mx-auto overflow-hidden rounded-xl bg-background/40 ${creating ? 'cursor-crosshair' : 'cursor-default'}`}
 				style={{
@@ -311,25 +320,7 @@ export function FaceMaskEditor({
 						onInteractionEnd={onInteractionEnd}
 					/>
 				))}
-
-				{draftRect && (
-					<div
-						className='pointer-events-none absolute rounded-sm border-2 border-dashed border-rose-400 bg-rose-300/10'
-						style={{
-							left: draftRect.x * preview.scale,
-							top: draftRect.y * preview.scale,
-							width: draftRect.width * preview.scale,
-							height: draftRect.height * preview.scale
-						}}
-					/>
-				)}
-
-				{creating && !draft && <div className='pointer-events-none absolute inset-x-4 bottom-4 rounded-full bg-black/55 px-4 py-2 text-center text-xs font-medium text-white'>拖拽创建遮挡区域</div>}
 			</div>
-
-			<p className='text-secondary mt-3 text-center text-xs'>
-				当前默认：{defaultMode === 'mosaic' ? '马赛克' : defaultMode === 'blur' ? '模糊' : `表情 ${defaultEmoji}`}。拖拽或缩放白色控制点可调整区域位置和大小。
-			</p>
 		</div>
 	)
 }

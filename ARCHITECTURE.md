@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-07-05.
+Last updated: 2026-07-06.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -395,8 +395,9 @@ Flow:
 3. Images stay in browser memory as `File`, ObjectURL, `ImageBitmap`, and canvas data. No API route receives files or detection results.
 4. Automatic face detection is loaded only after the user clicks auto detect. The browser dynamically imports MediaPipe Tasks Vision from jsDelivr and uses Google's BlazeFace full-range model URL.
 5. Mask rectangles are stored in original image coordinates. Preview rendering scales them for display, while export renders to an original-size PNG canvas.
-6. Dragging and resizing mask boxes uses `interactjs` for pointer/touch handling. Mask rendering and export use the native Canvas API.
-7. Emoji sticker UI, preview, and export use the browser/system emoji font so the exported image matches the in-browser preview.
+6. Manual masks are added by entering add mode and tapping/clicking the image. Drag gestures are reserved for moving existing boxes, and the white corner handle resizes them.
+7. Dragging and resizing mask boxes uses `interactjs` for pointer/touch handling. Mask rendering and export use the native Canvas API.
+8. Emoji sticker UI, preview, and export use the browser/system emoji font so the exported image matches the in-browser preview.
 
 ## Build And Generated Files
 
