@@ -359,7 +359,7 @@ LAN transfer flow:
 
 1. `/t` has a separate `局域网互传` tab independent from the encrypted public relay UI.
 2. LAN transfer is intentionally versioned as a breaking protocol. Major LAN protocol updates do not keep compatibility branches for older LAN sessions; stale sessions must refresh and pair again.
-3. LAN Session V4 is a chat-style workbench instead of a single file-send panel. Desktop renders a session sidebar, chat stream, composer, and file panel. Mobile renders three tabs: `会话`, `设备`, and `文件`.
+3. LAN Session V4 is a chat-style workbench instead of a single file-send panel. Desktop renders a QQ-like two-column layout: device/session sidebar on the left and the full chat window on the right. Mobile renders two layers: a device page first, then a pure chat page with only the chat header, message stream, and composer. There is no standalone file panel or mobile file tab; files stay as chat attachments.
 4. Any device can create a pairing QR code as WebRTC `host`; another device scans `/t#mode=lan&room=<roomId>&token=<roomToken>` and joins as `guest`. The browser removes the raw token from the address bar after reading it and stores only the current V4 invite in sessionStorage.
 5. The QR token stays browser-side. The browser hashes it locally and sends only `tokenHash` in Supabase Realtime payloads.
 6. Both browsers subscribe to the public Realtime channel `lan-transfer:<roomId>`, track peer presence, and use Broadcast only for the `lan` signaling event. Presence payloads carry `peerId`, `role`, `peer`, `tokenHash`, and `joinedAt`; Broadcast payloads carry `roomId`, `tokenHash`, `from`, `to`, `seq`, and `ts`.

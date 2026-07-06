@@ -22,7 +22,6 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const [connectionRoute, setConnectionRoute] = useState('')
 	const [status, setStatus] = useState('创建二维码，让另一台设备扫码')
 	const [busy, setBusy] = useState(false)
-	const [activeMobileTab, setActiveMobileTab] = useState<'chats' | 'devices' | 'files'>('chats')
 	const [localCapability, setLocalCapability] = useState<LanCapability | null>(null)
 	const [remoteCapability, setRemoteCapability] = useState<LanCapability | null>(null)
 
@@ -267,15 +266,12 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		qrDataUrl,
 		inviteLink,
 		messages: engine.messages,
-		fileRecords: engine.fileRecords,
 		status,
 		busy,
 		localCapability,
 		remoteCapability,
-		activeMobileTab,
 		recorder,
 		nowLabel,
-		setActiveMobileTab,
 		handleCreateRoom,
 		sendText: engine.sendText,
 		sendFiles: engine.sendFiles,
@@ -283,7 +279,6 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		stopRecordingAndSend,
 		copyInvite,
 		leaveSession,
-		clearFileRecord: engine.clearFileRecord,
 		downloadAttachment: engine.downloadAttachment,
 		version: LAN_PROTOCOL_VERSION,
 	}
