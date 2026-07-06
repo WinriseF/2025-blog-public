@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { CheckCheck, ChevronLeft, Copy, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, Wifi, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
@@ -399,8 +400,16 @@ function MobileShell({ controller, onSwitchRelay }: { controller: ReturnType<typ
 
 export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
-	return (
-		<div className='lan-session-v4 fixed inset-0 z-[80] h-[100dvh] overflow-hidden bg-bg text-primary'>
+	useEffect(() => {
+		const previousOverflow = document.body.style.overflow
+		document.body.style.overflow = 'hidden'
+		return () => {
+			document.body.style.overflow = previousOverflow
+		}
+	}, [])
+
+	const app = (
+		<div className='lan-session-v4 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
 			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
 				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} />
 				<ChatPane controller={controller} />
@@ -408,4 +417,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} />
 		</div>
 	)
+
+	if (typeof document === 'undefined') return null
+	return createPortal(app, document.body)
 }
