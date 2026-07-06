@@ -394,7 +394,7 @@ Flow:
 2. Before upload, the page shows one large drop zone. After upload, that same space is replaced by the canvas editor; changing the image is a small toolbar action.
 3. Images stay in browser memory as `File`, ObjectURL, `ImageBitmap`, and canvas data. No API route receives files or detection results.
 4. Automatic face detection is loaded only after the user clicks auto detect. The browser dynamically imports MediaPipe Tasks Vision from jsDelivr and uses Google's BlazeFace full-range model URL.
-5. Mask rectangles are stored in original image coordinates. Preview rendering scales them for display, while export renders to an original-size PNG canvas.
+5. Mask rectangles are stored in original image coordinates. Preview rendering scales them for display, while export renders to an original-size canvas and encodes by source-friendly format: JPEG/WEBP use quality-controlled output, PNG is kept only when it is not substantially larger than the source, otherwise WEBP is tried as a smaller fallback.
 6. Manual masks are added by entering add mode and tapping/clicking the image. Drag gestures are reserved for moving existing boxes, and the white corner handle resizes them.
 7. Dragging and resizing mask boxes uses `interactjs` for pointer/touch handling. Mask rendering and export use the native Canvas API.
 8. Emoji sticker UI, preview, and export use the browser/system emoji font so the exported image matches the in-browser preview.
