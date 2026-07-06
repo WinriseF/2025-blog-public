@@ -18,6 +18,7 @@ import {
 	sendPreparedAttachment,
 } from '@/lib/lan-transfer/file-transfer'
 import {
+	LAN_LIMITS,
 	LAN_PROTOCOL_VERSION,
 	type LanAttachmentAccept,
 	type LanAttachmentKind,
@@ -32,7 +33,8 @@ import {
 
 type IncomingAttachment = { offer: LanAttachmentOffer; meta: TransferFileMeta; engine: LanStorageEngine; received: number; chunkCount: number }
 type PreparedEntry = { file: PreparedLanAttachment; acked: number; ranges: Array<[number, number]> }
-type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; url?: string }
+type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; messageId: string; size: number; chunkCount: number; storage: TransferFileMeta['storage']; url?: string }
+type ProgressCheckpoint = { bytes: number; ts: number }
 
 type UseLanTransferEngineOptions = {
 	connected: boolean
@@ -52,6 +54,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const incomingRef = useRef(new Map<string, IncomingAttachment>())
 	const pendingOffersRef = useRef(new Map<string, LanAttachmentOffer>())
 	const receivedCacheRef = useRef(new Map<string, CachedReceivedFile>())
+	const cancelledIncomingRef = useRef(new Map<string, string>())
+	const progressAckRef = useRef(new Map<string, ProgressCheckpoint>())
 	const outgoingObjectUrlsRef = useRef<string[]>([])
 	const queueRef = useRef<string[]>([])
 	const activeSendingRef = useRef<string | null>(null)
@@ -68,6 +72,20 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		}
 	}, [options.peerRef])
 
+	const shouldReportProgress = useCallback((id: string, received: number, total: number, force = false) => {
+		const now = Date.now()
+		const previous = progressAckRef.current.get(id)
+		if (force || received >= total || !previous || received - previous.bytes >= LAN_LIMITS.progressAckIntervalBytes || now - previous.ts >= LAN_LIMITS.progressAckIntervalMs) {
+			progressAckRef.current.set(id, { bytes: received, ts: now })
+			return true
+		}
+		return false
+	}, [])
+
+	const confirmReceived = useCallback((id: string, messageIdValue: string, size: number, chunkCount: number, storage: TransferFileMeta['storage']) => {
+		sendControl({ type: 'attachment-received', id, messageId: messageIdValue, received: size, expected: size, chunkCount, storage })
+	}, [sendControl])
+
 	const cleanupIncoming = useCallback((id: string) => {
 		const current = incomingRef.current.get(id)
 		if (!current) return
@@ -79,8 +97,10 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		chat.patchAttachment({ id, messageId: messageIdValue, status: 'failed', error: reason })
 		chat.patchFileRecord(id, { status: 'failed' })
 		if (notifyPeer) sendControl({ type: 'attachment-cancel', id, messageId: messageIdValue, reason })
+		preparedRef.current.delete(id)
 		if (activeSendingRef.current === id) activeSendingRef.current = null
 		queueRef.current = queueRef.current.filter(item => item !== id)
+		progressAckRef.current.delete(id)
 		cleanupIncoming(id)
 		options.setStatus(reason)
 	}, [chat, cleanupIncoming, options, sendControl])
@@ -113,7 +133,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 				suggestedStorage: entry.file.suggestedStorage,
 			},
 		})
-		options.setStatus(`等待对方准备接收 ${entry.file.name}`)
+		options.setStatus(`等待对方下载 ${entry.file.name}`)
 	}, [chat, options, sendControl])
 
 	const completeOutgoing = useCallback((message: LanAttachmentReceived) => {
@@ -122,7 +142,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		activeSendingRef.current = null
 		chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'complete', progress: 1 })
 		chat.patchFileRecord(message.id, { status: 'complete' })
-		options.setStatus('对方已确认接收完成')
+		options.setStatus('对方已收到')
 		pumpQueue()
 	}, [chat, options, pumpQueue])
 
@@ -145,7 +165,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			} catch (error) {
 				await engine.cleanup(meta.id).catch(() => {})
 				if (storage === 'file' && isUserCancel(error)) throw error
-				failures.push(error instanceof Error ? error.message : `${storage} 接收不可用`)
+				failures.push(error instanceof Error ? error.message : '无法准备保存文件')
 			}
 		}
 		throw new Error(failures[0] || '当前设备不能接收该文件')
@@ -159,19 +179,27 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		entry.acked = message.receivedBytes
 		chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'sending', progress: entry.file.size ? message.receivedBytes / entry.file.size : 1 })
 		options.setStatus(`正在发送 ${entry.file.name}`)
+		let lastProgressBytes = message.receivedBytes
+		let lastProgressAt = Date.now()
 		try {
-			await sendPreparedAttachment(peer, entry.file, done => chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: entry.file.size ? done / entry.file.size : 1, status: 'sending' }), {
+			await sendPreparedAttachment(peer, entry.file, done => {
+				const now = Date.now()
+				if (done < entry.file.size && done - lastProgressBytes < LAN_LIMITS.progressAckIntervalBytes && now - lastProgressAt < LAN_LIMITS.progressAckIntervalMs) return
+				lastProgressBytes = done
+				lastProgressAt = now
+				chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: entry.file.size ? done / entry.file.size : 1, status: 'sending' })
+			}, {
 				mobile: options.remoteCapabilityRef.current?.platform === 'android' || options.remoteCapabilityRef.current?.platform === 'ios',
 				getAckedBytes: () => entry.acked,
 				receivedRanges: entry.ranges,
 			})
 			chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: 1, status: 'sending' })
-			options.setStatus(`已发送 ${entry.file.name}，等待确认`)
+			options.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
 		} catch (error) {
 			if (!options.peerRef.current?.connected) {
 				activeSendingRef.current = null
 				chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'queued' })
-				options.setStatus('连接已断开，重连后继续传输')
+				options.setStatus('连接断了，恢复后会继续')
 				return
 			}
 			failAttachment(message.id, message.messageId, error instanceof Error ? error.message : '发送失败')
@@ -186,6 +214,19 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			options.setLocalCapability(capability)
 		}
 		try {
+			const cancelledReason = cancelledIncomingRef.current.get(message.attachment.id)
+			if (cancelledReason) {
+				sendControl({ type: 'attachment-cancel', id: message.attachment.id, messageId: message.messageId, reason: cancelledReason })
+				return
+			}
+			const cached = receivedCacheRef.current.get(message.attachment.id)
+			if (cached && cached.size === message.attachment.size && cached.chunkCount === message.attachment.chunkCount) {
+				const attachment = { ...attachmentFromOffer(message, cached.storage, 1), status: 'complete' as const, url: cached.url, previewUrl: message.attachment.kind === 'image' ? cached.url : undefined }
+				chat.upsertAttachment(messageBase(message.messageId, 'in', message.createdAt, message.peerId), attachment)
+				chat.upsertFileRecord(fileRecord(message.messageId, attachment, options.remotePeerRef.current?.name))
+				confirmReceived(message.attachment.id, message.messageId, cached.size, cached.chunkCount, cached.storage)
+				return
+			}
 			if (capability) assertCanReceiveFile(message.attachment.size, capability)
 			const current = incomingRef.current.get(message.attachment.id)
 			if (current) {
@@ -198,7 +239,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			const attachment = { ...attachmentFromOffer(message, storage, 0), status: 'offered' as const }
 			chat.upsertAttachment(messageBase(message.messageId, 'in', message.createdAt, message.peerId), attachment)
 			chat.upsertFileRecord(fileRecord(message.messageId, attachment, options.remotePeerRef.current?.name))
-			options.setStatus(`${message.attachment.name} 等待你点击下载接收`)
+			options.setStatus(`${message.attachment.name} 等待下载`)
 		} catch (error) {
 			const storage = chooseReceiveStorage(message.attachment.size, message.attachment.suggestedStorage, capability)
 			const attachment = { ...attachmentFromOffer(message, storage, 0), status: 'failed' as const, error: error instanceof Error ? error.message : '当前设备不能接收该文件' }
@@ -206,7 +247,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			chat.upsertFileRecord(fileRecord(message.messageId, attachment, options.remotePeerRef.current?.name))
 			sendControl({ type: 'attachment-cancel', id: message.attachment.id, messageId: message.messageId, reason: error instanceof Error ? error.message : '当前设备不能接收该文件' })
 		}
-	}, [chat, options, sendControl])
+	}, [chat, confirmReceived, options, sendControl])
 
 	const startReceivingAttachment = useCallback(async (id: string) => {
 		const offer = pendingOffersRef.current.get(id)
@@ -234,6 +275,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			const reason = isUserCancel(error) ? '已取消下载' : error instanceof Error ? error.message : '当前设备不能接收该文件'
 			const status = isUserCancel(error) ? 'cancelled' : 'failed'
 			pendingOffersRef.current.delete(id)
+			if (status === 'cancelled') cancelledIncomingRef.current.set(id, reason)
 			chat.patchAttachment({ id, messageId: offer.messageId, status, error: reason })
 			chat.patchFileRecord(id, { status })
 			sendControl({ type: 'attachment-cancel', id, messageId: offer.messageId, reason })
@@ -247,18 +289,19 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		await chunkWriteQueueRef.current
 		const manifest = await current.engine.getManifest(current.meta.id)
 		if (!manifest) return failAttachment(id, messageIdValue, '接收失败，请重新发送')
-		if (typeof sent === 'number' && sent !== current.offer.attachment.size) return failAttachment(id, messageIdValue, `发送端声明大小异常：${formatBytes(sent)} / ${formatBytes(current.offer.attachment.size)}`)
-		if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return failAttachment(id, messageIdValue, `分片数量异常：${manifest.receivedChunks} / ${chunkCount}`)
+		if (typeof sent === 'number' && sent !== current.offer.attachment.size) return failAttachment(id, messageIdValue, '文件信息不一致，请重新发送')
+		if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return failAttachment(id, messageIdValue, '接收不完整，请重新发送')
 		if (manifest.receivedBytes !== current.offer.attachment.size || manifest.receivedChunks !== current.offer.attachment.chunkCount) return failAttachment(id, messageIdValue, `接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.offer.attachment.size)}`)
 		const finalized = await current.engine.finalize(current.meta)
 		chat.patchAttachment({ id, messageId: messageIdValue, status: 'complete', progress: 1, url: finalized.url, previewUrl: current.offer.attachment.kind === 'image' ? finalized.url : undefined })
 		chat.patchFileRecord(id, { status: 'complete', url: finalized.url })
-		receivedCacheRef.current.set(id, { engine: current.engine, fileId: current.meta.id, url: finalized.url })
-		sendControl({ type: 'attachment-received', id, messageId: messageIdValue, received: current.offer.attachment.size, expected: current.offer.attachment.size, chunkCount: manifest.receivedChunks, storage: current.engine.kind })
+		receivedCacheRef.current.set(id, { engine: current.engine, fileId: current.meta.id, messageId: messageIdValue, size: current.offer.attachment.size, chunkCount: manifest.receivedChunks, storage: current.engine.kind, url: finalized.url })
+		progressAckRef.current.delete(id)
+		confirmReceived(id, messageIdValue, current.offer.attachment.size, manifest.receivedChunks, current.engine.kind)
 		incomingRef.current.delete(id)
 		if (finalized.url) downloadUrl(current.offer.attachment.name, finalized.url)
-		options.setStatus(finalized.directSave ? '接收完成，文件已保存' : '接收完成，已加入文件管理')
-	}, [chat, failAttachment, options, sendControl])
+		options.setStatus(finalized.directSave ? '接收完成，文件已保存' : '接收完成，可在文件页查看')
+	}, [chat, confirmReceived, failAttachment, options])
 
 	const queueIncomingChunk = useCallback((id: string, chunkIndex: number, bytes: Uint8Array) => {
 		chunkWriteQueueRef.current = chunkWriteQueueRef.current.then(async () => {
@@ -269,18 +312,21 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			if (manifest.receivedBytes > current.offer.attachment.size) throw new Error('接收失败，请重新发送')
 			current.received = manifest.receivedBytes
 			current.chunkCount = manifest.receivedChunks
-			const progress = current.offer.attachment.size ? current.received / current.offer.attachment.size : 1
-			chat.patchAttachment({ id, messageId: current.offer.messageId, status: 'receiving', progress })
-			chat.patchFileRecord(id, { status: 'receiving' })
-			sendControl({ type: 'attachment-progress', id, messageId: current.offer.messageId, received: current.received, chunkCount: current.chunkCount, storage: current.engine.kind })
+			const done = current.received >= current.offer.attachment.size || current.chunkCount >= current.offer.attachment.chunkCount
+			if (shouldReportProgress(id, current.received, current.offer.attachment.size, done)) {
+				const progress = current.offer.attachment.size ? current.received / current.offer.attachment.size : 1
+				chat.patchAttachment({ id, messageId: current.offer.messageId, status: 'receiving', progress })
+				chat.patchFileRecord(id, { status: 'receiving' })
+				sendControl({ type: 'attachment-progress', id, messageId: current.offer.messageId, received: current.received, chunkCount: current.chunkCount, storage: current.engine.kind })
+			}
 		}).catch(error => {
 			const current = incomingRef.current.get(id)
 			if (current) failAttachment(id, current.offer.messageId, error instanceof Error ? error.message : '接收失败')
 		})
-	}, [chat, failAttachment, sendControl])
+	}, [chat, failAttachment, sendControl, shouldReportProgress])
 
 	const handleControl = useCallback(async (message: LanControlMessage) => {
-		if ('protocolVersion' in message && message.protocolVersion !== LAN_PROTOCOL_VERSION) return void options.setStatus('双方页面版本不一致，请刷新后重新配对')
+		if ('protocolVersion' in message && message.protocolVersion !== LAN_PROTOCOL_VERSION) return void options.setStatus('双方页面不一致，请刷新后重试')
 		if (message.type === 'capability') {
 			options.remoteCapabilityRef.current = message
 			options.setRemoteCapability(message)
@@ -302,12 +348,17 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		if (message.type === 'attachment-complete') return void (await finishIncoming(message.id, message.messageId, message.sent, message.chunkCount))
 		if (message.type === 'attachment-received') return completeOutgoing(message)
 		if (message.type === 'attachment-cancel') {
-			failAttachment(message.id, message.messageId || '', message.reason || '传输已取消', false)
+			failAttachment(message.id, message.messageId || '', message.reason || '已取消', false)
 			pumpQueue()
 			return
 		}
 		if (message.type === 'resume-query') {
 			const attachments = await Promise.all(message.ids.map(async id => {
+				const cached = receivedCacheRef.current.get(id)
+				if (cached) {
+					confirmReceived(id, cached.messageId, cached.size, cached.chunkCount, cached.storage)
+					return null
+				}
 				const current = incomingRef.current.get(id)
 				return current ? { id, messageId: current.offer.messageId, receivedRanges: await current.engine.getReceivedRanges(current.meta.id), receivedBytes: current.received, storage: current.engine.kind } : null
 			}))
@@ -321,14 +372,19 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 				entry.acked = item.receivedBytes
 			}
 		}
-	}, [chat, completeOutgoing, failAttachment, finishIncoming, handleOffer, options, pumpQueue, sendAcceptedAttachment, sendControl])
+	}, [chat, completeOutgoing, confirmReceived, failAttachment, finishIncoming, handleOffer, options, pumpQueue, sendAcceptedAttachment, sendControl])
 
 	const handlePeerData = useCallback((data: unknown) => {
 		const frame = decodeFrame(data)
 		if (!frame) return
-		if (frame.kind === 'control') return void handleControl(frame.message).catch(error => options.setStatus(error instanceof Error ? error.message : '传输失败'))
+		if (frame.kind === 'control') return void handleControl(frame.message).catch(error => options.setStatus(error instanceof Error ? error.message : '发送失败'))
+		if (frame.kind === 'corrupt') {
+			const current = incomingRef.current.get(frame.id)
+			if (current) failAttachment(frame.id, current.offer.messageId, '接收失败，请重新发送')
+			return
+		}
 		queueIncomingChunk(frame.id, frame.index, frame.bytes)
-	}, [handleControl, options, queueIncomingChunk])
+	}, [failAttachment, handleControl, options, queueIncomingChunk])
 
 	const resumeAfterConnect = useCallback(() => {
 		activeSendingRef.current = null
@@ -397,6 +453,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			void file.engine.cleanup(file.fileId).catch(() => {})
 		})
 		receivedCacheRef.current.clear()
+		cancelledIncomingRef.current.clear()
+		progressAckRef.current.clear()
 		pendingOffersRef.current.clear()
 		outgoingObjectUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
 		outgoingObjectUrlsRef.current = []

@@ -6,6 +6,11 @@ const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
+const crc32Table = Array.from({ length: 256 }, (_, index) => {
+	let value = index
+	for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1
+	return value >>> 0
+})
 
 function transferId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -25,6 +30,12 @@ function receivedBytesFromRanges(file: PreparedLanAttachment, ranges: ChunkRange
 		}
 	}
 	return total
+}
+
+function crc32Hex(bytes: Uint8Array) {
+	let crc = 0xffffffff
+	for (const byte of bytes) crc = crc32Table[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+	return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0')
 }
 
 export function formatBytes(bytes: number) {
@@ -65,14 +76,14 @@ export async function imagePreviewUrl(file: File) {
 
 export function prepareLanAttachment(file: File, options: PrepareLanAttachmentOptions) {
 	const maxBytes = options.maxBytes || LAN_LIMITS.experimentalMaxBytes
-	if (file.size > maxBytes) throw new Error(`当前接收设备最多建议 ${formatBytes(maxBytes)}`)
+	if (file.size > maxBytes) throw new Error(`对方最多可接收 ${formatBytes(maxBytes)}`)
 	const chunkSize = Math.min(options.chunkSize || LAN_LIMITS.defaultChunkSize, LAN_LIMITS.dataChannelSafeChunkSize)
 	const suggestedStorage = options.suggestedStorage || (file.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'opfs')
 	return {
 		id: transferId(),
 		messageId: options.messageId,
 		kind: options.kind || attachmentKindForFile(file),
-		name: options.name || file.name || 'lan-session-file',
+		name: options.name || file.name || 'received-file',
 		mime: file.type || 'application/octet-stream',
 		size: file.size,
 		lastModified: file.lastModified || Date.now(),
@@ -93,7 +104,7 @@ export function encodeControl(message: LanControlMessage) {
 }
 
 export function encodeChunk(attachmentId: string, chunkIndex: number, bytes: Uint8Array) {
-	const header = encoder.encode(JSON.stringify({ id: attachmentId, index: chunkIndex }))
+	const header = encoder.encode(JSON.stringify({ id: attachmentId, index: chunkIndex, checksum: crc32Hex(bytes) }))
 	if (header.byteLength > 0xffff) throw new Error('文件发送失败，请重新发送')
 	const frame = new Uint8Array(1 + 2 + header.byteLength + bytes.byteLength)
 	frame[0] = CHUNK_FRAME
@@ -114,13 +125,26 @@ function toBytes(data: unknown) {
 export function decodeFrame(data: unknown) {
 	const bytes = toBytes(data)
 	if (!bytes.length) return null
-	if (bytes[0] === CONTROL_FRAME) return { kind: 'control' as const, message: JSON.parse(decoder.decode(bytes.slice(1))) as LanControlMessage }
+	if (bytes[0] === CONTROL_FRAME) {
+		try {
+			return { kind: 'control' as const, message: JSON.parse(decoder.decode(bytes.slice(1))) as LanControlMessage }
+		} catch {
+			return null
+		}
+	}
 	if (bytes[0] !== CHUNK_FRAME || bytes.byteLength < 3) return null
 	const headerLength = (bytes[1] << 8) | bytes[2]
 	const headerEnd = 3 + headerLength
 	if (bytes.byteLength < headerEnd) return null
-	const header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number }
-	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: bytes.slice(headerEnd) }
+	let header: { id: string; index: number; checksum?: string }
+	try {
+		header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number; checksum?: string }
+	} catch {
+		return null
+	}
+	const chunk = bytes.slice(headerEnd)
+	if (header.checksum && crc32Hex(chunk) !== header.checksum) return { kind: 'corrupt' as const, id: header.id }
+	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: chunk }
 }
 
 function getDataChannel(peer: SimplePeer.Instance) {
@@ -129,7 +153,7 @@ function getDataChannel(peer: SimplePeer.Instance) {
 
 function getOpenDataChannel(peer: SimplePeer.Instance) {
 	const channel = getDataChannel(peer)
-	if (!channel || channel.readyState !== 'open') throw new Error('点对点通道已断开，请重新连接后再发送')
+	if (!channel || channel.readyState !== 'open') throw new Error('连接已断开，请重新连接后再发送')
 	return channel
 }
 
@@ -138,7 +162,7 @@ async function waitForChannelBelow(peer: SimplePeer.Instance, highWatermark: num
 	let channel = getOpenDataChannel(peer)
 	channel.bufferedAmountLowThreshold = lowWatermark
 	while (channel.bufferedAmount > highWatermark) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送缓冲区长时间未释放，可能是对方页面已断开、锁屏或切到后台')
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
 		await new Promise<void>((resolve, reject) => {
 			let done = false
 			let timer: number | null = null
@@ -158,7 +182,7 @@ async function waitForChannelBelow(peer: SimplePeer.Instance, highWatermark: num
 				if (done) return
 				done = true
 				cleanup()
-				reject(new Error('点对点通道已断开，请重新连接后再发送'))
+				reject(new Error('连接已断开，请重新连接后再发送'))
 			}
 			const onLow = () => finish()
 			const onClose = () => fail()
@@ -176,7 +200,7 @@ async function waitForLowWatermark(peer: SimplePeer.Instance, lowWatermark: numb
 	let channel = getOpenDataChannel(peer)
 	channel.bufferedAmountLowThreshold = lowWatermark
 	while (channel.bufferedAmount > lowWatermark) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送队列没有及时清空，请确认对方设备页面仍在前台')
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
 		await new Promise<void>((resolve, reject) => {
 			let done = false
 			let timer: number | null = null
@@ -196,7 +220,7 @@ async function waitForLowWatermark(peer: SimplePeer.Instance, lowWatermark: numb
 				if (done) return
 				done = true
 				cleanup()
-				reject(new Error('点对点通道已断开，请重新连接后再发送'))
+				reject(new Error('连接已断开，请重新连接后再发送'))
 			}
 			const onLow = () => finish()
 			const onClose = () => fail()
@@ -213,7 +237,7 @@ async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, 
 	if (!getAckedBytes) return
 	const startedAt = Date.now()
 	while (sent - getAckedBytes() > maxAheadBytes) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('对方接收太慢，发送已超时。请确认对方页面仍在前台并有足够空间。')
+		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('对方接收太慢，请保持页面打开并确认空间充足')
 		await new Promise(resolve => window.setTimeout(resolve, 100))
 	}
 }
@@ -239,7 +263,7 @@ export async function sendPreparedAttachment(
 		const blob = file.file.slice(offset, Math.min(offset + file.chunkSize, file.size))
 		const chunk = new Uint8Array(await blob.arrayBuffer())
 		const frame = encodeChunk(file.id, chunkIndex, chunk)
-		if (frame.byteLength > 64 * 1024) throw new Error('文件发送分片过大，请重新发送或选择更小的文件')
+		if (frame.byteLength > 64 * 1024) throw new Error('文件发送失败，请重新发送')
 		getOpenDataChannel(peer)
 		peer.send(frame)
 		sent += chunk.byteLength
@@ -261,7 +285,7 @@ export async function sendPreparedAttachment(
 export function downloadUrl(name: string, url: string) {
 	const link = document.createElement('a')
 	link.href = url
-	link.download = name || 'lan-session-file'
+	link.download = name || 'received-file'
 	document.body.appendChild(link)
 	link.click()
 	link.remove()

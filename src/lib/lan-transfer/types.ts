@@ -17,6 +17,8 @@ export const LAN_LIMITS = {
 	bufferDrainTimeoutMs: 60 * 1000,
 	maxSenderAheadBytes: 64 * 1024 * 1024,
 	mobileMaxSenderAheadBytes: 32 * 1024 * 1024,
+	progressAckIntervalBytes: 1024 * 1024,
+	progressAckIntervalMs: 500,
 } as const
 
 export type LanRole = 'host' | 'guest'

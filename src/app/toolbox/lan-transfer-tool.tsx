@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
-import { CheckCheck, Copy, FileArchive, Folder, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Network, Paperclip, Plus, QrCode, RefreshCw, Search, Send, Smartphone, Trash2, Wifi, X } from 'lucide-react'
+import { CheckCheck, Copy, Folder, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, Trash2, Wifi, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage, LanFileRecord } from '@/lib/lan-transfer/types'
 import { useLanTransferController } from './use-lan-transfer-controller'
@@ -19,10 +19,10 @@ type AttachmentAction = 'file' | 'image'
 const connectionLabel = {
 	idle: '未连接',
 	signaling: '连接中',
-	discovered: '发现设备',
+	discovered: '找到设备',
 	connecting: '连接中',
 	connected: '已连接',
-	failed: '等待重连',
+	failed: '等待恢复',
 }
 
 function DeviceAvatar({ type = 'desktop', active = false }: { type?: string; active?: boolean }) {
@@ -54,7 +54,7 @@ function progressLabel(value: number) {
 
 const fileStatusLabel: Record<LanAttachment['status'], string> = {
 	queued: '排队中',
-	offered: '等待接收',
+	offered: '待下载',
 	receiving: '接收中',
 	sending: '发送中',
 	complete: '已完成',
@@ -74,8 +74,9 @@ function AttachmentCard({
 	const complete = attachment.status === 'complete'
 	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
 	const waitingReceive = attachment.direction === 'in' && attachment.status === 'offered'
+	const transferring = !complete && !failed && !waitingReceive
 	return (
-		<div className={`min-w-[260px] rounded-2xl border p-3 ${failed ? 'border-red-200 bg-red-50/70' : complete ? 'border-emerald-200 bg-emerald-50/70' : 'border-pink-200 bg-pink-50/80'}`}>
+		<div className={`w-full min-w-0 max-w-full rounded-2xl border p-3 sm:min-w-[260px] ${failed ? 'border-red-200 bg-red-50/70' : complete ? 'border-emerald-200 bg-emerald-50/70' : 'border-pink-200 bg-pink-50/80'}`}>
 			<div className='flex items-center gap-3'>
 				{attachment.previewUrl ? (
 					<img src={attachment.previewUrl} alt={attachment.name} className='size-14 shrink-0 rounded-xl object-cover' />
@@ -90,9 +91,9 @@ function AttachmentCard({
 						{complete ? ' · 已完成' : failed ? ' · 失败' : ''}
 					</p>
 				</div>
-				{!complete && !failed && <span className='text-lg font-semibold'>{progressLabel(attachment.progress)}</span>}
+				{transferring && <span className='text-lg font-semibold'>{progressLabel(attachment.progress)}</span>}
 			</div>
-			{!complete && !failed && (
+			{transferring && (
 				<div className='mt-3 h-1.5 overflow-hidden rounded-full bg-white/70'>
 					<div className='h-full rounded-full bg-pink-500 transition-all' style={{ width: progressLabel(attachment.progress) }} />
 				</div>
@@ -129,16 +130,16 @@ function MessageBubble({
 	if (message.direction === 'system') return <div className='mx-auto w-fit rounded-full bg-white/60 px-3 py-1 text-xs text-secondary'>{message.text}</div>
 	const outgoing = message.direction === 'out'
 	return (
-		<div className={`flex gap-3 ${outgoing ? 'justify-end' : 'justify-start'}`}>
-			{!outgoing && <DeviceAvatar active />}
-			<div className={`flex max-w-[76%] flex-col space-y-2 ${outgoing ? 'items-end' : 'items-start'}`}>
+		<div className={`flex gap-3 max-sm:gap-2 ${outgoing ? 'justify-end' : 'justify-start'}`}>
+			{!outgoing && <div className='max-sm:hidden'><DeviceAvatar active /></div>}
+			<div className={`flex max-w-[88%] flex-col space-y-2 sm:max-w-[76%] ${outgoing ? 'items-end' : 'items-start'}`}>
 				{message.text && (
 					<div className={`rounded-2xl border px-4 py-3 text-sm leading-6 shadow-sm ${outgoing ? 'border-pink-200 bg-pink-50/90' : 'border-border bg-white/85'}`}>
 						{message.text}
 					</div>
 				)}
 				{message.attachments.length > 0 && (
-					<div className='space-y-2'>
+					<div className='w-full max-w-full space-y-2'>
 						{message.attachments.map(attachment => <AttachmentCard key={attachment.id} attachment={attachment} onDownload={onDownload} onStartReceive={onStartReceive} />)}
 					</div>
 				)}
@@ -147,21 +148,21 @@ function MessageBubble({
 					{outgoing && <CheckCheck size={13} className={message.status === 'failed' ? 'text-red-400' : 'text-pink-500'} />}
 				</div>
 			</div>
-			{outgoing && <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-rose-400 text-white'>我</div>}
+			{outgoing && <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-rose-400 text-white max-sm:hidden'>我</div>}
 		</div>
 	)
 }
 
 function EmptyChat({ onCreate, busy }: { onCreate: () => void; busy: boolean }) {
 	return (
-		<div className='flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-pink-200 bg-white/40 p-8 text-center'>
+		<div className='flex min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed border-pink-200 bg-white/40 p-5 text-center sm:min-h-[420px] sm:p-8'>
 			<div className='flex size-16 items-center justify-center rounded-3xl bg-pink-50 text-pink-500'>
 				<QrCode size={30} />
 			</div>
-			<h2 className='mt-4 text-xl font-semibold'>创建 LAN Session V4</h2>
-			<p className='text-secondary mt-2 max-w-[420px] text-sm leading-6'>文件不经服务器，连接后通过 WebRTC 点对点发送。配对仍需要信令服务，旧版本不会兼容。</p>
+			<h2 className='mt-4 text-xl font-semibold'>连接另一台设备</h2>
+			<p className='text-secondary mt-2 max-w-[420px] text-sm leading-6'>扫码连接后即可发送消息和文件。收到文件时，点下载才会保存。</p>
 			<button onClick={onCreate} disabled={busy} className='mt-5 rounded-2xl bg-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_35px_-24px_#ec4899] disabled:opacity-50'>
-				创建连接二维码
+				创建二维码
 			</button>
 		</div>
 	)
@@ -201,17 +202,17 @@ function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onRec
 		if (files.length) onSendFiles(files)
 	}
 	return (
-		<div onDragOver={event => event.preventDefault()} onDrop={handleDrop} className='rounded-3xl border border-border bg-white/80 p-3 shadow-sm backdrop-blur'>
+		<div onDragOver={event => event.preventDefault()} onDrop={handleDrop} className='rounded-2xl border border-border bg-white/80 p-3 shadow-sm backdrop-blur sm:rounded-3xl'>
 			<input ref={fileInputRef} type='file' multiple className='hidden' onChange={event => handleFiles(event, 'file')} />
 			<input ref={imageInputRef} type='file' multiple accept='image/*' className='hidden' onChange={event => handleFiles(event, 'image')} />
 			<div className='flex items-center gap-2'>
-				<button onClick={() => fileInputRef.current?.click()} className='text-secondary hover:text-pink-500 flex size-9 items-center justify-center rounded-full'>
+				<button onClick={() => fileInputRef.current?.click()} className='text-secondary hover:text-pink-500 flex size-9 shrink-0 items-center justify-center rounded-full'>
 					<Paperclip size={19} />
 				</button>
-				<button onClick={() => imageInputRef.current?.click()} className='text-secondary hover:text-pink-500 flex size-9 items-center justify-center rounded-full'>
+				<button onClick={() => imageInputRef.current?.click()} className='text-secondary hover:text-pink-500 flex size-9 shrink-0 items-center justify-center rounded-full'>
 					<ImageIcon size={19} />
 				</button>
-				<button onClick={recorderState === 'recording' ? onRecordStop : onRecordStart} className={`flex size-9 items-center justify-center rounded-full ${recorderState === 'recording' ? 'bg-red-500 text-white' : 'text-secondary hover:text-pink-500'}`}>
+				<button onClick={recorderState === 'recording' ? onRecordStop : onRecordStart} className={`flex size-9 shrink-0 items-center justify-center rounded-full ${recorderState === 'recording' ? 'bg-red-500 text-white' : 'text-secondary hover:text-pink-500'}`}>
 					<Mic size={18} />
 				</button>
 				<input
@@ -224,10 +225,10 @@ function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onRec
 							submitText()
 						}
 					}}
-					placeholder={connected ? '输入消息，或拖拽文件到这里发送' : '连接后可发送消息和文件'}
+					placeholder={connected ? '输入消息' : '连接后可发送'}
 					className='min-w-0 flex-1 bg-transparent px-2 text-sm'
 				/>
-				<button onClick={submitText} disabled={!connected || !text.trim()} className='flex items-center gap-2 rounded-2xl bg-pink-500 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-45'>
+				<button onClick={submitText} disabled={!connected || !text.trim()} className='flex shrink-0 items-center gap-2 rounded-2xl bg-pink-500 px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-45 sm:px-5'>
 					<Send size={15} />
 					发送
 				</button>
@@ -242,8 +243,8 @@ function DesktopSidebar({ controller }: { controller: ReturnType<typeof useLanTr
 		<aside className='hidden w-[310px] shrink-0 flex-col gap-4 border-r border-pink-100/70 bg-white/45 p-5 lg:flex'>
 			<div className='flex items-center justify-between'>
 				<div>
-					<p className='text-xs font-semibold tracking-[0.18em] text-pink-500 uppercase'>LAN Session</p>
-					<h2 className='mt-1 text-xl font-semibold'>设备与会话</h2>
+					<p className='text-xs font-semibold tracking-[0.18em] text-pink-500 uppercase'>局域网互传</p>
+					<h2 className='mt-1 text-xl font-semibold'>连接设备</h2>
 				</div>
 				<button onClick={controller.handleCreateRoom} className='flex size-10 items-center justify-center rounded-full border border-pink-100 bg-white/70 text-pink-500'>
 					<Plus size={20} />
@@ -251,13 +252,13 @@ function DesktopSidebar({ controller }: { controller: ReturnType<typeof useLanTr
 			</div>
 			<div className='rounded-3xl border border-pink-100 bg-pink-50/70 p-4'>
 				<div className='flex items-center justify-between text-sm font-medium text-pink-600'>
-					<span className='flex items-center gap-2'><Wifi size={16} />点对点传输</span>
-					<span>{controller.connected ? '在线' : '待连接'}</span>
+					<span className='flex items-center gap-2'><Wifi size={16} />直接发送</span>
+					<span>{controller.connected ? '在线' : '等待'}</span>
 				</div>
-				<p className='text-secondary mt-2 text-xs leading-5'>文件不经服务器；同网更快，复杂 NAT 下可能需要重新配对。</p>
+				<p className='text-secondary mt-2 text-xs leading-5'>收到文件后，点击下载才会保存。</p>
 			</div>
 			<div className='space-y-3'>
-				<p className='text-secondary text-xs font-medium'>当前会话</p>
+				<p className='text-secondary text-xs font-medium'>当前连接</p>
 				<div className='rounded-3xl border border-pink-100 bg-white/70 p-4'>
 					<div className='flex items-center gap-3'>
 						<DeviceAvatar type={controller.remotePeer?.deviceType} active={controller.connected} />
@@ -268,18 +269,13 @@ function DesktopSidebar({ controller }: { controller: ReturnType<typeof useLanTr
 					</div>
 					{controller.session?.role === 'host' && (
 						<div className='mt-4 rounded-2xl bg-white p-3 text-center'>
-							{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='局域网会话二维码' className='mx-auto size-36' /> : <div className='text-secondary flex h-36 items-center justify-center text-xs'>生成二维码中</div>}
+							{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='配对二维码' className='mx-auto size-36' /> : <div className='text-secondary flex h-36 items-center justify-center text-xs'>生成二维码中</div>}
 							<button onClick={() => void controller.copyInvite()} className='mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-pink-100 px-3 py-2 text-xs text-pink-500'>
-								<Copy size={14} />复制连接
+								<Copy size={14} />复制链接
 							</button>
 						</div>
 					)}
 				</div>
-			</div>
-			<div className='mt-auto grid grid-cols-3 gap-2 text-center text-xs'>
-				<div className='rounded-2xl bg-white/60 p-3'><Network className='mx-auto mb-1 text-pink-500' size={18} />信令配对</div>
-				<div className='rounded-2xl bg-white/60 p-3'><CheckCheck className='mx-auto mb-1 text-emerald-500' size={18} />点对点</div>
-				<div className='rounded-2xl bg-white/60 p-3'><FileArchive className='mx-auto mb-1 text-violet-500' size={18} />断线续传</div>
 			</div>
 		</aside>
 	)
@@ -287,27 +283,27 @@ function DesktopSidebar({ controller }: { controller: ReturnType<typeof useLanTr
 
 function ChatPane({ controller }: { controller: ReturnType<typeof useLanTransferController> }) {
 	return (
-		<section className='flex min-h-[680px] min-w-0 flex-1 flex-col bg-white/30 max-lg:min-h-[calc(100svh-180px)]'>
-			<header className='flex items-center justify-between border-b border-pink-100/70 bg-white/50 px-5 py-4'>
+		<section className='flex min-h-[680px] min-w-0 flex-1 flex-col bg-white/30 max-lg:min-h-[calc(100svh-172px)]'>
+			<header className='flex items-center justify-between border-b border-pink-100/70 bg-white/50 px-3 py-3 sm:px-5 sm:py-4'>
 				<div className='flex min-w-0 items-center gap-3'>
 					<DeviceAvatar type={controller.remotePeer?.deviceType} active={controller.connected} />
 					<div className='min-w-0'>
-						<h2 className='truncate text-base font-semibold'>{controller.remotePeer?.name || 'LAN Session V4'}</h2>
-						<p className='text-secondary truncate text-xs'>{controller.connected ? controller.connectionRoute || '点对点已连接' : controller.status}</p>
+						<h2 className='truncate text-base font-semibold'>{controller.remotePeer?.name || '等待连接'}</h2>
+						<p className='text-secondary truncate text-xs'>{controller.connected ? controller.connectionRoute || '已连接' : controller.status}</p>
 					</div>
 				</div>
 				<button onClick={controller.leaveSession} className='text-secondary hover:text-pink-500 flex size-9 items-center justify-center rounded-full border border-border bg-white/60'>
 					<X size={17} />
 				</button>
 			</header>
-			<div className='min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6'>
+			<div className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
 				{controller.session ? (
-					controller.messages.length ? controller.messages.map(message => <MessageBubble key={message.id} message={message} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} />) : <div className='text-secondary py-20 text-center text-sm'>连接后可发送文字、语音、图片和文件。</div>
+					controller.messages.length ? controller.messages.map(message => <MessageBubble key={message.id} message={message} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} />) : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
 				) : (
 					<EmptyChat onCreate={controller.handleCreateRoom} busy={controller.busy} />
 				)}
 			</div>
-			<div className='border-t border-pink-100/70 bg-white/45 p-4'>
+			<div className='border-t border-pink-100/70 bg-white/45 p-3 sm:p-4'>
 				<ChatComposer
 					connected={controller.connected}
 					recorderState={controller.recorder.state}
@@ -325,30 +321,30 @@ function DevicePage({ controller }: { controller: ReturnType<typeof useLanTransf
 	return (
 		<div className='space-y-4 p-4'>
 			<div className='flex items-center justify-between'>
-				<h2 className='text-lg font-semibold'>附近设备</h2>
+				<h2 className='text-lg font-semibold'>设备</h2>
 				<button onClick={controller.handleCreateRoom} className='flex size-9 items-center justify-center rounded-full border border-border bg-white/70 text-pink-500'>
 					<RefreshCw size={17} />
 				</button>
 			</div>
 			<div className='rounded-2xl bg-pink-50 px-4 py-3 text-sm font-medium text-pink-500'>{controller.status}</div>
 			<div className='space-y-3'>
-				<p className='text-secondary text-xs'>已连接</p>
+				<p className='text-secondary text-xs'>当前连接</p>
 				<div className='flex items-center gap-3 rounded-3xl bg-white/75 p-4'>
 					<DeviceAvatar type={controller.remotePeer?.deviceType} active={controller.connected} />
 					<div className='min-w-0 flex-1'>
 						<p className='truncate font-semibold'>{controller.remotePeer?.name || '等待扫码设备'}</p>
 						<p className='text-secondary mt-1 text-xs'>{controller.connected ? '在线' : connectionLabel[controller.connectionState]}</p>
 					</div>
-					{controller.connected && <span className='rounded-full bg-pink-100 px-2 py-1 text-xs text-pink-500'>当前会话</span>}
+					{controller.connected && <span className='rounded-full bg-pink-100 px-2 py-1 text-xs text-pink-500'>已连接</span>}
 				</div>
 			</div>
 			{controller.session?.role === 'host' && (
 				<div className='rounded-3xl bg-white/75 p-4 text-center'>
-					{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='扫码连接 LAN Session' className='mx-auto size-48' /> : <div className='text-secondary flex h-48 items-center justify-center'>生成二维码中</div>}
-					<button onClick={() => void controller.copyInvite()} className='mt-3 w-full rounded-2xl bg-pink-500 px-4 py-3 text-sm font-semibold text-white'>复制连接</button>
+					{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='扫码连接' className='mx-auto size-48' /> : <div className='text-secondary flex h-48 items-center justify-center'>生成二维码中</div>}
+					<button onClick={() => void controller.copyInvite()} className='mt-3 w-full rounded-2xl bg-pink-500 px-4 py-3 text-sm font-semibold text-white'>复制链接</button>
 				</div>
 			)}
-			<button onClick={controller.handleCreateRoom} className='w-full rounded-2xl bg-pink-500 px-4 py-3 text-sm font-semibold text-white'>创建/刷新配对码</button>
+			<button onClick={controller.handleCreateRoom} className='w-full rounded-2xl bg-pink-500 px-4 py-3 text-sm font-semibold text-white'>创建配对码</button>
 		</div>
 	)
 }
@@ -357,13 +353,7 @@ function FilePage({ records, onDownload, onClear }: { records: LanFileRecord[]; 
 	return (
 		<div className='space-y-4 p-4'>
 			<div className='flex items-center justify-between'>
-				<h2 className='text-lg font-semibold'>文件管理</h2>
-				<Search className='text-secondary' size={18} />
-			</div>
-			<div className='flex gap-5 border-b border-border text-sm'>
-				<span className='border-b-2 border-pink-500 pb-2 text-pink-500'>全部</span>
-				<span className='text-secondary pb-2'>来自我</span>
-				<span className='text-secondary pb-2'>来自设备</span>
+				<h2 className='text-lg font-semibold'>文件</h2>
 			</div>
 			{records.length ? records.map(record => (
 				<div key={record.id} className='flex items-center gap-3 rounded-2xl bg-white/75 p-3'>
@@ -375,7 +365,7 @@ function FilePage({ records, onDownload, onClear }: { records: LanFileRecord[]; 
 					{record.url && <button onClick={() => onDownload(record.name, record.url || '')} className='rounded-full border border-border px-2 py-1 text-xs'>下载</button>}
 					<button onClick={() => onClear(record.id)} className='text-secondary hover:text-red-500'><Trash2 size={15} /></button>
 				</div>
-			)) : <div className='text-secondary rounded-3xl bg-white/65 p-8 text-center text-sm'>收到或发送的附件会出现在这里。</div>}
+			)) : <div className='text-secondary rounded-3xl bg-white/65 p-8 text-center text-sm'>文件会出现在这里。</div>}
 		</div>
 	)
 }
@@ -391,7 +381,7 @@ function MobileShell({ controller }: { controller: ReturnType<typeof useLanTrans
 			{controller.activeMobileTab === 'chats' && <ChatPane controller={controller} />}
 			{controller.activeMobileTab === 'devices' && <DevicePage controller={controller} />}
 			{controller.activeMobileTab === 'files' && <FilePage records={controller.fileRecords} onDownload={controller.downloadAttachment} onClear={controller.clearFileRecord} />}
-			<nav className='fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[640px] grid-cols-3 border-t border-border bg-white/90 px-6 py-2 text-xs shadow-[0_-18px_50px_-40px_rgba(0,0,0,.35)] backdrop-blur'>
+			<nav className='fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-[640px] grid-cols-3 border-t border-border bg-white/90 px-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 text-xs shadow-[0_-18px_50px_-40px_rgba(0,0,0,.35)] backdrop-blur'>
 				{tabs.map(tab => {
 					const Icon = tab.icon
 					return (
@@ -409,7 +399,7 @@ function MobileShell({ controller }: { controller: ReturnType<typeof useLanTrans
 export function LanTransferTool({ initialInvite = null, onLeaveSession }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
 	return (
-		<div className='lan-session-v4 -m-3 overflow-hidden rounded-[32px] border border-pink-100 bg-[radial-gradient(circle_at_top_left,rgba(244,114,182,.18),transparent_36%),linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,245,249,.72))] shadow-[0_30px_90px_-58px_rgba(236,72,153,.55)] max-sm:-m-0 max-sm:rounded-none max-sm:border-0 max-sm:pb-16'>
+		<div className='lan-session-v4 -m-3 overflow-hidden rounded-[32px] border border-pink-100 bg-[radial-gradient(circle_at_top_left,rgba(244,114,182,.18),transparent_36%),linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,245,249,.72))] shadow-[0_30px_90px_-58px_rgba(236,72,153,.55)] max-sm:m-0 max-sm:rounded-none max-sm:border-0 max-sm:pb-20'>
 			<div className='hidden min-h-[720px] lg:flex'>
 				<DesktopSidebar controller={controller} />
 				<ChatPane controller={controller} />

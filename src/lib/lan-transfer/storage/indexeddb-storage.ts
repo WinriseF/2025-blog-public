@@ -119,14 +119,14 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	}
 
 	async finalize(meta: TransferFileMeta) {
-		if (meta.size > LAN_LIMITS.indexedDbExperimentalBytes) throw new Error('当前浏览器不能接收这么大的文件。')
+		if (meta.size > LAN_LIMITS.indexedDbExperimentalBytes) throw new Error('当前设备不能接收这么大的文件')
 		const db = await openDb()
 		const tx = db.transaction(CHUNKS, 'readonly')
 		const store = tx.objectStore(CHUNKS)
 		const parts: BlobPart[] = []
 		for (let index = 0; index < meta.chunkCount; index += 1) {
 			const record = (await requestToPromise(store.get(chunkKey(meta.id, index)))) as ChunkRecord | undefined
-			if (!record) throw new Error(`缺少分片 ${index}`)
+			if (!record) throw new Error('接收不完整，请重新发送')
 			parts.push(record.data)
 		}
 		const blob = new Blob(parts, { type: meta.mime || 'application/octet-stream' })

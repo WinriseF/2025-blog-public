@@ -34,7 +34,7 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 
 function saveFilePicker(): SaveFilePicker {
 	const picker = (window as unknown as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
-	if (typeof picker !== 'function') throw new Error('当前浏览器不支持直接保存文件。')
+	if (typeof picker !== 'function') throw new Error('当前设备不支持直接保存文件')
 	return picker.bind(window)
 }
 
@@ -56,7 +56,7 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 
 	async writeChunk(meta: TransferFileMeta, chunkIndex: number, data: Uint8Array) {
 		const active = this.activeFiles.get(meta.id)
-		if (!active || !active.writable || active.closed) throw new Error('文件保存不可用，请重新接收。')
+		if (!active || !active.writable || active.closed) throw new Error('文件保存失败，请重新接收')
 		let manifest = active.manifest
 		if (manifest.receivedRanges.some(([start, end]) => chunkIndex >= start && chunkIndex <= end)) return manifest
 		await active.writable.write({ type: 'write', position: chunkIndex * meta.chunkSize, data })
@@ -83,7 +83,7 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 
 	async finalize(meta: TransferFileMeta) {
 		const active = this.activeFiles.get(meta.id)
-		if (!active || !active.writable || active.closed) throw new Error('文件保存不可用，请重新接收。')
+		if (!active || !active.writable || active.closed) throw new Error('文件保存失败，请重新接收')
 		await active.writable.close()
 		active.closed = true
 		active.writable = null

@@ -20,7 +20,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const [connected, setConnected] = useState(false)
 	const [connectionState, setConnectionState] = useState<LanConnectionState>('idle')
 	const [connectionRoute, setConnectionRoute] = useState('')
-	const [status, setStatus] = useState('创建二维码后，用另一台设备扫码配对')
+	const [status, setStatus] = useState('创建二维码，让另一台设备扫码')
 	const [busy, setBusy] = useState(false)
 	const [activeMobileTab, setActiveMobileTab] = useState<'chats' | 'devices' | 'files'>('chats')
 	const [localCapability, setLocalCapability] = useState<LanCapability | null>(null)
@@ -89,7 +89,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		if (peerRef.current) return peerRef.current
 		setConnectionState('connecting')
 		const peer = new SimplePeer({ initiator, trickle: true, channelName: 'lan-session-v4', config: lanRtcConfig })
-		peer.on('signal', signal => void signalClientRef.current?.sendSignal(remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '连接消息发送失败')))
+		peer.on('signal', signal => void signalClientRef.current?.sendSignal(remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '连接失败，请重试')))
 		peer.on('connect', () => {
 			if (peerRef.current !== peer) return
 			setConnected(true)
@@ -105,7 +105,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				peerRef.current = null
 				setConnected(false)
 				setConnectionState('failed')
-				setStatus(error instanceof Error ? error.message : '连接失败，请重新连接')
+				setStatus(error instanceof Error ? error.message : '连接失败，请重试')
 			})
 		})
 		peer.on('data', engine.handlePeerData)
@@ -116,7 +116,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			setConnected(false)
 			setConnectionState('signaling')
 			setConnectionRoute('')
-			setStatus('连接已断开，正在等待重连')
+			setStatus('连接断了，正在恢复')
 			signalClientRef.current?.restartAnnouncing()
 		})
 		peer.on('error', error => {
@@ -126,14 +126,14 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			setConnected(false)
 			setConnectionState('failed')
 			setConnectionRoute('')
-			setStatus(error instanceof Error ? error.message : '连接失败，正在等待重连')
+			setStatus(error instanceof Error ? error.message : '连接失败，正在恢复')
 			signalClientRef.current?.restartAnnouncing()
 		})
 		peerRef.current = peer
 		return peer
 	}, [engine, sendLocalCapability])
 
-	const closeCurrentConnection = useCallback((nextStatus = '创建二维码后，用另一台设备扫码配对', nextState: LanConnectionState = 'idle') => {
+	const closeCurrentConnection = useCallback((nextStatus = '创建二维码，让另一台设备扫码', nextState: LanConnectionState = 'idle') => {
 		clearPeer()
 		setRemotePeer(null)
 		setRemoteCapability(null)
@@ -154,9 +154,9 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			const activePeer = peerRef.current
 			if (activePeer?.connected && remotePeerRef.current?.id === message.from) return
 			setConnectionState(activePeer ? 'connecting' : 'discovered')
-			setStatus('已发现对方设备，正在连接...')
+			setStatus('找到设备，正在连接')
 			if (current.role === 'host') {
-				void signalClientRef.current?.sendAnnounce(message.from).catch(error => setStatus(error instanceof Error ? error.message : '连接消息发送失败'))
+				void signalClientRef.current?.sendAnnounce(message.from).catch(error => setStatus(error instanceof Error ? error.message : '连接失败，请重试'))
 				createPeer(true, message.from)
 			} else {
 				createPeer(false, message.from)
@@ -167,7 +167,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		if (message.type === 'peer-left') {
 			clearPeer()
 			setConnectionState('signaling')
-			setStatus('对方设备已离开，等待重新连接')
+			setStatus('对方已离开，正在等待')
 			signalClientRef.current?.restartAnnouncing()
 		}
 	}, [clearPeer, createPeer])
@@ -176,7 +176,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		await signalClientRef.current?.close().catch(() => {})
 		setConnectionState('signaling')
 		const client = new LanSignalingClient(next, handleSignalMessage, realtimeStatus => {
-			if (realtimeStatus === 'SUBSCRIBED') setStatus(next.role === 'host' ? '二维码已创建，等待另一台设备扫码' : '已加入，正在连接')
+			if (realtimeStatus === 'SUBSCRIBED') setStatus(next.role === 'host' ? '二维码已创建，等待扫码' : '正在连接')
 		}, error => {
 			setConnectionState('failed')
 			setStatus(error.message)
@@ -192,7 +192,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 
 	const handleCreateRoom = async () => {
 		setBusy(true)
-		closeCurrentConnection('正在创建二维码...', 'signaling')
+		closeCurrentConnection('正在创建二维码', 'signaling')
 		try {
 			const next = await createLanSession()
 			setSessionNow(next)
@@ -200,10 +200,10 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			localCapabilityRef.current = capability
 			setLocalCapability(capability)
 			await startSignaling(next)
-			engine.addSystemMessage('LAN Session V4 已创建，旧版本连接将不会兼容')
+			engine.addSystemMessage('二维码已创建')
 		} catch (error) {
 			setConnectionState('failed')
-			setStatus(error instanceof Error ? error.message : '创建连接失败')
+			setStatus(error instanceof Error ? error.message : '创建失败')
 		} finally {
 			setBusy(false)
 		}
@@ -211,7 +211,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 
 	const handleJoinRoom = useCallback(async (roomId: string, token: string) => {
 		setBusy(true)
-		closeCurrentConnection('正在加入...', 'signaling')
+		closeCurrentConnection('正在连接', 'signaling')
 		try {
 			const next = await joinLanSession(roomId, token)
 			setSessionNow(next)
@@ -221,7 +221,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			await startSignaling(next)
 		} catch (error) {
 			setConnectionState('failed')
-			setStatus(error instanceof Error ? error.message : '加入连接失败')
+			setStatus(error instanceof Error ? error.message : '连接失败')
 		} finally {
 			setBusy(false)
 		}
@@ -241,7 +241,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const copyInvite = async () => {
 		if (!inviteLink) return
 		await navigator.clipboard.writeText(inviteLink)
-		setStatus('连接链接已复制')
+		setStatus('链接已复制')
 	}
 
 	const leaveSession = () => {
