@@ -1,4 +1,3 @@
-import type SimplePeer from 'simple-peer'
 import { hasChunk, type ChunkRange } from './storage/ranges'
 import { LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
 
@@ -63,6 +62,13 @@ export type PrepareLanAttachmentOptions = {
 	maxBytes?: number
 	durationMs?: number
 	name?: string
+}
+
+export interface LanConnectionTransport {
+	isOpen(): boolean
+	send(data: Uint8Array): boolean
+	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number): Promise<void>
+	waitUntilDrained(lowWatermark: number, timeoutMs: number): Promise<void>
 }
 
 export function fileFromBlob(blob: Blob, name: string, lastModified = Date.now()) {
@@ -147,92 +153,6 @@ export function decodeFrame(data: unknown) {
 	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: chunk }
 }
 
-function getDataChannel(peer: SimplePeer.Instance) {
-	return (peer as unknown as { _channel?: RTCDataChannel })._channel
-}
-
-function getOpenDataChannel(peer: SimplePeer.Instance) {
-	const channel = getDataChannel(peer)
-	if (!channel || channel.readyState !== 'open') throw new Error('连接已断开，请重新连接后再发送')
-	return channel
-}
-
-async function waitForChannelBelow(peer: SimplePeer.Instance, highWatermark: number, lowWatermark: number) {
-	const startedAt = Date.now()
-	let channel = getOpenDataChannel(peer)
-	channel.bufferedAmountLowThreshold = lowWatermark
-	while (channel.bufferedAmount > highWatermark) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
-		await new Promise<void>((resolve, reject) => {
-			let done = false
-			let timer: number | null = null
-			const cleanup = () => {
-				channel.removeEventListener('bufferedamountlow', onLow)
-				channel.removeEventListener('close', onClose)
-				channel.removeEventListener('error', onClose)
-				if (timer !== null) window.clearTimeout(timer)
-			}
-			const finish = () => {
-				if (done) return
-				done = true
-				cleanup()
-				resolve()
-			}
-			const fail = () => {
-				if (done) return
-				done = true
-				cleanup()
-				reject(new Error('连接已断开，请重新连接后再发送'))
-			}
-			const onLow = () => finish()
-			const onClose = () => fail()
-			timer = window.setTimeout(finish, 250)
-			channel.addEventListener('bufferedamountlow', onLow)
-			channel.addEventListener('close', onClose, { once: true })
-			channel.addEventListener('error', onClose, { once: true })
-		})
-		channel = getOpenDataChannel(peer)
-	}
-}
-
-async function waitForLowWatermark(peer: SimplePeer.Instance, lowWatermark: number) {
-	const startedAt = Date.now()
-	let channel = getOpenDataChannel(peer)
-	channel.bufferedAmountLowThreshold = lowWatermark
-	while (channel.bufferedAmount > lowWatermark) {
-		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
-		await new Promise<void>((resolve, reject) => {
-			let done = false
-			let timer: number | null = null
-			const cleanup = () => {
-				channel.removeEventListener('bufferedamountlow', onLow)
-				channel.removeEventListener('close', onClose)
-				channel.removeEventListener('error', onClose)
-				if (timer !== null) window.clearTimeout(timer)
-			}
-			const finish = () => {
-				if (done) return
-				done = true
-				cleanup()
-				resolve()
-			}
-			const fail = () => {
-				if (done) return
-				done = true
-				cleanup()
-				reject(new Error('连接已断开，请重新连接后再发送'))
-			}
-			const onLow = () => finish()
-			const onClose = () => fail()
-			timer = window.setTimeout(finish, 250)
-			channel.addEventListener('bufferedamountlow', onLow)
-			channel.addEventListener('close', onClose, { once: true })
-			channel.addEventListener('error', onClose, { once: true })
-		})
-		channel = getOpenDataChannel(peer)
-	}
-}
-
 async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, sent: number, maxAheadBytes: number) {
 	if (!getAckedBytes) return
 	const startedAt = Date.now()
@@ -243,10 +163,10 @@ async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, 
 }
 
 export async function sendPreparedAttachment(
-	peer: SimplePeer.Instance,
+	transport: LanConnectionTransport,
 	file: PreparedLanAttachment,
 	onProgress: (sent: number) => void,
-	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number; receivedRanges?: ChunkRange[] } = {},
+	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number; receivedRanges?: ChunkRange[]; completeMessage: LanControlMessage },
 ) {
 	const highWatermark = options.mobile ? LAN_LIMITS.mobileBufferHighWatermark : LAN_LIMITS.bufferHighWatermark
 	const lowWatermark = options.mobile ? LAN_LIMITS.mobileBufferLowWatermark : LAN_LIMITS.bufferLowWatermark
@@ -257,29 +177,20 @@ export async function sendPreparedAttachment(
 	for (let chunkIndex = 0; chunkIndex < file.chunkCount; chunkIndex += 1) {
 		if (hasChunk(receivedRanges, chunkIndex)) continue
 		await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
-		await waitForChannelBelow(peer, highWatermark, lowWatermark)
+		await transport.waitUntilWritable(highWatermark, lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs)
 		const offset = chunkIndex * file.chunkSize
 		if (offset >= file.size) continue
 		const blob = file.file.slice(offset, Math.min(offset + file.chunkSize, file.size))
 		const chunk = new Uint8Array(await blob.arrayBuffer())
 		const frame = encodeChunk(file.id, chunkIndex, chunk)
 		if (frame.byteLength > 64 * 1024) throw new Error('文件发送失败，请重新发送')
-		getOpenDataChannel(peer)
-		peer.send(frame)
+		if (!transport.isOpen() || !transport.send(frame)) throw new Error('连接已断开，请重新连接后再发送')
 		sent += chunk.byteLength
 		onProgress(Math.min(file.size, sent))
 	}
 	await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
-	await waitForLowWatermark(peer, lowWatermark)
-	peer.send(
-		encodeControl({
-			type: 'attachment-complete',
-			id: file.id,
-			messageId: file.messageId,
-			sent: file.size,
-			chunkCount: file.chunkCount,
-		}),
-	)
+	await transport.waitUntilDrained(lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs)
+	if (!transport.isOpen() || !transport.send(encodeControl(options.completeMessage))) throw new Error('连接已断开，请重新连接后再发送')
 }
 
 export function downloadUrl(name: string, url: string) {

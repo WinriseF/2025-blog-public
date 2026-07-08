@@ -8,8 +8,8 @@ import { useLanRecorder } from './use-lan-recorder'
 import { useLanTransferEngine } from './use-lan-transfer-engine'
 import { detectLanCapability } from '@/lib/lan-transfer/capability'
 import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
-import { encodeControl, fileFromBlob } from '@/lib/lan-transfer/file-transfer'
-import { LAN_PROTOCOL_VERSION, type LanCapability, type LanConnectionState, type LanControlMessage, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
+import { fileFromBlob } from '@/lib/lan-transfer/file-transfer'
+import { LAN_PROTOCOL_VERSION, type LanCapability, type LanConnectionState, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
 
 type LanTransferControllerOptions = { initialInvite?: { roomId: string; token: string } | null; onLeaveSession?: () => void }
 
@@ -43,20 +43,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	}, [session])
 	const qrDataUrl = useLanInviteQrCode(inviteLink)
 
-	const sendControl = useCallback((message: LanControlMessage) => {
-		const peer = peerRef.current
-		if (!peer?.connected) return false
-		try {
-			peer.send(encodeControl(message))
-			return true
-		} catch {
-			return false
-		}
-	}, [])
-
 	const engine = useLanTransferEngine({
-		connected,
-		peerRef,
 		sessionRef,
 		remotePeerRef,
 		remoteCapabilityRef,
@@ -66,20 +53,11 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		setStatus,
 	})
 
-	const sendLocalCapability = useCallback(async () => {
-		const current = sessionRef.current
-		if (!current) return
-		const capability = await detectLanCapability(current.peerId)
-		localCapabilityRef.current = capability
-		setLocalCapability(capability)
-		sendControl(capability)
-	}, [sendControl])
-
 	const clearPeer = useCallback(() => {
 		const peer = peerRef.current
 		peerRef.current = null
 		if (peer) peer.destroy()
-		engine.pauseTransfers()
+		engine.detachPeer()
 		setConnected(false)
 		setConnectionRoute('')
 	}, [engine])
@@ -87,7 +65,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const createPeer = useCallback((initiator: boolean, remotePeerId: string) => {
 		if (peerRef.current) return peerRef.current
 		setConnectionState('connecting')
-		const peer = new SimplePeer({ initiator, trickle: true, channelName: 'lan-session-v4', config: lanRtcConfig })
+		const peer = new SimplePeer({ initiator, trickle: true, channelName: 'lan-session-v5', config: lanRtcConfig })
 		peer.on('signal', signal => void signalClientRef.current?.sendSignal(remotePeerId, signal).catch(error => setStatus(error instanceof Error ? error.message : '连接失败，请重试')))
 		peer.on('connect', () => {
 			if (peerRef.current !== peer) return
@@ -97,8 +75,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			void inspectLanConnectionRoute(peer).then(route => {
 				if (peerRef.current !== peer) return
 				setConnectionRoute(route)
-				void sendLocalCapability().catch(() => {})
-				engine.resumeAfterConnect()
+				engine.attachPeer(peer)
 			}).catch(error => {
 				peer.destroy()
 				peerRef.current = null
@@ -111,7 +88,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		peer.on('close', () => {
 			if (peerRef.current !== peer) return
 			peerRef.current = null
-			engine.pauseTransfers()
+			engine.detachPeer()
 			setConnected(false)
 			setConnectionState('signaling')
 			setConnectionRoute('')
@@ -121,7 +98,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		peer.on('error', error => {
 			if (peerRef.current !== peer) return
 			peerRef.current = null
-			engine.pauseTransfers()
+			engine.detachPeer()
 			setConnected(false)
 			setConnectionState('failed')
 			setConnectionRoute('')
@@ -130,15 +107,16 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		})
 		peerRef.current = peer
 		return peer
-	}, [engine, sendLocalCapability])
+	}, [engine])
 
 	const closeCurrentConnection = useCallback((nextStatus = '创建二维码，让另一台设备扫码', nextState: LanConnectionState = 'idle') => {
 		clearPeer()
+		engine.resetSession()
 		setRemotePeer(null)
 		setRemoteCapability(null)
 		setConnectionState(nextState)
 		setStatus(nextStatus)
-	}, [clearPeer])
+	}, [clearPeer, engine])
 
 	const handleSignalMessage = useCallback((message: LanSignalMessage) => {
 		const current = sessionRef.current

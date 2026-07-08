@@ -510,7 +510,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 	}, [])
 
 	const app = (
-		<div className='lan-session-v4 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
+		<div className='lan-session-v5 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
 			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
 				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} />
 				<ChatPane controller={controller} />

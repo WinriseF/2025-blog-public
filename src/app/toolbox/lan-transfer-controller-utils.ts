@@ -1,23 +1,9 @@
-import { formatBytes } from '@/lib/lan-transfer/file-transfer'
-import { chooseStorageKind } from '@/lib/lan-transfer/storage/storage-manager'
-import type { TransferFileMeta } from '@/lib/lan-transfer/storage/types'
-import { LAN_LIMITS, type LanAttachment, type LanAttachmentOffer, type LanCapability, type LanChatMessage, type LanFileRecord, type PreparedLanAttachment } from '@/lib/lan-transfer/types'
-
 type SimplePeerWithConnection = unknown
 type CandidatePairStats = RTCStats & { localCandidateId?: string; remoteCandidateId?: string; nominated?: boolean; selected?: boolean; state?: string }
 
 export const lanRtcConfig: RTCConfiguration = {
 	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 	iceCandidatePoolSize: 2,
-}
-
-export function capabilityLimitLabel(capability: LanCapability | null) {
-	if (!capability) return '等待连接'
-	return `可接收 ${formatBytes(capability.limits.maxExperimentalFileSize)}`
-}
-
-export function totalSelectedSize(files: File[]) {
-	return files.reduce((sum, file) => sum + file.size, 0)
 }
 
 export function nowLabel(date = new Date()) {
@@ -51,58 +37,4 @@ export async function inspectLanConnectionRoute(peer: SimplePeerWithConnection) 
 	const remoteType = getStatsCandidateType(stats, selectedPair.remoteCandidateId)
 	if (localType === 'relay' || remoteType === 'relay') throw new Error('当前网络无法直连，请换个网络后重试')
 	return '已连接'
-}
-
-export function messageBase(id: string, direction: 'in' | 'out', createdAt: number, peerId?: string): Omit<LanChatMessage, 'attachments'> {
-	return { id, direction, kind: 'attachments', status: direction === 'out' ? 'queued' : 'received', createdAt, peerId }
-}
-
-export function transferMeta(offer: LanAttachmentOffer, storage: TransferFileMeta['storage']): TransferFileMeta {
-	return { ...offer.attachment, storage }
-}
-
-export function attachmentFromPrepared(file: PreparedLanAttachment, storage: TransferFileMeta['storage'], previewUrl = ''): LanAttachment {
-	return { ...file, direction: 'out', storage, status: 'queued', progress: 0, previewUrl }
-}
-
-export function attachmentFromOffer(offer: LanAttachmentOffer, storage: TransferFileMeta['storage'], progress = 0): LanAttachment {
-	return { ...offer.attachment, direction: 'in', storage, status: 'receiving', progress }
-}
-
-export function fileRecord(messageId: string, attachment: LanAttachment, peerName?: string): LanFileRecord {
-	return {
-		id: attachment.id,
-		messageId,
-		direction: attachment.direction,
-		kind: attachment.kind,
-		name: attachment.name,
-		mime: attachment.mime,
-		size: attachment.size,
-		storage: attachment.storage,
-		status: attachment.status,
-		url: attachment.url,
-		createdAt: Date.now(),
-		peerName,
-	}
-}
-
-export function receiveStorageCandidates(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null) {
-	const candidates: TransferFileMeta['storage'][] = []
-	const add = (kind: TransferFileMeta['storage']) => {
-		if (!candidates.includes(kind)) candidates.push(kind)
-	}
-
-	if (capability?.storage.fileSystemAccess && capability.platform === 'desktop') add('file')
-	if (requested === 'opfs' && capability?.storage.opfs) add('opfs')
-	if (requested === 'indexeddb' && capability?.storage.indexedDB) add('indexeddb')
-	if (capability?.storage.opfs) add('opfs')
-	if (capability?.storage.indexedDB) add('indexeddb')
-	if (size <= LAN_LIMITS.memoryMaxBytes) add('memory')
-	const fallback = chooseStorageKind(size, requested, capability)
-	if (fallback !== 'memory' || size <= LAN_LIMITS.memoryMaxBytes) add(fallback)
-	return candidates
-}
-
-export function chooseReceiveStorage(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null) {
-	return receiveStorageCandidates(size, requested, capability)[0] || 'memory'
 }

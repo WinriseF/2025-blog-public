@@ -1,4 +1,4 @@
-export const LAN_PROTOCOL_VERSION = 4
+export const LAN_PROTOCOL_VERSION = 5
 
 export const LAN_LIMITS = {
 	memoryMaxBytes: 200 * 1024 * 1024,
@@ -77,6 +77,8 @@ export type LanCapability = {
 	type: 'capability'
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	peerId: string
+	seq?: number
+	createdAt?: number
 	platform: LanPlatformKind
 	browser: LanBrowserKind
 	isEmbeddedBrowser: boolean
@@ -156,6 +158,7 @@ export type LanChatMessageControl = {
 	text: string
 	createdAt: number
 	peerId: string
+	seq: number
 }
 
 export type LanAttachmentOffer = {
@@ -164,13 +167,18 @@ export type LanAttachmentOffer = {
 	messageId: string
 	createdAt: number
 	peerId: string
+	seq: number
 	attachment: LanAttachmentManifest
 }
 
 export type LanAttachmentAccept = {
 	type: 'attachment-accept'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	id: string
 	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
 	storage: LanStorageKind
 	receivedRanges: Array<[number, number]>
 	receivedBytes: number
@@ -178,8 +186,12 @@ export type LanAttachmentAccept = {
 
 export type LanAttachmentProgress = {
 	type: 'attachment-progress'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	id: string
 	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
 	received: number
 	chunkCount: number
 	storage: LanStorageKind
@@ -187,16 +199,24 @@ export type LanAttachmentProgress = {
 
 export type LanAttachmentComplete = {
 	type: 'attachment-complete'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	id: string
 	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
 	sent: number
 	chunkCount: number
 }
 
 export type LanAttachmentReceived = {
 	type: 'attachment-received'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	id: string
 	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
 	received: number
 	expected: number
 	chunkCount: number
@@ -205,7 +225,11 @@ export type LanAttachmentReceived = {
 
 export type LanAttachmentCancel = {
 	type: 'attachment-cancel'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	id: string
+	peerId: string
+	seq: number
+	createdAt: number
 	messageId?: string
 	reason?: string
 }
@@ -213,12 +237,18 @@ export type LanAttachmentCancel = {
 export type LanResumeQuery = {
 	type: 'resume-query'
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
 	ids: string[]
 }
 
 export type LanResumeState = {
 	type: 'resume-state'
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
 	attachments: Array<{
 		id: string
 		messageId: string
