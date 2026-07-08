@@ -6,10 +6,6 @@ export const lanRtcConfig: RTCConfiguration = {
 	iceCandidatePoolSize: 2,
 }
 
-export function nowLabel(date = new Date()) {
-	return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
-
 function getStatsCandidateType(stats: RTCStatsReport, candidateId: string | undefined) {
 	if (!candidateId) return ''
 	const candidate = stats.get(candidateId) as (RTCStats & { candidateType?: string }) | undefined

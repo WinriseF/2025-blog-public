@@ -3,15 +3,15 @@
 import { useCallback, useReducer } from 'react'
 import type { LanAttachment, LanAttachmentStatus, LanChatMessage, LanFileRecord, LanMessageStatus } from '@/lib/lan-transfer/types'
 
-type LanChatState = {
+export type LanChatState = {
 	messages: LanChatMessage[]
 	fileRecords: LanFileRecord[]
 }
 
-type MessagePatch = Partial<Omit<LanChatMessage, 'attachments'>> & { attachments?: LanAttachment[] }
-type AttachmentPatch = Partial<LanAttachment> & { id: string; messageId?: string }
+export type MessagePatch = Partial<Omit<LanChatMessage, 'attachments'>> & { attachments?: LanAttachment[] }
+export type AttachmentPatch = Partial<LanAttachment> & { id: string; messageId?: string }
 
-type Action =
+export type LanChatAction =
 	| { type: 'upsert-message'; message: LanChatMessage }
 	| { type: 'upsert-attachment'; message: Omit<LanChatMessage, 'attachments'>; attachment: LanAttachment }
 	| { type: 'patch-message'; id: string; patch: MessagePatch }
@@ -70,7 +70,11 @@ function upsertFileRecord(records: LanFileRecord[], record: LanFileRecord) {
 	return next
 }
 
-function reducer(state: LanChatState, action: Action): LanChatState {
+export function createEmptyLanChatState(): LanChatState {
+	return { messages: [], fileRecords: [] }
+}
+
+export function lanChatReducer(state: LanChatState, action: LanChatAction): LanChatState {
 	if (action.type === 'upsert-message') return { ...state, messages: upsertMessage(state.messages, action.message) }
 	if (action.type === 'upsert-attachment') return { ...state, messages: upsertAttachment(state.messages, action.message, action.attachment) }
 	if (action.type === 'patch-message') return { ...state, messages: patchMessage(state.messages, action.id, action.patch) }
@@ -81,7 +85,7 @@ function reducer(state: LanChatState, action: Action): LanChatState {
 }
 
 export function useLanChatState() {
-	const [state, dispatch] = useReducer(reducer, { messages: [], fileRecords: [] })
+	const [state, dispatch] = useReducer(lanChatReducer, createEmptyLanChatState())
 
 	const upsertMessage = useCallback((message: LanChatMessage) => dispatch({ type: 'upsert-message', message }), [])
 	const upsertAttachment = useCallback((message: Omit<LanChatMessage, 'attachments'>, attachment: LanAttachment) => dispatch({ type: 'upsert-attachment', message, attachment }), [])

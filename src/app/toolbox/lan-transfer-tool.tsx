@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { CheckCheck, ChevronLeft, Copy, Download, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, Wifi, X } from 'lucide-react'
+import { CheckCheck, ChevronLeft, Copy, Download, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
 import { useLanTransferController } from './use-lan-transfer-controller'
@@ -17,6 +17,8 @@ type LanTransferToolProps = {
 }
 
 type AttachmentAction = 'file' | 'image'
+type LanController = ReturnType<typeof useLanTransferController>
+type LanConnectionItem = LanController['connections'][number]
 
 function cn(...classes: Array<string | false | null | undefined>) {
 	return classes.filter(Boolean).join(' ')
@@ -38,6 +40,11 @@ function DeviceAvatar({ type = 'desktop', active = false }: { type?: string; act
 			<Icon size={22} />
 		</div>
 	)
+}
+
+function connectionStatusText(connection: LanConnectionItem) {
+	if (connection.connected) return connection.connectionRoute || '在线'
+	return connection.status || connectionLabel[connection.connectionState] || '等待'
 }
 
 function progressLabel(value: number) {
@@ -235,17 +242,87 @@ function MessageList({
 	)
 }
 
-function EmptyChat({ onCreate, busy }: { onCreate: () => void; busy: boolean }) {
+function EmptyWorkspace({ controller, onToggleQr }: { controller: LanController; onToggleQr: () => void }) {
+	const hasHostInvite = controller.session?.role === 'host'
 	return (
 		<div className='border-brand/20 bg-brand/5 flex min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed p-5 text-center sm:min-h-[420px] sm:p-8'>
 			<div className='border-brand/25 bg-brand/10 text-brand flex size-16 items-center justify-center rounded-3xl border'>
 				<QrCode size={30} />
 			</div>
-			<h2 className='mt-4 text-xl font-semibold'>连接另一台设备</h2>
-			<p className='text-secondary mt-2 max-w-[420px] text-sm leading-6'>扫码连接后即可发送消息和文件。收到文件时，点下载才会保存。</p>
-			<button onClick={onCreate} disabled={busy} className='bg-brand text-background mt-5 rounded-2xl px-5 py-3 text-sm font-semibold disabled:opacity-50'>
-				创建二维码
+			<h2 className='mt-4 text-xl font-semibold'>{controller.session ? '等待连接' : '连接另一台设备'}</h2>
+			<p className='text-secondary mt-2 max-w-[420px] text-sm leading-6'>{controller.session ? controller.roomStatus : '创建二维码，让其他设备扫码连接。'}</p>
+			<button onClick={onToggleQr} disabled={controller.busy} className='bg-brand text-background mt-5 rounded-2xl px-5 py-3 text-sm font-semibold disabled:opacity-50'>
+				{hasHostInvite ? '显示二维码' : '创建二维码'}
 			</button>
+		</div>
+	)
+}
+
+function InvitePanel({ controller }: { controller: LanController }) {
+	if (!controller.session) return null
+	if (controller.session.role !== 'host') {
+		return (
+			<div className='border-brand/20 bg-brand/5 rounded-3xl border p-4 text-center text-sm text-secondary'>
+				等待主机二维码
+			</div>
+		)
+	}
+	return (
+		<div className='border-brand/20 bg-brand/5 rounded-[24px] border border-dashed p-4 text-center shadow-sm'>
+			<div className='bg-article mx-auto flex size-[236px] items-center justify-center rounded-2xl border border-border shadow-sm'>
+				{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='扫码连接' className='size-[210px]' /> : <span className='text-secondary text-sm'>生成中</span>}
+			</div>
+			<button onClick={() => void controller.copyInvite()} disabled={!controller.inviteLink} className='mt-4 inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-article px-4 py-2.5 text-sm font-semibold transition hover:border-brand/45 disabled:opacity-50'>
+				<Copy size={15} />
+				复制链接
+			</button>
+		</div>
+	)
+}
+
+function QrControlCard({
+	controller,
+	connectedCount,
+	qrOpen,
+	onToggleQr,
+}: {
+	controller: LanController
+	connectedCount: number
+	qrOpen: boolean
+	onToggleQr: () => void
+}) {
+	const hasInvite = controller.session?.role === 'host'
+	const status = connectedCount ? `${connectedCount}台` : hasInvite ? '等待' : '未创建'
+	return (
+		<div className='border-brand/20 bg-brand/5 text-brand rounded-3xl border p-3'>
+			<div className='flex items-center gap-3'>
+				<button onClick={onToggleQr} disabled={controller.busy} className='flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-1 py-1 text-left disabled:opacity-60' aria-label='二维码'>
+					<div className='border-brand/20 bg-background/45 flex size-11 shrink-0 items-center justify-center rounded-2xl border'>
+						<QrCode size={21} />
+					</div>
+					<div className='min-w-0 flex-1'>
+						<div className='flex items-center justify-between gap-3'>
+							<p className='truncate text-sm font-semibold'>二维码</p>
+							<span className='shrink-0 text-sm font-medium'>{status}</span>
+						</div>
+						<p className='text-secondary mt-1 truncate text-xs'>{hasInvite ? '扫码连接' : '点击创建'}</p>
+					</div>
+				</button>
+				<button
+					onClick={event => {
+						event.stopPropagation()
+						void controller.copyInvite()
+					}}
+					disabled={!controller.inviteLink}
+					className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-40'
+					aria-label='复制链接'
+				>
+					<Copy size={16} />
+				</button>
+				<button onClick={onToggleQr} disabled={controller.busy} className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50', qrOpen ? 'border-brand/35 bg-brand text-background' : 'border-border bg-background/40 text-secondary hover:border-brand/45 hover:text-primary')} aria-label={qrOpen ? '隐藏二维码' : '显示二维码'}>
+					<QrCode size={16} />
+				</button>
+			</div>
 		</div>
 	)
 }
@@ -319,8 +396,41 @@ function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onRec
 	)
 }
 
-function DesktopSidebar({ controller, onSwitchRelay }: { controller: ReturnType<typeof useLanTransferController>; onSwitchRelay?: () => void }) {
-	const peerName = controller.remotePeer?.name || '等待另一台设备'
+function ConnectionCard({
+	connection,
+	active,
+	onSelect,
+}: {
+	connection: LanConnectionItem
+	active: boolean
+	onSelect: () => void
+}) {
+	return (
+		<button onClick={onSelect} className={cn('flex w-full items-center gap-3 rounded-3xl border p-4 text-left shadow-sm transition', active ? 'border-brand/35 bg-brand/10' : 'border-border bg-article hover:border-brand/30')}>
+			<DeviceAvatar type={connection.peer.deviceType} active={connection.connected || active} />
+			<div className='min-w-0 flex-1'>
+				<p className='truncate text-sm font-semibold'>{connection.peer.name}</p>
+				<p className='text-secondary mt-1 truncate text-xs'>{connectionStatusText(connection)}</p>
+			</div>
+			{connection.connected && <span className='bg-brand/15 text-brand rounded-full px-2 py-1 text-[11px] font-semibold'>在线</span>}
+		</button>
+	)
+}
+
+function WaitingConnectionCard({ controller, onToggleQr }: { controller: LanController; onToggleQr: () => void }) {
+	return (
+		<button onClick={onToggleQr} disabled={controller.busy} className='flex w-full items-center gap-3 rounded-3xl border border-border bg-article p-4 text-left shadow-sm transition hover:border-brand/30 disabled:opacity-60'>
+			<DeviceAvatar active={false} />
+			<div className='min-w-0 flex-1'>
+				<p className='truncate text-sm font-semibold'>等待另一台设备</p>
+				<p className='text-secondary mt-1 truncate text-xs'>{controller.session ? controller.roomStatus : '创建二维码，让另一台设备扫码'}</p>
+			</div>
+		</button>
+	)
+}
+
+function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
+	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
 		<aside className='hidden min-h-0 w-[360px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-background/30 p-5 lg:flex'>
 			<div className='flex items-center justify-between'>
@@ -334,35 +444,25 @@ function DesktopSidebar({ controller, onSwitchRelay }: { controller: ReturnType<
 							中转站
 						</button>
 					)}
-					<button onClick={controller.handleCreateRoom} className='text-secondary flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'>
+					<button onClick={onToggleQr} disabled={controller.busy} className='text-secondary flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建或显示二维码'>
 						<Plus size={20} />
 					</button>
 				</div>
 			</div>
-			<div className='border-brand/20 bg-brand/5 text-brand rounded-3xl border p-4'>
-				<div className='flex items-center justify-between text-sm font-medium'>
-					<span className='flex items-center gap-2'><Wifi size={16} />直接发送</span>
-					<span>{controller.connected ? '在线' : '等待'}</span>
+			<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
+			{qrOpen && <InvitePanel controller={controller} />}
+			<div className='min-h-0 flex-1 space-y-3'>
+				<div className='flex items-center justify-between'>
+					<p className='text-secondary text-xs font-medium'>当前连接</p>
+					<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
 				</div>
-				<p className='text-secondary mt-2 text-xs leading-5'>收到文件后，点击下载才会保存。</p>
-			</div>
-			<div className='space-y-3'>
-				<p className='text-secondary text-xs font-medium'>当前连接</p>
-				<div className='rounded-3xl border border-border bg-article p-4'>
-					<div className='flex items-center gap-3'>
-						<DeviceAvatar type={controller.remotePeer?.deviceType} active={controller.connected} />
-						<div className='min-w-0 flex-1'>
-							<p className='truncate text-sm font-semibold'>{peerName}</p>
-							<p className='text-secondary mt-1 text-xs'>{controller.connectionRoute || controller.status}</p>
-						</div>
-					</div>
-					{controller.session?.role === 'host' && (
-						<div className='mt-4 rounded-2xl border border-border bg-background/40 p-3 text-center'>
-							{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='配对二维码' className='mx-auto size-36' /> : <div className='text-secondary flex h-36 items-center justify-center text-xs'>生成二维码中</div>}
-							<button onClick={() => void controller.copyInvite()} className='mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45'>
-								<Copy size={14} />复制链接
-							</button>
-						</div>
+				<div className='space-y-2'>
+					{controller.connections.length ? (
+						controller.connections.map(connection => (
+							<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
+						))
+					) : (
+						<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
 					)}
 				</div>
 			</div>
@@ -373,16 +473,22 @@ function DesktopSidebar({ controller, onSwitchRelay }: { controller: ReturnType<
 function ChatPane({
 	controller,
 	onBack,
+	onToggleQr,
 	showEmptyCreate = true,
 }: {
-	controller: ReturnType<typeof useLanTransferController>
+	controller: LanController
 	onBack?: () => void
+	onToggleQr: () => void
 	showEmptyCreate?: boolean
 }) {
 	const scrollRef = useRef<HTMLDivElement | null>(null)
-	const lastMessage = controller.messages[controller.messages.length - 1]
+	const activeConnection = controller.activeConnection
+	const messages = activeConnection?.messages || []
+	const lastMessage = messages[messages.length - 1]
 	const lastMessageKey = lastMessage ? `${lastMessage.id}:${lastMessage.attachments.length}:${lastMessage.attachments.some(item => item.previewUrl || item.url)}` : ''
-	const peerName = controller.remotePeer?.name || '对方设备'
+	const peerName = activeConnection?.peer.name || '对方设备'
+	const headerTitle = activeConnection?.peer.name || '等待连接'
+	const headerStatus = activeConnection ? connectionStatusText(activeConnection) : controller.roomStatus
 
 	useEffect(() => {
 		const scrollToBottom = () => {
@@ -392,7 +498,7 @@ function ChatPane({
 		scrollToBottom()
 		const timer = window.setTimeout(scrollToBottom, 80)
 		return () => window.clearTimeout(timer)
-	}, [lastMessageKey])
+	}, [controller.activePeerId, lastMessageKey])
 
 	return (
 		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background/30'>
@@ -403,11 +509,11 @@ function ChatPane({
 							<ChevronLeft size={25} />
 						</button>
 					) : (
-						<DeviceAvatar type={controller.remotePeer?.deviceType} active={controller.connected} />
+						<DeviceAvatar type={activeConnection?.peer.deviceType} active={Boolean(activeConnection?.connected)} />
 					)}
 					<div className='min-w-0'>
-						<h2 className='truncate text-base font-semibold'>{controller.remotePeer?.name || '等待连接'}</h2>
-						{!onBack && <p className='text-secondary truncate text-xs'>{controller.connected ? controller.connectionRoute || '已连接' : controller.status}</p>}
+						<h2 className='truncate text-base font-semibold'>{headerTitle}</h2>
+						{!onBack && <p className='text-secondary truncate text-xs'>{headerStatus}</p>}
 					</div>
 				</div>
 				<button onClick={controller.leaveSession} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='离开会话'>
@@ -416,16 +522,20 @@ function ChatPane({
 			</header>
 			<div ref={scrollRef} className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
 				{controller.session ? (
-					controller.messages.length ? <MessageList messages={controller.messages} peerName={peerName} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} /> : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
+					activeConnection ? (
+						messages.length ? <MessageList messages={messages} peerName={peerName} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} /> : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
+					) : (
+						<EmptyWorkspace controller={controller} onToggleQr={onToggleQr} />
+					)
 				) : !showEmptyCreate ? (
 					<div className='text-secondary py-20 text-center text-sm'>先在设备页创建或连接设备</div>
 				) : (
-					<EmptyChat onCreate={controller.handleCreateRoom} busy={controller.busy} />
+					<EmptyWorkspace controller={controller} onToggleQr={onToggleQr} />
 				)}
 			</div>
 			<div className='shrink-0 border-t border-border bg-article p-3 max-lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4'>
 				<ChatComposer
-					connected={controller.connected}
+					connected={controller.activeConnected}
 					recorderState={controller.recorder.state}
 					onSendText={controller.sendText}
 					onSendFiles={(files, mode) => void controller.sendFiles(files, mode === 'image' ? 'image' : undefined)}
@@ -441,12 +551,16 @@ function DevicePage({
 	controller,
 	onOpenChat,
 	onSwitchRelay,
+	qrOpen,
+	onToggleQr,
 }: {
-	controller: ReturnType<typeof useLanTransferController>
-	onOpenChat: () => void
+	controller: LanController
+	onOpenChat: (peerId?: string) => void
 	onSwitchRelay?: () => void
+	qrOpen: boolean
+	onToggleQr: () => void
 }) {
-	const peerName = controller.remotePeer?.name || '等待扫码设备'
+	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
 		<div className='flex h-full min-h-0 flex-col bg-background/30'>
 			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
@@ -457,43 +571,56 @@ function DevicePage({
 							中转站
 						</button>
 					)}
-					<button onClick={controller.handleCreateRoom} disabled={controller.busy} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建配对码'>
+					<button onClick={onToggleQr} disabled={controller.busy} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建或显示二维码'>
 						<RefreshCw size={17} />
 					</button>
 				</div>
 			</header>
 			<div className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
-				<div className='border-brand/20 bg-brand/5 text-brand rounded-2xl border px-4 py-3 text-sm font-medium'>{controller.status}</div>
-				<button onClick={controller.session ? onOpenChat : undefined} className='flex w-full items-center gap-3 rounded-3xl border border-border bg-article p-4 text-left shadow-sm disabled:cursor-default' disabled={!controller.session}>
-					<DeviceAvatar type={controller.remotePeer?.deviceType} active={controller.connected} />
-					<div className='min-w-0 flex-1'>
-						<p className='truncate font-semibold'>{peerName}</p>
-						<p className='text-secondary mt-1 truncate text-xs'>{controller.connected ? controller.connectionRoute || '在线' : connectionLabel[controller.connectionState]}</p>
-					</div>
-					{controller.session && <MessageCircle size={19} className='text-brand shrink-0' />}
-				</button>
-				{controller.session?.role === 'host' && (
-					<div className='rounded-3xl border border-border bg-article p-4 text-center shadow-sm'>
-						{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='扫码连接' className='mx-auto size-48' /> : <div className='text-secondary flex h-48 items-center justify-center'>生成二维码中</div>}
-						<button onClick={() => void controller.copyInvite()} className='bg-brand text-background mt-3 w-full rounded-2xl px-4 py-3 text-sm font-semibold'>复制链接</button>
-					</div>
-				)}
-				<button onClick={controller.session ? onOpenChat : controller.handleCreateRoom} disabled={controller.busy} className='bg-brand text-background w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50'>
-					{controller.session ? '进入聊天' : '创建配对码'}
+				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
+				{qrOpen && <InvitePanel controller={controller} />}
+				<div className='space-y-2'>
+					<p className='text-secondary text-xs font-medium'>当前连接</p>
+					{controller.connections.length ? (
+						controller.connections.map(connection => (
+							<button key={connection.peerId} onClick={() => onOpenChat(connection.peerId)} className={cn('flex w-full items-center gap-3 rounded-3xl border p-4 text-left shadow-sm', controller.activePeerId === connection.peerId ? 'border-brand/35 bg-brand/10' : 'border-border bg-article')}>
+								<DeviceAvatar type={connection.peer.deviceType} active={connection.connected} />
+								<div className='min-w-0 flex-1'>
+									<p className='truncate font-semibold'>{connection.peer.name}</p>
+									<p className='text-secondary mt-1 truncate text-xs'>{connectionStatusText(connection)}</p>
+								</div>
+								<MessageCircle size={19} className='text-brand shrink-0' />
+							</button>
+						))
+					) : (
+						<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
+					)}
+				</div>
+				<button onClick={onToggleQr} disabled={controller.busy} className='bg-brand text-background w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50'>
+					{controller.session?.role === 'host' ? (qrOpen ? '隐藏二维码' : '显示二维码') : '创建配对码'}
 				</button>
 			</div>
 		</div>
 	)
 }
 
-function MobileShell({ controller, onSwitchRelay }: { controller: ReturnType<typeof useLanTransferController>; onSwitchRelay?: () => void }) {
+function MobileShell({ controller, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
 	const [page, setPage] = useState<'devices' | 'chat'>('devices')
 	return (
 		<div className='h-full lg:hidden'>
 			{page === 'chat' ? (
-				<ChatPane controller={controller} onBack={() => setPage('devices')} showEmptyCreate={false} />
+				<ChatPane controller={controller} onBack={() => setPage('devices')} onToggleQr={onToggleQr} showEmptyCreate={false} />
 			) : (
-				<DevicePage controller={controller} onOpenChat={() => setPage('chat')} onSwitchRelay={onSwitchRelay} />
+				<DevicePage
+					controller={controller}
+					onOpenChat={peerId => {
+						if (peerId) controller.selectConnection(peerId)
+						setPage('chat')
+					}}
+					onSwitchRelay={onSwitchRelay}
+					qrOpen={qrOpen}
+					onToggleQr={onToggleQr}
+				/>
 			)}
 		</div>
 	)
@@ -501,6 +628,7 @@ function MobileShell({ controller, onSwitchRelay }: { controller: ReturnType<typ
 
 export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
+	const [qrOpen, setQrOpen] = useState(false)
 	useEffect(() => {
 		const previousOverflow = document.body.style.overflow
 		document.body.style.overflow = 'hidden'
@@ -509,13 +637,27 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 		}
 	}, [])
 
+	useEffect(() => {
+		if (!controller.session || controller.session.role !== 'host') setQrOpen(false)
+	}, [controller.session])
+
+	const handleToggleQr = () => {
+		if (controller.session?.role === 'host') {
+			setQrOpen(value => !value)
+			return
+		}
+		void controller.handleCreateRoom().then(created => {
+			if (created) setQrOpen(true)
+		})
+	}
+
 	const app = (
 		<div className='lan-session-v5 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
 			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
-				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} />
-				<ChatPane controller={controller} />
+				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
+				<ChatPane controller={controller} onToggleQr={handleToggleQr} />
 			</div>
-			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} />
+			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
 		</div>
 	)
 
