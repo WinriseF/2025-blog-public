@@ -32,7 +32,7 @@ import {
 } from '@/lib/lan-transfer/types'
 
 type IncomingAttachment = { offer: LanAttachmentOffer; meta: TransferFileMeta; engine: LanStorageEngine; received: number; chunkCount: number }
-type PreparedEntry = { file: PreparedLanAttachment; createdAt: number; acked: number; ranges: Array<[number, number]> }
+type PreparedEntry = { file: PreparedLanAttachment; createdAt: number; acked: number; ranges: Array<[number, number]>; offered: boolean; accepted?: LanAttachmentAccept }
 type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; messageId: string; size: number; chunkCount: number; storage: TransferFileMeta['storage']; url?: string }
 type ProgressCheckpoint = { bytes: number; ts: number }
 
@@ -107,34 +107,71 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 
 	const pumpQueue = useCallback(() => {
 		const peer = options.peerRef.current
-		if (!peer?.connected || activeSendingRef.current) return
-		const nextId = queueRef.current.find(id => preparedRef.current.has(id))
+		if (!peer?.connected) return
+		preparedRef.current.forEach(entry => {
+			if (entry.offered) return
+			const offered = sendControl({
+				type: 'attachment-offer',
+				protocolVersion: LAN_PROTOCOL_VERSION,
+				messageId: entry.file.messageId,
+				createdAt: entry.createdAt,
+				peerId: options.sessionRef.current?.peerId || '',
+				attachment: {
+					id: entry.file.id,
+					kind: entry.file.kind,
+					name: entry.file.name,
+					mime: entry.file.mime,
+					size: entry.file.size,
+					lastModified: entry.file.lastModified,
+					durationMs: entry.file.durationMs,
+					chunkSize: entry.file.chunkSize,
+					chunkCount: entry.file.chunkCount,
+					suggestedStorage: entry.file.suggestedStorage,
+				},
+			})
+			if (offered) {
+				entry.offered = true
+				chat.patchAttachment({ id: entry.file.id, messageId: entry.file.messageId, status: 'offered' })
+				options.setStatus(`等待对方下载 ${entry.file.name}`)
+			}
+		})
+		if (activeSendingRef.current) return
+		const nextId = queueRef.current.find(id => preparedRef.current.get(id)?.accepted)
 		if (!nextId) return
 		const entry = preparedRef.current.get(nextId)
-		if (!entry) return
+		const message = entry?.accepted
+		if (!entry || !message) return
+		queueRef.current = queueRef.current.filter(id => id !== nextId)
 		activeSendingRef.current = nextId
-		chat.patchAttachment({ id: nextId, messageId: entry.file.messageId, status: 'offered' })
-		sendControl({
-			type: 'attachment-offer',
-			protocolVersion: LAN_PROTOCOL_VERSION,
-			messageId: entry.file.messageId,
-			createdAt: entry.createdAt,
-			peerId: options.sessionRef.current?.peerId || '',
-			attachment: {
-				id: entry.file.id,
-				kind: entry.file.kind,
-				name: entry.file.name,
-				mime: entry.file.mime,
-				size: entry.file.size,
-				lastModified: entry.file.lastModified,
-				durationMs: entry.file.durationMs,
-				chunkSize: entry.file.chunkSize,
-				chunkCount: entry.file.chunkCount,
-				suggestedStorage: entry.file.suggestedStorage,
-			},
+		chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'sending', progress: entry.file.size ? message.receivedBytes / entry.file.size : 1 })
+		options.setStatus(`正在发送 ${entry.file.name}`)
+		let lastProgressBytes = message.receivedBytes
+		let lastProgressAt = Date.now()
+		void sendPreparedAttachment(peer, entry.file, done => {
+			const now = Date.now()
+			if (done < entry.file.size && done - lastProgressBytes < LAN_LIMITS.progressAckIntervalBytes && now - lastProgressAt < LAN_LIMITS.progressAckIntervalMs) return
+			lastProgressBytes = done
+			lastProgressAt = now
+			chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: entry.file.size ? done / entry.file.size : 1, status: 'sending' })
+		}, {
+			mobile: options.remoteCapabilityRef.current?.platform === 'android' || options.remoteCapabilityRef.current?.platform === 'ios',
+			getAckedBytes: () => entry.acked,
+			receivedRanges: entry.ranges,
+		}).then(() => {
+			chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: 1, status: 'sending' })
+			options.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
+		}).catch(error => {
+			activeSendingRef.current = null
+			if (!options.peerRef.current?.connected) {
+				if (entry.accepted && !queueRef.current.includes(message.id)) queueRef.current.unshift(message.id)
+				chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'queued' })
+				options.setStatus('连接断了，恢复后会继续')
+				return
+			}
+			failAttachment(message.id, message.messageId, error instanceof Error ? error.message : '发送失败')
+			pumpQueue()
 		})
-		options.setStatus(`等待对方下载 ${entry.file.name}`)
-	}, [chat, options, sendControl])
+	}, [chat, failAttachment, options, sendControl])
 
 	const completeOutgoing = useCallback((message: LanAttachmentReceived) => {
 		preparedRef.current.delete(message.id)
@@ -170,42 +207,6 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		}
 		throw new Error(failures[0] || '当前设备不能接收该文件')
 	}, [isUserCancel])
-
-	const sendAcceptedAttachment = useCallback(async (message: LanAttachmentAccept) => {
-		const entry = preparedRef.current.get(message.id)
-		const peer = options.peerRef.current
-		if (!entry || !peer?.connected) return
-		entry.ranges = message.receivedRanges
-		entry.acked = message.receivedBytes
-		chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'sending', progress: entry.file.size ? message.receivedBytes / entry.file.size : 1 })
-		options.setStatus(`正在发送 ${entry.file.name}`)
-		let lastProgressBytes = message.receivedBytes
-		let lastProgressAt = Date.now()
-		try {
-			await sendPreparedAttachment(peer, entry.file, done => {
-				const now = Date.now()
-				if (done < entry.file.size && done - lastProgressBytes < LAN_LIMITS.progressAckIntervalBytes && now - lastProgressAt < LAN_LIMITS.progressAckIntervalMs) return
-				lastProgressBytes = done
-				lastProgressAt = now
-				chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: entry.file.size ? done / entry.file.size : 1, status: 'sending' })
-			}, {
-				mobile: options.remoteCapabilityRef.current?.platform === 'android' || options.remoteCapabilityRef.current?.platform === 'ios',
-				getAckedBytes: () => entry.acked,
-				receivedRanges: entry.ranges,
-			})
-			chat.patchAttachment({ id: message.id, messageId: message.messageId, progress: 1, status: 'sending' })
-			options.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
-		} catch (error) {
-			if (!options.peerRef.current?.connected) {
-				activeSendingRef.current = null
-				chat.patchAttachment({ id: message.id, messageId: message.messageId, status: 'queued' })
-				options.setStatus('连接断了，恢复后会继续')
-				return
-			}
-			failAttachment(message.id, message.messageId, error instanceof Error ? error.message : '发送失败')
-			pumpQueue()
-		}
-	}, [chat, failAttachment, options, pumpQueue])
 
 	const handleOffer = useCallback(async (message: LanAttachmentOffer) => {
 		const capability = options.localCapabilityRef.current || (options.sessionRef.current ? await detectLanCapability(options.sessionRef.current.peerId, message.attachment.size) : null)
@@ -336,7 +337,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		}
 		if (message.type === 'chat-message') return chat.upsertMessage({ id: message.id, direction: 'in', kind: 'text', text: message.text, attachments: [], status: 'received', createdAt: message.createdAt, peerId: message.peerId })
 		if (message.type === 'attachment-offer') return void (await handleOffer(message))
-		if (message.type === 'attachment-accept') return void (await sendAcceptedAttachment(message))
+		if (message.type === 'attachment-accept') {
+			const entry = preparedRef.current.get(message.id)
+			if (!entry) return
+			entry.accepted = message
+			entry.ranges = message.receivedRanges
+			entry.acked = message.receivedBytes
+			if (!queueRef.current.includes(message.id)) queueRef.current.push(message.id)
+			pumpQueue()
+			return
+		}
 		if (message.type === 'attachment-progress') {
 			const entry = preparedRef.current.get(message.id)
 			if (entry) {
@@ -372,7 +382,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 				entry.acked = item.receivedBytes
 			}
 		}
-	}, [chat, completeOutgoing, confirmReceived, failAttachment, finishIncoming, handleOffer, options, pumpQueue, sendAcceptedAttachment, sendControl])
+	}, [chat, completeOutgoing, confirmReceived, failAttachment, finishIncoming, handleOffer, options, pumpQueue, sendControl])
 
 	const handlePeerData = useCallback((data: unknown) => {
 		const frame = decodeFrame(data)
@@ -388,11 +398,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 
 	const resumeAfterConnect = useCallback(() => {
 		activeSendingRef.current = null
-		sendControl({ type: 'resume-query', protocolVersion: LAN_PROTOCOL_VERSION, ids: queueRef.current })
+		preparedRef.current.forEach(entry => {
+			entry.offered = false
+		})
+		sendControl({ type: 'resume-query', protocolVersion: LAN_PROTOCOL_VERSION, ids: Array.from(preparedRef.current.keys()) })
 		pumpQueue()
 	}, [pumpQueue, sendControl])
 
 	const pauseTransfers = useCallback(() => {
+		const activeId = activeSendingRef.current
+		if (activeId && preparedRef.current.get(activeId)?.accepted && !queueRef.current.includes(activeId)) queueRef.current.unshift(activeId)
 		activeSendingRef.current = null
 	}, [])
 
@@ -430,8 +445,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			chat.upsertMessage({ id, direction: 'out', kind: 'attachments', attachments, status: 'queued', createdAt, peerId: options.sessionRef.current?.peerId })
 			for (const attachment of attachments) chat.upsertFileRecord(fileRecord(id, attachment, options.remotePeerRef.current?.name))
 			for (const file of prepared) {
-				preparedRef.current.set(file.id, { file, createdAt, acked: 0, ranges: [] })
-				queueRef.current.push(file.id)
+				preparedRef.current.set(file.id, { file, createdAt, acked: 0, ranges: [], offered: false })
 			}
 			pumpQueue()
 		} catch (error) {

@@ -27,16 +27,12 @@ function attachmentMessageStatus(attachments: LanAttachment[]): LanMessageStatus
 	return 'queued'
 }
 
-function sortMessages(messages: LanChatMessage[]) {
-	return messages.slice().sort((a, b) => a.createdAt - b.createdAt || (a.peerId || '').localeCompare(b.peerId || '') || a.id.localeCompare(b.id))
-}
-
 function upsertMessage(messages: LanChatMessage[], message: LanChatMessage) {
 	const index = messages.findIndex(item => item.id === message.id)
-	if (index < 0) return sortMessages([...messages, message])
+	if (index < 0) return [...messages, message]
 	const next = messages.slice()
 	next[index] = { ...next[index], ...message, attachments: message.attachments }
-	return sortMessages(next)
+	return next
 }
 
 function patchMessage(messages: LanChatMessage[], id: string, patch: MessagePatch) {
@@ -59,7 +55,7 @@ function patchAttachment(messages: LanChatMessage[], patch: AttachmentPatch) {
 
 function upsertAttachment(messages: LanChatMessage[], messageBase: Omit<LanChatMessage, 'attachments'>, attachment: LanAttachment) {
 	const existing = messages.find(message => message.id === messageBase.id)
-	if (!existing) return sortMessages([...messages, { ...messageBase, attachments: [attachment] }])
+	if (!existing) return [...messages, { ...messageBase, attachments: [attachment] }]
 	const attachments = existing.attachments.some(item => item.id === attachment.id)
 		? existing.attachments.map(item => (item.id === attachment.id ? { ...item, ...attachment } : item))
 		: [...existing.attachments, attachment]
