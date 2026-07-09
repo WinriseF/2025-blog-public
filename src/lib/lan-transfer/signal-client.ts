@@ -1,10 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { adjectives, uniqueNamesGenerator } from 'unique-names-generator'
 import type { LanDeviceType, LanPeer, LanPresencePayload, LanRole, LanSession, LanSignalMessage, LanSignalType } from './types'
 
 const pairTtlMs = 10 * 60 * 1000
 const sessionTtlMs = 30 * 60 * 1000
 const announceIntervalMs = 1000
 const announceMaxMs = 30 * 1000
+const deviceNameStorageKey = 'winrisef-lan-device-name-v1'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 let supabaseClient: SupabaseClient | null = null
@@ -47,6 +49,35 @@ function createId(bytes = 12) {
 	return base64url(randomBytes(bytes))
 }
 
+function createShortCode() {
+	return createId(3).replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase()
+}
+
+function deviceLabel(type: LanDeviceType) {
+	if (type === 'desktop') return 'Desktop'
+	if (type === 'phone') return 'Phone'
+	if (type === 'tablet') return 'Tablet'
+	return 'Device'
+}
+
+function createFriendlyDeviceName(type: LanDeviceType) {
+	const word = uniqueNamesGenerator({ dictionaries: [adjectives], length: 1, style: 'capital' })
+	return `${word} ${deviceLabel(type)} ${createShortCode()}`
+}
+
+function getStoredDeviceName(type: LanDeviceType) {
+	try {
+		if (typeof localStorage === 'undefined') return createFriendlyDeviceName(type)
+		const current = localStorage.getItem(deviceNameStorageKey)
+		if (current) return current
+		const next = createFriendlyDeviceName(type)
+		localStorage.setItem(deviceNameStorageKey, next)
+		return next
+	} catch {
+		return createFriendlyDeviceName(type)
+	}
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === 'object')
 }
@@ -77,9 +108,7 @@ export function getLocalDevice() {
 	if (typeof navigator === 'undefined') return { peerName: '浏览器设备', deviceType: 'unknown' as LanDeviceType }
 	const ua = navigator.userAgent.toLowerCase()
 	const deviceType: LanDeviceType = /ipad|tablet/.test(ua) ? 'tablet' : /iphone|android|mobile/.test(ua) ? 'phone' : 'desktop'
-	const platform = navigator.platform || ''
-	const label = deviceType === 'desktop' ? '电脑' : deviceType === 'phone' ? '手机' : deviceType === 'tablet' ? '平板' : '设备'
-	return { peerName: platform ? `${platform} ${label}` : label, deviceType }
+	return { peerName: getStoredDeviceName(deviceType), deviceType }
 }
 
 async function createSession(role: LanRole, roomId: string, token: string, device = getLocalDevice()): Promise<LanSession> {

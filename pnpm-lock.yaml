@@ -83,6 +83,9 @@ importers:
       tz-lookup:
         specifier: ^6.1.25
         version: 6.1.25
+      unique-names-generator:
+        specifier: ^4.7.1
+        version: 4.7.1
       zustand:
         specifier: ^5.0.8
         version: 5.0.14(@types/react@19.2.17)(react@19.2.1)(use-sync-external-store@1.6.0(react@19.2.1))
@@ -2542,6 +2545,10 @@ packages:
   unicode-property-aliases-ecmascript@2.2.0:
     resolution: {integrity: sha512-hpbDzxUY9BFwX+UeBnxv3Sh1q7HFxj48DTmXchNgRa46lO8uj3/1iEn3MiNUYTg1g9ctIqXCCERn8gYZhHC5lQ==}
     engines: {node: '>=4'}
+
+  unique-names-generator@4.7.1:
+    resolution: {integrity: sha512-lMx9dX+KRmG8sq6gulYYpKWZc9RlGsgBR6aoO8Qsm3qvkSJ+3rAymr+TnV8EDMrIrwuFJ4kruzMWM/OpYzPoow==}
+    engines: {node: '>=8'}
 
   unist-util-is@6.0.1:
     resolution: {integrity: sha512-LsiILbtBETkDz8I9p1dQ0uyRUWuaQzd/cuEeS1hoRSyW5E5XGmTzlwY1OrNzzakGowI9Dr/I8HVaw4hTtnxy8g==}
@@ -5138,6 +5145,8 @@ snapshots:
   unicode-match-property-value-ecmascript@2.2.1: {}
 
   unicode-property-aliases-ecmascript@2.2.0: {}
+
+  unique-names-generator@4.7.1: {}
 
   unist-util-is@6.0.1:
     dependencies:

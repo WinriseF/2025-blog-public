@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { CheckCheck, ChevronLeft, Copy, Download, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
+import { AudioLines, CheckCheck, ChevronLeft, Copy, Download, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Pause, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
+import PlaySVG from '@/svgs/play.svg'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
 import { useLanTransferController } from './use-lan-transfer-controller'
@@ -51,6 +52,13 @@ function progressLabel(value: number) {
 	return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`
 }
 
+function formatVoiceTime(secondsValue = 0) {
+	const totalSeconds = Math.max(0, Math.round(secondsValue))
+	const minutes = Math.floor(totalSeconds / 60)
+	const seconds = totalSeconds % 60
+	return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
 function compactFileName(name: string, maxLength = 28) {
 	const normalized = name.trim() || '未命名文件'
 	const chars = Array.from(normalized)
@@ -95,14 +103,33 @@ function ImageAttachmentCard({
 	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
 	const transferring = !complete && !failed
 	const hasFooter = transferring || Boolean(attachment.error)
-	if (!source) return null
+	if (!source) {
+		return (
+			<div className={cn('w-[260px] max-w-[68vw] rounded-2xl border px-4 py-3 shadow-sm', failed ? 'border-red-300 bg-red-500/10' : 'border-border bg-article')}>
+				<div className='flex items-center gap-3'>
+					<div className='bg-brand/10 text-brand flex size-11 shrink-0 items-center justify-center rounded-xl'>
+						<ImageIcon size={20} />
+					</div>
+					<div className='min-w-0 flex-1'>
+						<p className='truncate text-sm font-semibold'>{compactFileName(attachment.name, 22)}</p>
+						<p className='text-secondary mt-1 text-xs'>{failed ? attachment.error || '接收失败' : `${attachment.status === 'offered' ? '准备缓存' : '缓存中'} ${progressLabel(attachment.progress)}`}</p>
+					</div>
+				</div>
+				{transferring && (
+					<div className='mt-3 h-1 overflow-hidden rounded-full bg-background/40'>
+						<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				)}
+			</div>
+		)
+	}
 	return (
 		<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
 			<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
 			{transferring && (
 				<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
 					<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
-						<span>{attachment.status === 'offered' ? '等待下载' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
+						<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
 						<span>{progressLabel(attachment.progress)}</span>
 					</div>
 					<div className='h-1 overflow-hidden rounded-full bg-background/50'>
@@ -116,6 +143,78 @@ function ImageAttachmentCard({
 				</button>
 			)}
 			{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
+		</div>
+	)
+}
+
+function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
+	const audioRef = useRef<HTMLAudioElement | null>(null)
+	const [playing, setPlaying] = useState(false)
+	const [duration, setDuration] = useState(attachment.durationMs ? attachment.durationMs / 1000 : 0)
+	const [currentTime, setCurrentTime] = useState(0)
+	const source = attachment.url || attachment.previewUrl
+	const outgoing = attachment.direction === 'out'
+	const complete = attachment.status === 'complete'
+	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
+	const transferring = !complete && !failed
+	const playable = Boolean(source && !failed)
+	const playedRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0
+	const plannedDuration = duration || (attachment.durationMs ? attachment.durationMs / 1000 : 0)
+	const statusText = failed ? attachment.error || '播放失败' : transferring && !source ? `缓存中 ${progressLabel(attachment.progress)}` : formatVoiceTime(playing ? currentTime : plannedDuration)
+
+	const togglePlayback = async () => {
+		const audio = audioRef.current
+		if (!audio || !playable) return
+		if (audio.paused) {
+			await audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+			return
+		}
+		audio.pause()
+		setPlaying(false)
+	}
+
+	return (
+		<div className={cn('flex min-w-[220px] max-w-[74vw] items-center gap-3 rounded-[24px] px-3 py-2.5 shadow-sm sm:min-w-[260px]', outgoing ? 'rounded-br-md bg-brand text-background' : 'rounded-bl-md bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
+			<button
+				onClick={() => void togglePlayback()}
+				disabled={!playable}
+				className={cn('flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm transition disabled:opacity-50', outgoing ? 'bg-background/90 text-brand' : 'bg-brand text-background')}
+				aria-label={playing ? '暂停语音' : '播放语音'}
+			>
+				{playing ? <Pause size={18} /> : <PlaySVG className='ml-0.5 h-4 w-4' />}
+			</button>
+			<div className='min-w-0 flex-1'>
+				<div className='relative h-8 w-28 overflow-hidden sm:w-32'>
+					<AudioLines className={cn('absolute inset-0 h-8 w-28 sm:w-32', outgoing ? 'text-background/45' : 'text-secondary/45')} strokeWidth={2.4} />
+					<div className='absolute inset-y-0 left-0 overflow-hidden' style={{ width: `${Math.max(playing ? 8 : 0, playedRatio * 100)}%` }}>
+						<AudioLines className={cn('h-8 w-28 sm:w-32', outgoing ? 'text-background' : 'text-brand')} strokeWidth={2.4} />
+					</div>
+				</div>
+				{transferring && (
+					<div className={cn('mt-1 h-1 overflow-hidden rounded-full', outgoing ? 'bg-background/25' : 'bg-background/50')}>
+						<div className={cn('h-full rounded-full transition-all', outgoing ? 'bg-background' : 'bg-brand')} style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				)}
+			</div>
+			<span className={cn('shrink-0 text-sm font-semibold tabular-nums', outgoing ? 'text-background/90' : 'text-primary')}>{statusText}</span>
+			{source && (
+				<audio
+					ref={audioRef}
+					src={source}
+					preload='metadata'
+					className='hidden'
+					onLoadedMetadata={event => {
+						const nextDuration = event.currentTarget.duration
+						if (Number.isFinite(nextDuration)) setDuration(nextDuration)
+					}}
+					onTimeUpdate={event => setCurrentTime(event.currentTarget.currentTime || 0)}
+					onPause={() => setPlaying(false)}
+					onEnded={() => {
+						setPlaying(false)
+						setCurrentTime(0)
+					}}
+				/>
+			)}
 		</div>
 	)
 }
@@ -145,7 +244,6 @@ function FileAttachmentCard({
 					</p>
 					<p className='text-secondary mt-3 text-sm'>
 						{formatBytes(attachment.size)}
-						{attachment.kind === 'voice' && attachment.durationMs ? ` · ${Math.round(attachment.durationMs / 1000)} 秒` : ''}
 					</p>
 				</div>
 				<button
@@ -164,15 +262,14 @@ function FileAttachmentCard({
 					<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
 				</div>
 			)}
-			{attachment.kind === 'voice' && attachment.url && <audio controls src={attachment.url} className='mt-3 h-9 w-full' />}
 			{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}
 		</div>
 	)
 }
 
 function AttachmentCard(props: AttachmentCardProps) {
-	const imageSource = props.attachment.previewUrl || props.attachment.url
-	if (props.attachment.kind === 'image' && imageSource) return <ImageAttachmentCard {...props} />
+	if (props.attachment.kind === 'image') return <ImageAttachmentCard {...props} />
+	if (props.attachment.kind === 'voice') return <VoiceAttachmentBubble {...props} />
 	return <FileAttachmentCard {...props} />
 }
 

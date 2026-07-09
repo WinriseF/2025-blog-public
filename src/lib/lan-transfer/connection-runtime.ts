@@ -93,30 +93,36 @@ function fileRecord(messageIdValue: string, attachment: LanAttachment, peerName?
 	}
 }
 
-function receiveStorageCandidates(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null) {
+function receiveStorageCandidates(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null, allowDirectFile = true) {
 	const candidates: TransferFileMeta['storage'][] = []
 	const add = (kind: TransferFileMeta['storage']) => {
 		if (!candidates.includes(kind)) candidates.push(kind)
 	}
 
-	if (capability?.storage.fileSystemAccess && capability.platform === 'desktop') add('file')
+	if (allowDirectFile && capability?.storage.fileSystemAccess && capability.platform === 'desktop') add('file')
 	if (requested === 'opfs' && capability?.storage.opfs) add('opfs')
 	if (requested === 'indexeddb' && capability?.storage.indexedDB) add('indexeddb')
 	if (capability?.storage.opfs) add('opfs')
 	if (capability?.storage.indexedDB) add('indexeddb')
 	if (size <= LAN_LIMITS.memoryMaxBytes) add('memory')
 	const fallback = chooseStorageKind(size, requested, capability)
-	if (fallback !== 'memory' || size <= LAN_LIMITS.memoryMaxBytes) add(fallback)
+	if (fallback !== 'file' || allowDirectFile) {
+		if (fallback !== 'memory' || size <= LAN_LIMITS.memoryMaxBytes) add(fallback)
+	}
 	return candidates
 }
 
-function chooseReceiveStorage(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null) {
-	return receiveStorageCandidates(size, requested, capability)[0] || 'memory'
+function chooseReceiveStorage(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null, allowDirectFile = true) {
+	return receiveStorageCandidates(size, requested, capability, allowDirectFile)[0] || 'memory'
 }
 
 function isUserCancel(error: unknown) {
 	const name = error && typeof error === 'object' && 'name' in error ? String((error as { name?: unknown }).name || '') : ''
 	return name === 'AbortError' || name === 'NotAllowedError'
+}
+
+function isInlineMediaKind(kind: LanAttachmentKind) {
+	return kind === 'image' || kind === 'voice'
 }
 
 export class LanConnectionRuntime {
@@ -250,16 +256,21 @@ export class LanConnectionRuntime {
 	}
 
 	async acceptAttachment(id: string) {
+		await this.receivePendingAttachment(id, false)
+	}
+
+	private async receivePendingAttachment(id: string, autoInlineMedia: boolean) {
 		const offer = this.pendingOffers.get(id)
 		const context = this.context
 		if (!offer || !context) return
 		let capability = context.localCapability || null
 		try {
 			if (!capability) capability = await this.detectLocalCapability(offer.attachment.size)
+			if (autoInlineMedia && offer.attachment.size > LAN_LIMITS.memoryMaxBytes && !capability.storage.opfs && !capability.storage.indexedDB) throw new Error('当前设备不能自动缓存该媒体')
 			assertCanReceiveFile(offer.attachment.size, capability)
 			this.emit({ type: 'attachment-patch', patch: { id, messageId: offer.messageId, status: 'receiving', progress: 0 } })
 			this.emit({ type: 'file-record-patch', id, patch: { status: 'receiving' } })
-			const prepared = await this.prepareIncoming(offer, capability)
+			const prepared = await this.prepareIncoming(offer, capability, !autoInlineMedia)
 			const current = { offer, ...prepared }
 			this.incoming.set(id, current)
 			this.pendingOffers.delete(id)
@@ -408,8 +419,8 @@ export class LanConnectionRuntime {
 		this.pumpQueue()
 	}
 
-	private async prepareIncoming(message: LanAttachmentOffer, capability: LanCapability | null) {
-		const candidates = receiveStorageCandidates(message.attachment.size, message.attachment.suggestedStorage, capability)
+	private async prepareIncoming(message: LanAttachmentOffer, capability: LanCapability | null, allowDirectFile = true) {
+		const candidates = receiveStorageCandidates(message.attachment.size, message.attachment.suggestedStorage, capability, allowDirectFile)
 		const failures: string[] = []
 		for (const storage of candidates) {
 			const engine = createStorageEngine(storage)
@@ -455,10 +466,16 @@ export class LanConnectionRuntime {
 				return
 			}
 			this.pendingOffers.set(message.attachment.id, message)
-			const storage = chooseReceiveStorage(message.attachment.size, message.attachment.suggestedStorage, capability)
+			const inlineMedia = isInlineMediaKind(message.attachment.kind)
+			const storage = chooseReceiveStorage(message.attachment.size, message.attachment.suggestedStorage, capability, !inlineMedia)
 			const attachment = { ...attachmentFromOffer(message, storage, 0), status: 'offered' as const }
 			this.emit({ type: 'attachment-upsert', message: messageBase(message.messageId, 'in', message.createdAt, message.peerId), attachment })
 			this.emit({ type: 'file-record-upsert', record: fileRecord(message.messageId, attachment, context.remotePeerName) })
+			if (inlineMedia) {
+				this.setStatus(`正在缓存 ${message.attachment.kind === 'image' ? '图片' : '语音'}`)
+				void this.receivePendingAttachment(message.attachment.id, true)
+				return
+			}
 			this.setStatus(`${message.attachment.name} 等待下载`)
 		} catch (error) {
 			const storage = chooseReceiveStorage(message.attachment.size, message.attachment.suggestedStorage, capability)
@@ -479,14 +496,15 @@ export class LanConnectionRuntime {
 		if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return this.failAttachment(id, messageIdValue, '接收不完整，请重新发送')
 		if (manifest.receivedBytes !== current.offer.attachment.size || manifest.receivedChunks !== current.offer.attachment.chunkCount) return this.failAttachment(id, messageIdValue, `接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.offer.attachment.size)}`)
 		const finalized = await current.engine.finalize(current.meta)
+		const inlineMedia = isInlineMediaKind(current.offer.attachment.kind)
 		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'complete', progress: 1, url: finalized.url, previewUrl: current.offer.attachment.kind === 'image' ? finalized.url : undefined } })
 		this.emit({ type: 'file-record-patch', id, patch: { status: 'complete', url: finalized.url } })
 		this.receivedCache.set(id, { engine: current.engine, fileId: current.meta.id, messageId: messageIdValue, size: current.offer.attachment.size, chunkCount: manifest.receivedChunks, storage: current.engine.kind, url: finalized.url })
 		this.progressAck.delete(id)
 		this.confirmReceived(id, messageIdValue, current.offer.attachment.size, manifest.receivedChunks, current.engine.kind)
 		this.incoming.delete(id)
-		if (finalized.url) this.emit({ type: 'download-ready', name: current.offer.attachment.name, url: finalized.url })
-		this.setStatus(finalized.directSave ? '接收完成，文件已保存' : '接收完成，可在文件页查看')
+		if (finalized.url && !inlineMedia) this.emit({ type: 'download-ready', name: current.offer.attachment.name, url: finalized.url })
+		this.setStatus(inlineMedia ? '媒体已缓存' : finalized.directSave ? '接收完成，文件已保存' : '接收完成，可在文件页查看')
 	}
 
 	private queueIncomingChunk(id: string, chunkIndex: number, bytes: Uint8Array) {
