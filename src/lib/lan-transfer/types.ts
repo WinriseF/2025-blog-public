@@ -39,6 +39,7 @@ export type LanPeer = {
 	role: LanRole
 	name: string
 	deviceType: LanDeviceType
+	avatarSeed: string
 	joinedAt: number
 }
 

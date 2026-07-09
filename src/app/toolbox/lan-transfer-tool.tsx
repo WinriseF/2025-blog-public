@@ -34,11 +34,17 @@ const connectionLabel = {
 	failed: '等待恢复',
 }
 
-function DeviceAvatar({ type = 'desktop', active = false }: { type?: string; active?: boolean }) {
+function dicebearAvatarUrl(seed: string) {
+	return `https://api.dicebear.com/10.x/bottts-neutral/svg?seed=${encodeURIComponent(seed)}`
+}
+
+function DeviceAvatar({ type = 'desktop', avatarSeed, active = false }: { type?: string; avatarSeed?: string; active?: boolean }) {
+	const [failed, setFailed] = useState(false)
 	const Icon = type === 'phone' ? Smartphone : type === 'tablet' ? Monitor : Laptop
+	useEffect(() => setFailed(false), [avatarSeed])
 	return (
-		<div className={cn('flex size-11 shrink-0 items-center justify-center rounded-2xl border', active ? 'border-brand/25 bg-brand/10 text-brand' : 'border-border bg-background/40 text-primary')}>
-			<Icon size={22} />
+		<div className={cn('flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border', active ? 'border-brand/35 bg-brand/10 text-brand' : 'border-border bg-background/40 text-primary')}>
+			{avatarSeed && !failed ? <img src={dicebearAvatarUrl(avatarSeed)} alt='' className='size-full object-cover' referrerPolicy='no-referrer' onError={() => setFailed(true)} /> : <Icon size={22} />}
 		</div>
 	)
 }
@@ -276,11 +282,19 @@ function AttachmentCard(props: AttachmentCardProps) {
 function MessageBubble({
 	message,
 	peerName,
+	peerAvatarSeed,
+	peerDeviceType,
+	localAvatarSeed,
+	localDeviceType,
 	onDownload,
 	onStartReceive,
 }: {
 	message: LanChatMessage
 	peerName: string
+	peerAvatarSeed?: string
+	peerDeviceType?: string
+	localAvatarSeed?: string
+	localDeviceType?: string
 	onDownload: (name: string, url: string) => void
 	onStartReceive: (id: string) => void
 }) {
@@ -288,7 +302,7 @@ function MessageBubble({
 	const outgoing = message.direction === 'out'
 	return (
 		<div className={cn('flex gap-3 max-sm:gap-2', outgoing ? 'justify-end' : 'justify-start')}>
-			{!outgoing && <DeviceAvatar active />}
+			{!outgoing && <DeviceAvatar type={peerDeviceType} avatarSeed={peerAvatarSeed} active />}
 			<div className={cn('flex max-w-[calc(100%-58px)] flex-col space-y-2 sm:max-w-[72%]', outgoing ? 'items-end' : 'items-start')}>
 				{!outgoing && <p className='text-secondary max-w-full truncate px-1 text-xs'>{peerName}</p>}
 				{message.text && (
@@ -303,7 +317,7 @@ function MessageBubble({
 				)}
 				{outgoing && <CheckCheck size={13} className={message.status === 'failed' ? 'text-red-400' : 'text-secondary'} />}
 			</div>
-			{outgoing && <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-background'>我</div>}
+			{outgoing && <DeviceAvatar type={localDeviceType} avatarSeed={localAvatarSeed} active />}
 		</div>
 	)
 }
@@ -319,11 +333,19 @@ function TimeDivider({ value }: { value: number }) {
 function MessageList({
 	messages,
 	peerName,
+	peerAvatarSeed,
+	peerDeviceType,
+	localAvatarSeed,
+	localDeviceType,
 	onDownload,
 	onStartReceive,
 }: {
 	messages: LanChatMessage[]
 	peerName: string
+	peerAvatarSeed?: string
+	peerDeviceType?: string
+	localAvatarSeed?: string
+	localDeviceType?: string
 	onDownload: (name: string, url: string) => void
 	onStartReceive: (id: string) => void
 }) {
@@ -332,7 +354,7 @@ function MessageList({
 			{messages.map((message, index) => (
 				<div key={message.id} className='space-y-3'>
 					{shouldShowTimeDivider(messages[index - 1], message) && <TimeDivider value={message.createdAt} />}
-					<MessageBubble message={message} peerName={peerName} onDownload={onDownload} onStartReceive={onStartReceive} />
+					<MessageBubble message={message} peerName={peerName} peerAvatarSeed={peerAvatarSeed} peerDeviceType={peerDeviceType} localAvatarSeed={localAvatarSeed} localDeviceType={localDeviceType} onDownload={onDownload} onStartReceive={onStartReceive} />
 				</div>
 			))}
 		</>
@@ -504,7 +526,7 @@ function ConnectionCard({
 }) {
 	return (
 		<button onClick={onSelect} className={cn('flex w-full items-center gap-3 rounded-3xl border p-4 text-left shadow-sm transition', active ? 'border-brand/35 bg-brand/10' : 'border-border bg-article hover:border-brand/30')}>
-			<DeviceAvatar type={connection.peer.deviceType} active={connection.connected || active} />
+			<DeviceAvatar type={connection.peer.deviceType} avatarSeed={connection.peer.avatarSeed} active={connection.connected || active} />
 			<div className='min-w-0 flex-1'>
 				<p className='truncate text-sm font-semibold'>{connection.peer.name}</p>
 				<p className='text-secondary mt-1 truncate text-xs'>{connectionStatusText(connection)}</p>
@@ -584,6 +606,7 @@ function ChatPane({
 	const lastMessage = messages[messages.length - 1]
 	const lastMessageKey = lastMessage ? `${lastMessage.id}:${lastMessage.attachments.length}:${lastMessage.attachments.some(item => item.previewUrl || item.url)}` : ''
 	const peerName = activeConnection?.peer.name || '对方设备'
+	const localPeer = controller.session?.localPeer
 	const headerTitle = activeConnection?.peer.name || '等待连接'
 	const headerStatus = activeConnection ? connectionStatusText(activeConnection) : controller.roomStatus
 
@@ -606,7 +629,7 @@ function ChatPane({
 							<ChevronLeft size={25} />
 						</button>
 					) : (
-						<DeviceAvatar type={activeConnection?.peer.deviceType} active={Boolean(activeConnection?.connected)} />
+						<DeviceAvatar type={activeConnection?.peer.deviceType} avatarSeed={activeConnection?.peer.avatarSeed} active={Boolean(activeConnection?.connected)} />
 					)}
 					<div className='min-w-0'>
 						<h2 className='truncate text-base font-semibold'>{headerTitle}</h2>
@@ -620,7 +643,20 @@ function ChatPane({
 			<div ref={scrollRef} className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
 				{controller.session ? (
 					activeConnection ? (
-						messages.length ? <MessageList messages={messages} peerName={peerName} onDownload={controller.downloadAttachment} onStartReceive={controller.startReceivingAttachment} /> : <div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
+						messages.length ? (
+							<MessageList
+								messages={messages}
+								peerName={peerName}
+								peerAvatarSeed={activeConnection.peer.avatarSeed}
+								peerDeviceType={activeConnection.peer.deviceType}
+								localAvatarSeed={localPeer?.avatarSeed}
+								localDeviceType={localPeer?.deviceType}
+								onDownload={controller.downloadAttachment}
+								onStartReceive={controller.startReceivingAttachment}
+							/>
+						) : (
+							<div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
+						)
 					) : (
 						<EmptyWorkspace controller={controller} onToggleQr={onToggleQr} />
 					)
@@ -681,7 +717,7 @@ function DevicePage({
 					{controller.connections.length ? (
 						controller.connections.map(connection => (
 							<button key={connection.peerId} onClick={() => onOpenChat(connection.peerId)} className={cn('flex w-full items-center gap-3 rounded-3xl border p-4 text-left shadow-sm', controller.activePeerId === connection.peerId ? 'border-brand/35 bg-brand/10' : 'border-border bg-article')}>
-								<DeviceAvatar type={connection.peer.deviceType} active={connection.connected} />
+								<DeviceAvatar type={connection.peer.deviceType} avatarSeed={connection.peer.avatarSeed} active={connection.connected} />
 								<div className='min-w-0 flex-1'>
 									<p className='truncate font-semibold'>{connection.peer.name}</p>
 									<p className='text-secondary mt-1 truncate text-xs'>{connectionStatusText(connection)}</p>

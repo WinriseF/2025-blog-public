@@ -7,6 +7,7 @@ const sessionTtlMs = 30 * 60 * 1000
 const announceIntervalMs = 1000
 const announceMaxMs = 30 * 1000
 const deviceNameStorageKey = 'winrisef-lan-device-name-v1'
+const deviceAvatarStorageKey = 'winrisef-lan-device-avatar-v1'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 let supabaseClient: SupabaseClient | null = null
@@ -78,12 +79,29 @@ function getStoredDeviceName(type: LanDeviceType) {
 	}
 }
 
+function createAvatarSeed() {
+	return `lan-${createId(9)}`
+}
+
+function getStoredAvatarSeed() {
+	try {
+		if (typeof localStorage === 'undefined') return createAvatarSeed()
+		const current = localStorage.getItem(deviceAvatarStorageKey)
+		if (current) return current
+		const next = createAvatarSeed()
+		localStorage.setItem(deviceAvatarStorageKey, next)
+		return next
+	} catch {
+		return 'browser-device'
+	}
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === 'object')
 }
 
 function isLanPeer(value: unknown): value is LanPeer {
-	return isRecord(value) && typeof value.id === 'string' && (value.role === 'host' || value.role === 'guest') && typeof value.name === 'string' && typeof value.deviceType === 'string' && typeof value.joinedAt === 'number'
+	return isRecord(value) && typeof value.id === 'string' && (value.role === 'host' || value.role === 'guest') && typeof value.name === 'string' && typeof value.deviceType === 'string' && typeof value.avatarSeed === 'string' && typeof value.joinedAt === 'number'
 }
 
 function isPresencePayload(value: unknown): value is LanPresencePayload {
@@ -105,10 +123,10 @@ function isSignalPayload(value: unknown): value is LanSignalMessage {
 }
 
 export function getLocalDevice() {
-	if (typeof navigator === 'undefined') return { peerName: '浏览器设备', deviceType: 'unknown' as LanDeviceType }
+	if (typeof navigator === 'undefined') return { peerName: 'Browser Device', deviceType: 'unknown' as LanDeviceType, avatarSeed: 'browser-device' }
 	const ua = navigator.userAgent.toLowerCase()
 	const deviceType: LanDeviceType = /ipad|tablet/.test(ua) ? 'tablet' : /iphone|android|mobile/.test(ua) ? 'phone' : 'desktop'
-	return { peerName: getStoredDeviceName(deviceType), deviceType }
+	return { peerName: getStoredDeviceName(deviceType), deviceType, avatarSeed: getStoredAvatarSeed() }
 }
 
 async function createSession(role: LanRole, roomId: string, token: string, device = getLocalDevice()): Promise<LanSession> {
@@ -118,6 +136,7 @@ async function createSession(role: LanRole, roomId: string, token: string, devic
 		role,
 		name: device.peerName,
 		deviceType: device.deviceType,
+		avatarSeed: device.avatarSeed,
 		joinedAt: now
 	}
 	return {
