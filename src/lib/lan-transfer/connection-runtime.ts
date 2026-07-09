@@ -32,6 +32,7 @@ type IncomingAttachment = { offer: LanAttachmentOffer; meta: TransferFileMeta; e
 type PreparedEntry = { file: PreparedLanAttachment; createdAt: number; acked: number; ranges: Array<[number, number]>; offered: boolean; accepted?: LanAttachmentAccept }
 type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; messageId: string; size: number; chunkCount: number; storage: TransferFileMeta['storage']; url?: string }
 type ProgressCheckpoint = { bytes: number; ts: number }
+type TransferSample = { bytes: number; ts: number; speedBps: number }
 
 type RuntimeContext = {
 	session: LanSession
@@ -125,6 +126,10 @@ function isInlineMediaKind(kind: LanAttachmentKind) {
 	return kind === 'image' || kind === 'voice'
 }
 
+function clampBytes(bytes: number, total: number) {
+	return Math.max(0, Math.min(total, bytes))
+}
+
 export class LanConnectionRuntime {
 	private listeners = new Set<RuntimeListener>()
 	private transport: LanConnectionTransport | null = null
@@ -136,6 +141,7 @@ export class LanConnectionRuntime {
 	private receivedCache = new Map<string, CachedReceivedFile>()
 	private cancelledIncoming = new Map<string, string>()
 	private progressAck = new Map<string, ProgressCheckpoint>()
+	private transferSamples = new Map<string, TransferSample>()
 	private queue: string[] = []
 	private activeSending: string | null = null
 	private chunkWriteQueue: Promise<void> = Promise.resolve()
@@ -179,6 +185,7 @@ export class LanConnectionRuntime {
 		this.receivedCache.clear()
 		this.cancelledIncoming.clear()
 		this.progressAck.clear()
+		this.transferSamples.clear()
 		this.pendingOffers.clear()
 		this.prepared.clear()
 		this.incoming.clear()
@@ -268,13 +275,15 @@ export class LanConnectionRuntime {
 			if (!capability) capability = await this.detectLocalCapability(offer.attachment.size)
 			if (autoInlineMedia && offer.attachment.size > LAN_LIMITS.memoryMaxBytes && !capability.storage.opfs && !capability.storage.indexedDB) throw new Error('当前设备不能自动缓存该媒体')
 			assertCanReceiveFile(offer.attachment.size, capability)
-			this.emit({ type: 'attachment-patch', patch: { id, messageId: offer.messageId, status: 'receiving', progress: 0 } })
+			this.resetTransferSample(id, 0)
+			this.emit({ type: 'attachment-patch', patch: this.transferPatch(id, offer.messageId, 'receiving', 0, offer.attachment.size) })
 			this.emit({ type: 'file-record-patch', id, patch: { status: 'receiving' } })
 			const prepared = await this.prepareIncoming(offer, capability, !autoInlineMedia)
 			const current = { offer, ...prepared }
 			this.incoming.set(id, current)
 			this.pendingOffers.delete(id)
-			this.emit({ type: 'attachment-patch', patch: { id, messageId: offer.messageId, storage: current.engine.kind, progress: offer.attachment.size ? current.received / offer.attachment.size : 1 } })
+			this.resetTransferSample(id, current.received)
+			this.emit({ type: 'attachment-patch', patch: { ...this.transferPatch(id, offer.messageId, 'receiving', current.received, offer.attachment.size), storage: current.engine.kind } })
 			this.emit({ type: 'file-record-patch', id, patch: { storage: current.engine.kind } })
 			const ranges = await current.engine.getReceivedRanges(current.meta.id)
 			this.sendControl({ ...this.controlBase('attachment-accept'), id, messageId: offer.messageId, storage: current.engine.kind, receivedRanges: ranges, receivedBytes: current.received })
@@ -309,6 +318,41 @@ export class LanConnectionRuntime {
 
 	private setStatus(message: string) {
 		this.emit({ type: 'status', message })
+	}
+
+	private resetTransferSample(id: string, bytes = 0) {
+		this.transferSamples.set(id, { bytes, ts: Date.now(), speedBps: 0 })
+	}
+
+	private transferStats(id: string, bytes: number, total: number) {
+		const transferredBytes = clampBytes(bytes, total)
+		const now = Date.now()
+		const previous = this.transferSamples.get(id)
+		let speedBps = previous?.speedBps || 0
+		if (!previous || transferredBytes < previous.bytes) {
+			this.transferSamples.set(id, { bytes: transferredBytes, ts: now, speedBps: 0 })
+			return { transferredBytes, speedBps: undefined, etaSeconds: undefined }
+		}
+		const deltaBytes = transferredBytes - previous.bytes
+		const deltaSeconds = (now - previous.ts) / 1000
+		if (deltaBytes > 0 && deltaSeconds >= 0.25) {
+			const instantSpeed = deltaBytes / deltaSeconds
+			speedBps = speedBps ? speedBps * 0.35 + instantSpeed * 0.65 : instantSpeed
+			this.transferSamples.set(id, { bytes: transferredBytes, ts: now, speedBps })
+		}
+		const etaSeconds = speedBps > 0 && transferredBytes < total ? (total - transferredBytes) / speedBps : undefined
+		return { transferredBytes, speedBps: speedBps || undefined, etaSeconds }
+	}
+
+	private transferPatch(id: string, messageId: string | undefined, status: LanAttachment['status'], bytes: number, total: number): AttachmentPatch {
+		const stats = this.transferStats(id, bytes, total)
+		return {
+			id,
+			messageId,
+			status,
+			progress: total ? stats.transferredBytes / total : 1,
+			...stats,
+		}
 	}
 
 	private isOpen() {
@@ -378,23 +422,16 @@ export class LanConnectionRuntime {
 		if (!entry || !message) return
 		this.queue = this.queue.filter(id => id !== nextId)
 		this.activeSending = nextId
-		this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'sending', progress: entry.file.size ? message.receivedBytes / entry.file.size : 1 } })
+		this.resetTransferSample(message.id, message.receivedBytes)
+		this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', message.receivedBytes, entry.file.size) })
 		this.setStatus(`正在发送 ${entry.file.name}`)
-		let lastProgressBytes = message.receivedBytes
-		let lastProgressAt = Date.now()
-		void sendPreparedAttachment(this.transport, entry.file, done => {
-			const now = Date.now()
-			if (done < entry.file.size && done - lastProgressBytes < LAN_LIMITS.progressAckIntervalBytes && now - lastProgressAt < LAN_LIMITS.progressAckIntervalMs) return
-			lastProgressBytes = done
-			lastProgressAt = now
-			this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, progress: entry.file.size ? done / entry.file.size : 1, status: 'sending' } })
-		}, {
+		void sendPreparedAttachment(this.transport, entry.file, () => {}, {
 			mobile: this.context?.remoteCapability?.platform === 'android' || this.context?.remoteCapability?.platform === 'ios',
 			getAckedBytes: () => entry.acked,
 			receivedRanges: entry.ranges,
 			completeMessage: { ...this.controlBase('attachment-complete'), id: entry.file.id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount },
 		}).then(() => {
-			this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, progress: 1, status: 'sending' } })
+			this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'sending' } })
 			this.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
 		}).catch(error => {
 			this.activeSending = null
@@ -410,11 +447,13 @@ export class LanConnectionRuntime {
 	}
 
 	private completeOutgoing(message: LanAttachmentReceived) {
+		const entry = this.prepared.get(message.id)
 		this.prepared.delete(message.id)
 		this.queue = this.queue.filter(id => id !== message.id)
 		this.activeSending = null
-		this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'complete', progress: 1 } })
+		this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'complete', progress: 1, transferredBytes: entry?.file.size || message.received || message.expected, speedBps: undefined, etaSeconds: undefined } })
 		this.emit({ type: 'file-record-patch', id: message.id, patch: { status: 'complete' } })
+		this.transferSamples.delete(message.id)
 		this.setStatus('对方已收到')
 		this.pumpQueue()
 	}
@@ -497,10 +536,11 @@ export class LanConnectionRuntime {
 		if (manifest.receivedBytes !== current.offer.attachment.size || manifest.receivedChunks !== current.offer.attachment.chunkCount) return this.failAttachment(id, messageIdValue, `接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.offer.attachment.size)}`)
 		const finalized = await current.engine.finalize(current.meta)
 		const inlineMedia = isInlineMediaKind(current.offer.attachment.kind)
-		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'complete', progress: 1, url: finalized.url, previewUrl: current.offer.attachment.kind === 'image' ? finalized.url : undefined } })
+		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'complete', progress: 1, transferredBytes: current.offer.attachment.size, speedBps: undefined, etaSeconds: undefined, url: finalized.url, previewUrl: current.offer.attachment.kind === 'image' ? finalized.url : undefined } })
 		this.emit({ type: 'file-record-patch', id, patch: { status: 'complete', url: finalized.url } })
 		this.receivedCache.set(id, { engine: current.engine, fileId: current.meta.id, messageId: messageIdValue, size: current.offer.attachment.size, chunkCount: manifest.receivedChunks, storage: current.engine.kind, url: finalized.url })
 		this.progressAck.delete(id)
+		this.transferSamples.delete(id)
 		this.confirmReceived(id, messageIdValue, current.offer.attachment.size, manifest.receivedChunks, current.engine.kind)
 		this.incoming.delete(id)
 		if (finalized.url && !inlineMedia) this.emit({ type: 'download-ready', name: current.offer.attachment.name, url: finalized.url })
@@ -518,8 +558,7 @@ export class LanConnectionRuntime {
 			current.chunkCount = manifest.receivedChunks
 			const done = current.received >= current.offer.attachment.size || current.chunkCount >= current.offer.attachment.chunkCount
 			if (this.shouldReportProgress(id, current.received, current.offer.attachment.size, done)) {
-				const progress = current.offer.attachment.size ? current.received / current.offer.attachment.size : 1
-				this.emit({ type: 'attachment-patch', patch: { id, messageId: current.offer.messageId, status: 'receiving', progress } })
+				this.emit({ type: 'attachment-patch', patch: this.transferPatch(id, current.offer.messageId, 'receiving', current.received, current.offer.attachment.size) })
 				this.emit({ type: 'file-record-patch', id, patch: { status: 'receiving' } })
 				this.sendControl({ ...this.controlBase('attachment-progress'), id, messageId: current.offer.messageId, received: current.received, chunkCount: current.chunkCount, storage: current.engine.kind })
 			}
@@ -553,9 +592,11 @@ export class LanConnectionRuntime {
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)
 			if (!entry) return
-			entry.accepted = message
+			const receivedBytes = Math.max(entry.acked, message.receivedBytes)
+			entry.accepted = { ...message, receivedBytes }
 			entry.ranges = message.receivedRanges
-			entry.acked = message.receivedBytes
+			entry.acked = receivedBytes
+			this.resetTransferSample(message.id, receivedBytes)
 			if (!this.queue.includes(message.id) && this.activeSending !== message.id) this.queue.push(message.id)
 			this.pumpQueue()
 			return
@@ -564,7 +605,7 @@ export class LanConnectionRuntime {
 			const entry = this.prepared.get(message.id)
 			if (entry) {
 				entry.acked = Math.max(entry.acked, message.received)
-				this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, progress: entry.file.size ? message.received / entry.file.size : 1, status: 'sending' } })
+				this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', entry.acked, entry.file.size) })
 			}
 			return
 		}
@@ -592,7 +633,8 @@ export class LanConnectionRuntime {
 			const entry = this.prepared.get(item.id)
 			if (entry) {
 				entry.ranges = item.receivedRanges
-				entry.acked = item.receivedBytes
+				entry.acked = Math.max(entry.acked, item.receivedBytes)
+				this.resetTransferSample(item.id, entry.acked)
 				if (entry.accepted && !this.queue.includes(item.id) && this.activeSending !== item.id) this.queue.push(item.id)
 			}
 		}
@@ -610,6 +652,7 @@ export class LanConnectionRuntime {
 		if (this.activeSending === id) this.activeSending = null
 		this.queue = this.queue.filter(item => item !== id)
 		this.progressAck.delete(id)
+		this.transferSamples.delete(id)
 		this.cleanupIncoming(id)
 		this.setStatus(reason)
 	}

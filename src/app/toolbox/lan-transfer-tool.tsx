@@ -58,6 +58,35 @@ function progressLabel(value: number) {
 	return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`
 }
 
+function formatTransferSpeed(value?: number) {
+	return value && Number.isFinite(value) && value > 0 ? `${formatBytes(value)}/s` : ''
+}
+
+function formatEta(value?: number) {
+	if (!value || !Number.isFinite(value) || value <= 0) return ''
+	const seconds = Math.ceil(value)
+	if (seconds < 60) return `${seconds}秒`
+	const minutes = Math.ceil(seconds / 60)
+	if (minutes < 60) return `${minutes}分钟`
+	return `${Math.ceil(minutes / 60)}小时`
+}
+
+function transferBytes(attachment: LanAttachment) {
+	const progress = Math.max(0, Math.min(1, attachment.progress))
+	return Math.min(attachment.size, attachment.transferredBytes ?? Math.round(attachment.size * progress))
+}
+
+function formatTransferProgress(attachment: LanAttachment, compact = false) {
+	const bytes = transferBytes(attachment)
+	const action = attachment.direction === 'out' ? '已确认' : attachment.kind === 'file' ? '已接收' : '已缓存'
+	const parts = compact ? [progressLabel(attachment.progress)] : [`${action} ${progressLabel(attachment.progress)}`, `${formatBytes(bytes)} / ${formatBytes(attachment.size)}`]
+	const speed = formatTransferSpeed(attachment.speedBps)
+	if (speed) parts.push(speed)
+	const eta = formatEta(attachment.etaSeconds)
+	if (!compact && eta) parts.push(`剩余 ${eta}`)
+	return parts.join(' · ')
+}
+
 function formatVoiceTime(secondsValue = 0) {
 	const totalSeconds = Math.max(0, Math.round(secondsValue))
 	const minutes = Math.floor(totalSeconds / 60)
@@ -118,12 +147,12 @@ function ImageAttachmentCard({
 					</div>
 					<div className='min-w-0 flex-1'>
 						<p className='truncate text-sm font-semibold'>{compactFileName(attachment.name, 22)}</p>
-						<p className='text-secondary mt-1 text-xs'>{failed ? attachment.error || '接收失败' : `${attachment.status === 'offered' ? '准备缓存' : '缓存中'} ${progressLabel(attachment.progress)}`}</p>
+						<p className='text-secondary mt-1 text-xs'>{failed ? attachment.error || '接收失败' : attachment.status === 'offered' ? '准备缓存' : formatTransferProgress(attachment, true)}</p>
 					</div>
 				</div>
 				{transferring && (
 					<div className='mt-3 h-1 overflow-hidden rounded-full bg-background/40'>
-						<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
+						<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
 					</div>
 				)}
 			</div>
@@ -136,10 +165,10 @@ function ImageAttachmentCard({
 				<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
 					<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
 						<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
-						<span>{progressLabel(attachment.progress)}</span>
+						<span>{formatTransferProgress(attachment, true)}</span>
 					</div>
 					<div className='h-1 overflow-hidden rounded-full bg-background/50'>
-						<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
+						<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
 					</div>
 				</div>
 			)}
@@ -166,7 +195,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 	const playable = Boolean(source && !failed)
 	const playedRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0
 	const plannedDuration = duration || (attachment.durationMs ? attachment.durationMs / 1000 : 0)
-	const statusText = failed ? attachment.error || '播放失败' : transferring && !source ? `缓存中 ${progressLabel(attachment.progress)}` : formatVoiceTime(playing ? currentTime : plannedDuration)
+	const statusText = failed ? attachment.error || '播放失败' : transferring ? formatTransferProgress(attachment, true) : formatVoiceTime(playing ? currentTime : plannedDuration)
 
 	const togglePlayback = async () => {
 		const audio = audioRef.current
@@ -198,7 +227,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 				</div>
 				{transferring && (
 					<div className={cn('mt-1 h-1 overflow-hidden rounded-full', outgoing ? 'bg-background/25' : 'bg-background/50')}>
-						<div className={cn('h-full rounded-full transition-all', outgoing ? 'bg-background' : 'bg-brand')} style={{ width: progressLabel(attachment.progress) }} />
+						<div className={cn('h-full rounded-full [transition:width_160ms_linear]', outgoing ? 'bg-background' : 'bg-brand')} style={{ width: progressLabel(attachment.progress) }} />
 					</div>
 				)}
 			</div>
@@ -237,6 +266,7 @@ function FileAttachmentCard({
 	const canDownload = Boolean(attachment.url)
 	const canAct = waitingReceive || canDownload
 	const displayName = compactFileName(attachment.name)
+	const detailText = transferring ? formatTransferProgress(attachment) : waitingReceive ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)
 	const handleAction = () => {
 		if (waitingReceive) return onStartReceive(attachment.id)
 		if (attachment.url) onDownload(attachment.name, attachment.url)
@@ -248,8 +278,8 @@ function FileAttachmentCard({
 					<p title={attachment.name} className='line-clamp-2 min-h-[2.9rem] break-all text-base font-semibold leading-[1.45] text-primary'>
 						{displayName}
 					</p>
-					<p className='text-secondary mt-3 text-sm'>
-						{formatBytes(attachment.size)}
+					<p className='text-secondary mt-3 text-sm leading-5'>
+						{detailText}
 					</p>
 				</div>
 				<button
@@ -264,8 +294,8 @@ function FileAttachmentCard({
 				</button>
 			</div>
 			{transferring && (
-				<div className='mt-3 h-1.5 overflow-hidden rounded-full bg-background/40' title={progressLabel(attachment.progress)}>
-					<div className='h-full rounded-full bg-brand transition-all' style={{ width: progressLabel(attachment.progress) }} />
+				<div className='mt-3 h-1.5 overflow-hidden rounded-full bg-background/40' title={formatTransferProgress(attachment)}>
+					<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
 				</div>
 			)}
 			{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}

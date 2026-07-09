@@ -120,6 +120,9 @@ export type LanAttachment = LanAttachmentManifest & {
 	storage: LanStorageKind
 	status: LanAttachmentStatus
 	progress: number
+	transferredBytes?: number
+	speedBps?: number
+	etaSeconds?: number
 	url?: string
 	previewUrl?: string
 	error?: string
