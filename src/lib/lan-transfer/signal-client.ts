@@ -4,10 +4,12 @@ import type { LanDeviceType, LanPeer, LanPresencePayload, LanRole, LanSession, L
 
 const pairTtlMs = 10 * 60 * 1000
 const sessionTtlMs = 30 * 60 * 1000
-const announceIntervalMs = 1000
-const announceMaxMs = 30 * 1000
+const announceFastIntervalMs = 1000
+const announceSlowIntervalMs = 5000
+const announceFastWindowMs = 30 * 1000
 const deviceNameStorageKey = 'winrisef-lan-device-name-v1'
 const deviceAvatarStorageKey = 'winrisef-lan-device-avatar-v1'
+const deviceIdStorageKey = 'winrisef-lan-device-id-v1'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 let supabaseClient: SupabaseClient | null = null
@@ -96,12 +98,29 @@ function getStoredAvatarSeed() {
 	}
 }
 
+function createDeviceId() {
+	return `device-${createId(12)}`
+}
+
+function getStoredDeviceId() {
+	try {
+		if (typeof localStorage === 'undefined') return createDeviceId()
+		const current = localStorage.getItem(deviceIdStorageKey)
+		if (current) return current
+		const next = createDeviceId()
+		localStorage.setItem(deviceIdStorageKey, next)
+		return next
+	} catch {
+		return createDeviceId()
+	}
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === 'object')
 }
 
 function isLanPeer(value: unknown): value is LanPeer {
-	return isRecord(value) && typeof value.id === 'string' && (value.role === 'host' || value.role === 'guest') && typeof value.name === 'string' && typeof value.deviceType === 'string' && typeof value.avatarSeed === 'string' && typeof value.joinedAt === 'number'
+	return isRecord(value) && typeof value.id === 'string' && typeof value.deviceId === 'string' && (value.role === 'host' || value.role === 'guest') && typeof value.name === 'string' && typeof value.deviceType === 'string' && typeof value.avatarSeed === 'string' && typeof value.joinedAt === 'number'
 }
 
 function isPresencePayload(value: unknown): value is LanPresencePayload {
@@ -111,6 +130,7 @@ function isPresencePayload(value: unknown): value is LanPresencePayload {
 function isSignalPayload(value: unknown): value is LanSignalMessage {
 	if (!isRecord(value)) return false
 	const type = value.type
+	if ('peer' in value && value.peer !== undefined && !isLanPeer(value.peer)) return false
 	return (
 		(type === 'announce' || type === 'signal' || type === 'peer-left') &&
 		typeof value.roomId === 'string' &&
@@ -123,16 +143,17 @@ function isSignalPayload(value: unknown): value is LanSignalMessage {
 }
 
 export function getLocalDevice() {
-	if (typeof navigator === 'undefined') return { peerName: 'Browser Device', deviceType: 'unknown' as LanDeviceType, avatarSeed: 'browser-device' }
+	if (typeof navigator === 'undefined') return { deviceId: 'browser-device', peerName: 'Browser Device', deviceType: 'unknown' as LanDeviceType, avatarSeed: 'browser-device' }
 	const ua = navigator.userAgent.toLowerCase()
 	const deviceType: LanDeviceType = /ipad|tablet/.test(ua) ? 'tablet' : /iphone|android|mobile/.test(ua) ? 'phone' : 'desktop'
-	return { peerName: getStoredDeviceName(deviceType), deviceType, avatarSeed: getStoredAvatarSeed() }
+	return { deviceId: getStoredDeviceId(), peerName: getStoredDeviceName(deviceType), deviceType, avatarSeed: getStoredAvatarSeed() }
 }
 
 async function createSession(role: LanRole, roomId: string, token: string, device = getLocalDevice()): Promise<LanSession> {
 	const now = Date.now()
 	const peer: LanPeer = {
 		id: createId(),
+		deviceId: device.deviceId,
 		role,
 		name: device.peerName,
 		deviceType: device.deviceType,
@@ -165,7 +186,8 @@ export class LanSignalingClient {
 	private subscribed = false
 	private seq = 0
 	private announceStartedAt = 0
-	private announceTimer: ReturnType<typeof setInterval> | null = null
+	private announceTimer: ReturnType<typeof setTimeout> | null = null
+	private removeResumeListeners: (() => void) | null = null
 	readonly ready: Promise<void>
 
 	constructor(
@@ -183,17 +205,19 @@ export class LanSignalingClient {
 		this.channel.on('broadcast', { event: 'lan' }, event => this.receive(event.payload))
 		this.channel.on('presence', { event: 'sync' }, () => this.emitPresencePeers())
 		this.channel.on('presence', { event: 'join' }, () => this.emitPresencePeers())
+		this.removeResumeListeners = this.bindResumeListeners()
 		this.ready = new Promise((resolve, reject) => {
 			this.channel.subscribe((status, error) => {
 				this.onStatus?.(status)
 				if (status === 'SUBSCRIBED') {
 					this.subscribed = true
 					resolve()
+					void this.afterSubscribe().catch(error => this.onError?.(error instanceof Error ? error : new Error('连接失败')))
 				}
 				if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(error || new Error('连接失败'))
 			})
 		})
-		this.ready.then(() => this.afterSubscribe()).catch(error => this.onError?.(error instanceof Error ? error : new Error('连接失败')))
+		this.ready.catch(error => this.onError?.(error instanceof Error ? error : new Error('连接失败')))
 	}
 
 	private async afterSubscribe() {
@@ -201,7 +225,31 @@ export class LanSignalingClient {
 		const result = await this.channel.track(this.presencePayload())
 		if (result !== 'ok') throw new Error('连接失败')
 		if (this.closed) return
-		await this.sendAnnounce()
+		this.restartAnnouncing()
+		this.emitPresencePeers()
+	}
+
+	private bindResumeListeners() {
+		if (typeof window === 'undefined') return null
+		const wake = () => this.refreshAnnounce()
+		window.addEventListener('focus', wake)
+		window.addEventListener('online', wake)
+		window.addEventListener('pageshow', wake)
+		const onVisibility = () => {
+			if (typeof document === 'undefined' || document.visibilityState === 'visible') wake()
+		}
+		if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+		return () => {
+			window.removeEventListener('focus', wake)
+			window.removeEventListener('online', wake)
+			window.removeEventListener('pageshow', wake)
+			if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+		}
+	}
+
+	private refreshAnnounce() {
+		if (this.closed) return
+		if (this.subscribed) void this.channel.track(this.presencePayload()).catch(error => this.onError?.(error instanceof Error ? error : new Error('连接恢复失败')))
 		this.restartAnnouncing()
 		this.emitPresencePeers()
 	}
@@ -267,18 +315,25 @@ export class LanSignalingClient {
 	restartAnnouncing() {
 		this.stopAnnouncing()
 		this.announceStartedAt = Date.now()
-		this.announceTimer = setInterval(() => {
-			if (this.closed || Date.now() - this.announceStartedAt >= announceMaxMs) {
-				this.stopAnnouncing()
-				return
-			}
+		void this.sendAnnounce().catch(error => this.onError?.(error instanceof Error ? error : new Error('连接消息发送失败')))
+		this.scheduleAnnounce()
+	}
+
+	private scheduleAnnounce() {
+		if (this.closed) return
+		const elapsed = Date.now() - this.announceStartedAt
+		const delay = elapsed < announceFastWindowMs ? announceFastIntervalMs : announceSlowIntervalMs
+		this.announceTimer = setTimeout(() => {
+			this.announceTimer = null
+			if (this.closed) return
 			void this.sendAnnounce().catch(error => this.onError?.(error instanceof Error ? error : new Error('连接消息发送失败')))
-		}, announceIntervalMs)
+			this.scheduleAnnounce()
+		}, delay)
 	}
 
 	stopAnnouncing() {
 		if (!this.announceTimer) return
-		clearInterval(this.announceTimer)
+		clearTimeout(this.announceTimer)
 		this.announceTimer = null
 	}
 
@@ -290,11 +345,17 @@ export class LanSignalingClient {
 		return this.send('signal', to, { peer: this.session.localPeer, signal })
 	}
 
+	sendPeerLeft(to = '*') {
+		return this.send('peer-left', to, { peer: this.session.localPeer })
+	}
+
 	async close() {
 		if (this.closed) return
 		this.stopAnnouncing()
+		this.removeResumeListeners?.()
+		this.removeResumeListeners = null
 		if (this.subscribed) {
-			await this.send('peer-left', '*').catch(() => {})
+			await this.sendPeerLeft('*').catch(() => {})
 			await this.channel.untrack().catch(() => {})
 		}
 		this.closed = true

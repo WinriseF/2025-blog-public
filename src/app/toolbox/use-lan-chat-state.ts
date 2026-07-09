@@ -14,6 +14,7 @@ export type AttachmentPatch = Partial<LanAttachment> & { id: string; messageId?:
 export type LanChatAction =
 	| { type: 'upsert-message'; message: LanChatMessage }
 	| { type: 'upsert-attachment'; message: Omit<LanChatMessage, 'attachments'>; attachment: LanAttachment }
+	| { type: 'merge-history'; messages: LanChatMessage[] }
 	| { type: 'patch-message'; id: string; patch: MessagePatch }
 	| { type: 'patch-attachment'; patch: AttachmentPatch }
 	| { type: 'upsert-file-record'; record: LanFileRecord }
@@ -62,6 +63,62 @@ function upsertAttachment(messages: LanChatMessage[], messageBase: Omit<LanChatM
 	return upsertMessage(messages, { ...existing, ...messageBase, attachments, status: attachmentMessageStatus(attachments) })
 }
 
+const attachmentStatusRank: Record<LanAttachmentStatus, number> = {
+	queued: 0,
+	offered: 1,
+	receiving: 2,
+	sending: 2,
+	failed: 1,
+	cancelled: 1,
+	complete: 3,
+}
+
+function mergeAttachment(current: LanAttachment | undefined, incoming: LanAttachment) {
+	if (!current) return incoming
+	const progress = Math.max(current.progress || 0, incoming.progress || 0)
+	const transferredBytes = Math.max(current.transferredBytes || 0, incoming.transferredBytes || 0) || undefined
+	const status = attachmentStatusRank[current.status] >= attachmentStatusRank[incoming.status] ? current.status : incoming.status
+	return {
+		...current,
+		...incoming,
+		direction: current.direction,
+		status,
+		progress,
+		transferredBytes,
+		url: current.url || incoming.url,
+		previewUrl: current.previewUrl || incoming.previewUrl,
+		speedBps: current.speedBps,
+		etaSeconds: current.etaSeconds,
+	}
+}
+
+function mergeMessage(current: LanChatMessage, incoming: LanChatMessage) {
+	const attachments = incoming.attachments.map(attachment => mergeAttachment(current.attachments.find(item => item.id === attachment.id), attachment))
+	for (const attachment of current.attachments) {
+		if (!attachments.some(item => item.id === attachment.id)) attachments.push(attachment)
+	}
+	return {
+		...current,
+		...incoming,
+		direction: current.direction,
+		status: current.kind === 'attachments' ? attachmentMessageStatus(attachments) : current.status,
+		attachments,
+	}
+}
+
+function mergeHistory(messages: LanChatMessage[], incoming: LanChatMessage[]) {
+	const next = messages.slice()
+	for (const message of incoming) {
+		const index = next.findIndex(item => item.id === message.id)
+		if (index < 0) {
+			next.push(message)
+			continue
+		}
+		next[index] = mergeMessage(next[index], message)
+	}
+	return next
+}
+
 function upsertFileRecord(records: LanFileRecord[], record: LanFileRecord) {
 	const index = records.findIndex(item => item.id === record.id)
 	if (index < 0) return [record, ...records]
@@ -77,6 +134,7 @@ export function createEmptyLanChatState(): LanChatState {
 export function lanChatReducer(state: LanChatState, action: LanChatAction): LanChatState {
 	if (action.type === 'upsert-message') return { ...state, messages: upsertMessage(state.messages, action.message) }
 	if (action.type === 'upsert-attachment') return { ...state, messages: upsertAttachment(state.messages, action.message, action.attachment) }
+	if (action.type === 'merge-history') return { ...state, messages: mergeHistory(state.messages, action.messages) }
 	if (action.type === 'patch-message') return { ...state, messages: patchMessage(state.messages, action.id, action.patch) }
 	if (action.type === 'patch-attachment') return { ...state, messages: patchAttachment(state.messages, action.patch) }
 	if (action.type === 'upsert-file-record') return { ...state, fileRecords: upsertFileRecord(state.fileRecords, action.record) }

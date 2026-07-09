@@ -1,4 +1,4 @@
-export const LAN_PROTOCOL_VERSION = 5
+export const LAN_PROTOCOL_VERSION = 6
 
 export const LAN_LIMITS = {
 	memoryMaxBytes: 200 * 1024 * 1024,
@@ -36,6 +36,7 @@ export type LanAttachmentStatus = 'queued' | 'offered' | 'receiving' | 'sending'
 
 export type LanPeer = {
 	id: string
+	deviceId: string
 	role: LanRole
 	name: string
 	deviceType: LanDeviceType
@@ -262,6 +263,19 @@ export type LanResumeState = {
 	}>
 }
 
+export type LanChatHistoryMessage = Omit<LanChatMessage, 'attachments'> & {
+	attachments: Array<Omit<LanAttachment, 'url' | 'previewUrl' | 'speedBps' | 'etaSeconds'>>
+}
+
+export type LanChatHistorySync = {
+	type: 'chat-history'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	messages: LanChatHistoryMessage[]
+}
+
 export type LanControlMessage =
 	| LanCapability
 	| LanChatMessageControl
@@ -273,6 +287,7 @@ export type LanControlMessage =
 	| LanAttachmentCancel
 	| LanResumeQuery
 	| LanResumeState
+	| LanChatHistorySync
 
 export type PreparedLanAttachment = LanAttachmentManifest & {
 	messageId: string

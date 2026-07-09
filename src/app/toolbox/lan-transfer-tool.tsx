@@ -593,6 +593,11 @@ function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr }: { con
 							中转站
 						</button>
 					)}
+					{controller.session && (
+						<button onClick={controller.leaveSession} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
+							退出
+						</button>
+					)}
 					<button onClick={onToggleQr} disabled={controller.busy} className='text-secondary flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建或显示二维码'>
 						<Plus size={20} />
 					</button>
@@ -666,7 +671,7 @@ function ChatPane({
 						{!onBack && <p className='text-secondary truncate text-xs'>{headerStatus}</p>}
 					</div>
 				</div>
-				<button onClick={controller.leaveSession} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='离开会话'>
+				<button onClick={() => controller.closeConnection()} disabled={!activeConnection} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-40' aria-label='关闭当前会话'>
 					<X size={17} />
 				</button>
 			</header>
@@ -732,6 +737,11 @@ function DevicePage({
 					{onSwitchRelay && (
 						<button onClick={onSwitchRelay} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
 							中转站
+						</button>
+					)}
+					{controller.session && (
+						<button onClick={controller.leaveSession} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
+							退出
 						</button>
 					)}
 					<button onClick={onToggleQr} disabled={controller.busy} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建或显示二维码'>
@@ -815,7 +825,7 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 	}
 
 	const app = (
-		<div className='lan-session-v5 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
+		<div className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
 			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
 				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
 				<ChatPane controller={controller} onToggleQr={handleToggleQr} />

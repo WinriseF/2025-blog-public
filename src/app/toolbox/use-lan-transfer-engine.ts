@@ -47,6 +47,10 @@ type ConnectionAction =
 	| { type: 'remove'; peerId: string }
 	| { type: 'reset' }
 
+function connectionIdForPeer(peer: LanPeer) {
+	return peer.deviceId
+}
+
 function getDataChannel(peer: SimplePeer.Instance) {
 	return (peer as unknown as { _channel?: RTCDataChannel })._channel
 }
@@ -125,12 +129,13 @@ function connectionReducer(state: ConnectionStateRecord[], action: ConnectionAct
 	if (action.type === 'patch') {
 		return state.map(item => item.peerId === action.peerId ? { ...item, ...action.patch, updatedAt: Date.now() } : item)
 	}
-	const index = state.findIndex(item => item.peerId === action.peer.id)
+	const connectionId = connectionIdForPeer(action.peer)
+	const index = state.findIndex(item => item.peerId === connectionId)
 	if (index < 0) {
 		return [
 			...state,
 			{
-				peerId: action.peer.id,
+				peerId: connectionId,
 				peer: action.peer,
 				connected: false,
 				connectionState: 'discovered',
@@ -166,6 +171,7 @@ function toView(record: ConnectionStateRecord): LanConnectionView {
 export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const optionsRef = useRef(options)
 	const managedRef = useRef(new Map<string, ManagedConnection>())
+	const recordsRef = useRef<ConnectionStateRecord[]>([])
 	const activePeerIdRef = useRef<string | null>(null)
 	const [records, dispatch] = useReducer(connectionReducer, [])
 	const [activePeerId, setActivePeerId] = useState<string | null>(null)
@@ -173,6 +179,10 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	useEffect(() => {
 		optionsRef.current = options
 	}, [options])
+
+	useEffect(() => {
+		recordsRef.current = records
+	}, [records])
 
 	useEffect(() => {
 		activePeerIdRef.current = activePeerId
@@ -187,18 +197,20 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	}, [activePeerId, records])
 
 	const ensureConnection = useCallback((peer: LanPeer, patch?: ConnectionPatch) => {
-		let entry = managedRef.current.get(peer.id)
+		const connectionId = connectionIdForPeer(peer)
+		let entry = managedRef.current.get(connectionId)
 		if (!entry) {
 			const runtime = new LanConnectionRuntime()
 			const unsubscribe = runtime.subscribe(event => {
-				const current = managedRef.current.get(peer.id)
-				if (event.type === 'message-upsert') dispatch({ type: 'chat', peerId: peer.id, action: { type: 'upsert-message', message: event.message } })
-				if (event.type === 'attachment-upsert') dispatch({ type: 'chat', peerId: peer.id, action: { type: 'upsert-attachment', message: event.message, attachment: event.attachment } })
-				if (event.type === 'attachment-patch') dispatch({ type: 'chat', peerId: peer.id, action: { type: 'patch-attachment', patch: event.patch } })
-				if (event.type === 'file-record-upsert') dispatch({ type: 'chat', peerId: peer.id, action: { type: 'upsert-file-record', record: event.record } })
-				if (event.type === 'file-record-patch') dispatch({ type: 'chat', peerId: peer.id, action: { type: 'patch-file-record', id: event.id, patch: event.patch } })
+				const current = managedRef.current.get(connectionId)
+				if (event.type === 'message-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-message', message: event.message } })
+				if (event.type === 'history-merge') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'merge-history', messages: event.messages } })
+				if (event.type === 'attachment-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-attachment', message: event.message, attachment: event.attachment } })
+				if (event.type === 'attachment-patch') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'patch-attachment', patch: event.patch } })
+				if (event.type === 'file-record-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-file-record', record: event.record } })
+				if (event.type === 'file-record-patch') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'patch-file-record', id: event.id, patch: event.patch } })
 				if (event.type === 'status') {
-					dispatch({ type: 'patch', peerId: peer.id, patch: { status: event.message } })
+					dispatch({ type: 'patch', peerId: connectionId, patch: { status: event.message } })
 				}
 				if (event.type === 'local-capability') {
 					optionsRef.current.localCapabilityRef.current = event.capability
@@ -206,17 +218,17 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 				}
 				if (event.type === 'remote-capability') {
 					if (current) current.remoteCapability = event.capability
-					dispatch({ type: 'patch', peerId: peer.id, patch: { remoteCapability: event.capability } })
+					dispatch({ type: 'patch', peerId: connectionId, patch: { remoteCapability: event.capability } })
 				}
 				if (event.type === 'download-ready') downloadUrl(event.name, event.url)
 			})
 			entry = { peer, runtime, remoteCapability: null, unsubscribe }
-			managedRef.current.set(peer.id, entry)
+			managedRef.current.set(connectionId, entry)
 		} else {
 			entry.peer = peer
 		}
 		dispatch({ type: 'upsert', peer, patch })
-		setActivePeerId(current => current || peer.id)
+		setActivePeerId(current => current || connectionId)
 		return entry
 	}, [])
 
@@ -227,12 +239,14 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const attachPeer = useCallback((peerId: string, peer: SimplePeer.Instance, remotePeer: LanPeer, route: string) => {
 		const session = optionsRef.current.sessionRef.current
 		if (!session) return
+		const connectionId = connectionIdForPeer(remotePeer)
 		const entry = ensureConnection(remotePeer, { connected: true, connectionState: 'connected', connectionRoute: route, status: '已连接，可以发送消息和文件' })
 		entry.runtime.attachTransport(simplePeerTransport(peer), {
 			session,
 			remotePeerName: entry.peer.name,
 			remoteCapability: entry.remoteCapability,
 			localCapability: optionsRef.current.localCapabilityRef.current,
+			getHistory: () => recordsRef.current.find(item => item.peerId === connectionId)?.chat.messages || [],
 		})
 		setActivePeerId(current => current || peerId)
 	}, [ensureConnection])

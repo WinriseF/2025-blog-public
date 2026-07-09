@@ -21,6 +21,7 @@ import {
 	type LanAttachmentOffer,
 	type LanAttachmentReceived,
 	type LanCapability,
+	type LanChatHistoryMessage,
 	type LanChatMessage,
 	type LanControlMessage,
 	type LanFileRecord,
@@ -39,6 +40,7 @@ type RuntimeContext = {
 	remotePeerName?: string
 	remoteCapability?: LanCapability | null
 	localCapability?: LanCapability | null
+	getHistory?: () => LanChatMessage[]
 }
 
 type SendFilesOptions = {
@@ -50,6 +52,7 @@ type AttachmentPatch = Partial<LanAttachment> & { id: string; messageId?: string
 
 export type LanConnectionRuntimeEvent =
 	| { type: 'message-upsert'; message: LanChatMessage }
+	| { type: 'history-merge'; messages: LanChatMessage[] }
 	| { type: 'attachment-upsert'; message: Omit<LanChatMessage, 'attachments'>; attachment: LanAttachment }
 	| { type: 'attachment-patch'; patch: AttachmentPatch }
 	| { type: 'file-record-upsert'; record: LanFileRecord }
@@ -75,6 +78,34 @@ function attachmentFromPrepared(file: PreparedLanAttachment, storage: TransferFi
 
 function attachmentFromOffer(offer: LanAttachmentOffer, storage: TransferFileMeta['storage'], progress = 0): LanAttachment {
 	return { ...offer.attachment, direction: 'in', storage, status: 'receiving', progress }
+}
+
+function historyMessageForSync(message: LanChatMessage): LanChatHistoryMessage {
+	return {
+		...message,
+		attachments: message.attachments.map(({ url, previewUrl, speedBps, etaSeconds, ...attachment }) => attachment),
+	}
+}
+
+function invertDirection(direction: LanChatMessage['direction']) {
+	if (direction === 'out') return 'in'
+	if (direction === 'in') return 'out'
+	return 'system'
+}
+
+function historyMessageFromRemote(message: LanChatHistoryMessage): LanChatMessage {
+	const direction = invertDirection(message.direction)
+	return {
+		...message,
+		direction,
+		status: direction === 'in' ? 'received' : direction === 'out' ? 'sent' : 'received',
+		attachments: message.attachments.map(attachment => ({
+			...attachment,
+			direction: attachment.direction === 'out' ? 'in' : 'out',
+			speedBps: undefined,
+			etaSeconds: undefined,
+		})),
+	}
 }
 
 function fileRecord(messageIdValue: string, attachment: LanAttachment, peerName?: string): LanFileRecord {
@@ -215,6 +246,7 @@ export class LanConnectionRuntime {
 			entry.offered = false
 		})
 		void this.sendLocalCapability().then(() => {
+			this.sendChatHistory()
 			this.sendControl({ ...this.controlBase('resume-query'), ids: Array.from(this.prepared.keys()) })
 			this.flushOffersAndQueue()
 		})
@@ -368,6 +400,12 @@ export class LanConnectionRuntime {
 	private sendControl(message: LanControlMessage) {
 		if (!this.transport?.isOpen()) return false
 		return this.transport.send(encodeControl(message))
+	}
+
+	private sendChatHistory() {
+		const messages = this.context?.getHistory?.() || []
+		if (!messages.length) return
+		this.sendControl({ ...this.controlBase('chat-history'), messages: messages.map(historyMessageForSync) })
 	}
 
 	private async detectLocalCapability(fileSize = 0) {
@@ -588,6 +626,7 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'chat-message') return this.emit({ type: 'message-upsert', message: { id: message.id, direction: 'in', kind: 'text', text: message.text, attachments: [], status: 'received', createdAt: message.createdAt, peerId: message.peerId } })
+		if (message.type === 'chat-history') return this.emit({ type: 'history-merge', messages: message.messages.map(historyMessageFromRemote) })
 		if (message.type === 'attachment-offer') return void (await this.handleOffer(message))
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)
