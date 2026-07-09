@@ -239,7 +239,7 @@ export class LanSignalingClient {
 	}
 
 	sendSignal(to: string, signal: unknown) {
-		return this.send('signal', to, { signal })
+		return this.send('signal', to, { peer: this.session.localPeer, signal })
 	}
 
 	async close() {
