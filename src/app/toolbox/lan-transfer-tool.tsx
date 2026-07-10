@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { AudioLines, CheckCheck, ChevronLeft, Copy, Download, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Pause, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
+import { AudioLines, CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Pause, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
 import PlaySVG from '@/svgs/play.svg'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
@@ -84,6 +84,15 @@ function formatTransferProgress(attachment: LanAttachment, compact = false) {
 	if (speed) parts.push(speed)
 	const eta = formatEta(attachment.etaSeconds)
 	if (!compact && eta) parts.push(`剩余 ${eta}`)
+	return parts.join(' · ')
+}
+
+function formatTransferMeta(attachment: LanAttachment) {
+	const parts = [`${formatBytes(transferBytes(attachment))} / ${formatBytes(attachment.size)}`]
+	const speed = formatTransferSpeed(attachment.speedBps)
+	if (speed) parts.push(speed)
+	const eta = formatEta(attachment.etaSeconds)
+	if (eta) parts.push(`剩余 ${eta}`)
 	return parts.join(' · ')
 }
 
@@ -265,40 +274,53 @@ function FileAttachmentCard({
 	const transferring = !complete && !failed && !waitingReceive
 	const canDownload = Boolean(attachment.url)
 	const canAct = waitingReceive || canDownload
-	const displayName = compactFileName(attachment.name)
-	const detailText = transferring ? formatTransferProgress(attachment) : waitingReceive ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)
+	const displayName = compactFileName(attachment.name, 30)
+	const detailText = transferring ? formatTransferMeta(attachment) : waitingReceive ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)
 	const handleAction = () => {
 		if (waitingReceive) return onStartReceive(attachment.id)
 		if (attachment.url) onDownload(attachment.name, attachment.url)
 	}
-	return (
-		<div className={cn('w-[320px] max-w-[72vw] rounded-xl px-4 py-3 shadow-sm sm:w-[390px]', failed ? 'border border-red-300 bg-red-500/10' : 'bg-article')}>
-			<div className='flex min-w-0 items-center gap-4'>
+	const cardClassName = cn(
+		'w-[320px] max-w-[72vw] rounded-xl px-3 py-3 text-left shadow-sm transition sm:w-[390px]',
+		failed ? 'border border-red-300 bg-red-500/10' : 'bg-article',
+		canAct && 'cursor-pointer hover:bg-article/90 active:scale-[0.99]'
+	)
+	const content = (
+		<>
+			<div className='flex min-w-0 items-start gap-3'>
+				<div className='flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand'>
+					<FileArchive size={20} />
+				</div>
 				<div className='min-w-0 flex-1'>
-					<p title={attachment.name} className='line-clamp-2 min-h-[2.9rem] break-all text-base font-semibold leading-[1.45] text-primary'>
+					<p title={attachment.name} className='truncate text-base font-semibold leading-6 text-primary'>
 						{displayName}
 					</p>
-					<p className='text-secondary mt-3 text-sm leading-5'>
+					{transferring && (
+						<div className='mt-2 flex items-center gap-2'>
+							<span className='border-brand/25 bg-brand/10 text-brand shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums'>{progressLabel(attachment.progress)}</span>
+							<div className='h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-background/45' title={formatTransferProgress(attachment)}>
+								<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
+							</div>
+						</div>
+					)}
+					<p className='text-secondary mt-2 truncate text-sm leading-5'>
 						{detailText}
 					</p>
 				</div>
-				<button
-					onClick={handleAction}
-					disabled={!canAct}
-					className='flex size-14 shrink-0 items-center justify-center rounded-md bg-brand/40 text-background transition hover:bg-brand/55 disabled:cursor-default disabled:opacity-55'
-					aria-label={waitingReceive ? '接收文件' : '下载文件'}
-				>
-					<span className='flex size-9 items-center justify-center rounded-full bg-background/65 text-primary shadow-sm'>
-						<Download size={20} />
-					</span>
-				</button>
 			</div>
-			{transferring && (
-				<div className='mt-3 h-1.5 overflow-hidden rounded-full bg-background/40' title={formatTransferProgress(attachment)}>
-					<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
-				</div>
-			)}
 			{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}
+		</>
+	)
+	if (canAct) {
+		return (
+			<button type='button' onClick={handleAction} className={cardClassName} aria-label={waitingReceive ? '接收文件' : '下载文件'}>
+				{content}
+			</button>
+		)
+	}
+	return (
+		<div className={cardClassName}>
+			{content}
 		</div>
 	)
 }
@@ -391,22 +413,6 @@ function MessageList({
 	)
 }
 
-function EmptyWorkspace({ controller, onToggleQr }: { controller: LanController; onToggleQr: () => void }) {
-	const hasHostInvite = controller.session?.role === 'host'
-	return (
-		<div className='border-brand/20 bg-brand/5 flex min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed p-5 text-center sm:min-h-[420px] sm:p-8'>
-			<div className='border-brand/25 bg-brand/10 text-brand flex size-16 items-center justify-center rounded-3xl border'>
-				<QrCode size={30} />
-			</div>
-			<h2 className='mt-4 text-xl font-semibold'>{controller.session ? '等待连接' : '连接另一台设备'}</h2>
-			<p className='text-secondary mt-2 max-w-[420px] text-sm leading-6'>{controller.session ? controller.roomStatus : '创建二维码，让其他设备扫码连接。'}</p>
-			<button onClick={onToggleQr} disabled={controller.busy} className='bg-brand text-background mt-5 rounded-2xl px-5 py-3 text-sm font-semibold disabled:opacity-50'>
-				{hasHostInvite ? '显示二维码' : '创建二维码'}
-			</button>
-		</div>
-	)
-}
-
 function InvitePanel({ controller }: { controller: LanController }) {
 	if (!controller.session) return null
 	if (controller.session.role !== 'host') {
@@ -418,7 +424,7 @@ function InvitePanel({ controller }: { controller: LanController }) {
 	}
 	return (
 		<div className='border-brand/20 bg-brand/5 rounded-[24px] border border-dashed p-4 text-center shadow-sm'>
-			<div className='bg-article mx-auto flex size-[236px] items-center justify-center rounded-2xl border border-border shadow-sm'>
+			<div className='lan-session-qr-canvas bg-article mx-auto flex size-[236px] items-center justify-center rounded-2xl border border-border shadow-sm'>
 				{controller.qrDataUrl ? <img src={controller.qrDataUrl} alt='扫码连接' className='size-[210px]' /> : <span className='text-secondary text-sm'>生成中</span>}
 			</div>
 			<button onClick={() => void controller.copyInvite()} disabled={!controller.inviteLink} className='mt-4 inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-article px-4 py-2.5 text-sm font-semibold transition hover:border-brand/45 disabled:opacity-50'>
@@ -468,7 +474,7 @@ function QrControlCard({
 				>
 					<Copy size={16} />
 				</button>
-				<button onClick={onToggleQr} disabled={controller.busy} className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50', qrOpen ? 'border-brand/35 bg-brand text-background' : 'border-border bg-background/40 text-secondary hover:border-brand/45 hover:text-primary')} aria-label={qrOpen ? '隐藏二维码' : '显示二维码'}>
+				<button onClick={onToggleQr} disabled={controller.busy} className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50', qrOpen ? 'border-primary/25 bg-brand text-primary shadow-sm' : 'border-border bg-background/40 text-secondary hover:border-brand/45 hover:text-primary')} aria-label={qrOpen ? '隐藏二维码' : '显示二维码'}>
 					<QrCode size={16} />
 				</button>
 			</div>
@@ -627,13 +633,9 @@ function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr }: { con
 function ChatPane({
 	controller,
 	onBack,
-	onToggleQr,
-	showEmptyCreate = true,
 }: {
 	controller: LanController
 	onBack?: () => void
-	onToggleQr: () => void
-	showEmptyCreate?: boolean
 }) {
 	const scrollRef = useRef<HTMLDivElement | null>(null)
 	const activeConnection = controller.activeConnection
@@ -676,32 +678,20 @@ function ChatPane({
 				</button>
 			</header>
 			<div ref={scrollRef} className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
-				{controller.session ? (
-					activeConnection ? (
-						messages.length ? (
-							<MessageList
-								messages={messages}
-								peerName={peerName}
-								peerAvatarSeed={activeConnection.peer.avatarSeed}
-								peerDeviceType={activeConnection.peer.deviceType}
-								localAvatarSeed={localPeer?.avatarSeed}
-								localDeviceType={localPeer?.deviceType}
-								onDownload={controller.downloadAttachment}
-								onStartReceive={controller.startReceivingAttachment}
-							/>
-						) : (
-							<div className='text-secondary py-20 text-center text-sm'>还没有消息</div>
-						)
-					) : (
-						<EmptyWorkspace controller={controller} onToggleQr={onToggleQr} />
-					)
-				) : !showEmptyCreate ? (
-					<div className='text-secondary py-20 text-center text-sm'>先在设备页创建或连接设备</div>
-				) : (
-					<EmptyWorkspace controller={controller} onToggleQr={onToggleQr} />
+				{activeConnection && messages.length > 0 && (
+					<MessageList
+						messages={messages}
+						peerName={peerName}
+						peerAvatarSeed={activeConnection.peer.avatarSeed}
+						peerDeviceType={activeConnection.peer.deviceType}
+						localAvatarSeed={localPeer?.avatarSeed}
+						localDeviceType={localPeer?.deviceType}
+						onDownload={controller.downloadAttachment}
+						onStartReceive={controller.startReceivingAttachment}
+					/>
 				)}
 			</div>
-			<div className='shrink-0 border-t border-border bg-article p-3 max-lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4'>
+			<div className='shrink-0 p-3 max-lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4'>
 				<ChatComposer
 					connected={controller.activeConnected}
 					recorderState={controller.recorder.state}
@@ -782,7 +772,7 @@ function MobileShell({ controller, onSwitchRelay, qrOpen, onToggleQr }: { contro
 	return (
 		<div className='h-full lg:hidden'>
 			{page === 'chat' ? (
-				<ChatPane controller={controller} onBack={() => setPage('devices')} onToggleQr={onToggleQr} showEmptyCreate={false} />
+				<ChatPane controller={controller} onBack={() => setPage('devices')} />
 			) : (
 				<DevicePage
 					controller={controller}
@@ -804,8 +794,10 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 	const [qrOpen, setQrOpen] = useState(false)
 	useEffect(() => {
 		const previousOverflow = document.body.style.overflow
+		document.body.classList.add('lan-session-active')
 		document.body.style.overflow = 'hidden'
 		return () => {
+			document.body.classList.remove('lan-session-active')
 			document.body.style.overflow = previousOverflow
 		}
 	}, [])
@@ -825,10 +817,10 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 	}
 
 	const app = (
-		<div className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden bg-bg text-primary'>
+		<div className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'>
 			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
 				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
-				<ChatPane controller={controller} onToggleQr={handleToggleQr} />
+				<ChatPane controller={controller} />
 			</div>
 			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
 		</div>
