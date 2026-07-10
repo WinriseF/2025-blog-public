@@ -210,31 +210,21 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 
 	useEffect(() => {
 		if (!source || failed || !playerRef.current) return
-		const rootStyle = getComputedStyle(document.documentElement)
 		const player = new WaveformPlayer(playerRef.current, {
 			url: source,
-			height: 40,
-			waveformStyle: 'mirror',
-			barWidth: 3,
-			barSpacing: 2,
-			barRadius: 2,
-			buttonSize: 44,
 			showInfo: false,
-			showTime: false,
 			enableMediaSession: false,
-			waveformColor: outgoing ? 'rgba(255, 255, 255, .35)' : rootStyle.getPropertyValue('--color-secondary').trim(),
-			progressColor: outgoing ? '#fff' : rootStyle.getPropertyValue('--color-brand').trim(),
 			playPauseLabel: '播放或暂停语音',
 			seekLabel: '调整语音播放位置',
 			errorText: '语音加载失败',
 		})
 		return () => player.destroy()
-	}, [failed, outgoing, source])
+	}, [failed, source])
 
 	return (
 		<div className={cn('w-[76vw] min-w-[230px] max-w-[320px] rounded-[24px] px-3 py-2.5 shadow-sm', outgoing ? 'rounded-br-md bg-brand text-background' : 'rounded-bl-md bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
 			<div className='flex items-center gap-3'>
-				<div className={cn('lan-voice-player min-w-0 flex-1', outgoing && 'lan-voice-player-outgoing')}>
+				<div className='min-w-0 flex-1'>
 					{playable ? <div ref={playerRef} /> : <div className='h-10 rounded-full bg-background/25' />}
 				</div>
 				<span className={cn('shrink-0 text-sm font-semibold tabular-nums', outgoing ? 'text-background/90' : 'text-primary')}>{statusText}</span>
