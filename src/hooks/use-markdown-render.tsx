@@ -38,7 +38,7 @@ function decodeHtmlAttribute(value: string): string {
 
 function parseMarkdownHtml(html: string): ReactElement {
 	const codeBlocks: Array<{ placeholder: string; code: string; preHtml: string }> = []
-	const processedHtml = html.replace(/<pre\s+data-code="([^"]*)"([^>]*)>([\s\S]*?)<\/pre>/g, (match, codeAttr, attrs, content) => {
+	const processedHtml = html.replace(/<pre\s+data-code="([^"]*)"(?:[^>]*)>([\s\S]*?)<\/pre>/g, (_match, codeAttr, content) => {
 		const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`
 		const code = decodeHtmlAttribute(codeAttr)
 		codeBlocks.push({

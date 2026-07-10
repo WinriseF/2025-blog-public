@@ -93,7 +93,6 @@ export default function CalendarPage() {
 	const almanac = getAlmanacDay(now.toDate())
 	const solarTerms = buildSolarTerms(year)
 	const allSolarTerms = [...solarTerms, ...buildSolarTerms(year + 1)]
-	const nextSolarTerm = allSolarTerms.find(term => term.date.isAfter(now, 'day')) || allSolarTerms[0]
 	const upcomingTerms = allSolarTerms.filter(term => term.date.isAfter(now.subtract(1, 'day'))).slice(0, 5)
 	const termPairs = solarTerms.filter(term => term.date.month() === now.month()).slice(0, 2)
 	const dayOfYear = now.diff(now.startOf('year'), 'day') + 1

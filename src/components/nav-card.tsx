@@ -178,4 +178,6 @@ export default function NavCard() {
 				)}
 			</Card>
 		)
+
+	return null
 }

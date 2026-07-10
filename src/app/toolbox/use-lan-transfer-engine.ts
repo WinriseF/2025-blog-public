@@ -304,26 +304,6 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return runtime.acceptAttachment(id)
 	}, [getActiveRuntime])
 
-	const addSystemMessage = useCallback((text: string, peerId = activePeerIdRef.current) => {
-		if (!peerId) return
-		dispatch({
-			type: 'chat',
-			peerId,
-			action: {
-				type: 'upsert-message',
-				message: {
-					id: `system-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-					direction: 'system',
-					kind: 'system',
-					text,
-					attachments: [],
-					status: 'received',
-					createdAt: Date.now(),
-				},
-			},
-		})
-	}, [])
-
 	useEffect(() => () => {
 		managedRef.current.forEach(entry => entry.runtime.destroy())
 		managedRef.current.clear()
@@ -331,13 +311,11 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 
 	const connections = useMemo(() => records.map(toView), [records])
 	const activeConnection = useMemo(() => connections.find(item => item.peerId === activePeerId) || null, [activePeerId, connections])
-	const connected = useMemo(() => connections.some(item => item.connected), [connections])
 
 	return {
 		connections,
 		activePeerId,
 		activeConnection,
-		connected,
 		ensureConnection,
 		patchConnection,
 		attachPeer,
@@ -346,11 +324,9 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		resetAll,
 		handlePeerData,
 		selectConnection: setActivePeerId,
-		addSystemMessage,
 		sendText,
 		sendFiles,
 		startReceivingAttachment,
-		clearFileRecord: (id: string) => getActiveRuntime()?.clearReceivedFile(id),
 		downloadAttachment: (name: string, url: string) => downloadUrl(name, url),
 	}
 }

@@ -1,6 +1,3 @@
-'use client'
-
-import { useCallback, useReducer } from 'react'
 import type { LanAttachment, LanAttachmentStatus, LanChatMessage, LanFileRecord, LanMessageStatus } from '@/lib/lan-transfer/types'
 
 export type LanChatState = {
@@ -141,44 +138,3 @@ export function lanChatReducer(state: LanChatState, action: LanChatAction): LanC
 	if (action.type === 'patch-file-record') return { ...state, fileRecords: state.fileRecords.map(record => (record.id === action.id ? { ...record, ...action.patch } : record)) }
 	return state
 }
-
-export function useLanChatState() {
-	const [state, dispatch] = useReducer(lanChatReducer, createEmptyLanChatState())
-
-	const upsertMessage = useCallback((message: LanChatMessage) => dispatch({ type: 'upsert-message', message }), [])
-	const upsertAttachment = useCallback((message: Omit<LanChatMessage, 'attachments'>, attachment: LanAttachment) => dispatch({ type: 'upsert-attachment', message, attachment }), [])
-	const patchMessage = useCallback((id: string, patch: MessagePatch) => dispatch({ type: 'patch-message', id, patch }), [])
-	const patchAttachment = useCallback((patch: AttachmentPatch) => dispatch({ type: 'patch-attachment', patch }), [])
-	const upsertFileRecord = useCallback((record: LanFileRecord) => dispatch({ type: 'upsert-file-record', record }), [])
-	const patchFileRecord = useCallback((id: string, patch: Partial<LanFileRecord>) => dispatch({ type: 'patch-file-record', id, patch }), [])
-	const addSystemMessage = useCallback((text: string) => {
-		upsertMessage({
-			id: `system-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-			direction: 'system',
-			kind: 'system',
-			text,
-			attachments: [],
-			status: 'received',
-			createdAt: Date.now(),
-		})
-	}, [upsertMessage])
-
-	const patchAttachmentStatus = useCallback((id: string, messageId: string, status: LanAttachmentStatus, progress?: number, error?: string) => {
-		patchAttachment({ id, messageId, status, progress, error })
-		patchFileRecord(id, { status })
-	}, [patchAttachment, patchFileRecord])
-
-	return {
-		...state,
-		upsertMessage,
-		upsertAttachment,
-		patchMessage,
-		patchAttachment,
-		upsertFileRecord,
-		patchFileRecord,
-		patchAttachmentStatus,
-		addSystemMessage,
-	}
-}
-
-export type LanChatController = ReturnType<typeof useLanChatState>

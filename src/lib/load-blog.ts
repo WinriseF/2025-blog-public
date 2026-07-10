@@ -15,10 +15,7 @@ export type LoadedBlog = {
 
 const blogCache = new Map<string, LoadedBlog>()
 
-/**
- * Load blog data from public/blogs/{slug}
- * Used by both view page and edit page
- */
+/** Load blog data from public/blogs/{slug}. */
 export async function loadBlog(slug: string): Promise<LoadedBlog> {
 	if (!slug) {
 		throw new Error('Slug is required')

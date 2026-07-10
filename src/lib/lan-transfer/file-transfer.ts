@@ -15,10 +15,6 @@ function transferId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function safeBlobPart(bytes: Uint8Array) {
-	return bytes as unknown as BlobPart
-}
-
 function receivedBytesFromRanges(file: PreparedLanAttachment, ranges: ChunkRange[]) {
 	let total = 0
 	for (const [start, end] of ranges) {
@@ -200,8 +196,4 @@ export function downloadUrl(name: string, url: string) {
 	document.body.appendChild(link)
 	link.click()
 	link.remove()
-}
-
-export function bytesToFile(bytes: Uint8Array, name: string, type: string) {
-	return new File([safeBlobPart(bytes)], name, { type, lastModified: Date.now() })
 }

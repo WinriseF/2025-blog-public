@@ -75,10 +75,6 @@ function getBaseMapKeyForDate(date: Date) {
 	return getSubsolarPoint(date).lat >= 0 ? 'summer-high' : 'winter-high'
 }
 
-interface AnnualSubsolarPoint extends Coordinates {
-	date: Date
-}
-
 const visibleSolarTermLabels = new Set(['立春', '春分', '立夏', '夏至', '立秋', '秋分', '立冬', '冬至'])
 
 function getDaysInUtcYear(year: number) {

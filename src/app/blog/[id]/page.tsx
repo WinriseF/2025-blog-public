@@ -6,7 +6,6 @@ import dayjs from 'dayjs'
 import { BlogPreview } from '@/components/blog-preview'
 import { loadBlog, type LoadedBlog } from '@/lib/load-blog'
 import { useReadArticles } from '@/hooks/use-read-articles'
-import LiquidGrass from '@/components/liquid-grass'
 import { ReadingProgressBar } from '@/components/reading-progress-bar'
 
 export default function Page() {
@@ -68,8 +67,6 @@ export default function Page() {
 				cover={blog.cover}
 				slug={slug}
 			/>
-
-			{slug === 'liquid-grass' && <LiquidGrass />}
 		</>
 	)
 }

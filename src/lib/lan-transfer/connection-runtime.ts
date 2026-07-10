@@ -1,7 +1,6 @@
 import { assertCanReceiveFile, detectLanCapability, selectStorageForFile } from './capability'
 import {
 	decodeFrame,
-	downloadUrl,
 	encodeControl,
 	formatBytes,
 	imagePreviewUrl,
@@ -330,18 +329,6 @@ export class LanConnectionRuntime {
 			this.sendControl({ ...this.controlBase('attachment-cancel'), id, messageId: offer.messageId, reason })
 			this.setStatus(reason)
 		}
-	}
-
-	clearReceivedFile(id: string) {
-		const cached = this.receivedCache.get(id)
-		if (cached?.url) URL.revokeObjectURL(cached.url)
-		if (cached) void cached.engine.cleanup(cached.fileId).catch(() => {})
-		this.receivedCache.delete(id)
-		this.emit({ type: 'file-record-patch', id, patch: { status: 'cancelled', url: undefined } })
-	}
-
-	downloadAttachment(name: string, url: string) {
-		downloadUrl(name, url)
 	}
 
 	private emit(event: LanConnectionRuntimeEvent) {
