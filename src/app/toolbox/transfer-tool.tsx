@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ClipboardEvent } from 'react'
+import { useEffect, useState, type ClipboardEvent, type MouseEvent } from 'react'
 import { Copy, Download, Globe2, Image as ImageIcon, Link as LinkIcon, Network, QrCode, Send, UploadCloud, X } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
@@ -96,6 +96,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [openedFile, setOpenedFile] = useState<OpenedRelayFile | null>(null)
 	const [status, setStatus] = useState('')
 	const [busy, setBusy] = useState(false)
+	const [lanOrigin, setLanOrigin] = useState<{ x: number; y: number } | null>(null)
 	const isCodeEntry = Boolean(normalizeCode(initialCode))
 
 	useEffect(() => void cleanupLanTransferPersistentStorage(), [])
@@ -458,28 +459,19 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		</section>
 	)
 	const relaySections = isCodeEntry ? [receiveSection, sendSection] : [sendSection, receiveSection]
-
-	if (mode === 'lan') {
-		return (
-			<LanTransferTool
-				initialInvite={lanInvite}
-				onSwitchRelay={() => setMode('relay')}
-				onLeaveSession={() => {
-					setLanInvite(null)
-					if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
-				}}
-			/>
-		)
+	const openLanMode = (event: MouseEvent<HTMLButtonElement>) => {
+		const rect = event.currentTarget.getBoundingClientRect()
+		setLanOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+		setMode('lan')
 	}
-
-	return (
-		<div className='space-y-5 max-sm:px-4'>
+	const relayView = (
+		<div aria-hidden={mode === 'lan'} className={`space-y-5 max-sm:px-4 ${mode === 'lan' ? 'lan-session-underlay' : ''}`}>
 			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
 				<button onClick={() => setMode('relay')} className='flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-xs font-medium text-primary'>
 					<Globe2 size={15} />
 					公网中转
 				</button>
-				<button onClick={() => setMode('lan')} className='text-secondary flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium hover:bg-brand/5'>
+				<button onClick={openLanMode} className='text-secondary flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium hover:bg-brand/5'>
 					<Network size={15} />
 					局域网互传
 				</button>
@@ -489,5 +481,24 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				{relaySections}
 			</div>
 		</div>
+	)
+
+	if (mode !== 'lan') return relayView
+	return (
+		<>
+			{relayView}
+			<LanTransferTool
+				initialInvite={lanInvite}
+				entryOrigin={lanOrigin}
+				onSwitchRelay={() => {
+					setMode('relay')
+					setLanOrigin(null)
+				}}
+				onLeaveSession={() => {
+					setLanInvite(null)
+					if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
+				}}
+			/>
+		</>
 	)
 }

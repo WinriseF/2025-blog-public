@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type CSSProperties, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import WaveformPlayer from '@arraypress/waveform-player'
 import { CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, PanelLeftClose, Paperclip, QrCode, Send, Smartphone, X } from 'lucide-react'
@@ -14,6 +14,7 @@ type LanTransferToolProps = {
 		roomId: string
 		token: string
 	} | null
+	entryOrigin?: { x: number; y: number } | null
 	onLeaveSession?: () => void
 	onSwitchRelay?: () => void
 }
@@ -780,7 +781,7 @@ function MobileShell({ controller, onSwitchRelay, qrOpen, onToggleQr }: { contro
 	)
 }
 
-export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
+export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
 	const [qrOpen, setQrOpen] = useState(false)
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -809,7 +810,10 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 	}
 
 	const app = (
-		<div className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'>
+		<div
+			className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
+			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
+		>
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[96px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
 				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				<ChatPane controller={controller} />

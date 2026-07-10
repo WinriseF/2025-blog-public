@@ -532,9 +532,8 @@
 	color: var(--news-muted);
 }
 
-/* LAN transfer stays a focused workbench while letting the time atmosphere remain present. */
-body.lan-session-active main {
-	visibility: hidden;
+.lan-session-active main {
+	animation: lan-session-underlay-exit 520ms ease-out both;
 	pointer-events: none;
 }
 
@@ -543,6 +542,7 @@ body.lan-session-active main {
 	--lan-pane: color-mix(in srgb, var(--color-bg) 38%, transparent);
 	--lan-surface: color-mix(in srgb, var(--color-article) 76%, transparent);
 	--lan-surface-strong: color-mix(in srgb, var(--color-article) 91%, transparent);
+	animation: lan-session-expand 520ms cubic-bezier(0.65, 0, 0.35, 1) both;
 	background:
 		radial-gradient(circle at 84% 8%, color-mix(in srgb, var(--color-brand-secondary) 18%, transparent), transparent 30%),
 		radial-gradient(circle at 12% 90%, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent 34%),
@@ -551,8 +551,27 @@ body.lan-session-active main {
 }
 
 .lan-session-v6 > div {
+	animation: lan-session-content-enter 260ms ease-out 100ms both;
 	position: relative;
 	z-index: 1;
+}
+
+@keyframes lan-session-expand {
+	from { clip-path: circle(22px at var(--lan-enter-x) var(--lan-enter-y)); }
+	to { clip-path: circle(150vmax at var(--lan-enter-x) var(--lan-enter-y)); }
+}
+
+@keyframes lan-session-content-enter {
+	from { opacity: 0; }
+}
+
+.lan-session-underlay {
+	pointer-events: none;
+}
+
+@keyframes lan-session-underlay-exit {
+	0%, 55% { opacity: 1; }
+	100% { opacity: 0; }
 }
 
 .lan-session-v6 .bg-background\/30 {
@@ -613,7 +632,11 @@ html[data-time-theme='night'] .lan-session-v6 {
 @media (prefers-reduced-motion: reduce) {
 	[data-time-atmosphere],
 	[data-time-atmosphere] *,
-	.news-panel-enter {
+	.news-panel-enter,
+	.lan-session-underlay,
+	.lan-session-active main,
+	.lan-session-v6,
+	.lan-session-v6 > div {
 		animation-duration: 1ms !important;
 		animation-iteration-count: 1 !important;
 		scroll-behavior: auto !important;
