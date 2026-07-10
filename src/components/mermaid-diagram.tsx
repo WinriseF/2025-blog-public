@@ -6,9 +6,11 @@ type MermaidDiagramProps = {
 	chart: string
 }
 
+type MermaidTheme = 'default' | 'dark'
+
 let renderSerial = 0
 
-function getMermaidTheme() {
+function getMermaidTheme(): MermaidTheme {
 	if (typeof document === 'undefined') return 'default'
 	return document.documentElement.dataset.timeTheme === 'night' ? 'dark' : 'default'
 }

@@ -25,7 +25,7 @@ type CloudDatum = {
 	y?: number
 }
 
-type PlacedWord = Required<Pick<CloudDatum, 'text' | 'count' | 'weight' | 'size' | 'fontWeight' | 'color' | 'rotate' | 'x' | 'y'>>
+type PlacedWord = Required<Pick<CloudDatum, 'text' | 'count' | 'weight' | 'rank' | 'size' | 'fontWeight' | 'color' | 'rotate' | 'x' | 'y'>>
 type CloudBounds = [{ x: number; y: number }, { x: number; y: number }]
 type WordCloudLayout = {
 	words: PlacedWord[]

@@ -99,7 +99,7 @@ export function useScrollProgress() {
 		updateProgressValue(maxScroll > 0 ? getProgressValue(targetProgress) : 0)
 		window.scrollTo({
 			top: maxScroll * targetProgress,
-			behavior: 'instant'
+			behavior: 'auto'
 		})
 	}, [updateProgressValue])
 
