@@ -141,12 +141,21 @@ function ImageAttachmentCard({
 	attachment,
 	onDownload,
 }: AttachmentCardProps) {
+	const [previewOpen, setPreviewOpen] = useState(false)
 	const source = attachment.previewUrl || attachment.url
 	const downloadableUrl = attachment.url || attachment.previewUrl
 	const complete = attachment.status === 'complete'
 	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
 	const transferring = !complete && !failed
 	const hasFooter = transferring || Boolean(attachment.error)
+	useEffect(() => {
+		if (!previewOpen) return
+		const closeOnEscape = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setPreviewOpen(false)
+		}
+		window.addEventListener('keydown', closeOnEscape)
+		return () => window.removeEventListener('keydown', closeOnEscape)
+	}, [previewOpen])
 	if (!source) {
 		return (
 			<div className={cn('w-[260px] max-w-[68vw] rounded-2xl border px-4 py-3 shadow-sm', failed ? 'border-red-300 bg-red-500/10' : 'border-border bg-article')}>
@@ -168,28 +177,39 @@ function ImageAttachmentCard({
 		)
 	}
 	return (
-		<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
-			<a href={source} target='_blank' rel='noopener noreferrer' title='在新标签页打开图片' className='block'>
-				<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
-			</a>
-			{transferring && (
-				<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
-					<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
-						<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
-						<span>{formatTransferProgress(attachment, true)}</span>
-					</div>
-					<div className='h-1 overflow-hidden rounded-full bg-background/50'>
-						<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
-					</div>
-				</div>
-			)}
-			{downloadableUrl && (
-				<button onClick={() => onDownload(attachment.name, downloadableUrl)} className={cn('absolute right-2 flex size-9 items-center justify-center rounded-full border border-border bg-background/80 text-primary shadow-sm backdrop-blur transition hover:border-brand/45', hasFooter ? 'bottom-12' : 'bottom-2')} aria-label='下载图片'>
-					<Download size={16} />
+		<>
+			<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
+				<button type='button' onClick={() => setPreviewOpen(true)} className='block cursor-zoom-in' aria-label={`查看图片：${attachment.name}`}>
+					<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
 				</button>
+				{transferring && (
+					<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
+						<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
+							<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
+							<span>{formatTransferProgress(attachment, true)}</span>
+						</div>
+						<div className='h-1 overflow-hidden rounded-full bg-background/50'>
+							<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
+						</div>
+					</div>
+				)}
+				{downloadableUrl && (
+					<button onClick={() => onDownload(attachment.name, downloadableUrl)} className={cn('absolute right-2 flex size-9 items-center justify-center rounded-full border border-border bg-background/80 text-primary shadow-sm backdrop-blur transition hover:border-brand/45', hasFooter ? 'bottom-12' : 'bottom-2')} aria-label='下载图片'>
+						<Download size={16} />
+					</button>
+				)}
+				{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
+			</div>
+			{previewOpen && createPortal(
+				<div role='dialog' aria-modal='true' aria-label={`查看图片：${attachment.name}`} onClick={event => event.currentTarget === event.target && setPreviewOpen(false)} className='fixed inset-0 z-[1001] flex items-center justify-center bg-black/80 p-5'>
+					<img src={source} alt={attachment.name} className='max-h-[calc(100dvh-2.5rem)] max-w-full object-contain' />
+					<button type='button' onClick={() => setPreviewOpen(false)} className='absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-black/55 text-white' aria-label='关闭图片预览'>
+						<X size={20} />
+					</button>
+				</div>,
+				document.body
 			)}
-			{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
-		</div>
+		</>
 	)
 }
 
