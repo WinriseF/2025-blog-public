@@ -542,7 +542,7 @@ function ConnectionCard({
 	collapsed?: boolean
 }) {
 	return (
-		<button onClick={onSelect} title={collapsed ? `${connection.peer.name} · ${connectionStatusText(connection)}` : undefined} className={cn('flex items-center border shadow-sm transition', collapsed ? 'size-[72px] justify-center rounded-full p-2' : 'w-full gap-3 rounded-3xl p-4 text-left', active ? 'border-brand/35 bg-brand/10' : 'border-border bg-article hover:border-brand/30')}>
+		<button onClick={onSelect} title={collapsed ? `${connection.peer.name} · ${connectionStatusText(connection)}` : undefined} className={cn('flex items-center border shadow-sm transition', collapsed ? 'size-14 justify-center rounded-full p-1' : 'w-full gap-3 rounded-3xl p-4 text-left', active ? 'border-brand/35 bg-brand/10' : 'border-border bg-article hover:border-brand/30')}>
 			<DeviceAvatar type={connection.peer.deviceType} avatarSeed={connection.peer.avatarSeed} active={connection.connected || active} />
 			{!collapsed && (
 				<>
@@ -575,7 +575,7 @@ function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr, collaps
 		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-background/30 lg:block'>
 			<button
 				onClick={onToggleCollapse}
-				className={cn('text-secondary absolute top-7 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background/70 transition-[right,color,border-color] duration-300 ease-in-out hover:border-brand/45 hover:text-primary', collapsed ? 'right-[30px]' : 'right-5')}
+				className={cn('text-secondary absolute top-7 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background/70 transition-[right,color,border-color] duration-300 ease-in-out hover:border-brand/45 hover:text-primary', collapsed ? 'right-4' : 'right-5')}
 				aria-label={collapsed ? '展开设备栏' : '收起设备栏'}
 				title={collapsed ? '展开设备栏' : '收起设备栏'}
 			>
@@ -618,7 +618,7 @@ function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr, collaps
 				</div>
 			</div>
 
-			<div aria-hidden={!collapsed} className={cn('absolute inset-x-0 top-24 flex flex-col items-center gap-3 px-3 transition-opacity duration-200', collapsed ? 'opacity-100 delay-150' : 'pointer-events-none opacity-0')}>
+			<div aria-hidden={!collapsed} className={cn('absolute inset-x-0 top-24 flex flex-col items-center gap-3 px-1.5 transition-opacity duration-200', collapsed ? 'opacity-100 delay-150' : 'pointer-events-none opacity-0')}>
 				{controller.connections.map(connection => (
 					<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} collapsed />
 				))}
@@ -814,7 +814,7 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 			className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
 			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
 		>
-			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[96px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
+			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
 				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				<ChatPane controller={controller} />
 			</div>

@@ -3,6 +3,7 @@ import { LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanSto
 
 const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
+const FILE_READ_BATCH_BYTES = 2 * 1024 * 1024
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 const crc32Table = Array.from({ length: 256 }, (_, index) => {
@@ -29,7 +30,7 @@ function receivedBytesFromRanges(file: PreparedLanAttachment, ranges: ChunkRange
 
 function crc32Hex(bytes: Uint8Array) {
 	let crc = 0xffffffff
-	for (const byte of bytes) crc = crc32Table[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+	for (let index = 0; index < bytes.length; index += 1) crc = crc32Table[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8)
 	return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0')
 }
 
@@ -144,7 +145,7 @@ export function decodeFrame(data: unknown) {
 	} catch {
 		return null
 	}
-	const chunk = bytes.slice(headerEnd)
+	const chunk = bytes.subarray(headerEnd)
 	if (header.checksum && crc32Hex(chunk) !== header.checksum) return { kind: 'corrupt' as const, id: header.id }
 	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: chunk }
 }
@@ -169,6 +170,8 @@ export async function sendPreparedAttachment(
 	const maxAheadBytes = options.maxAheadBytes || (options.mobile ? LAN_LIMITS.mobileMaxSenderAheadBytes : LAN_LIMITS.maxSenderAheadBytes)
 	const receivedRanges = options.receivedRanges || []
 	let sent = receivedBytesFromRanges(file, receivedRanges)
+	let readBatchOffset = -1
+	let readBatch = new Uint8Array()
 	onProgress(Math.min(file.size, sent))
 	for (let chunkIndex = 0; chunkIndex < file.chunkCount; chunkIndex += 1) {
 		if (hasChunk(receivedRanges, chunkIndex)) continue
@@ -176,8 +179,13 @@ export async function sendPreparedAttachment(
 		await transport.waitUntilWritable(highWatermark, lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs)
 		const offset = chunkIndex * file.chunkSize
 		if (offset >= file.size) continue
-		const blob = file.file.slice(offset, Math.min(offset + file.chunkSize, file.size))
-		const chunk = new Uint8Array(await blob.arrayBuffer())
+		const chunkEnd = Math.min(offset + file.chunkSize, file.size)
+		if (readBatchOffset < 0 || offset < readBatchOffset || chunkEnd > readBatchOffset + readBatch.byteLength) {
+			readBatchOffset = offset
+			readBatch = new Uint8Array(await file.file.slice(offset, Math.min(offset + FILE_READ_BATCH_BYTES, file.size)).arrayBuffer())
+		}
+		const chunkOffset = offset - readBatchOffset
+		const chunk = readBatch.subarray(chunkOffset, chunkOffset + chunkEnd - offset)
 		const frame = encodeChunk(file.id, chunkIndex, chunk)
 		if (frame.byteLength > 64 * 1024) throw new Error('文件发送失败，请重新发送')
 		if (!transport.isOpen() || !transport.send(frame)) throw new Error('连接已断开，请重新连接后再发送')
