@@ -212,6 +212,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 		if (!source || failed || !playerRef.current) return
 		const player = new WaveformPlayer(playerRef.current, {
 			url: source,
+			height: 48,
 			showInfo: false,
 			enableMediaSession: false,
 			playPauseLabel: '播放或暂停语音',
@@ -222,7 +223,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 	}, [failed, source])
 
 	return (
-		<div className={cn('w-[76vw] min-w-[230px] max-w-[320px] rounded-[24px] px-3 py-2.5 shadow-sm', outgoing ? 'rounded-br-md bg-brand text-background' : 'rounded-bl-md bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
+		<div className={cn('w-[72vw] min-w-[215px] max-w-[300px] rounded-[24px] px-3 py-1.5 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
 			<div className='flex items-center gap-3'>
 				<div className='min-w-0 flex-1'>
 					{playable ? <div ref={playerRef} /> : <div className='h-10 rounded-full bg-background/25' />}
