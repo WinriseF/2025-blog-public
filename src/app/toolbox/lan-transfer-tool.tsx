@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import WaveformPlayer from '@arraypress/waveform-player'
-import { CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
+import { CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, PanelLeftClose, Paperclip, QrCode, Send, Smartphone, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
 import { ImagePreviewDialog } from './image-preview-dialog'
@@ -212,7 +212,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 		if (!source || failed || !playerRef.current) return
 		const player = new WaveformPlayer(playerRef.current, {
 			url: source,
-			height: 48,
+			height: 36,
 			showInfo: false,
 			enableMediaSession: false,
 			playPauseLabel: '播放或暂停语音',
@@ -226,7 +226,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 		<div className={cn('w-[72vw] min-w-[215px] max-w-[300px] rounded-[24px] px-3 py-1.5 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
 			<div className='flex items-center gap-3'>
 				<div className='min-w-0 flex-1'>
-					{playable ? <div ref={playerRef} /> : <div className='h-10 rounded-full bg-background/25' />}
+					{playable ? <div ref={playerRef} className='[&_.waveform-container]:min-h-9' /> : <div className='h-9 rounded-full bg-background/25' />}
 				</div>
 				<span className={cn('shrink-0 text-sm font-semibold tabular-nums', outgoing ? 'text-background/90' : 'text-primary')}>{statusText}</span>
 			</div>
@@ -533,19 +533,25 @@ function ConnectionCard({
 	connection,
 	active,
 	onSelect,
+	collapsed = false,
 }: {
 	connection: LanConnectionItem
 	active: boolean
 	onSelect: () => void
+	collapsed?: boolean
 }) {
 	return (
-		<button onClick={onSelect} className={cn('flex w-full items-center gap-3 rounded-3xl border p-4 text-left shadow-sm transition', active ? 'border-brand/35 bg-brand/10' : 'border-border bg-article hover:border-brand/30')}>
+		<button onClick={onSelect} title={collapsed ? `${connection.peer.name} · ${connectionStatusText(connection)}` : undefined} className={cn('flex items-center border shadow-sm transition', collapsed ? 'size-[72px] justify-center rounded-full p-2' : 'w-full gap-3 rounded-3xl p-4 text-left', active ? 'border-brand/35 bg-brand/10' : 'border-border bg-article hover:border-brand/30')}>
 			<DeviceAvatar type={connection.peer.deviceType} avatarSeed={connection.peer.avatarSeed} active={connection.connected || active} />
-			<div className='min-w-0 flex-1'>
-				<p className='truncate text-sm font-semibold'>{connection.peer.name}</p>
-				<p className='text-secondary mt-1 truncate text-xs'>{connectionStatusText(connection)}</p>
-			</div>
-			{connection.connected && <span className='bg-brand/15 text-brand rounded-full px-2 py-1 text-[11px] font-semibold'>在线</span>}
+			{!collapsed && (
+				<>
+					<div className='min-w-0 flex-1'>
+						<p className='truncate text-sm font-semibold'>{connection.peer.name}</p>
+						<p className='text-secondary mt-1 truncate text-xs'>{connectionStatusText(connection)}</p>
+					</div>
+					{connection.connected && <span className='bg-brand/15 text-brand rounded-full px-2 py-1 text-[11px] font-semibold'>在线</span>}
+				</>
+			)}
 		</button>
 	)
 }
@@ -562,47 +568,59 @@ function WaitingConnectionCard({ controller, onToggleQr }: { controller: LanCont
 	)
 }
 
-function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
+function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr, collapsed, onToggleCollapse }: { controller: LanController; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; collapsed: boolean; onToggleCollapse: () => void }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
-		<aside className='hidden min-h-0 w-[360px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border bg-background/30 p-5 lg:flex'>
-			<div className='flex items-center justify-between'>
-				<div>
-					<p className='text-brand text-xs font-semibold tracking-[0.18em] uppercase'>局域网互传</p>
-					<h2 className='mt-1 text-xl font-semibold'>连接设备</h2>
-				</div>
-				<div className='flex items-center gap-2'>
+		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-background/30 lg:block'>
+			<button
+				onClick={onToggleCollapse}
+				className={cn('text-secondary absolute top-7 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background/70 transition-[right,color,border-color] duration-300 ease-in-out hover:border-brand/45 hover:text-primary', collapsed ? 'right-[30px]' : 'right-5')}
+				aria-label={collapsed ? '展开设备栏' : '收起设备栏'}
+				title={collapsed ? '展开设备栏' : '收起设备栏'}
+			>
+				<PanelLeftClose size={18} className={cn('transition-transform duration-300 ease-in-out', collapsed && 'rotate-180')} />
+			</button>
+
+			<div aria-hidden={collapsed} className={cn('flex h-full w-[360px] flex-col gap-4 overflow-y-auto p-5 pr-5 transition-[opacity,transform] duration-200 ease-out', collapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100 delay-100')}>
+				<div className='flex h-14 shrink-0 items-center gap-2 pr-12'>
 					{onSwitchRelay && (
-						<button onClick={onSwitchRelay} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
-							中转站
+						<button onClick={onSwitchRelay} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具' title='返回'>
+							<ChevronLeft size={21} />
 						</button>
 					)}
+					<div className='min-w-0'>
+						<p className='text-brand text-xs font-semibold tracking-[0.18em] uppercase'>局域网互传</p>
+						<h2 className='mt-1 text-xl font-semibold'>连接设备</h2>
+					</div>
 					{controller.session && (
-						<button onClick={controller.leaveSession} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
-							退出
+						<button onClick={controller.leaveSession} className='text-secondary ml-auto shrink-0 rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
+							断开连接
 						</button>
 					)}
-					<button onClick={onToggleQr} disabled={controller.busy} className='text-secondary flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建或显示二维码'>
-						<Plus size={20} />
-					</button>
+				</div>
+				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
+				{qrOpen && <InvitePanel controller={controller} />}
+				<div className='min-h-0 flex-1 space-y-3'>
+					<div className='flex items-center justify-between'>
+						<p className='text-secondary text-xs font-medium'>当前连接</p>
+						<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
+					</div>
+					<div className='space-y-2'>
+						{controller.connections.length ? (
+							controller.connections.map(connection => (
+								<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
+							))
+						) : (
+							<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
+						)}
+					</div>
 				</div>
 			</div>
-			<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
-			{qrOpen && <InvitePanel controller={controller} />}
-			<div className='min-h-0 flex-1 space-y-3'>
-				<div className='flex items-center justify-between'>
-					<p className='text-secondary text-xs font-medium'>当前连接</p>
-					<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
-				</div>
-				<div className='space-y-2'>
-					{controller.connections.length ? (
-						controller.connections.map(connection => (
-							<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
-						))
-					) : (
-						<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
-					)}
-				</div>
+
+			<div aria-hidden={!collapsed} className={cn('absolute inset-x-0 top-24 flex flex-col items-center gap-3 px-3 transition-opacity duration-200', collapsed ? 'opacity-100 delay-150' : 'pointer-events-none opacity-0')}>
+				{controller.connections.map(connection => (
+					<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} collapsed />
+				))}
 			</div>
 		</aside>
 	)
@@ -700,21 +718,16 @@ function DevicePage({
 	return (
 		<div className='flex h-full min-h-0 flex-col bg-background/30'>
 			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
-				<h2 className='text-lg font-semibold'>设备</h2>
 				<div className='flex items-center gap-2'>
-					{onSwitchRelay && (
-						<button onClick={onSwitchRelay} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
-							中转站
-						</button>
-					)}
+					{onSwitchRelay && <button onClick={onSwitchRelay} className='text-secondary -ml-2 flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具'><ChevronLeft size={24} /></button>}
+					<h2 className='text-lg font-semibold'>设备</h2>
+				</div>
+				<div className='flex items-center gap-2'>
 					{controller.session && (
 						<button onClick={controller.leaveSession} className='text-secondary rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'>
-							退出
+							断开连接
 						</button>
 					)}
-					<button onClick={onToggleQr} disabled={controller.busy} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-50' aria-label='创建或显示二维码'>
-						<RefreshCw size={17} />
-					</button>
 				</div>
 			</header>
 			<div className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
@@ -770,6 +783,7 @@ function MobileShell({ controller, onSwitchRelay, qrOpen, onToggleQr }: { contro
 export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
 	const [qrOpen, setQrOpen] = useState(false)
+	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 	useEffect(() => {
 		const previousOverflow = document.body.style.overflow
 		document.body.classList.add('lan-session-active')
@@ -796,8 +810,8 @@ export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitch
 
 	const app = (
 		<div className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'>
-			<div className='hidden h-full lg:grid lg:grid-cols-[360px_minmax(0,1fr)]'>
-				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
+			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[96px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
+				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				<ChatPane controller={controller} />
 			</div>
 			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
