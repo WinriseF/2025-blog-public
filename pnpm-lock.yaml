@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@arraypress/waveform-player':
+        specifier: ^1.20.0
+        version: 1.20.0
       '@edgeone/pages-blob':
         specifier: ^0.0.12
         version: 0.0.12
@@ -144,6 +147,10 @@ packages:
 
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
+
+  '@arraypress/waveform-player@1.20.0':
+    resolution: {integrity: sha512-XVUdhbWh26+U2GbslRsCiCAqIMGRbp0v1QoePjFqz16elnWmycQHxQajWLhh8DE/VT07JAXZ8hiu6tZ3YhFzRQ==}
+    engines: {node: '>=14.0.0'}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -2571,6 +2578,8 @@ snapshots:
     dependencies:
       package-manager-detector: 1.7.0
       tinyexec: 1.2.4
+
+  '@arraypress/waveform-player@1.20.0': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:

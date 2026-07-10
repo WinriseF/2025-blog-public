@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { AudioLines, CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Pause, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
-import PlaySVG from '@/svgs/play.svg'
+import WaveformPlayer from '@arraypress/waveform-player'
+import { CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, Paperclip, Plus, QrCode, RefreshCw, Send, Smartphone, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
+import { ImagePreviewDialog } from './image-preview-dialog'
 import { useLanTransferController } from './use-lan-transfer-controller'
 
 type LanTransferToolProps = {
@@ -148,14 +149,6 @@ function ImageAttachmentCard({
 	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
 	const transferring = !complete && !failed
 	const hasFooter = transferring || Boolean(attachment.error)
-	useEffect(() => {
-		if (!previewOpen) return
-		const closeOnEscape = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') setPreviewOpen(false)
-		}
-		window.addEventListener('keydown', closeOnEscape)
-		return () => window.removeEventListener('keydown', closeOnEscape)
-	}, [previewOpen])
 	if (!source) {
 		return (
 			<div className={cn('w-[260px] max-w-[68vw] rounded-2xl border px-4 py-3 shadow-sm', failed ? 'border-red-300 bg-red-500/10' : 'border-border bg-article')}>
@@ -200,86 +193,58 @@ function ImageAttachmentCard({
 				)}
 				{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
 			</div>
-			{previewOpen && createPortal(
-				<div role='dialog' aria-modal='true' aria-label={`查看图片：${attachment.name}`} onClick={event => event.currentTarget === event.target && setPreviewOpen(false)} className='fixed inset-0 z-[1001] flex items-center justify-center bg-black/80 p-5'>
-					<img src={source} alt={attachment.name} className='max-h-[calc(100dvh-2.5rem)] max-w-full object-contain' />
-					<button type='button' onClick={() => setPreviewOpen(false)} className='absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-black/55 text-white' aria-label='关闭图片预览'>
-						<X size={20} />
-					</button>
-				</div>,
-				document.body
-			)}
+			{previewOpen && <ImagePreviewDialog src={source} alt={attachment.name} onClose={() => setPreviewOpen(false)} />}
 		</>
 	)
 }
 
 function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
-	const audioRef = useRef<HTMLAudioElement | null>(null)
-	const [playing, setPlaying] = useState(false)
-	const [duration, setDuration] = useState(attachment.durationMs ? attachment.durationMs / 1000 : 0)
-	const [currentTime, setCurrentTime] = useState(0)
+	const playerRef = useRef<HTMLDivElement>(null)
 	const source = attachment.url || attachment.previewUrl
 	const outgoing = attachment.direction === 'out'
 	const complete = attachment.status === 'complete'
 	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
 	const transferring = !complete && !failed
 	const playable = Boolean(source && !failed)
-	const playedRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0
-	const plannedDuration = duration || (attachment.durationMs ? attachment.durationMs / 1000 : 0)
-	const statusText = failed ? attachment.error || '播放失败' : transferring ? formatTransferProgress(attachment, true) : formatVoiceTime(playing ? currentTime : plannedDuration)
+	const statusText = failed ? attachment.error || '播放失败' : transferring ? formatTransferProgress(attachment, true) : formatVoiceTime(attachment.durationMs ? attachment.durationMs / 1000 : 0)
 
-	const togglePlayback = async () => {
-		const audio = audioRef.current
-		if (!audio || !playable) return
-		if (audio.paused) {
-			await audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
-			return
-		}
-		audio.pause()
-		setPlaying(false)
-	}
+	useEffect(() => {
+		if (!source || failed || !playerRef.current) return
+		const rootStyle = getComputedStyle(document.documentElement)
+		const player = new WaveformPlayer(playerRef.current, {
+			url: source,
+			height: 40,
+			waveformStyle: 'mirror',
+			barWidth: 3,
+			barSpacing: 2,
+			barRadius: 2,
+			buttonSize: 44,
+			showInfo: false,
+			showTime: false,
+			enableMediaSession: false,
+			waveformColor: outgoing ? 'rgba(255, 255, 255, .35)' : rootStyle.getPropertyValue('--color-secondary').trim(),
+			progressColor: outgoing ? '#fff' : rootStyle.getPropertyValue('--color-brand').trim(),
+			playPauseLabel: '播放或暂停语音',
+			seekLabel: '调整语音播放位置',
+			errorText: '语音加载失败',
+		})
+		return () => player.destroy()
+	}, [failed, outgoing, source])
 
 	return (
-		<div className={cn('flex min-w-[220px] max-w-[74vw] items-center gap-3 rounded-[24px] px-3 py-2.5 shadow-sm sm:min-w-[260px]', outgoing ? 'rounded-br-md bg-brand text-background' : 'rounded-bl-md bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
-			<button
-				onClick={() => void togglePlayback()}
-				disabled={!playable}
-				className={cn('flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm transition disabled:opacity-50', outgoing ? 'bg-background/90 text-brand' : 'bg-brand text-background')}
-				aria-label={playing ? '暂停语音' : '播放语音'}
-			>
-				{playing ? <Pause size={18} /> : <PlaySVG className='ml-0.5 h-4 w-4' />}
-			</button>
-			<div className='min-w-0 flex-1'>
-				<div className='relative h-8 w-28 overflow-hidden sm:w-32'>
-					<AudioLines className={cn('absolute inset-0 h-8 w-28 sm:w-32', outgoing ? 'text-background/45' : 'text-secondary/45')} strokeWidth={2.4} />
-					<div className='absolute inset-y-0 left-0 overflow-hidden' style={{ width: `${Math.max(playing ? 8 : 0, playedRatio * 100)}%` }}>
-						<AudioLines className={cn('h-8 w-28 sm:w-32', outgoing ? 'text-background' : 'text-brand')} strokeWidth={2.4} />
-					</div>
+		<div className={cn('w-[76vw] min-w-[230px] max-w-[320px] rounded-[24px] px-3 py-2.5 shadow-sm', outgoing ? 'rounded-br-md bg-brand text-background' : 'rounded-bl-md bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
+			<div className='flex items-center gap-3'>
+				<div className={cn('lan-voice-player min-w-0 flex-1', outgoing && 'lan-voice-player-outgoing')}>
+					{playable ? <div ref={playerRef} /> : <div className='h-10 rounded-full bg-background/25' />}
 				</div>
-				{transferring && (
+				<span className={cn('shrink-0 text-sm font-semibold tabular-nums', outgoing ? 'text-background/90' : 'text-primary')}>{statusText}</span>
+			</div>
+			{transferring && (
+				<div className='mt-1 px-1'>
 					<div className={cn('mt-1 h-1 overflow-hidden rounded-full', outgoing ? 'bg-background/25' : 'bg-background/50')}>
 						<div className={cn('h-full rounded-full [transition:width_160ms_linear]', outgoing ? 'bg-background' : 'bg-brand')} style={{ width: progressLabel(attachment.progress) }} />
 					</div>
-				)}
-			</div>
-			<span className={cn('shrink-0 text-sm font-semibold tabular-nums', outgoing ? 'text-background/90' : 'text-primary')}>{statusText}</span>
-			{source && (
-				<audio
-					ref={audioRef}
-					src={source}
-					preload='metadata'
-					className='hidden'
-					onLoadedMetadata={event => {
-						const nextDuration = event.currentTarget.duration
-						if (Number.isFinite(nextDuration)) setDuration(nextDuration)
-					}}
-					onTimeUpdate={event => setCurrentTime(event.currentTarget.currentTime || 0)}
-					onPause={() => setPlaying(false)}
-					onEnded={() => {
-						setPlaying(false)
-						setCurrentTime(0)
-					}}
-				/>
+				</div>
 			)}
 		</div>
 	)

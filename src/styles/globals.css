@@ -584,6 +584,35 @@ body.lan-session-active main {
 	background-color: color-mix(in srgb, var(--color-article) 72%, transparent);
 }
 
+.lan-voice-player .waveform-player {
+	--wfp-button-color: var(--color-bg);
+}
+
+.lan-voice-player-outgoing .waveform-player {
+	--wfp-button-color: var(--color-brand);
+}
+
+.lan-voice-player .waveform-track {
+	gap: 12px;
+}
+
+.lan-voice-player .waveform-container {
+	min-height: 40px;
+}
+
+.lan-voice-player .waveform-btn {
+	width: var(--wfp-btn-size);
+	height: var(--wfp-btn-size);
+	min-width: var(--wfp-btn-size);
+	border: 0;
+	background: var(--color-brand);
+	box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.lan-voice-player-outgoing .waveform-btn {
+	background: color-mix(in srgb, var(--color-bg) 88%, white);
+}
+
 html[data-time-theme='night'] .lan-session-v6 {
 	--lan-veil: color-mix(in srgb, var(--color-bg) 48%, transparent);
 	--lan-pane: color-mix(in srgb, var(--color-bg) 64%, transparent);
