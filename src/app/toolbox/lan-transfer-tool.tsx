@@ -169,7 +169,9 @@ function ImageAttachmentCard({
 	}
 	return (
 		<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
-			<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
+			<a href={source} target='_blank' rel='noopener noreferrer' title='在新标签页打开图片' className='block'>
+				<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
+			</a>
 			{transferring && (
 				<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
 					<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
@@ -274,7 +276,7 @@ function FileAttachmentCard({
 	const transferring = !complete && !failed && !waitingReceive
 	const canDownload = Boolean(attachment.url)
 	const canAct = waitingReceive || canDownload
-	const displayName = compactFileName(attachment.name, 30)
+	const displayName = compactFileName(attachment.name, 42)
 	const detailText = transferring ? formatTransferMeta(attachment) : waitingReceive ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)
 	const handleAction = () => {
 		if (waitingReceive) return onStartReceive(attachment.id)
@@ -287,27 +289,27 @@ function FileAttachmentCard({
 	)
 	const content = (
 		<>
-			<div className='flex min-w-0 items-start gap-3'>
-				<div className='flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand'>
-					<FileArchive size={20} />
+			<div className='flex min-w-0 items-center gap-2.5'>
+				<div className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand'>
+					<FileArchive size={18} />
 				</div>
 				<div className='min-w-0 flex-1'>
-					<p title={attachment.name} className='truncate text-base font-semibold leading-6 text-primary'>
+					<p title={attachment.name} className='truncate text-sm font-semibold leading-5 text-primary'>
 						{displayName}
-					</p>
-					{transferring && (
-						<div className='mt-2 flex items-center gap-2'>
-							<span className='border-brand/25 bg-brand/10 text-brand shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums'>{progressLabel(attachment.progress)}</span>
-							<div className='h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-background/45' title={formatTransferProgress(attachment)}>
-								<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
-							</div>
-						</div>
-					)}
-					<p className='text-secondary mt-2 truncate text-sm leading-5'>
-						{detailText}
 					</p>
 				</div>
 			</div>
+			{transferring && (
+				<div className='mt-2 flex items-center gap-2'>
+					<span className='border-brand/25 bg-brand/10 text-brand shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums'>{progressLabel(attachment.progress)}</span>
+					<div className='h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-background/45' title={formatTransferProgress(attachment)}>
+						<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				</div>
+			)}
+			<p className='text-secondary mt-1.5 break-words text-xs leading-4 tabular-nums'>
+				{detailText}
+			</p>
 			{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}
 		</>
 	)
