@@ -1,18 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import SimplePeer from 'simple-peer'
-import { inspectLanConnectionRoute, lanRtcConfig } from './lan-transfer-controller-utils'
 import { useLanInviteQrCode } from './use-lan-invite-qrcode'
 import { useLanRecorder } from './use-lan-recorder'
 import { useLanTransferEngine } from './use-lan-transfer-engine'
 import { detectLanCapability } from '@/lib/lan-transfer/capability'
 import { fileFromBlob } from '@/lib/lan-transfer/file-transfer'
+import { createNativeWebRtcTransport } from '@/lib/lan-transfer/native-webrtc-transport'
+import { ReconnectCoordinator } from '@/lib/lan-transfer/reconnect-coordinator'
 import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
-import { LAN_PROTOCOL_VERSION, type LanAttachmentKind, type LanCapability, type LanConnectionState, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
+import { LAN_PROTOCOL_VERSION, type LanAttachmentKind, type LanCapability, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
 
 type LanTransferControllerOptions = { initialInvite?: { roomId: string; token: string } | null; onLeaveSession?: () => void }
-const dataChannelName = 'lan-session-v6'
 
 export function useLanTransferController({ initialInvite = null, onLeaveSession }: LanTransferControllerOptions) {
 	const recorder = useLanRecorder()
@@ -20,14 +19,11 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const [status, setStatus] = useState('创建二维码，让另一台设备扫码')
 	const [busy, setBusy] = useState(false)
 	const [localCapability, setLocalCapability] = useState<LanCapability | null>(null)
-
-	const peerRef = useRef(new Map<string, SimplePeer.Instance>())
-	const knownPeersRef = useRef(new Map<string, LanPeer>())
+	const coordinatorRef = useRef(new Map<string, ReconnectCoordinator>())
 	const knownDevicesRef = useRef(new Map<string, LanPeer>())
-	const peerDeviceRef = useRef(new Map<string, string>())
-	const devicePeerRef = useRef(new Map<string, string>())
 	const closedDeviceIdsRef = useRef(new Set<string>())
 	const signalClientRef = useRef<LanSignalingClient | null>(null)
+	const signalingOnlineRef = useRef(false)
 	const sessionRef = useRef<LanSession | null>(null)
 	const localCapabilityRef = useRef<LanCapability | null>(null)
 	const handledInviteRef = useRef<typeof initialInvite>(null)
@@ -41,182 +37,95 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	}, [session])
 	const qrDataUrl = useLanInviteQrCode(inviteLink)
 
-	const engine = useLanTransferEngine({
-		sessionRef,
-		localCapabilityRef,
-		setLocalCapability,
-		setStatus,
-	})
+	const engine = useLanTransferEngine({ sessionRef, localCapabilityRef, setLocalCapability, setStatus })
+	const engineRef = useRef(engine)
+	useEffect(() => void (engineRef.current = engine), [engine])
 
 	const rememberPeer = useCallback((peer: LanPeer) => {
 		const current = knownDevicesRef.current.get(peer.deviceId)
-		if (current && current.id !== peer.id && current.joinedAt > peer.joinedAt) return false
-		knownPeersRef.current.set(peer.id, peer)
+		if (current && current.instanceId !== peer.instanceId && current.joinedAt > peer.joinedAt) return false
+		if (current && current.instanceId !== peer.instanceId) signalClientRef.current?.discardPendingForReplacedInstance(peer.deviceId, peer.instanceId)
 		knownDevicesRef.current.set(peer.deviceId, peer)
-		peerDeviceRef.current.set(peer.id, peer.deviceId)
 		return true
 	}, [])
 
-	const destroyPeer = useCallback((peerId: string, nextStatus = '连接断了，等待设备恢复', nextState: LanConnectionState = 'signaling') => {
-		const deviceId = peerDeviceRef.current.get(peerId) || knownPeersRef.current.get(peerId)?.deviceId
-		const peer = peerRef.current.get(peerId)
-		peerRef.current.delete(peerId)
-		peerDeviceRef.current.delete(peerId)
-		if (peer) peer.destroy()
-		if (!deviceId) return
-		if (devicePeerRef.current.get(deviceId) === peerId) {
-			devicePeerRef.current.delete(deviceId)
-			engine.detachPeer(deviceId, nextStatus, nextState)
+	const ensureCoordinator = useCallback((peer: LanPeer) => {
+		const current = sessionRef.current
+		if (!current || peer.deviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(peer.deviceId)) return null
+		if (current.role === peer.role || !rememberPeer(peer)) return null
+		engineRef.current.ensureConnection(peer, { connectionState: 'discovered', status: '找到设备，正在连接' })
+		const existing = coordinatorRef.current.get(peer.deviceId)
+		if (existing) {
+			existing.updatePeer(peer)
+			return existing
 		}
-	}, [engine])
-
-	const destroyPeerTransports = useCallback((nextStatus = '正在恢复连接') => {
-		const peers = Array.from(peerRef.current.entries())
-		peerRef.current.clear()
-		devicePeerRef.current.clear()
-		peerDeviceRef.current.clear()
-		for (const [peerId, peer] of peers) {
-			const deviceId = knownPeersRef.current.get(peerId)?.deviceId
-			peer.destroy()
-			if (deviceId) engine.detachPeer(deviceId, nextStatus, 'signaling')
-		}
-		setStatus(nextStatus)
-	}, [engine])
-
-	const destroyAllPeers = useCallback((nextStatus = '创建二维码，让另一台设备扫码') => {
-		const peers = Array.from(peerRef.current.values())
-		peerRef.current.clear()
-		peerDeviceRef.current.clear()
-		devicePeerRef.current.clear()
-		closedDeviceIdsRef.current.clear()
-		for (const peer of peers) peer.destroy()
-		knownPeersRef.current.clear()
-		knownDevicesRef.current.clear()
-		engine.resetAll()
-		setStatus(nextStatus)
-	}, [engine])
-
-	const createPeer = useCallback((initiator: boolean, remotePeer: LanPeer) => {
-		if (closedDeviceIdsRef.current.has(remotePeer.deviceId)) return null
-		const latest = knownDevicesRef.current.get(remotePeer.deviceId)
-		if (latest && latest.id !== remotePeer.id && latest.joinedAt > remotePeer.joinedAt) return null
-		const existing = peerRef.current.get(remotePeer.id)
-		if (existing) return existing
-		const previousPeerId = devicePeerRef.current.get(remotePeer.deviceId)
-		if (previousPeerId && previousPeerId !== remotePeer.id) {
-			const previous = peerRef.current.get(previousPeerId)
-			peerRef.current.delete(previousPeerId)
-			peerDeviceRef.current.delete(previousPeerId)
-			if (previous) previous.destroy()
-		}
-		if (!rememberPeer(remotePeer)) return null
-		devicePeerRef.current.set(remotePeer.deviceId, remotePeer.id)
-		engine.ensureConnection(remotePeer, { connectionState: 'connecting', status: '正在连接' })
-		setStatus('找到设备，正在连接')
-
-		const peer = new SimplePeer({ initiator, trickle: true, channelName: dataChannelName, config: lanRtcConfig })
-		peer.on('signal', signal => void signalClientRef.current?.sendSignal(remotePeer.id, signal).catch(error => {
-			engine.patchConnection(remotePeer.deviceId, { connectionState: 'failed', status: error instanceof Error ? error.message : '连接失败，请重试' })
-			setStatus(error instanceof Error ? error.message : '连接失败，请重试')
-		}))
-		peer.on('connect', () => {
-			if (peerRef.current.get(remotePeer.id) !== peer) return
-			engine.patchConnection(remotePeer.deviceId, { connected: true, connectionState: 'connected', status: '正在检测连接线路' })
-			if (sessionRef.current?.role === 'guest') signalClientRef.current?.stopAnnouncing()
-			void inspectLanConnectionRoute(peer).then(route => {
-				if (peerRef.current.get(remotePeer.id) !== peer) return
-				engine.attachPeer(remotePeer.deviceId, peer, remotePeer, route)
-				setStatus('已连接，可以发送消息和文件')
-			}).catch(error => {
-				if (peerRef.current.get(remotePeer.id) !== peer) return
-				peerRef.current.delete(remotePeer.id)
-				peerDeviceRef.current.delete(remotePeer.id)
-				if (devicePeerRef.current.get(remotePeer.deviceId) === remotePeer.id) devicePeerRef.current.delete(remotePeer.deviceId)
-				peer.destroy()
-				const message = error instanceof Error ? error.message : '连接失败，请重试'
-				engine.detachPeer(remotePeer.deviceId, message, 'failed')
+		const coordinator = new ReconnectCoordinator({
+			role: current.role,
+			remotePeer: peer,
+			createTransport: createNativeWebRtcTransport,
+			sendSignal: (type, target, details) => {
+				const client = signalClientRef.current
+				if (!client) return Promise.reject(new Error('连接服务尚未就绪'))
+				return client.sendSignal(type, target, details)
+			},
+			onState: (remotePeer, connectionState, message, connected) => {
+				engineRef.current.ensureConnection(remotePeer, { connected, connectionState, connectionRoute: connected ? '已连接' : '', status: message })
 				setStatus(message)
-			})
+			},
+			onAttach: (remotePeer, transport, route) => {
+				engineRef.current.attachTransport(transport, remotePeer, route)
+				setStatus('已连接，可以发送消息和文件')
+			},
+			onDetach: (remotePeer, transportId, connectionState, message) => {
+				engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || '')
+			},
+			onData: (remotePeer, transportId, data) => engineRef.current.handlePeerData(remotePeer.deviceId, transportId, data),
 		})
-		peer.on('data', data => engine.handlePeerData(remotePeer.deviceId, data))
-		peer.on('close', () => {
-			if (peerRef.current.get(remotePeer.id) !== peer) return
-			peerRef.current.delete(remotePeer.id)
-			peerDeviceRef.current.delete(remotePeer.id)
-			if (devicePeerRef.current.get(remotePeer.deviceId) === remotePeer.id) devicePeerRef.current.delete(remotePeer.deviceId)
-			engine.detachPeer(remotePeer.deviceId, '连接断了，等待设备恢复', 'signaling')
-			setStatus('连接断了，等待设备恢复')
-			signalClientRef.current?.restartAnnouncing()
-		})
-		peer.on('error', error => {
-			if (peerRef.current.get(remotePeer.id) !== peer) return
-			peerRef.current.delete(remotePeer.id)
-			peerDeviceRef.current.delete(remotePeer.id)
-			if (devicePeerRef.current.get(remotePeer.deviceId) === remotePeer.id) devicePeerRef.current.delete(remotePeer.deviceId)
-			const message = error instanceof Error ? error.message : '连接失败，正在恢复'
-			engine.detachPeer(remotePeer.deviceId, message, 'failed')
-			setStatus(message)
-			signalClientRef.current?.restartAnnouncing()
-		})
-		peerRef.current.set(remotePeer.id, peer)
-		return peer
-	}, [engine, rememberPeer])
+		coordinatorRef.current.set(peer.deviceId, coordinator)
+		coordinator.setSignalingOnline(signalingOnlineRef.current)
+		return coordinator
+	}, [rememberPeer])
 
 	const handleSignalMessage = useCallback((message: LanSignalMessage) => {
 		const current = sessionRef.current
-		if (!current) return
-		if (message.peer) {
-			if (message.peer.deviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(message.peer.deviceId)) return
-			if (!rememberPeer(message.peer)) return
-		}
-		const remotePeer = message.peer || knownPeersRef.current.get(message.from)
-		if (remotePeer && (remotePeer.deviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(remotePeer.deviceId))) return
-		if (remotePeer) {
-			const latest = knownDevicesRef.current.get(remotePeer.deviceId)
-			if (latest && latest.id !== remotePeer.id && latest.joinedAt > remotePeer.joinedAt) return
-		}
+		if (!current || message.fromDeviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(message.fromDeviceId)) return
+		const peer = message.peer || knownDevicesRef.current.get(message.fromDeviceId)
+		if (!peer) return
+		if (message.type === 'peer-left') signalClientRef.current?.discardPendingForDevice(message.fromDeviceId)
+		ensureCoordinator(peer)?.handleSignal(message)
+	}, [ensureCoordinator])
 
-		if (message.type === 'announce') {
-			if (!remotePeer) return
-			if (current.role === 'host') {
-				if (remotePeer.role !== 'guest') return
-				void signalClientRef.current?.sendAnnounce(remotePeer.id).catch(error => setStatus(error instanceof Error ? error.message : '连接失败，请重试'))
-				createPeer(true, remotePeer)
-				return
-			}
-			if (remotePeer.role !== 'host') return
-			createPeer(false, remotePeer)
-			return
-		}
-
-		if (message.type === 'signal') {
-			if (!remotePeer) return
-			try {
-				(peerRef.current.get(remotePeer.id) || createPeer(current.role === 'host', remotePeer))?.signal(message.signal as SimplePeer.SignalData)
-			} catch (error) {
-				const text = error instanceof Error ? error.message : '连接失败，请重试'
-				engine.patchConnection(remotePeer.deviceId, { connectionState: 'failed', status: text })
-				setStatus(text)
-			}
-			return
-		}
-
-		if (message.type === 'peer-left') {
-			destroyPeer(message.from, '对方已离开，等待重新连接', 'signaling')
-			signalClientRef.current?.restartAnnouncing()
-		}
-	}, [createPeer, destroyPeer, engine, rememberPeer])
+	const closeCoordinators = useCallback((resetRuntime: boolean) => {
+		coordinatorRef.current.forEach(coordinator => coordinator.close())
+		coordinatorRef.current.clear()
+		knownDevicesRef.current.clear()
+		if (resetRuntime) engineRef.current.resetAll()
+	}, [])
+	const stopSignaling = useCallback(() => {
+		const client = signalClientRef.current
+		signalClientRef.current = null
+		signalingOnlineRef.current = false
+		return client?.close().catch(() => {})
+	}, [])
 
 	const startSignaling = useCallback(async (next: LanSession) => {
-		await signalClientRef.current?.close().catch(() => {})
-		const client = new LanSignalingClient(next, handleSignalMessage, realtimeStatus => {
-			if (realtimeStatus === 'SUBSCRIBED') setStatus(next.role === 'host' ? '二维码已创建，等待扫码' : '正在连接')
-		}, error => {
-			setStatus(error.message)
-		})
+		await stopSignaling()
+		const client = new LanSignalingClient(
+			next,
+			handleSignalMessage,
+			realtimeState => {
+				const online = realtimeState === 'online'
+				signalingOnlineRef.current = online
+				coordinatorRef.current.forEach(coordinator => coordinator.setSignalingOnline(online))
+				if (online) setStatus(next.role === 'host' ? '二维码已创建，等待扫码' : '正在连接')
+				else if (realtimeState !== 'closed') setStatus('连接服务正在恢复')
+			},
+			error => setStatus(error.message),
+			() => coordinatorRef.current.forEach(coordinator => coordinator.wake()),
+		)
 		signalClientRef.current = client
 		await client.ready
-	}, [handleSignalMessage])
+	}, [handleSignalMessage, stopSignaling])
 
 	const setSessionNow = (next: LanSession) => {
 		sessionRef.current = next
@@ -225,13 +134,15 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 
 	const handleCreateRoom = useCallback(async () => {
 		setBusy(true)
-		destroyAllPeers('正在创建二维码')
+		await stopSignaling()
+		closeCoordinators(true)
+		closedDeviceIdsRef.current.clear()
 		setLocalCapability(null)
 		localCapabilityRef.current = null
 		try {
 			const next = await createLanSession()
 			setSessionNow(next)
-			const capability = await detectLanCapability(next.peerId)
+			const capability = await detectLanCapability(next.instanceId)
 			localCapabilityRef.current = capability
 			setLocalCapability(capability)
 			await startSignaling(next)
@@ -242,24 +153,23 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		} finally {
 			setBusy(false)
 		}
-	}, [destroyAllPeers, startSignaling])
+	}, [closeCoordinators, startSignaling, stopSignaling])
 
 	const handleJoinRoom = useCallback(async (roomId: string, token: string) => {
 		setBusy(true)
+		await stopSignaling()
 		const current = sessionRef.current
 		const sameInvite = Boolean(current && current.role === 'guest' && current.roomId === roomId && current.token === token)
 		closedDeviceIdsRef.current.clear()
-		if (sameInvite) {
-			destroyPeerTransports('正在恢复连接')
-		} else {
-			destroyAllPeers('正在连接')
+		closeCoordinators(!sameInvite)
+		if (!sameInvite) {
 			setLocalCapability(null)
 			localCapabilityRef.current = null
 		}
 		try {
 			const next = await joinLanSession(roomId, token)
 			setSessionNow(next)
-			const capability = localCapabilityRef.current || await detectLanCapability(next.peerId)
+			const capability = localCapabilityRef.current || await detectLanCapability(next.instanceId)
 			localCapabilityRef.current = capability
 			setLocalCapability(capability)
 			await startSignaling(next)
@@ -268,7 +178,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		} finally {
 			setBusy(false)
 		}
-	}, [destroyAllPeers, destroyPeerTransports, startSignaling])
+	}, [closeCoordinators, startSignaling, stopSignaling])
 
 	useEffect(() => {
 		if (!initialInvite?.roomId || !initialInvite.token || handledInviteRef.current === initialInvite) return
@@ -289,9 +199,9 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	}
 
 	const leaveSession = () => {
-		void signalClientRef.current?.close().catch(() => {})
-		signalClientRef.current = null
-		destroyAllPeers()
+		void stopSignaling()
+		closeCoordinators(true)
+		closedDeviceIdsRef.current.clear()
 		setSession(null)
 		setLocalCapability(null)
 		localCapabilityRef.current = null
@@ -301,29 +211,21 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const closeConnection = (deviceId = engine.activePeerId) => {
 		if (!deviceId) return
 		closedDeviceIdsRef.current.add(deviceId)
-		const peerId = devicePeerRef.current.get(deviceId)
-		if (peerId) {
-			void signalClientRef.current?.sendPeerLeft(peerId).catch(() => {})
-			const peer = peerRef.current.get(peerId)
-			peerRef.current.delete(peerId)
-			peerDeviceRef.current.delete(peerId)
-			devicePeerRef.current.delete(deviceId)
-			if (peer) peer.destroy()
-		}
-		for (const [knownPeerId, peer] of knownPeersRef.current) {
-			if (peer.deviceId === deviceId) knownPeersRef.current.delete(knownPeerId)
-		}
+		const peer = knownDevicesRef.current.get(deviceId)
+		if (peer) void signalClientRef.current?.sendPeerLeft({ deviceId, instanceId: peer.instanceId }).catch(() => {})
+		signalClientRef.current?.discardPendingForDevice(deviceId)
+		coordinatorRef.current.get(deviceId)?.close()
+		coordinatorRef.current.delete(deviceId)
 		knownDevicesRef.current.delete(deviceId)
 		engine.removeConnection(deviceId)
 		setStatus(engine.connections.length > 1 ? '已关闭当前会话' : '已关闭会话，等待设备连接')
 	}
 
 	useEffect(() => () => {
-		void signalClientRef.current?.close().catch(() => {})
-		const peers = Array.from(peerRef.current.values())
-		peerRef.current.clear()
-		for (const peer of peers) peer.destroy()
-	}, [])
+		void stopSignaling()
+		coordinatorRef.current.forEach(coordinator => coordinator.close())
+		coordinatorRef.current.clear()
+	}, [stopSignaling])
 
 	return {
 		session,

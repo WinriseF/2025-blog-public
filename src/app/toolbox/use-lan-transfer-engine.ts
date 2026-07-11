@@ -1,10 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type MutableRefObject } from 'react'
-import type SimplePeer from 'simple-peer'
 import { createEmptyLanChatState, lanChatReducer, type LanChatAction, type LanChatState } from './use-lan-chat-state'
-import { downloadUrl, type LanConnectionTransport } from '@/lib/lan-transfer/file-transfer'
+import { downloadUrl } from '@/lib/lan-transfer/file-transfer'
 import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
+import type { LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
 
 type UseLanTransferEngineOptions = {
@@ -18,6 +18,7 @@ type ManagedConnection = {
 	peer: LanPeer
 	runtime: LanConnectionRuntime
 	remoteCapability: LanCapability | null
+	transportId: string
 	unsubscribe: () => void
 }
 
@@ -49,75 +50,6 @@ type ConnectionAction =
 
 function connectionIdForPeer(peer: LanPeer) {
 	return peer.deviceId
-}
-
-function getDataChannel(peer: SimplePeer.Instance) {
-	return (peer as unknown as { _channel?: RTCDataChannel })._channel
-}
-
-function getOpenDataChannel(peer: SimplePeer.Instance) {
-	const channel = getDataChannel(peer)
-	if (!peer.connected || !channel || channel.readyState !== 'open') throw new Error('连接已断开，请重新连接后再发送')
-	return channel
-}
-
-async function waitForBufferedAmount(peer: SimplePeer.Instance, limit: number, lowWatermark: number, timeoutMs: number) {
-	const startedAt = Date.now()
-	let channel = getOpenDataChannel(peer)
-	channel.bufferedAmountLowThreshold = lowWatermark
-	while (channel.bufferedAmount > limit) {
-		if (Date.now() - startedAt > timeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
-		await new Promise<void>((resolve, reject) => {
-			let done = false
-			let timer: number | null = null
-			const cleanup = () => {
-				channel.removeEventListener('bufferedamountlow', onLow)
-				channel.removeEventListener('close', onClose)
-				channel.removeEventListener('error', onClose)
-				if (timer !== null) window.clearTimeout(timer)
-			}
-			const finish = () => {
-				if (done) return
-				done = true
-				cleanup()
-				resolve()
-			}
-			const fail = () => {
-				if (done) return
-				done = true
-				cleanup()
-				reject(new Error('连接已断开，请重新连接后再发送'))
-			}
-			const onLow = () => finish()
-			const onClose = () => fail()
-			timer = window.setTimeout(finish, 250)
-			channel.addEventListener('bufferedamountlow', onLow)
-			channel.addEventListener('close', onClose, { once: true })
-			channel.addEventListener('error', onClose, { once: true })
-		})
-		channel = getOpenDataChannel(peer)
-		channel.bufferedAmountLowThreshold = lowWatermark
-	}
-}
-
-function simplePeerTransport(peer: SimplePeer.Instance): LanConnectionTransport {
-	return {
-		isOpen: () => {
-			const channel = getDataChannel(peer)
-			return Boolean(peer.connected && channel?.readyState === 'open')
-		},
-		send: data => {
-			try {
-				if (!peer.connected) return false
-				peer.send(data)
-				return true
-			} catch {
-				return false
-			}
-		},
-		waitUntilWritable: (highWatermark, lowWatermark, timeoutMs) => waitForBufferedAmount(peer, highWatermark, lowWatermark, timeoutMs),
-		waitUntilDrained: (lowWatermark, timeoutMs) => waitForBufferedAmount(peer, lowWatermark, lowWatermark, timeoutMs),
-	}
 }
 
 function connectionReducer(state: ConnectionStateRecord[], action: ConnectionAction): ConnectionStateRecord[] {
@@ -222,7 +154,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 				}
 				if (event.type === 'download-ready') downloadUrl(event.name, event.url)
 			})
-			entry = { peer, runtime, remoteCapability: null, unsubscribe }
+			entry = { peer, runtime, remoteCapability: null, transportId: '', unsubscribe }
 			managedRef.current.set(connectionId, entry)
 		} else {
 			entry.peer = peer
@@ -236,24 +168,27 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		dispatch({ type: 'patch', peerId, patch })
 	}, [])
 
-	const attachPeer = useCallback((peerId: string, peer: SimplePeer.Instance, remotePeer: LanPeer, route: string) => {
+	const attachTransport = useCallback((transport: LanConnectionTransport, remotePeer: LanPeer, route: string) => {
 		const session = optionsRef.current.sessionRef.current
 		if (!session) return
 		const connectionId = connectionIdForPeer(remotePeer)
 		const entry = ensureConnection(remotePeer, { connected: true, connectionState: 'connected', connectionRoute: route, status: '已连接，可以发送消息和文件' })
-		entry.runtime.attachTransport(simplePeerTransport(peer), {
+		entry.transportId = transport.id
+		entry.runtime.attachTransport(transport, {
 			session,
 			remotePeerName: entry.peer.name,
 			remoteCapability: entry.remoteCapability,
 			localCapability: optionsRef.current.localCapabilityRef.current,
 			getHistory: () => recordsRef.current.find(item => item.peerId === connectionId)?.chat.messages || [],
 		})
-		setActivePeerId(current => current || peerId)
+		setActivePeerId(current => current || connectionId)
 	}, [ensureConnection])
 
-	const detachPeer = useCallback((peerId: string, status = '连接断了，正在恢复', state: LanConnectionState = 'signaling') => {
+	const detachPeer = useCallback((peerId: string, status = '连接断了，正在恢复', state: LanConnectionState = 'suspect', transportId = '') => {
 		const entry = managedRef.current.get(peerId)
+		if (transportId && entry?.transportId && entry.transportId !== transportId) return
 		entry?.runtime.detachTransport()
+		if (entry) entry.transportId = ''
 		dispatch({ type: 'patch', peerId, patch: { connected: false, connectionState: state, connectionRoute: '', status } })
 		if (!activePeerIdRef.current || activePeerIdRef.current === peerId) optionsRef.current.setStatus(status)
 	}, [])
@@ -277,8 +212,9 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		setActivePeerId(null)
 	}, [])
 
-	const handlePeerData = useCallback((peerId: string, data: unknown) => {
-		managedRef.current.get(peerId)?.runtime.handleFrame(data)
+	const handlePeerData = useCallback((peerId: string, transportId: string, data: unknown) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) entry.runtime.handleFrame(data)
 	}, [])
 
 	const getActiveRuntime = useCallback(() => {
@@ -318,7 +254,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		activeConnection,
 		ensureConnection,
 		patchConnection,
-		attachPeer,
+		attachTransport,
 		detachPeer,
 		removeConnection,
 		resetAll,

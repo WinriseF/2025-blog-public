@@ -7,8 +7,8 @@ import {
 	messageId,
 	prepareLanAttachment,
 	sendPreparedAttachment,
-	type LanConnectionTransport,
 } from './file-transfer'
+import type { LanConnectionTransport } from './transport-types'
 import { createStorageEngine, chooseStorageKind } from './storage/storage-manager'
 import type { TransferFileMeta, LanStorageEngine } from './storage/types'
 import {
@@ -163,6 +163,7 @@ function clampBytes(bytes: number, total: number) {
 export class LanConnectionRuntime {
 	private listeners = new Set<RuntimeListener>()
 	private transport: LanConnectionTransport | null = null
+	private transportEpoch = 0
 	private context: RuntimeContext | null = null
 	private seq = 0
 	private prepared = new Map<string, PreparedEntry>()
@@ -185,6 +186,7 @@ export class LanConnectionRuntime {
 
 	attachTransport(transport: LanConnectionTransport, context: RuntimeContext) {
 		if (this.destroyed) return
+		this.transportEpoch += 1
 		this.transport = transport
 		this.context = context
 		if (context.localCapability) this.emit({ type: 'local-capability', capability: context.localCapability })
@@ -196,11 +198,12 @@ export class LanConnectionRuntime {
 		const activeId = this.activeSending
 		if (activeId && this.prepared.get(activeId)?.accepted && !this.queue.includes(activeId)) this.queue.unshift(activeId)
 		this.activeSending = null
+		this.transportEpoch += 1
 		this.transport = null
 	}
 
 	destroy() {
-		this.detachTransport()
+		if (this.destroyed) return
 		this.destroyed = true
 		this.reset()
 		this.listeners.clear()
@@ -208,6 +211,10 @@ export class LanConnectionRuntime {
 
 	reset() {
 		this.detachTransport()
+		const pendingWrites = this.chunkWriteQueue
+		const incoming = Array.from(this.incoming.values())
+		this.incoming.clear()
+		void pendingWrites.then(() => Promise.all(incoming.map(item => item.engine.cleanup(item.meta.id)))).catch(() => {})
 		this.receivedCache.forEach(file => {
 			if (file.url) URL.revokeObjectURL(file.url)
 			void file.engine.cleanup(file.fileId).catch(() => {})
@@ -218,10 +225,10 @@ export class LanConnectionRuntime {
 		this.transferSamples.clear()
 		this.pendingOffers.clear()
 		this.prepared.clear()
-		this.incoming.clear()
 		this.queue = []
 		this.activeSending = null
 		this.chunkWriteQueue = Promise.resolve()
+		this.context = null
 		this.outgoingObjectUrls.forEach(url => URL.revokeObjectURL(url))
 		this.outgoingObjectUrls = []
 	}
@@ -240,11 +247,13 @@ export class LanConnectionRuntime {
 
 	resumeAfterConnect() {
 		if (!this.isOpen()) return
+		const epoch = this.transportEpoch
 		this.activeSending = null
 		this.prepared.forEach(entry => {
 			entry.offered = false
 		})
-		void this.sendLocalCapability().then(() => {
+		void this.sendLocalCapability(epoch).then(() => {
+			if (epoch !== this.transportEpoch) return
 			this.sendChatHistory()
 			this.sendControl({ ...this.controlBase('resume-query'), ids: Array.from(this.prepared.keys()) })
 			this.flushOffersAndQueue()
@@ -258,7 +267,7 @@ export class LanConnectionRuntime {
 		if (!context || !this.isOpen()) return this.setStatus('请先连接设备')
 		const id = messageId()
 		const createdAt = Date.now()
-		this.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'text', text: trimmed, attachments: [], status: 'sent', createdAt, peerId: context.session.peerId } })
+		this.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'text', text: trimmed, attachments: [], status: 'sent', createdAt, peerId: context.session.instanceId } })
 		this.sendControl({ ...this.controlBase('chat-message', createdAt), id, text: trimmed })
 	}
 
@@ -284,7 +293,11 @@ export class LanConnectionRuntime {
 				this.outgoingObjectUrls.push(localUrl)
 				return { ...attachmentFromPrepared(file, file.suggestedStorage, previewUrl), url: localUrl }
 			}))
-			this.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'attachments', attachments, status: 'queued', createdAt, peerId: context.session.peerId } })
+			if (this.destroyed) {
+				attachments.forEach(attachment => attachment.url && URL.revokeObjectURL(attachment.url))
+				return
+			}
+			this.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'attachments', attachments, status: 'queued', createdAt, peerId: context.session.instanceId } })
 			for (const attachment of attachments) this.emit({ type: 'file-record-upsert', record: fileRecord(id, attachment, context.remotePeerName) })
 			for (const file of prepared) this.prepared.set(file.id, { file, createdAt, acked: 0, ranges: [], offered: false })
 			this.flushOffersAndQueue()
@@ -298,6 +311,7 @@ export class LanConnectionRuntime {
 	}
 
 	private async receivePendingAttachment(id: string, autoInlineMedia: boolean) {
+		if (this.destroyed) return
 		const offer = this.pendingOffers.get(id)
 		const context = this.context
 		if (!offer || !context) return
@@ -310,6 +324,10 @@ export class LanConnectionRuntime {
 			this.emit({ type: 'attachment-patch', patch: this.transferPatch(id, offer.messageId, 'receiving', 0, offer.attachment.size) })
 			this.emit({ type: 'file-record-patch', id, patch: { status: 'receiving' } })
 			const prepared = await this.prepareIncoming(offer, capability, !autoInlineMedia)
+			if (this.destroyed) {
+				await prepared.engine.cleanup(prepared.meta.id).catch(() => {})
+				return
+			}
 			const current = { offer, ...prepared }
 			this.incoming.set(id, current)
 			this.pendingOffers.delete(id)
@@ -332,6 +350,7 @@ export class LanConnectionRuntime {
 	}
 
 	private emit(event: LanConnectionRuntimeEvent) {
+		if (this.destroyed) return
 		this.listeners.forEach(listener => listener(event))
 	}
 
@@ -379,7 +398,7 @@ export class LanConnectionRuntime {
 	}
 
 	private controlBase<T extends LanControlMessage['type']>(type: T, createdAt = Date.now()): { type: T; protocolVersion: typeof LAN_PROTOCOL_VERSION; peerId: string; seq: number; createdAt: number } {
-		const peerId = this.context?.session.peerId || ''
+		const peerId = this.context?.session.instanceId || ''
 		this.seq += 1
 		return { type, protocolVersion: LAN_PROTOCOL_VERSION, peerId, seq: this.seq, createdAt }
 	}
@@ -398,14 +417,15 @@ export class LanConnectionRuntime {
 	private async detectLocalCapability(fileSize = 0) {
 		const context = this.context
 		if (!context) throw new Error('请先连接设备')
-		const capability = await detectLanCapability(context.session.peerId, fileSize)
+		const capability = await detectLanCapability(context.session.instanceId, fileSize)
 		context.localCapability = capability
 		this.emit({ type: 'local-capability', capability })
 		return capability
 	}
 
-	private async sendLocalCapability() {
+	private async sendLocalCapability(epoch = this.transportEpoch) {
 		const capability = this.context?.localCapability || await this.detectLocalCapability()
+		if (epoch !== this.transportEpoch) return
 		this.sendControl({ ...capability, ...this.controlBase('capability') })
 	}
 
@@ -447,18 +467,23 @@ export class LanConnectionRuntime {
 		if (!entry || !message) return
 		this.queue = this.queue.filter(id => id !== nextId)
 		this.activeSending = nextId
+		const transport = this.transport
+		const epoch = this.transportEpoch
+		if (!transport) return
 		this.resetTransferSample(message.id, message.receivedBytes)
 		this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', message.receivedBytes, entry.file.size) })
 		this.setStatus(`正在发送 ${entry.file.name}`)
-		void sendPreparedAttachment(this.transport, entry.file, () => {}, {
+		void sendPreparedAttachment(transport, entry.file, () => {}, {
 			mobile: this.context?.remoteCapability?.platform === 'android' || this.context?.remoteCapability?.platform === 'ios',
 			getAckedBytes: () => entry.acked,
 			receivedRanges: entry.ranges,
 			completeMessage: { ...this.controlBase('attachment-complete'), id: entry.file.id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount },
 		}).then(() => {
+			if (epoch !== this.transportEpoch || this.transport !== transport) return
 			this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'sending' } })
 			this.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
 		}).catch(error => {
+			if (epoch !== this.transportEpoch || this.transport !== transport) return
 			this.activeSending = null
 			if (!this.transport?.isOpen()) {
 				if (entry.accepted && !this.queue.includes(message.id)) this.queue.unshift(message.id)
@@ -504,10 +529,12 @@ export class LanConnectionRuntime {
 	}
 
 	private async handleOffer(message: LanAttachmentOffer) {
+		if (this.destroyed) return
 		const context = this.context
 		if (!context) return
 		let capability = context.localCapability || null
 		if (!capability) capability = await this.detectLocalCapability(message.attachment.size)
+		if (this.destroyed) return
 		try {
 			const cancelledReason = this.cancelledIncoming.get(message.attachment.id)
 			if (cancelledReason) {
@@ -554,12 +581,19 @@ export class LanConnectionRuntime {
 		const current = this.incoming.get(id)
 		if (!current) return
 		await this.chunkWriteQueue
+		if (this.destroyed || this.incoming.get(id) !== current) return
 		const manifest = await current.engine.getManifest(current.meta.id)
+		if (this.destroyed || this.incoming.get(id) !== current) return
 		if (!manifest) return this.failAttachment(id, messageIdValue, '接收失败，请重新发送')
 		if (typeof sent === 'number' && sent !== current.offer.attachment.size) return this.failAttachment(id, messageIdValue, '文件信息不一致，请重新发送')
 		if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return this.failAttachment(id, messageIdValue, '接收不完整，请重新发送')
 		if (manifest.receivedBytes !== current.offer.attachment.size || manifest.receivedChunks !== current.offer.attachment.chunkCount) return this.failAttachment(id, messageIdValue, `接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.offer.attachment.size)}`)
 		const finalized = await current.engine.finalize(current.meta)
+		if (this.destroyed || this.incoming.get(id) !== current) {
+			if (finalized.url) URL.revokeObjectURL(finalized.url)
+			await current.engine.cleanup(current.meta.id).catch(() => {})
+			return
+		}
 		const inlineMedia = isInlineMediaKind(current.offer.attachment.kind)
 		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'complete', progress: 1, transferredBytes: current.offer.attachment.size, speedBps: undefined, etaSeconds: undefined, url: finalized.url, previewUrl: current.offer.attachment.kind === 'image' ? finalized.url : undefined } })
 		this.emit({ type: 'file-record-patch', id, patch: { status: 'complete', url: finalized.url } })
@@ -604,6 +638,7 @@ export class LanConnectionRuntime {
 	}
 
 	private async handleControl(message: LanControlMessage) {
+		if (this.destroyed) return
 		if ('protocolVersion' in message && message.protocolVersion !== LAN_PROTOCOL_VERSION) return this.setStatus('双方页面不一致，请刷新后重试')
 		if (message.type === 'capability') {
 			if (this.context) this.context.remoteCapability = message

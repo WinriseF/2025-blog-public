@@ -29,11 +29,14 @@ function cn(...classes: Array<string | false | null | undefined>) {
 
 const connectionLabel = {
 	idle: '未连接',
-	signaling: '连接中',
 	discovered: '找到设备',
 	connecting: '连接中',
 	connected: '已连接',
-	failed: '等待恢复',
+	suspect: '检测连接',
+	'ice-restarting': '恢复网络',
+	rebuilding: '重新连接',
+	backoff: '等待重试',
+	closed: '已关闭',
 }
 
 function dicebearAvatarUrl(seed: string) {
@@ -811,7 +814,7 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 
 	const app = (
 		<div
-			className='lan-session-v6 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
+			className='lan-session-v7 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
 			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
 		>
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>

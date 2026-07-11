@@ -1,4 +1,4 @@
-export const LAN_PROTOCOL_VERSION = 6
+export const LAN_PROTOCOL_VERSION = 7
 
 export const LAN_LIMITS = {
 	memoryMaxBytes: 200 * 1024 * 1024,
@@ -23,8 +23,9 @@ export const LAN_LIMITS = {
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
-export type LanSignalType = 'announce' | 'signal' | 'peer-left'
-export type LanConnectionState = 'idle' | 'signaling' | 'discovered' | 'connecting' | 'connected' | 'failed'
+export type LanSignalType = 'announce' | 'reconnect-request' | 'rebuild' | 'ice-restart' | 'offer' | 'answer' | 'candidate' | 'signal-ack' | 'peer-left'
+export type LanSignalState = 'connecting' | 'online' | 'retrying' | 'offline' | 'closed'
+export type LanConnectionState = 'idle' | 'discovered' | 'connecting' | 'connected' | 'suspect' | 'ice-restarting' | 'rebuilding' | 'backoff' | 'closed'
 export type LanStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
 export type LanBrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari' | 'wechat' | 'qq' | 'unknown'
 export type LanPlatformKind = 'desktop' | 'android' | 'ios' | 'unknown'
@@ -35,7 +36,7 @@ export type LanAttachmentKind = 'image' | 'voice' | 'file'
 export type LanAttachmentStatus = 'queued' | 'offered' | 'receiving' | 'sending' | 'complete' | 'failed' | 'cancelled'
 
 export type LanPeer = {
-	id: string
+	instanceId: string
 	deviceId: string
 	role: LanRole
 	name: string
@@ -49,7 +50,7 @@ export type LanSession = {
 	token: string
 	tokenHash: string
 	role: LanRole
-	peerId: string
+	instanceId: string
 	localPeer: LanPeer
 	pairExpiresAt: number
 	sessionExpiresAt: number
@@ -57,23 +58,35 @@ export type LanSession = {
 
 export type LanSignalMessage = {
 	type: LanSignalType
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	roomId: string
 	tokenHash: string
-	from: string
-	to: string
+	fromDeviceId: string
+	fromInstanceId: string
+	toDeviceId: string
+	toInstanceId: string
+	messageId: string
 	seq: number
 	ts: number
+	generation: number
+	negotiationId: string
 	peer?: LanPeer
-	signal?: unknown
+	description?: RTCSessionDescriptionInit
+	candidate?: RTCIceCandidateInit | null
+	ackFor?: string
+	reason?: string
 }
 
 export type LanPresencePayload = {
-	peerId: string
+	instanceId: string
 	role: LanRole
 	peer: LanPeer
 	tokenHash: string
 	joinedAt: number
 }
+
+export type LanSignalTarget = Pick<LanPeer, 'deviceId' | 'instanceId'>
+export type LanSignalSendDetails = Partial<Pick<LanSignalMessage, 'generation' | 'negotiationId' | 'description' | 'candidate' | 'ackFor' | 'reason'>>
 
 export type LanCapability = {
 	type: 'capability'

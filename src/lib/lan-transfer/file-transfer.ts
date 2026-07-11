@@ -1,5 +1,6 @@
 import { hasChunk, type ChunkRange } from './storage/ranges'
 import { LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
+import type { LanConnectionTransport } from './transport-types'
 
 const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
@@ -59,13 +60,6 @@ export type PrepareLanAttachmentOptions = {
 	maxBytes?: number
 	durationMs?: number
 	name?: string
-}
-
-export interface LanConnectionTransport {
-	isOpen(): boolean
-	send(data: Uint8Array): boolean
-	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number): Promise<void>
-	waitUntilDrained(lowWatermark: number, timeoutMs: number): Promise<void>
 }
 
 export function fileFromBlob(blob: Blob, name: string, lastModified = Date.now()) {
