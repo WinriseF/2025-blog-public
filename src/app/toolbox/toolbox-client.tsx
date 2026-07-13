@@ -7,6 +7,13 @@ import { INIT_DELAY } from '@/consts'
 
 const tools = [
 	{
+		href: '/t',
+		label: '快传',
+		desc: '公网中转 / 局域网互传',
+		tone: 'from-sky-400/20 via-emerald-300/10 to-transparent',
+		icon: Send
+	},
+	{
 		href: '/toolbox/compress',
 		label: '图片压缩',
 		desc: 'PNG / JPG 转 WEBP',
@@ -27,13 +34,6 @@ const tools = [
 		tone: 'from-rose-300/25 via-pink-200/10 to-transparent',
 		icon: ScanFace
 	},
-	{
-		href: '/t',
-		label: '快传',
-		desc: '公网中转 / 局域网互传',
-		tone: 'from-sky-400/20 via-emerald-300/10 to-transparent',
-		icon: Send
-	}
 ]
 
 export function ToolboxClient() {
