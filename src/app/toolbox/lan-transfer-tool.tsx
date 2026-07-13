@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type CSSProperties, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import WaveformPlayer from '@arraypress/waveform-player'
-import { CheckCheck, ChevronLeft, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, PanelLeftClose, Paperclip, QrCode, Send, Smartphone, X } from 'lucide-react'
+import { Check, CheckCheck, ChevronLeft, Clock3, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, PanelLeftClose, Paperclip, QrCode, Send, Smartphone, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
@@ -336,6 +336,14 @@ function MessageBubble({
 }) {
 	if (message.direction === 'system') return <div className='mx-auto w-fit rounded-full border border-border bg-article px-3 py-1 text-xs text-secondary'>{message.text}</div>
 	const outgoing = message.direction === 'out'
+	const deliveryLabel = message.status === 'delivered' ? '已送达' : message.status === 'failed' ? '发送失败' : message.status === 'queued' ? '等待发送' : '已发送'
+	const deliveryIcon = message.status === 'delivered'
+		? <CheckCheck size={13} aria-hidden='true' className='text-brand' />
+		: message.status === 'failed'
+			? <X size={13} aria-hidden='true' className='text-red-400' />
+			: message.status === 'queued'
+				? <Clock3 size={13} aria-hidden='true' className='text-secondary' />
+				: <Check size={13} aria-hidden='true' className='text-secondary' />
 	return (
 		<div className={cn('flex gap-3 max-sm:gap-2', outgoing ? 'justify-end' : 'justify-start')}>
 			{!outgoing && <DeviceAvatar type={peerDeviceType} avatarSeed={peerAvatarSeed} active />}
@@ -351,7 +359,7 @@ function MessageBubble({
 						{message.attachments.map(attachment => <AttachmentCard key={attachment.id} attachment={attachment} onDownload={onDownload} onStartReceive={onStartReceive} />)}
 					</div>
 				)}
-				{outgoing && <CheckCheck size={13} className={message.status === 'failed' ? 'text-red-400' : 'text-secondary'} />}
+				{outgoing && <span role='img' aria-label={deliveryLabel} title={deliveryLabel}>{deliveryIcon}</span>}
 			</div>
 			{outgoing && <DeviceAvatar type={localDeviceType} avatarSeed={localAvatarSeed} active />}
 		</div>

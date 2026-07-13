@@ -188,6 +188,15 @@ export type LanChatMessageControl = {
 	seq: number
 }
 
+export type LanChatReceipt = {
+	type: 'chat-receipt'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	messageIds: string[]
+	peerId: string
+	seq: number
+	createdAt: number
+}
+
 export type LanAttachmentOffer = {
 	type: 'attachment-offer'
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
@@ -309,6 +318,7 @@ export type LanChatHistorySync = {
 export type LanControlMessage =
 	| LanCapability
 	| LanChatMessageControl
+	| LanChatReceipt
 	| LanAttachmentOffer
 	| LanAttachmentAccept
 	| LanAttachmentProgress

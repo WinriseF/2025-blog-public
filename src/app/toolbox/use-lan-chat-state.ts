@@ -29,12 +29,17 @@ function upsertMessage(messages: LanChatMessage[], message: LanChatMessage) {
 	const index = messages.findIndex(item => item.id === message.id)
 	if (index < 0) return [...messages, message]
 	const next = messages.slice()
-	next[index] = { ...next[index], ...message, attachments: message.attachments }
+	const status = next[index].status === 'delivered' ? 'delivered' : message.status
+	next[index] = { ...next[index], ...message, status, error: status === 'delivered' ? undefined : message.error, attachments: message.attachments }
 	return next
 }
 
 function patchMessage(messages: LanChatMessage[], id: string, patch: MessagePatch) {
-	return messages.map(message => (message.id === id ? { ...message, ...patch, attachments: patch.attachments || message.attachments } : message))
+	return messages.map(message => {
+		if (message.id !== id) return message
+		const status = message.status === 'delivered' ? 'delivered' : patch.status || message.status
+		return { ...message, ...patch, status, error: status === 'delivered' ? undefined : patch.error ?? message.error, attachments: patch.attachments || message.attachments }
+	})
 }
 
 function patchAttachment(messages: LanChatMessage[], patch: AttachmentPatch) {
@@ -94,11 +99,13 @@ function mergeMessage(current: LanChatMessage, incoming: LanChatMessage) {
 	for (const attachment of current.attachments) {
 		if (!attachments.some(item => item.id === attachment.id)) attachments.push(attachment)
 	}
+	const status = current.kind === 'attachments' ? attachmentMessageStatus(attachments) : current.status
 	return {
 		...current,
 		...incoming,
 		direction: current.direction,
-		status: current.kind === 'attachments' ? attachmentMessageStatus(attachments) : current.status,
+		status,
+		error: status === 'delivered' ? undefined : incoming.error || current.error,
 		attachments,
 	}
 }

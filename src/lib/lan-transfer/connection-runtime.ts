@@ -49,9 +49,11 @@ type SendFilesOptions = {
 }
 
 type AttachmentPatch = Partial<LanAttachment> & { id: string; messageId?: string }
+type MessagePatch = Partial<Pick<LanChatMessage, 'status' | 'error'>> & { id: string }
 
 export type LanConnectionRuntimeEvent =
 	| { type: 'message-upsert'; message: LanChatMessage }
+	| { type: 'message-patch'; patch: MessagePatch }
 	| { type: 'history-merge'; messages: LanChatMessage[] }
 	| { type: 'attachment-upsert'; message: Omit<LanChatMessage, 'attachments'>; attachment: LanAttachment }
 	| { type: 'attachment-patch'; patch: AttachmentPatch }
@@ -174,6 +176,8 @@ export class LanConnectionRuntime {
 	private cancelledIncoming = new Map<string, string>()
 	private progressAck = new Map<string, ProgressCheckpoint>()
 	private transferSamples = new Map<string, TransferSample>()
+	private outgoingTextIds = new Set<string>()
+	private deliveredTextIds = new Set<string>()
 	private queue: string[] = []
 	private activeSending: string | null = null
 	private activeSendController: AbortController | null = null
@@ -230,6 +234,8 @@ export class LanConnectionRuntime {
 		this.cancelledIncoming.clear()
 		this.progressAck.clear()
 		this.transferSamples.clear()
+		this.outgoingTextIds.clear()
+		this.deliveredTextIds.clear()
 		this.pendingOffers.clear()
 		this.prepared.clear()
 		this.queue = []
@@ -296,8 +302,11 @@ export class LanConnectionRuntime {
 		if (!context || !this.isOpen()) return this.setStatus('请先连接设备')
 		const id = messageId()
 		const createdAt = Date.now()
-		this.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'text', text: trimmed, attachments: [], status: 'sent', createdAt, peerId: context.session.instanceId } })
-		this.sendControl({ ...this.controlBase('chat-message', createdAt), id, text: trimmed })
+		this.outgoingTextIds.add(id)
+		this.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'text', text: trimmed, attachments: [], status: 'queued', createdAt, peerId: context.session.instanceId } })
+		const sent = this.sendControl({ ...this.controlBase('chat-message', createdAt), id, text: trimmed })
+		this.emit({ type: 'message-patch', patch: { id, status: sent ? 'sent' : 'failed', error: sent ? undefined : '发送失败，连接恢复后会重试' } })
+		if (!sent) this.setStatus('发送失败，连接恢复后会重试')
 	}
 
 	async sendFiles(files: File[], options: SendFilesOptions = {}) {
@@ -459,6 +468,19 @@ export class LanConnectionRuntime {
 		const messages = this.context?.getHistory?.() || []
 		if (!messages.length) return
 		this.sendControl({ ...this.controlBase('chat-history'), messages: messages.map(historyMessageForSync) })
+	}
+
+	private sendChatReceipt(messageIds: string[]) {
+		const ids = Array.from(new Set(messageIds.filter(Boolean)))
+		if (ids.length) this.sendControl({ ...this.controlBase('chat-receipt'), messageIds: ids })
+	}
+
+	private markTextDelivered(messageIds: string[]) {
+		for (const id of new Set(messageIds)) {
+			if (!this.outgoingTextIds.has(id) || this.deliveredTextIds.has(id)) continue
+			this.deliveredTextIds.add(id)
+			this.emit({ type: 'message-patch', patch: { id, status: 'delivered', error: undefined } })
+		}
 	}
 
 	private async detectLocalCapability(fileSize = 0) {
@@ -721,8 +743,23 @@ export class LanConnectionRuntime {
 			this.flushOffersAndQueue()
 			return
 		}
-		if (message.type === 'chat-message') return this.emit({ type: 'message-upsert', message: { id: message.id, direction: 'in', kind: 'text', text: message.text, attachments: [], status: 'received', createdAt: message.createdAt, peerId: message.peerId } })
-		if (message.type === 'chat-history') return this.emit({ type: 'history-merge', messages: message.messages.map(historyMessageFromRemote) })
+		if (message.type === 'chat-message') {
+			if (!message.id) return
+			this.emit({ type: 'message-upsert', message: { id: message.id, direction: 'in', kind: 'text', text: message.text, attachments: [], status: 'received', createdAt: message.createdAt, peerId: message.peerId } })
+			this.sendChatReceipt([message.id])
+			return
+		}
+		if (message.type === 'chat-receipt') {
+			if (Array.isArray(message.messageIds)) this.markTextDelivered(message.messageIds.filter(id => typeof id === 'string' && id))
+			return
+		}
+		if (message.type === 'chat-history') {
+			if (!Array.isArray(message.messages)) return
+			this.emit({ type: 'history-merge', messages: message.messages.map(historyMessageFromRemote) })
+			this.markTextDelivered(message.messages.filter(item => item.kind === 'text' && item.direction === 'in').map(item => item.id))
+			this.sendChatReceipt(message.messages.filter(item => item.kind === 'text' && item.direction === 'out').map(item => item.id))
+			return
+		}
 		if (message.type === 'attachment-offer') return void (await this.handleOffer(message))
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)

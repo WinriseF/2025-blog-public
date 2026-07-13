@@ -136,6 +136,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			const unsubscribe = runtime.subscribe(event => {
 				const current = managedRef.current.get(connectionId)
 				if (event.type === 'message-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-message', message: event.message } })
+				if (event.type === 'message-patch') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'patch-message', id: event.patch.id, patch: event.patch } })
 				if (event.type === 'history-merge') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'merge-history', messages: event.messages } })
 				if (event.type === 'attachment-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-attachment', message: event.message, attachment: event.attachment } })
 				if (event.type === 'attachment-patch') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'patch-attachment', patch: event.patch } })
