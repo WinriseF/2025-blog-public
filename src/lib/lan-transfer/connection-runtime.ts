@@ -305,13 +305,17 @@ export class LanConnectionRuntime {
 		if (!files.length) return
 		if (!context || !this.isOpen()) return this.setStatus('请先连接设备')
 		const remote = context.remoteCapability || null
+		const transport = this.transport
 		const createdAt = Date.now()
 		const id = messageId()
 		try {
+			if (!transport) throw new Error('请先连接设备')
+			const chunkSize = await transport.negotiateChunkSize(remote?.limits.recommendedChunkSize)
+			if (this.transport !== transport || !transport.isOpen()) throw new Error('连接已断开，请重新发送')
 			const prepared = files.map(file => prepareLanAttachment(file, {
 				messageId: id,
 				kind: options.kind,
-				chunkSize: remote?.limits.recommendedChunkSize,
+				chunkSize,
 				suggestedStorage: selectStorageForFile(file.size, remote),
 				maxBytes: remote?.limits.maxExperimentalFileSize,
 				durationMs: options.durationMs,

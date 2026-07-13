@@ -19,6 +19,7 @@ export interface LanConnectionTransport {
 	readonly generation: number
 	isOpen(): boolean
 	send(data: Uint8Array): boolean
+	negotiateChunkSize(peerMaxChunkSize?: number): Promise<number>
 	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number): Promise<void>
 	waitUntilDrained(lowWatermark: number, timeoutMs: number): Promise<void>
 }

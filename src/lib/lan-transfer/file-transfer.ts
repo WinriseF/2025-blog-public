@@ -1,5 +1,5 @@
 import { hasChunk, type ChunkRange } from './storage/ranges'
-import { LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
+import { LAN_CHUNK_TIERS, LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
 import type { LanConnectionTransport } from './transport-types'
 
 const CONTROL_FRAME = 1
@@ -74,7 +74,8 @@ export async function imagePreviewUrl(file: File) {
 export function prepareLanAttachment(file: File, options: PrepareLanAttachmentOptions) {
 	const maxBytes = options.maxBytes || LAN_LIMITS.experimentalMaxBytes
 	if (file.size > maxBytes) throw new Error(`对方最多可接收 ${formatBytes(maxBytes)}`)
-	const chunkSize = Math.min(options.chunkSize || LAN_LIMITS.defaultChunkSize, LAN_LIMITS.dataChannelSafeChunkSize)
+	const requestedChunkSize = Math.min(options.chunkSize || LAN_LIMITS.defaultChunkSize, LAN_LIMITS.dataChannelMaxChunkSize)
+	const chunkSize = LAN_CHUNK_TIERS.find(tier => tier.chunkSize <= requestedChunkSize)?.chunkSize || LAN_LIMITS.dataChannelFallbackChunkSize
 	const suggestedStorage = options.suggestedStorage || (file.size <= LAN_LIMITS.memoryMaxBytes ? 'memory' : 'opfs')
 	return {
 		id: transferId(),
@@ -200,7 +201,7 @@ export async function sendPreparedAttachment(
 		const chunkOffset = offset - readBatchOffset
 		const chunk = readBatch.subarray(chunkOffset, chunkOffset + chunkEnd - offset)
 		const frame = encodeChunk(file.id, chunkIndex, chunk)
-		if (frame.byteLength > 64 * 1024) throw new Error('文件发送失败，请重新发送')
+		if (frame.byteLength > file.chunkSize + LAN_LIMITS.dataChannelFrameHeaderReserve || frame.byteLength > LAN_LIMITS.dataChannelMaxFrameSize) throw new Error('文件发送失败，请重新发送')
 		if (!transport.isOpen() || !transport.send(frame)) throw new Error('连接已断开，请重新连接后再发送')
 		sent += chunk.byteLength
 		onProgress(Math.min(file.size, sent))

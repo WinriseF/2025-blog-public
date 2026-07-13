@@ -83,7 +83,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 
 	let maxRecommendedFileSize = LAN_LIMITS.memoryMaxBytes
 	let maxExperimentalFileSize = LAN_LIMITS.memoryMaxBytes
-	let recommendedChunkSize = LAN_LIMITS.conservativeChunkSize
+	const recommendedChunkSize = isEmbeddedBrowser ? LAN_LIMITS.dataChannelFallbackChunkSize : LAN_LIMITS.dataChannelMaxChunkSize
 	let recommendedStorage = chooseStorage(opfsSupported, indexedDBSupported, fileSize, fileSystemAccessSupported && platform === 'desktop')
 
 	if (isEmbeddedBrowser) {
@@ -91,24 +91,20 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 	} else if (platform === 'ios') {
 		maxRecommendedFileSize = 500 * 1024 * 1024
 		maxExperimentalFileSize = 2 * 1024 * 1024 * 1024
-		recommendedChunkSize = LAN_LIMITS.conservativeChunkSize
 		notes.push('接收大文件时请保持页面打开')
 	} else if (fileSystemAccessSupported && platform === 'desktop') {
 		maxRecommendedFileSize = LAN_LIMITS.experimentalMaxBytes
 		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
-		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
 		recommendedStorage = 'file'
 		notes.push('将优先保存到你选择的位置')
 	} else if (opfsSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.opfsRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.experimentalMaxBytes
-		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
 		recommendedStorage = 'opfs'
 		notes.push('连接恢复后会尽量继续接收')
 	} else if (indexedDBSupported) {
 		maxRecommendedFileSize = LAN_LIMITS.indexedDbRecommendedBytes
 		maxExperimentalFileSize = LAN_LIMITS.indexedDbExperimentalBytes
-		recommendedChunkSize = LAN_LIMITS.dataChannelSafeChunkSize
 		recommendedStorage = 'indexeddb'
 		notes.push('当前设备接收大文件不稳定')
 	}

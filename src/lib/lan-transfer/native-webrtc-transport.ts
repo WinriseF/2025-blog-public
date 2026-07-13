@@ -1,13 +1,17 @@
+import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportState } from './transport-types'
 
 const transportControlPrefix = '__winrisef_lan_v8__:'
+const TRANSPORT_FRAME_PROBE = 0xff
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
 export const lanRtcConfig: RTCConfiguration = {
 	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 	iceCandidatePoolSize: 2,
 }
 
-type TransportControl = { type: 'hello'; generation: number } | { type: 'ping' | 'pong'; generation: number; id: string }
+type TransportControl = { type: 'hello'; generation: number } | { type: 'ping' | 'pong' | 'frame-probe-ack'; generation: number; id: string }
 type CandidatePairStats = RTCStats & { localCandidateId?: string; remoteCandidateId?: string; nominated?: boolean; selected?: boolean; state?: string }
 type CandidateStats = RTCStats & { address?: string; ip?: string; ipAddress?: string; candidateType?: string }
 type TransportStats = RTCStats & { selectedCandidatePairId?: string }
@@ -16,11 +20,15 @@ function randomId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+function chunkSizeAtMost(limit: number) {
+	return LAN_CHUNK_TIERS.find(tier => tier.chunkSize <= limit)?.chunkSize || LAN_LIMITS.dataChannelFallbackChunkSize
+}
+
 function parseTransportControl(value: string): TransportControl | null {
 	if (!value.startsWith(transportControlPrefix)) return null
 	try {
 		const message = JSON.parse(value.slice(transportControlPrefix.length)) as TransportControl
-		if (!message || typeof message !== 'object' || !['hello', 'ping', 'pong'].includes(message.type) || typeof message.generation !== 'number') return null
+		if (!message || typeof message !== 'object' || !['hello', 'ping', 'pong', 'frame-probe-ack'].includes(message.type) || typeof message.generation !== 'number') return null
 		if (message.type !== 'hello' && typeof message.id !== 'string') return null
 		return message
 	} catch {
@@ -83,6 +91,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private pendingCandidates: RTCIceCandidateInit[] = []
 	private remoteDescriptionNegotiationId = ''
 	private pendingProbes = new Map<string, { resolve: (alive: boolean) => void; timer: ReturnType<typeof setTimeout> }>()
+	private negotiatedChunkSize: number | null = null
+	private chunkNegotiation: Promise<number> | null = null
 	private currentNegotiationId: string
 	private makingOffer = false
 	private ready = false
@@ -119,6 +129,21 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		} catch {
 			return false
 		}
+	}
+
+	negotiateChunkSize(peerMaxChunkSize = LAN_LIMITS.dataChannelFallbackChunkSize) {
+		const peerLimit = chunkSizeAtMost(peerMaxChunkSize)
+		if (peerLimit <= LAN_LIMITS.dataChannelFallbackChunkSize) return Promise.resolve(LAN_LIMITS.dataChannelFallbackChunkSize)
+		if (this.negotiatedChunkSize !== null) return Promise.resolve(chunkSizeAtMost(Math.min(this.negotiatedChunkSize, peerLimit)))
+		if (!this.chunkNegotiation) {
+			this.chunkNegotiation = this.probeChunkSize(peerLimit).then(chunkSize => {
+				this.negotiatedChunkSize = chunkSize
+				return chunkSize
+			}).finally(() => {
+				this.chunkNegotiation = null
+			})
+		}
+		return this.chunkNegotiation
 	}
 
 	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number) {
@@ -239,6 +264,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			previous.close()
 		}
 		this.channel = channel
+		this.negotiatedChunkSize = null
+		this.chunkNegotiation = null
 		channel.binaryType = 'arraybuffer'
 		channel.onopen = () => this.sendControl({ type: 'hello', generation: this.generation })
 		channel.onclose = () => {
@@ -258,8 +285,19 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			const control = parseTransportControl(data)
 			if (control) return this.handleControl(control)
 		}
-		if (data instanceof Blob) return this.options.onData(await data.arrayBuffer())
-		this.options.onData(data)
+		const payload = data instanceof Blob ? await data.arrayBuffer() : data
+		if (this.handleFrameProbe(payload)) return
+		this.options.onData(payload)
+	}
+
+	private handleFrameProbe(data: unknown) {
+		const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : ArrayBuffer.isView(data) ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength) : null
+		if (!bytes || bytes[0] !== TRANSPORT_FRAME_PROBE || bytes.byteLength < 3) return false
+		const idLength = bytes[1]
+		if (!idLength || bytes.byteLength < idLength + 2) return true
+		const id = decoder.decode(bytes.subarray(2, 2 + idLength))
+		this.sendControl({ type: 'frame-probe-ack', generation: this.generation, id })
+		return true
 	}
 
 	private handleControl(message: TransportControl) {
@@ -287,6 +325,41 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		} catch {
 			return false
 		}
+	}
+
+	private async probeChunkSize(peerMaxChunkSize: number) {
+		const sctpMax = this.pc.sctp?.maxMessageSize
+		const localFrameLimit = sctpMax && Number.isFinite(sctpMax) ? sctpMax : Number.POSITIVE_INFINITY
+		for (const tier of LAN_CHUNK_TIERS) {
+			if (tier.chunkSize <= LAN_LIMITS.dataChannelFallbackChunkSize) break
+			if (tier.chunkSize > peerMaxChunkSize || tier.frameSize > localFrameLimit) continue
+			if (await this.probeFrameSize(tier.frameSize)) return tier.chunkSize
+			if (!this.isOpen()) break
+		}
+		return LAN_LIMITS.dataChannelFallbackChunkSize
+	}
+
+	private probeFrameSize(frameSize: number, timeoutMs = 2000) {
+		if (!this.isOpen()) return Promise.resolve(false)
+		const id = randomId()
+		const idBytes = encoder.encode(id)
+		if (idBytes.byteLength > 0xff || frameSize < idBytes.byteLength + 2) return Promise.resolve(false)
+		const frame = new Uint8Array(frameSize)
+		frame[0] = TRANSPORT_FRAME_PROBE
+		frame[1] = idBytes.byteLength
+		frame.set(idBytes, 2)
+		return new Promise<boolean>(resolve => {
+			const timer = setTimeout(() => {
+				this.pendingProbes.delete(id)
+				resolve(false)
+			}, timeoutMs)
+			this.pendingProbes.set(id, { resolve, timer })
+			if (!this.send(frame)) {
+				clearTimeout(timer)
+				this.pendingProbes.delete(id)
+				resolve(false)
+			}
+		})
 	}
 
 	private async flushCandidates() {
