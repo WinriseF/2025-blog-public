@@ -217,9 +217,11 @@ export class LanSignalingClient {
 	private bindResumeListeners() {
 		if (typeof window === 'undefined') return null
 		const wake = () => this.wake()
+		const network = (navigator as Navigator & { connection?: EventTarget }).connection
 		window.addEventListener('focus', wake)
 		window.addEventListener('online', wake)
 		window.addEventListener('pageshow', wake)
+		network?.addEventListener('change', wake)
 		const onVisibility = () => {
 			if (document.visibilityState === 'visible') wake()
 			else this.clearWatchdog()
@@ -229,6 +231,7 @@ export class LanSignalingClient {
 			window.removeEventListener('focus', wake)
 			window.removeEventListener('online', wake)
 			window.removeEventListener('pageshow', wake)
+			network?.removeEventListener('change', wake)
 			document.removeEventListener('visibilitychange', onVisibility)
 		}
 	}

@@ -1,6 +1,6 @@
-import type { LanReconnectTransport, LanTransportCreateOptions, LanTransportState } from './transport-types'
+import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportState } from './transport-types'
 
-const transportControlPrefix = '__winrisef_lan_v7__:'
+const transportControlPrefix = '__winrisef_lan_v8__:'
 
 export const lanRtcConfig: RTCConfiguration = {
 	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -9,6 +9,8 @@ export const lanRtcConfig: RTCConfiguration = {
 
 type TransportControl = { type: 'hello'; generation: number } | { type: 'ping' | 'pong'; generation: number; id: string }
 type CandidatePairStats = RTCStats & { localCandidateId?: string; remoteCandidateId?: string; nominated?: boolean; selected?: boolean; state?: string }
+type CandidateStats = RTCStats & { address?: string; ip?: string; ipAddress?: string; candidateType?: string }
+type TransportStats = RTCStats & { selectedCandidatePairId?: string }
 
 function randomId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -27,18 +29,50 @@ function parseTransportControl(value: string): TransportControl | null {
 }
 
 function selectedCandidatePair(stats: RTCStatsReport) {
-	let selected: CandidatePairStats | null = null
+	let selectedPairId = ''
 	stats.forEach(report => {
-		if (selected || report.type !== 'candidate-pair') return
-		const pair = report as CandidatePairStats
-		if (pair.selected || pair.nominated && pair.state === 'succeeded') selected = pair
+		if (report.type === 'transport') selectedPairId ||= (report as TransportStats).selectedCandidatePairId || ''
 	})
-	return selected
+	if (selectedPairId) {
+		const pair = stats.get(selectedPairId) as CandidatePairStats | undefined
+		if (pair) return pair
+	}
+	let selected: CandidatePairStats | null = null
+	let nominated: CandidatePairStats | null = null
+	stats.forEach(report => {
+		if (report.type !== 'candidate-pair') return
+		const pair = report as CandidatePairStats
+		if (pair.selected) selected = pair
+		else if (!nominated && pair.nominated && pair.state === 'succeeded') nominated = pair
+	})
+	return selected || nominated
 }
 
-function candidateType(stats: RTCStatsReport, id: string | undefined) {
-	if (!id) return ''
-	return (stats.get(id) as (RTCStats & { candidateType?: string }) | undefined)?.candidateType || ''
+function candidateStats(stats: RTCStatsReport, id: string | undefined) {
+	return id ? stats.get(id) as CandidateStats | undefined : undefined
+}
+
+function addressFamily(candidate?: CandidateStats): LanConnectionRoute['family'] {
+	const address = candidate?.address || candidate?.ip || candidate?.ipAddress || ''
+	if (address.includes(':')) return 'ipv6'
+	if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(address)) return 'ipv4'
+	return 'unknown'
+}
+
+function routeFromPair(stats: RTCStatsReport, pair: CandidatePairStats): LanConnectionRoute {
+	const local = candidateStats(stats, pair.localCandidateId)
+	const remote = candidateStats(stats, pair.remoteCandidateId)
+	const localType = local?.candidateType || ''
+	const remoteType = remote?.candidateType || ''
+	if (localType === 'relay' || remoteType === 'relay') throw new Error('当前网络无法直连，请换个网络后重试')
+	const localFamily = addressFamily(local)
+	const remoteFamily = addressFamily(remote)
+	const family = localFamily === remoteFamily ? localFamily : localFamily === 'unknown' ? remoteFamily : remoteFamily === 'unknown' ? localFamily : 'unknown'
+	if (family === 'ipv6') return { family, kind: 'direct' }
+	if (family !== 'ipv4') return { family: 'unknown', kind: 'unknown' }
+	if (localType === 'host' && remoteType === 'host') return { family, kind: 'lan' }
+	if (['srflx', 'prflx'].includes(localType) || ['srflx', 'prflx'].includes(remoteType)) return { family, kind: 'nat' }
+	return { family, kind: 'direct' }
 }
 
 export class NativeWebRtcTransport implements LanReconnectTransport {
@@ -150,12 +184,10 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		})
 	}
 
-	async inspectRoute() {
+	async inspectRoute(): Promise<LanConnectionRoute> {
 		const stats = await this.pc.getStats()
 		const pair = selectedCandidatePair(stats)
-		if (!pair) return '已连接'
-		if (candidateType(stats, pair.localCandidateId) === 'relay' || candidateType(stats, pair.remoteCandidateId) === 'relay') throw new Error('当前网络无法直连，请换个网络后重试')
-		return '已连接'
+		return pair ? routeFromPair(stats, pair) : { family: 'unknown', kind: 'unknown' }
 	}
 
 	close() {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Mut
 import { createEmptyLanChatState, lanChatReducer, type LanChatAction, type LanChatState } from './use-lan-chat-state'
 import { downloadUrl } from '@/lib/lan-transfer/file-transfer'
 import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
-import type { LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
+import type { LanConnectionRoute, LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
 
 type UseLanTransferEngineOptions = {
@@ -27,7 +27,7 @@ type ConnectionStateRecord = {
 	peer: LanPeer
 	connected: boolean
 	connectionState: LanConnectionState
-	connectionRoute: string
+	connectionRoute: LanConnectionRoute | null
 	status: string
 	remoteCapability: LanCapability | null
 	chat: LanChatState
@@ -71,7 +71,7 @@ function connectionReducer(state: ConnectionStateRecord[], action: ConnectionAct
 				peer: action.peer,
 				connected: false,
 				connectionState: 'discovered',
-				connectionRoute: '',
+				connectionRoute: null,
 				status: '找到设备，正在连接',
 				remoteCapability: null,
 				chat: createEmptyLanChatState(),
@@ -168,7 +168,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		dispatch({ type: 'patch', peerId, patch })
 	}, [])
 
-	const attachTransport = useCallback((transport: LanConnectionTransport, remotePeer: LanPeer, route: string) => {
+	const attachTransport = useCallback((transport: LanConnectionTransport, remotePeer: LanPeer, route: LanConnectionRoute) => {
 		const session = optionsRef.current.sessionRef.current
 		if (!session) return
 		const connectionId = connectionIdForPeer(remotePeer)
@@ -184,12 +184,17 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		setActivePeerId(current => current || connectionId)
 	}, [ensureConnection])
 
+	const updateConnectionRoute = useCallback((peerId: string, transportId: string, route: LanConnectionRoute) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) dispatch({ type: 'patch', peerId, patch: { connectionRoute: route } })
+	}, [])
+
 	const detachPeer = useCallback((peerId: string, status = '连接断了，正在恢复', state: LanConnectionState = 'suspect', transportId = '') => {
 		const entry = managedRef.current.get(peerId)
 		if (transportId && entry?.transportId && entry.transportId !== transportId) return
 		entry?.runtime.detachTransport()
 		if (entry) entry.transportId = ''
-		dispatch({ type: 'patch', peerId, patch: { connected: false, connectionState: state, connectionRoute: '', status } })
+		dispatch({ type: 'patch', peerId, patch: { connected: false, connectionState: state, connectionRoute: null, status } })
 		if (!activePeerIdRef.current || activePeerIdRef.current === peerId) optionsRef.current.setStatus(status)
 	}, [])
 
@@ -255,6 +260,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		ensureConnection,
 		patchConnection,
 		attachTransport,
+		updateConnectionRoute,
 		detachPeer,
 		removeConnection,
 		resetAll,

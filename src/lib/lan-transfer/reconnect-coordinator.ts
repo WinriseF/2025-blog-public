@@ -1,4 +1,4 @@
-import type { LanReconnectTransport, LanTransportFactory, LanTransportState } from './transport-types'
+import type { LanConnectionRoute, LanReconnectTransport, LanTransportFactory, LanTransportState } from './transport-types'
 import type { LanConnectionState, LanPeer, LanRole, LanSignalMessage, LanSignalSendDetails, LanSignalTarget, LanSignalType } from './types'
 
 const suspectGraceMs = 4000
@@ -15,7 +15,8 @@ export type ReconnectCoordinatorOptions = {
 	createTransport: LanTransportFactory
 	sendSignal: (type: LanSignalType, target: LanSignalTarget, details?: LanSignalSendDetails) => Promise<void>
 	onState: (peer: LanPeer, state: LanConnectionState, status: string, connected: boolean) => void
-	onAttach: (peer: LanPeer, transport: LanReconnectTransport, route: string) => void
+	onAttach: (peer: LanPeer, transport: LanReconnectTransport, route: LanConnectionRoute) => void
+	onRoute: (peer: LanPeer, transportId: string, route: LanConnectionRoute) => void
 	onDetach: (peer: LanPeer, transportId: string | null, state: LanConnectionState, status: string) => void
 	onData: (peer: LanPeer, transportId: string, data: unknown) => void
 }
@@ -160,7 +161,7 @@ export class ReconnectCoordinator {
 		if (!force && this.transport?.isOpen()) return
 		this.clearBackoff()
 		if (this.options.role === 'host') {
-			if (force && this.transport) void this.startIceRestart()
+			if (this.transport) void this.startIceRestart()
 			else void this.startRebuild(reason)
 			return
 		}
@@ -333,6 +334,7 @@ export class ReconnectCoordinator {
 		this.backoffIndex = 0
 		if (this.attachedTransportId === transport.id) {
 			this.setState('connected', '已连接，可以发送消息和文件', true)
+			this.refreshRoute(transport)
 			return this.scheduleHealthCheck()
 		}
 		this.setState('connected', '正在确认连接线路')
@@ -342,6 +344,13 @@ export class ReconnectCoordinator {
 			this.options.onAttach(this.peer, transport, route)
 			this.setState('connected', '已连接，可以发送消息和文件', true)
 			this.scheduleHealthCheck()
+		}).catch(() => this.handleAttemptFailure())
+	}
+
+	private refreshRoute(transport: LanReconnectTransport) {
+		void transport.inspectRoute().then(route => {
+			if (this.closed || this.transport !== transport || this.attachedTransportId !== transport.id || !transport.isOpen()) return
+			this.options.onRoute(this.peer, transport.id, route)
 		}).catch(() => this.handleAttemptFailure())
 	}
 

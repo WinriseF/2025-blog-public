@@ -69,13 +69,14 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				return client.sendSignal(type, target, details)
 			},
 			onState: (remotePeer, connectionState, message, connected) => {
-				engineRef.current.ensureConnection(remotePeer, { connected, connectionState, connectionRoute: connected ? '已连接' : '', status: message })
+				engineRef.current.ensureConnection(remotePeer, { connected, connectionState, ...(connected ? {} : { connectionRoute: null }), status: message })
 				setStatus(message)
 			},
 			onAttach: (remotePeer, transport, route) => {
 				engineRef.current.attachTransport(transport, remotePeer, route)
 				setStatus('已连接，可以发送消息和文件')
 			},
+			onRoute: (remotePeer, transportId, route) => engineRef.current.updateConnectionRoute(remotePeer.deviceId, transportId, route),
 			onDetach: (remotePeer, transportId, connectionState, message) => {
 				engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || '')
 			},
