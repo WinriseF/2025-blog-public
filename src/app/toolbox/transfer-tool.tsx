@@ -4,6 +4,7 @@ import { useEffect, useState, type ClipboardEvent, type MouseEvent } from 'react
 import { Copy, Download, Globe2, Image as ImageIcon, Link as LinkIcon, Network, QrCode, Send, UploadCloud, X } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
+import { EmbeddedBrowserInviteDialog } from './embedded-browser-invite-dialog'
 import { LanTransferTool } from './lan-transfer-tool'
 import { cleanupLanTransferPersistentStorage } from '@/lib/lan-transfer/storage/persistent-cleanup'
 import { createRelayTransfer, openRelayTransfer, type OpenedRelayFile } from '@/lib/transfer-relay'
@@ -90,6 +91,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [result, setResult] = useState<TransferCreateResponse | null>(null)
 	const [resultPassword, setResultPassword] = useState('')
 	const [lanInvite, setLanInvite] = useState<{ roomId: string; token: string } | null>(null)
+	const [embeddedInvite, setEmbeddedInvite] = useState<{ browser: '微信' | 'QQ'; url: string } | null>(null)
 	const [qrDataUrl, setQrDataUrl] = useState('')
 	const [qrError, setQrError] = useState('')
 	const [openedText, setOpenedText] = useState('')
@@ -117,6 +119,12 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 				const roomId = params.get('room') || ''
 				const token = params.get('token') || ''
 				if (roomId && token) {
+					const userAgent = navigator.userAgent.toLowerCase()
+					const browser = /micromessenger/.test(userAgent) ? '微信' : /qq\//.test(userAgent) || /mqqbrowser/.test(userAgent) ? 'QQ' : null
+					if (browser) {
+						setEmbeddedInvite({ browser, url: window.location.href })
+						return
+					}
 					const invite = { roomId, token }
 					setMode('lan')
 					setLanInvite(invite)
@@ -466,6 +474,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	}
 	const relayView = (
 		<div aria-hidden={mode === 'lan'} className={`space-y-5 max-sm:px-4 ${mode === 'lan' ? 'lan-session-underlay' : ''}`}>
+			{embeddedInvite && <EmbeddedBrowserInviteDialog {...embeddedInvite} onClose={() => setEmbeddedInvite(null)} />}
 			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
 				<button onClick={() => setMode('relay')} className='flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-xs font-medium text-primary'>
 					<Globe2 size={15} />
