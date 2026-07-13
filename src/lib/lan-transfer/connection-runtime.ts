@@ -33,6 +33,7 @@ type PreparedEntry = { file: PreparedLanAttachment; createdAt: number; acked: nu
 type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; messageId: string; size: number; chunkCount: number; storage: TransferFileMeta['storage']; url?: string }
 type ProgressCheckpoint = { bytes: number; ts: number }
 type TransferSample = { bytes: number; ts: number; speedBps: number }
+type ResumeSync = { id: string; epoch: number; generation: number; ids: Set<string>; timer?: ReturnType<typeof setTimeout> }
 
 type RuntimeContext = {
 	session: LanSession
@@ -175,6 +176,10 @@ export class LanConnectionRuntime {
 	private transferSamples = new Map<string, TransferSample>()
 	private queue: string[] = []
 	private activeSending: string | null = null
+	private activeSendController: AbortController | null = null
+	private activeSendTask: Promise<void> | null = null
+	private sendBarrier: Promise<void> = Promise.resolve()
+	private resumeSync: ResumeSync | null = null
 	private chunkWriteQueue: Promise<void> = Promise.resolve()
 	private outgoingObjectUrls: string[] = []
 	private destroyed = false
@@ -197,7 +202,9 @@ export class LanConnectionRuntime {
 	detachTransport() {
 		const activeId = this.activeSending
 		if (activeId && this.prepared.get(activeId)?.accepted && !this.queue.includes(activeId)) this.queue.unshift(activeId)
+		this.abortActiveSend()
 		this.activeSending = null
+		this.clearResumeSync()
 		this.transportEpoch += 1
 		this.transport = null
 	}
@@ -227,6 +234,10 @@ export class LanConnectionRuntime {
 		this.prepared.clear()
 		this.queue = []
 		this.activeSending = null
+		this.activeSendController = null
+		this.activeSendTask = null
+		this.sendBarrier = Promise.resolve()
+		this.clearResumeSync()
 		this.chunkWriteQueue = Promise.resolve()
 		this.context = null
 		this.outgoingObjectUrls.forEach(url => URL.revokeObjectURL(url))
@@ -248,15 +259,33 @@ export class LanConnectionRuntime {
 	resumeAfterConnect() {
 		if (!this.isOpen()) return
 		const epoch = this.transportEpoch
+		const transport = this.transport
+		if (!transport) return
+		this.abortActiveSend()
 		this.activeSending = null
+		this.clearResumeSync()
 		this.prepared.forEach(entry => {
 			entry.offered = false
 		})
-		void this.sendLocalCapability(epoch).then(() => {
-			if (epoch !== this.transportEpoch) return
+		const ids = new Set(this.prepared.keys())
+		const resumeId = messageId()
+		if (ids.size) {
+			this.resumeSync = { id: resumeId, epoch, generation: transport.generation, ids }
+			this.setStatus('正在同步文件断点')
+		}
+		void this.sendBarrier.then(() => this.sendLocalCapability(epoch)).then(() => {
+			if (epoch !== this.transportEpoch || this.transport !== transport) return
 			this.sendChatHistory()
-			this.sendControl({ ...this.controlBase('resume-query'), ids: Array.from(this.prepared.keys()) })
-			this.flushOffersAndQueue()
+			if (!ids.size) return this.flushOffersAndQueue()
+			const sent = this.sendControl({ ...this.controlBase('resume-query'), resumeId, transportGeneration: transport.generation, transportEpoch: epoch, ids: Array.from(ids) })
+			if (!sent) return this.setStatus('断点同步失败，正在等待连接恢复')
+			const sync = this.resumeSync
+			if (!sync || sync.id !== resumeId) return
+			sync.timer = setTimeout(() => {
+				if (this.resumeSync?.id === resumeId) this.setStatus('断点同步超时，请等待连接自动恢复')
+			}, 15_000)
+		}).catch(() => {
+			if (epoch === this.transportEpoch) this.setStatus('断点同步失败，正在等待连接恢复')
 		})
 	}
 
@@ -334,8 +363,9 @@ export class LanConnectionRuntime {
 			this.resetTransferSample(id, current.received)
 			this.emit({ type: 'attachment-patch', patch: { ...this.transferPatch(id, offer.messageId, 'receiving', current.received, offer.attachment.size), storage: current.engine.kind } })
 			this.emit({ type: 'file-record-patch', id, patch: { storage: current.engine.kind } })
-			const ranges = await current.engine.getReceivedRanges(current.meta.id)
-			this.sendControl({ ...this.controlBase('attachment-accept'), id, messageId: offer.messageId, storage: current.engine.kind, receivedRanges: ranges, receivedBytes: current.received })
+			const snapshot = await this.checkpointIncoming(current)
+			if (!snapshot) throw new Error('无法读取接收进度')
+			this.sendControl({ ...this.controlBase('attachment-accept'), id, messageId: offer.messageId, storage: current.engine.kind, receivedRanges: snapshot.receivedRanges, receivedBytes: snapshot.receivedBytes })
 			this.setStatus(`正在接收 ${offer.attachment.name}`)
 		} catch (error) {
 			const reason = isUserCancel(error) ? '已取消下载' : error instanceof Error ? error.message : '当前设备不能接收该文件'
@@ -356,6 +386,19 @@ export class LanConnectionRuntime {
 
 	private setStatus(message: string) {
 		this.emit({ type: 'status', message })
+	}
+
+	private abortActiveSend() {
+		const controller = this.activeSendController
+		if (!controller || controller.signal.aborted) return
+		controller.abort()
+		const task = this.activeSendTask
+		if (task) this.sendBarrier = Promise.all([this.sendBarrier, task.catch(() => {})]).then(() => {})
+	}
+
+	private clearResumeSync() {
+		if (this.resumeSync?.timer) clearTimeout(this.resumeSync.timer)
+		this.resumeSync = null
 	}
 
 	private resetTransferSample(id: string, bytes = 0) {
@@ -430,7 +473,7 @@ export class LanConnectionRuntime {
 	}
 
 	private flushOffersAndQueue() {
-		if (!this.transport?.isOpen()) return
+		if (!this.transport?.isOpen() || this.resumeSync) return
 		this.prepared.forEach(entry => {
 			if (entry.offered) return
 			const offered = this.sendControl({
@@ -459,7 +502,7 @@ export class LanConnectionRuntime {
 	}
 
 	private pumpQueue() {
-		if (!this.transport?.isOpen() || this.activeSending) return
+		if (!this.transport?.isOpen() || this.resumeSync || this.activeSending || this.activeSendTask) return
 		const nextId = this.queue.find(id => this.prepared.get(id)?.accepted)
 		if (!nextId) return
 		const entry = this.prepared.get(nextId)
@@ -470,19 +513,24 @@ export class LanConnectionRuntime {
 		const transport = this.transport
 		const epoch = this.transportEpoch
 		if (!transport) return
-		this.resetTransferSample(message.id, message.receivedBytes)
-		this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', message.receivedBytes, entry.file.size) })
+		const controller = new AbortController()
+		this.activeSendController = controller
+		this.resetTransferSample(message.id, entry.acked)
+		this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', entry.acked, entry.file.size) })
 		this.setStatus(`正在发送 ${entry.file.name}`)
-		void sendPreparedAttachment(transport, entry.file, () => {}, {
+		let task!: Promise<void>
+		task = sendPreparedAttachment(transport, entry.file, () => {}, {
 			mobile: this.context?.remoteCapability?.platform === 'android' || this.context?.remoteCapability?.platform === 'ios',
 			getAckedBytes: () => entry.acked,
-			receivedRanges: entry.ranges,
+			receivedRanges: entry.ranges.map(range => [...range] as [number, number]),
+			signal: controller.signal,
 			completeMessage: { ...this.controlBase('attachment-complete'), id: entry.file.id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount },
 		}).then(() => {
 			if (epoch !== this.transportEpoch || this.transport !== transport) return
 			this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'sending' } })
 			this.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
 		}).catch(error => {
+			if (controller.signal.aborted) return
 			if (epoch !== this.transportEpoch || this.transport !== transport) return
 			this.activeSending = null
 			if (!this.transport?.isOpen()) {
@@ -493,11 +541,18 @@ export class LanConnectionRuntime {
 			}
 			this.failAttachment(message.id, message.messageId, error instanceof Error ? error.message : '发送失败')
 			this.pumpQueue()
+		}).finally(() => {
+			if (this.activeSendTask === task) this.activeSendTask = null
+			if (this.activeSendController === controller) this.activeSendController = null
+			this.pumpQueue()
 		})
+		this.activeSendTask = task
 	}
 
 	private completeOutgoing(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
+		if (!entry || message.messageId !== entry.file.messageId) return
+		if (this.activeSending === message.id) this.abortActiveSend()
 		this.prepared.delete(message.id)
 		this.queue = this.queue.filter(id => id !== message.id)
 		this.activeSending = null
@@ -506,6 +561,20 @@ export class LanConnectionRuntime {
 		this.transferSamples.delete(message.id)
 		this.setStatus('对方已收到')
 		this.pumpQueue()
+	}
+
+	private async checkpointIncoming(current: IncomingAttachment) {
+		await this.chunkWriteQueue
+		if (this.destroyed || this.incoming.get(current.meta.id) !== current) return null
+		const manifest = await current.engine.checkpoint(current.meta)
+		if (!manifest || this.destroyed || this.incoming.get(current.meta.id) !== current) return null
+		current.received = manifest.receivedBytes
+		current.chunkCount = manifest.receivedChunks
+		return {
+			receivedBytes: manifest.receivedBytes,
+			receivedChunks: manifest.receivedChunks,
+			receivedRanges: manifest.receivedRanges.map(range => [...range] as [number, number]),
+		}
 	}
 
 	private async prepareIncoming(message: LanAttachmentOffer, capability: LanCapability | null, allowDirectFile = true) {
@@ -552,8 +621,9 @@ export class LanConnectionRuntime {
 			assertCanReceiveFile(message.attachment.size, capability)
 			const current = this.incoming.get(message.attachment.id)
 			if (current) {
-				const ranges = await current.engine.getReceivedRanges(current.meta.id)
-				this.sendControl({ ...this.controlBase('attachment-accept'), id: message.attachment.id, messageId: message.messageId, storage: current.engine.kind, receivedRanges: ranges, receivedBytes: current.received })
+				const snapshot = await this.checkpointIncoming(current).catch(() => null)
+				if (!snapshot) return
+				this.sendControl({ ...this.controlBase('attachment-accept'), id: message.attachment.id, messageId: message.messageId, storage: current.engine.kind, receivedRanges: snapshot.receivedRanges, receivedBytes: snapshot.receivedBytes })
 				return
 			}
 			this.pendingOffers.set(message.attachment.id, message)
@@ -643,7 +713,7 @@ export class LanConnectionRuntime {
 		if (message.type === 'capability') {
 			if (this.context) this.context.remoteCapability = message
 			this.emit({ type: 'remote-capability', capability: message })
-			this.setStatus('已连接，可以发送消息和文件')
+			this.setStatus(this.resumeSync ? '已连接，正在同步文件断点' : '已连接，可以发送消息和文件')
 			this.flushOffersAndQueue()
 			return
 		}
@@ -652,19 +722,18 @@ export class LanConnectionRuntime {
 		if (message.type === 'attachment-offer') return void (await this.handleOffer(message))
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)
-			if (!entry) return
-			const receivedBytes = Math.max(entry.acked, message.receivedBytes)
-			entry.accepted = { ...message, receivedBytes }
-			entry.ranges = message.receivedRanges
-			entry.acked = receivedBytes
-			this.resetTransferSample(message.id, receivedBytes)
+			if (!entry || message.messageId !== entry.file.messageId) return
+			entry.accepted = message
+			entry.ranges = message.receivedRanges.map(range => [...range] as [number, number])
+			entry.acked = message.receivedBytes
+			this.resetTransferSample(message.id, entry.acked)
 			if (!this.queue.includes(message.id) && this.activeSending !== message.id) this.queue.push(message.id)
 			this.pumpQueue()
 			return
 		}
 		if (message.type === 'attachment-progress') {
 			const entry = this.prepared.get(message.id)
-			if (entry) {
+			if (entry && message.messageId === entry.file.messageId) {
 				entry.acked = Math.max(entry.acked, message.received)
 				this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', entry.acked, entry.file.size) })
 			}
@@ -678,26 +747,55 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'resume-query') {
+			const transport = this.transport
+			const epoch = this.transportEpoch
+			if (!transport || message.transportGeneration !== transport.generation) return
+			await this.chunkWriteQueue
 			const attachments = await Promise.all(message.ids.map(async id => {
 				const cached = this.receivedCache.get(id)
 				if (cached) {
-					this.confirmReceived(id, cached.messageId, cached.size, cached.chunkCount, cached.storage)
-					return null
+					return { id, messageId: cached.messageId, state: 'complete' as const, receivedRanges: cached.chunkCount ? [[0, cached.chunkCount - 1] as [number, number]] : [], receivedBytes: cached.size, receivedChunks: cached.chunkCount, storage: cached.storage }
 				}
 				const current = this.incoming.get(id)
-				return current ? { id, messageId: current.offer.messageId, receivedRanges: await current.engine.getReceivedRanges(current.meta.id), receivedBytes: current.received, storage: current.engine.kind } : null
+				if (!current) return { id, state: 'unknown' as const, receivedRanges: [], receivedBytes: 0, receivedChunks: 0 }
+				const snapshot = await this.checkpointIncoming(current).catch(() => null)
+				return snapshot
+					? { id, messageId: current.offer.messageId, state: 'receiving' as const, ...snapshot, storage: current.engine.kind }
+					: { id, state: 'unknown' as const, receivedRanges: [], receivedBytes: 0, receivedChunks: 0 }
 			}))
-			this.sendControl({ ...this.controlBase('resume-state'), attachments: attachments.filter((item): item is NonNullable<typeof item> => Boolean(item)) })
+			if (epoch !== this.transportEpoch || this.transport !== transport) return
+			this.sendControl({ ...this.controlBase('resume-state'), resumeId: message.resumeId, transportGeneration: message.transportGeneration, transportEpoch: message.transportEpoch, attachments })
 			return
 		}
-		if (message.type === 'resume-state') for (const item of message.attachments) {
-			const entry = this.prepared.get(item.id)
-			if (entry) {
-				entry.ranges = item.receivedRanges
-				entry.acked = Math.max(entry.acked, item.receivedBytes)
-				this.resetTransferSample(item.id, entry.acked)
-				if (entry.accepted && !this.queue.includes(item.id) && this.activeSending !== item.id) this.queue.push(item.id)
+		if (message.type === 'resume-state') {
+			const sync = this.resumeSync
+			const transport = this.transport
+			if (!sync || !transport || message.resumeId !== sync.id || message.transportEpoch !== sync.epoch || message.transportGeneration !== sync.generation || transport.generation !== sync.generation) return
+			const snapshots = new Map(message.attachments.map(item => [item.id, item]))
+			for (const id of sync.ids) {
+				const entry = this.prepared.get(id)
+				if (!entry) continue
+				const item = snapshots.get(id)
+				if (item?.state === 'complete') {
+					this.completeOutgoing({ ...this.controlBase('attachment-received'), id, messageId: item.messageId || entry.file.messageId, received: entry.file.size, expected: entry.file.size, chunkCount: entry.file.chunkCount, storage: item.storage || entry.file.suggestedStorage })
+					continue
+				}
+				if (item?.state === 'receiving' && item.messageId === entry.file.messageId && item.storage) {
+					entry.ranges = item.receivedRanges.map(range => [...range] as [number, number])
+					entry.acked = item.receivedBytes
+					if (entry.accepted) entry.accepted = { ...entry.accepted, storage: item.storage, receivedRanges: entry.ranges, receivedBytes: entry.acked }
+					this.resetTransferSample(id, entry.acked)
+					this.emit({ type: 'attachment-patch', patch: this.transferPatch(id, entry.file.messageId, 'queued', entry.acked, entry.file.size) })
+					if (entry.accepted && !this.queue.includes(id)) this.queue.push(id)
+					continue
+				}
+				entry.accepted = undefined
+				entry.ranges = []
+				entry.acked = 0
 			}
+			this.clearResumeSync()
+			this.flushOffersAndQueue()
+			return
 		}
 	}
 
@@ -706,6 +804,7 @@ export class LanConnectionRuntime {
 	}
 
 	private failAttachment(id: string, messageIdValue: string | undefined, reason: string, notifyPeer = true) {
+		if (this.activeSending === id) this.abortActiveSend()
 		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'failed', error: reason } })
 		this.emit({ type: 'file-record-patch', id, patch: { status: 'failed' } })
 		if (notifyPeer) this.sendControl({ ...this.controlBase('attachment-cancel'), id, messageId: messageIdValue, reason })

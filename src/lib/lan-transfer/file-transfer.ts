@@ -144,20 +144,36 @@ export function decodeFrame(data: unknown) {
 	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: chunk }
 }
 
-async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, sent: number, maxAheadBytes: number) {
+function throwIfAborted(signal?: AbortSignal) {
+	if (signal?.aborted) throw new DOMException('发送已暂停', 'AbortError')
+}
+
+function abortable<T>(promise: Promise<T>, signal?: AbortSignal) {
+	if (!signal) return promise
+	throwIfAborted(signal)
+	return new Promise<T>((resolve, reject) => {
+		const abort = () => reject(new DOMException('发送已暂停', 'AbortError'))
+		signal.addEventListener('abort', abort, { once: true })
+		promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+	})
+}
+
+async function waitForReceiverWindow(getAckedBytes: (() => number) | undefined, sent: number, maxAheadBytes: number, signal?: AbortSignal) {
 	if (!getAckedBytes) return
 	const startedAt = Date.now()
 	while (sent - getAckedBytes() > maxAheadBytes) {
+		throwIfAborted(signal)
 		if (Date.now() - startedAt > LAN_LIMITS.bufferDrainTimeoutMs) throw new Error('对方接收太慢，请保持页面打开并确认空间充足')
 		await new Promise(resolve => window.setTimeout(resolve, 100))
 	}
+	throwIfAborted(signal)
 }
 
 export async function sendPreparedAttachment(
 	transport: LanConnectionTransport,
 	file: PreparedLanAttachment,
 	onProgress: (sent: number) => void,
-	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number; receivedRanges?: ChunkRange[]; completeMessage: LanControlMessage },
+	options: { mobile?: boolean; getAckedBytes?: () => number; maxAheadBytes?: number; receivedRanges?: ChunkRange[]; signal?: AbortSignal; completeMessage: LanControlMessage },
 ) {
 	const highWatermark = options.mobile ? LAN_LIMITS.mobileBufferHighWatermark : LAN_LIMITS.bufferHighWatermark
 	const lowWatermark = options.mobile ? LAN_LIMITS.mobileBufferLowWatermark : LAN_LIMITS.bufferLowWatermark
@@ -168,15 +184,18 @@ export async function sendPreparedAttachment(
 	let readBatch = new Uint8Array()
 	onProgress(Math.min(file.size, sent))
 	for (let chunkIndex = 0; chunkIndex < file.chunkCount; chunkIndex += 1) {
+		throwIfAborted(options.signal)
 		if (hasChunk(receivedRanges, chunkIndex)) continue
-		await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
-		await transport.waitUntilWritable(highWatermark, lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs)
+		await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes, options.signal)
+		await abortable(transport.waitUntilWritable(highWatermark, lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs), options.signal)
+		throwIfAborted(options.signal)
 		const offset = chunkIndex * file.chunkSize
 		if (offset >= file.size) continue
 		const chunkEnd = Math.min(offset + file.chunkSize, file.size)
 		if (readBatchOffset < 0 || offset < readBatchOffset || chunkEnd > readBatchOffset + readBatch.byteLength) {
 			readBatchOffset = offset
 			readBatch = new Uint8Array(await file.file.slice(offset, Math.min(offset + FILE_READ_BATCH_BYTES, file.size)).arrayBuffer())
+			throwIfAborted(options.signal)
 		}
 		const chunkOffset = offset - readBatchOffset
 		const chunk = readBatch.subarray(chunkOffset, chunkOffset + chunkEnd - offset)
@@ -186,8 +205,9 @@ export async function sendPreparedAttachment(
 		sent += chunk.byteLength
 		onProgress(Math.min(file.size, sent))
 	}
-	await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes)
-	await transport.waitUntilDrained(lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs)
+	await waitForReceiverWindow(options.getAckedBytes, sent, maxAheadBytes, options.signal)
+	await abortable(transport.waitUntilDrained(lowWatermark, LAN_LIMITS.bufferDrainTimeoutMs), options.signal)
+	throwIfAborted(options.signal)
 	if (!transport.isOpen() || !transport.send(encodeControl(options.completeMessage))) throw new Error('连接已断开，请重新连接后再发送')
 }
 

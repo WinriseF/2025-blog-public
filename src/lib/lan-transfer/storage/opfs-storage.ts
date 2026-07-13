@@ -201,7 +201,10 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		let manifest = active.manifest
 		if (manifest.receivedRanges.some(([start, end]) => chunkIndex >= start && chunkIndex <= end)) return manifest
 		const expectedNextIndex = active.writeBuffer.length ? active.writeBuffer[0].chunkIndex + active.writeBuffer.length : chunkIndex
-		if (chunkIndex !== expectedNextIndex) manifest = await this.flushBufferedData(active, meta)
+		if (chunkIndex !== expectedNextIndex) {
+			manifest = await this.flushBufferedData(active, meta)
+			if (manifest.receivedRanges.some(([start, end]) => chunkIndex >= start && chunkIndex <= end)) return manifest
+		}
 		active.writeBuffer.push({ chunkIndex, data })
 		active.writeBufferBytes += data.byteLength
 		const isFinalChunk = chunkIndex + 1 >= meta.chunkCount
@@ -217,6 +220,15 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		const manifest = await readJsonFile<TransferManifest>(await this.getDir(fileId), 'manifest.json')
 		if (manifest) this.manifests.set(fileId, manifest)
 		return manifest
+	}
+
+	async checkpoint(meta: TransferFileMeta) {
+		const active = this.activeFiles.get(meta.id)
+		if (active) {
+			await this.flushBufferedData(active, meta)
+			await this.flushManifest(meta.id)
+		}
+		return this.getManifest(meta.id)
 	}
 
 	async getReceivedRanges(fileId: string): Promise<ChunkRange[]> {

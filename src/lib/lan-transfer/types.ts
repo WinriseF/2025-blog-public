@@ -1,4 +1,4 @@
-export const LAN_PROTOCOL_VERSION = 7
+export const LAN_PROTOCOL_VERSION = 8
 
 export const LAN_LIMITS = {
 	memoryMaxBytes: 200 * 1024 * 1024,
@@ -258,6 +258,9 @@ export type LanResumeQuery = {
 	peerId: string
 	seq: number
 	createdAt: number
+	resumeId: string
+	transportGeneration: number
+	transportEpoch: number
 	ids: string[]
 }
 
@@ -267,12 +270,17 @@ export type LanResumeState = {
 	peerId: string
 	seq: number
 	createdAt: number
+	resumeId: string
+	transportGeneration: number
+	transportEpoch: number
 	attachments: Array<{
 		id: string
-		messageId: string
+		messageId?: string
+		state: 'receiving' | 'complete' | 'unknown'
 		receivedRanges: Array<[number, number]>
 		receivedBytes: number
-		storage: LanStorageKind
+		receivedChunks: number
+		storage?: LanStorageKind
 	}>
 }
 

@@ -45,6 +45,10 @@ export class MemoryStorageEngine implements LanStorageEngine {
 		return this.manifests.get(fileId) || null
 	}
 
+	async checkpoint(meta: TransferFileMeta) {
+		return this.getManifest(meta.id)
+	}
+
 	async getReceivedRanges(fileId: string): Promise<ChunkRange[]> {
 		return this.manifests.get(fileId)?.receivedRanges || []
 	}

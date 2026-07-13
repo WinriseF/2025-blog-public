@@ -117,6 +117,12 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 		return this.activeFiles.get(fileId)?.manifest || this.manifests.get(fileId) || null
 	}
 
+	async checkpoint(meta: TransferFileMeta) {
+		const active = this.activeFiles.get(meta.id)
+		if (active) await this.flushBufferedData(active, meta)
+		return this.getManifest(meta.id)
+	}
+
 	async getReceivedRanges(fileId: string): Promise<ChunkRange[]> {
 		return (await this.getManifest(fileId))?.receivedRanges || []
 	}

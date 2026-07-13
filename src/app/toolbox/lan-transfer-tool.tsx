@@ -814,7 +814,7 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 
 	const app = (
 		<div
-			className='lan-session-v7 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
+			className='lan-session-v8 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
 			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
 		>
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>

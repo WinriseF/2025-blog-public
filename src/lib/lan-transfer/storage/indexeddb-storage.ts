@@ -114,6 +114,10 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 		return ((await requestToPromise(db.transaction(MANIFESTS, 'readonly').objectStore(MANIFESTS).get(fileId))) as TransferManifest | undefined) || null
 	}
 
+	async checkpoint(meta: TransferFileMeta) {
+		return this.getManifest(meta.id)
+	}
+
 	async getReceivedRanges(fileId: string): Promise<ChunkRange[]> {
 		return (await this.getManifest(fileId))?.receivedRanges || []
 	}

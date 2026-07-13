@@ -62,7 +62,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.pc.onicecandidate = event => options.onCandidate(event.candidate?.toJSON() || null)
 		this.pc.onconnectionstatechange = () => this.emitConnectionState()
 		this.pc.oniceconnectionstatechange = () => this.emitConnectionState()
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v7', { ordered: true }))
+		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v8', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}
