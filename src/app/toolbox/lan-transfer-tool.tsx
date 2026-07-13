@@ -218,6 +218,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 		const player = new WaveformPlayer(playerRef.current, {
 			url: source,
 			height: 36,
+			colorPreset: outgoing ? 'dark' : 'light',
 			showInfo: false,
 			enableMediaSession: false,
 			playPauseLabel: '播放或暂停语音',
@@ -225,7 +226,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 			errorText: '语音加载失败',
 		})
 		return () => player.destroy()
-	}, [failed, source])
+	}, [failed, outgoing, source])
 
 	return (
 		<div className={cn('w-[72vw] min-w-[215px] max-w-[300px] rounded-[24px] px-3 py-1.5 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
