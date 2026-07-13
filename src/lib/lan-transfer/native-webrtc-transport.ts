@@ -93,6 +93,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private pendingProbes = new Map<string, { resolve: (alive: boolean) => void; timer: ReturnType<typeof setTimeout> }>()
 	private negotiatedChunkSize: number | null = null
 	private chunkNegotiation: Promise<number> | null = null
+	private reportedChunkSize: number | null = null
 	private currentNegotiationId: string
 	private makingOffer = false
 	private ready = false
@@ -133,11 +134,16 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 
 	negotiateChunkSize(peerMaxChunkSize = LAN_LIMITS.dataChannelFallbackChunkSize) {
 		const peerLimit = chunkSizeAtMost(peerMaxChunkSize)
-		if (peerLimit <= LAN_LIMITS.dataChannelFallbackChunkSize) return Promise.resolve(LAN_LIMITS.dataChannelFallbackChunkSize)
+		if (peerLimit <= LAN_LIMITS.dataChannelFallbackChunkSize) {
+			const chunkSize = LAN_LIMITS.dataChannelFallbackChunkSize
+			this.logNegotiatedChunkSize(chunkSize, peerLimit)
+			return Promise.resolve(chunkSize)
+		}
 		if (this.negotiatedChunkSize !== null) return Promise.resolve(chunkSizeAtMost(Math.min(this.negotiatedChunkSize, peerLimit)))
 		if (!this.chunkNegotiation) {
 			this.chunkNegotiation = this.probeChunkSize(peerLimit).then(chunkSize => {
 				this.negotiatedChunkSize = chunkSize
+				this.logNegotiatedChunkSize(chunkSize, peerLimit)
 				return chunkSize
 			}).finally(() => {
 				this.chunkNegotiation = null
@@ -266,6 +272,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.channel = channel
 		this.negotiatedChunkSize = null
 		this.chunkNegotiation = null
+		this.reportedChunkSize = null
 		channel.binaryType = 'arraybuffer'
 		channel.onopen = () => this.sendControl({ type: 'hello', generation: this.generation })
 		channel.onclose = () => {
@@ -337,6 +344,16 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			if (!this.isOpen()) break
 		}
 		return LAN_LIMITS.dataChannelFallbackChunkSize
+	}
+
+	private logNegotiatedChunkSize(chunkSize: number, peerLimit: number) {
+		if (this.reportedChunkSize === chunkSize) return
+		this.reportedChunkSize = chunkSize
+		console.info(`[LAN] 文件分块协商完成：${chunkSize / 1024}KB`, {
+			chunkSize,
+			peerLimit,
+			sctpMaxMessageSize: this.pc.sctp?.maxMessageSize,
+		})
 	}
 
 	private probeFrameSize(frameSize: number, timeoutMs = 2000) {
