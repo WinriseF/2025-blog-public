@@ -255,6 +255,7 @@ export class LanAttachmentSender {
 			completeMessage: { ...this.deps.controlBase('attachment-complete'), id: entry.file.id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount },
 		}).then(() => {
 			if (epoch !== this.deps.getTransportEpoch() || this.deps.getTransport() !== transport) return
+			if (kind === 'media' && lane.activeId === nextId) lane.activeId = null
 			this.deps.setStatus(`已发送 ${entry.file.name}，等待对方写入完成`)
 		}).catch(error => {
 			if (controller.signal.aborted || epoch !== this.deps.getTransportEpoch() || this.deps.getTransport() !== transport) return
