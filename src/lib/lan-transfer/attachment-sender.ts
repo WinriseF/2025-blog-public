@@ -1,5 +1,5 @@
 import { selectStorageForFile } from './capability'
-import { attachmentFromPrepared, fileRecord } from './connection-runtime-helpers'
+import { attachmentFromPrepared, fileRecord, isInlineMediaKind } from './connection-runtime-helpers'
 import type { AttachmentPatch, RuntimeContext, RuntimeControlBase, RuntimeEmit, SendFilesOptions } from './connection-runtime-types'
 import { imagePreviewUrl, messageId, prepareLanAttachment, sendPreparedAttachment } from './file-transfer'
 import type { LanConnectionTransport } from './transport-types'
@@ -18,6 +18,8 @@ type PreparedEntry = {
 }
 type ResumeSync = { id: string; epoch: number; generation: number; ids: Set<string>; attempt: number; timer?: ReturnType<typeof setTimeout> }
 type TransferSample = { bytes: number; ts: number; speedBps: number }
+type SenderLaneKind = 'file' | 'media'
+type SenderLane = { activeId: string | null; controller: AbortController | null; task: Promise<void> | null }
 
 type SenderDependencies = {
 	getContext: () => RuntimeContext | null
@@ -35,9 +37,10 @@ const resumeRetryDelays = [1000, 2000, 4000]
 export class LanAttachmentSender {
 	private prepared = new Map<string, PreparedEntry>()
 	private queue: string[] = []
-	private activeSending: string | null = null
-	private activeController: AbortController | null = null
-	private activeTask: Promise<void> | null = null
+	private lanes: Record<SenderLaneKind, SenderLane> = {
+		file: { activeId: null, controller: null, task: null },
+		media: { activeId: null, controller: null, task: null },
+	}
 	private sendBarrier: Promise<void> = Promise.resolve()
 	private resumePending = false
 	private resumeSync: ResumeSync | null = null
@@ -77,10 +80,12 @@ export class LanAttachmentSender {
 
 	prepareForResume() {
 		this.resumePending = true
-		const activeId = this.activeSending
-		if (activeId && this.prepared.get(activeId)?.accepted && !this.queue.includes(activeId)) this.queue.unshift(activeId)
-		this.abortActive()
-		this.activeSending = null
+		for (const lane of Object.values(this.lanes)) {
+			const activeId = lane.activeId
+			if (activeId && this.prepared.get(activeId)?.accepted && !this.queue.includes(activeId)) this.queue.unshift(activeId)
+			this.abortLane(lane)
+			lane.activeId = null
+		}
 		this.clearResumeSync()
 		this.prepared.forEach(entry => { entry.offered = false })
 		this.deps.onActivityChange()
@@ -107,7 +112,8 @@ export class LanAttachmentSender {
 		entry.accepted = message
 		this.applyFlow(entry, message.receivedBytes, message.receivedRanges, message.receiveWindowBytes, message.queuedBytes, message.pausedReason)
 		this.resetSample(message.id, entry.committed)
-		if (!this.queue.includes(message.id) && this.activeSending !== message.id) this.queue.push(message.id)
+		const lane = this.lanes[this.laneKind(entry)]
+		if (!this.queue.includes(message.id) && lane.activeId !== message.id) this.queue.push(message.id)
 		this.pumpQueue()
 	}
 
@@ -122,10 +128,11 @@ export class LanAttachmentSender {
 	handleReceived(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
-		if (this.activeSending === message.id) this.abortActive()
+		const lane = this.lanes[this.laneKind(entry)]
+		if (lane.activeId === message.id) this.abortLane(lane)
 		this.prepared.delete(message.id)
 		this.queue = this.queue.filter(id => id !== message.id)
-		this.activeSending = null
+		if (lane.activeId === message.id) lane.activeId = null
 		this.deps.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'complete', progress: 1, transferredBytes: entry.file.size, speedBps: undefined, etaSeconds: undefined } })
 		this.deps.emit({ type: 'file-record-patch', id: message.id, patch: { status: 'complete' } })
 		this.samples.delete(message.id)
@@ -175,17 +182,22 @@ export class LanAttachmentSender {
 	}
 
 	isActive() {
-		return Boolean(this.activeSending)
+		return Object.values(this.lanes).some(lane => Boolean(lane.activeId)) || Array.from(this.prepared.values()).some(entry => Boolean(entry.accepted))
 	}
 
 	diagnostics() {
-		const entry = this.activeSending ? this.prepared.get(this.activeSending) : undefined
-		return { active: Boolean(entry), queuedBytes: entry?.queuedBytes || 0, receiveWindowBytes: entry?.receiveWindowBytes || 0, pausedReason: entry?.pausedReason }
+		const entries = Object.values(this.lanes).flatMap(lane => lane.activeId ? [this.prepared.get(lane.activeId)] : []).filter((entry): entry is PreparedEntry => Boolean(entry))
+		return {
+			active: entries.length > 0,
+			queuedBytes: entries.reduce((sum, entry) => sum + entry.queuedBytes, 0),
+			receiveWindowBytes: entries.length ? Math.min(...entries.map(entry => entry.receiveWindowBytes)) : 0,
+			pausedReason: entries.find(entry => entry.pausedReason)?.pausedReason,
+		}
 	}
 
 	destroy() {
 		this.destroyed = true
-		this.abortActive()
+		Object.values(this.lanes).forEach(lane => this.abortLane(lane))
 		this.clearResumeSync()
 		this.prepared.clear()
 		this.queue = []
@@ -209,18 +221,27 @@ export class LanAttachmentSender {
 	}
 
 	private pumpQueue() {
-		if (!this.deps.getTransport()?.isOpen() || this.resumePending || this.resumeSync || this.activeSending || this.activeTask) return
-		const nextId = this.queue.find(id => this.prepared.get(id)?.accepted)
+		this.pumpLane('media')
+		this.pumpLane('file')
+	}
+
+	private pumpLane(kind: SenderLaneKind) {
+		const lane = this.lanes[kind]
+		if (!this.deps.getTransport()?.isOpen() || this.resumePending || this.resumeSync || lane.activeId || lane.task) return
+		const nextId = this.queue.find(id => {
+			const entry = this.prepared.get(id)
+			return entry?.accepted && this.laneKind(entry) === kind
+		})
 		const entry = nextId ? this.prepared.get(nextId) : undefined
 		const accepted = entry?.accepted
 		if (!nextId || !entry || !accepted) return
 		this.queue = this.queue.filter(id => id !== nextId)
-		this.activeSending = nextId
+		lane.activeId = nextId
 		const transport = this.deps.getTransport()
 		const epoch = this.deps.getTransportEpoch()
 		if (!transport) return
 		const controller = new AbortController()
-		this.activeController = controller
+		lane.controller = controller
 		this.resetSample(nextId, entry.committed)
 		this.deps.emit({ type: 'attachment-patch', patch: this.transferPatch(nextId, entry.file.messageId, 'sending', entry.committed, entry.file.size) })
 		this.deps.setStatus(`正在发送 ${entry.file.name}`)
@@ -237,7 +258,7 @@ export class LanAttachmentSender {
 			this.deps.setStatus(`已发送 ${entry.file.name}，等待对方写入完成`)
 		}).catch(error => {
 			if (controller.signal.aborted || epoch !== this.deps.getTransportEpoch() || this.deps.getTransport() !== transport) return
-			this.activeSending = null
+			lane.activeId = null
 			if (!this.deps.getTransport()?.isOpen()) {
 				if (entry.accepted && !this.queue.includes(nextId)) this.queue.unshift(nextId)
 				this.deps.emit({ type: 'attachment-patch', patch: { id: nextId, messageId: entry.file.messageId, status: 'queued' } })
@@ -245,12 +266,12 @@ export class LanAttachmentSender {
 			}
 			this.fail(nextId, entry.file.messageId, error instanceof Error ? error.message : '发送失败')
 		}).finally(() => {
-			if (this.activeTask === task) this.activeTask = null
-			if (this.activeController === controller) this.activeController = null
+			if (lane.task === task) lane.task = null
+			if (lane.controller === controller) lane.controller = null
 			this.deps.onActivityChange()
 			this.pumpQueue()
 		})
-		this.activeTask = task
+		lane.task = task
 	}
 
 	private sendResumeQuery(sync: ResumeSync) {
@@ -315,9 +336,13 @@ export class LanAttachmentSender {
 		return context?.session.localPeer.deviceType !== 'desktop' || platform === 'android' || platform === 'ios'
 	}
 
-	private abortActive() {
-		if (!this.activeController?.signal.aborted) this.activeController?.abort()
-		if (this.activeTask) this.sendBarrier = Promise.all([this.sendBarrier, this.activeTask.catch(() => {})]).then(() => {})
+	private laneKind(entry: PreparedEntry): SenderLaneKind {
+		return isInlineMediaKind(entry.file.kind) ? 'media' : 'file'
+	}
+
+	private abortLane(lane: SenderLane) {
+		if (!lane.controller?.signal.aborted) lane.controller?.abort()
+		if (lane.task) this.sendBarrier = Promise.all([this.sendBarrier, lane.task.catch(() => {})]).then(() => {})
 	}
 
 	private clearResumeSync() {
@@ -326,12 +351,14 @@ export class LanAttachmentSender {
 	}
 
 	private fail(id: string, messageIdValue: string | undefined, reason: string, notifyPeer = true) {
-		if (this.activeSending === id) this.abortActive()
+		const entry = this.prepared.get(id)
+		const lane = entry ? this.lanes[this.laneKind(entry)] : undefined
+		if (lane?.activeId === id) this.abortLane(lane)
 		this.deps.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'failed', error: reason } })
 		this.deps.emit({ type: 'file-record-patch', id, patch: { status: 'failed' } })
 		if (notifyPeer) this.deps.sendControl({ ...this.deps.controlBase('attachment-cancel'), id, messageId: messageIdValue, reason })
 		this.prepared.delete(id)
-		if (this.activeSending === id) this.activeSending = null
+		if (lane?.activeId === id) lane.activeId = null
 		this.queue = this.queue.filter(item => item !== id)
 		this.samples.delete(id)
 		this.deps.onActivityChange()
