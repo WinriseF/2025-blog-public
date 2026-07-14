@@ -116,6 +116,10 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		return this.currentNegotiationId
 	}
 
+	get bufferedAmount() {
+		return this.channel?.bufferedAmount || 0
+	}
+
 	isOpen() {
 		const iceConnected = this.pc.iceConnectionState === 'connected' || this.pc.iceConnectionState === 'completed'
 		return !this.closed && this.channel?.readyState === 'open' && (this.pc.connectionState === 'connected' || iceConnected)
