@@ -156,12 +156,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		return this.chunkNegotiation
 	}
 
-	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number) {
-		return this.waitForBufferedAmount(highWatermark, lowWatermark, timeoutMs)
-	}
-
-	waitUntilDrained(lowWatermark: number, timeoutMs: number) {
-		return this.waitForBufferedAmount(lowWatermark, lowWatermark, timeoutMs)
+	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {
+		return this.waitForBufferedAmount(highWatermark, lowWatermark, timeoutMs, signal)
 	}
 
 	async start() {
@@ -415,21 +411,24 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.options.onState(state)
 	}
 
-	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number) {
+	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {
 		const startedAt = Date.now()
 		while (true) {
+			if (signal?.aborted) throw new DOMException('发送已暂停', 'AbortError')
 			const channel = this.channel
 			if (!this.isOpen() || !channel) throw new Error('连接已断开，请重新连接后再发送')
-			if (channel.bufferedAmount <= limit) return
+			const openChannel = channel
+			if (openChannel.bufferedAmount <= limit) return
 			if (Date.now() - startedAt > timeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
-			channel.bufferedAmountLowThreshold = lowWatermark
+			openChannel.bufferedAmountLowThreshold = lowWatermark
 			await new Promise<void>((resolve, reject) => {
 				const timer = setTimeout(done, 250)
 				function cleanup() {
 					clearTimeout(timer)
-					channel.removeEventListener('bufferedamountlow', done)
-					channel.removeEventListener('close', fail)
-					channel.removeEventListener('error', fail)
+					openChannel.removeEventListener('bufferedamountlow', done)
+					openChannel.removeEventListener('close', fail)
+					openChannel.removeEventListener('error', fail)
+					signal?.removeEventListener('abort', abort)
 				}
 				function done() {
 					cleanup()
@@ -439,9 +438,14 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 					cleanup()
 					reject(new Error('连接已断开，请重新连接后再发送'))
 				}
-				channel.addEventListener('bufferedamountlow', done, { once: true })
-				channel.addEventListener('close', fail, { once: true })
-				channel.addEventListener('error', fail, { once: true })
+				function abort() {
+					cleanup()
+					reject(new DOMException('发送已暂停', 'AbortError'))
+				}
+				openChannel.addEventListener('bufferedamountlow', done, { once: true })
+				openChannel.addEventListener('close', fail, { once: true })
+				openChannel.addEventListener('error', fail, { once: true })
+				signal?.addEventListener('abort', abort, { once: true })
 			})
 		}
 	}

@@ -21,8 +21,7 @@ export interface LanConnectionTransport {
 	isOpen(): boolean
 	send(data: Uint8Array): boolean
 	negotiateChunkSize(peerMaxChunkSize?: number): Promise<number>
-	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number): Promise<void>
-	waitUntilDrained(lowWatermark: number, timeoutMs: number): Promise<void>
+	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal): Promise<void>
 }
 
 export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed'

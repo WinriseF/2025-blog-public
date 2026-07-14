@@ -25,6 +25,13 @@ export const LAN_LIMITS = {
 	bufferDrainTimeoutMs: 60 * 1000,
 	maxSenderAheadBytes: 64 * 1024 * 1024,
 	mobileMaxSenderAheadBytes: 32 * 1024 * 1024,
+	maxAttachmentAheadBytes: 16 * 1024 * 1024,
+	mobileMaxAttachmentAheadBytes: 8 * 1024 * 1024,
+	schedulerQuantumBytes: 512 * 1024,
+	schedulerPriorityWeight: 4,
+	schedulerPriorityMaxBytes: 8 * 1024 * 1024,
+	schedulerMaxActive: 4,
+	mobileSchedulerMaxActive: 2,
 	progressAckIntervalBytes: 1024 * 1024,
 	progressAckIntervalMs: 500,
 } as const
@@ -145,6 +152,7 @@ export type LanAttachment = LanAttachmentManifest & {
 	transferredBytes?: number
 	speedBps?: number
 	etaSeconds?: number
+	phase?: 'transferring' | 'confirming'
 	url?: string
 	previewUrl?: string
 	error?: string
