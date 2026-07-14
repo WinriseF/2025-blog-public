@@ -35,6 +35,15 @@ function transferMeta(attachment: LanAttachment, compact = false) {
 	return parts.join(' · ')
 }
 
+function transferStage(attachment: LanAttachment) {
+	if (attachment.status === 'complete') return '已完成'
+	if (attachment.status === 'queued') return '排队中'
+	if (attachment.status === 'offered') return attachment.direction === 'in' ? '准备缓存' : '等待对方准备'
+	if (attachment.status === 'receiving') return '接收中'
+	if (attachment.status === 'sending') return attachment.progress >= 1 ? '等待对方保存' : '发送中'
+	return '传输中'
+}
+
 function compactFileName(name: string, maxLength = 28) {
 	const normalized = name.trim() || '未命名文件'
 	const chars = Array.from(normalized)
@@ -52,7 +61,7 @@ function ImageAttachmentCard({ attachment, onDownload }: AttachmentCardProps) {
 	const transferring = attachment.status !== 'complete' && !failed
 	if (!source) return (
 		<div className={cn('w-[260px] max-w-[68vw] rounded-2xl border px-4 py-3 shadow-sm', failed ? 'border-red-300 bg-red-500/10' : 'border-border bg-article')}>
-			<div className='flex items-center gap-3'><div className='bg-brand/10 text-brand flex size-11 items-center justify-center rounded-xl'><ImageIcon size={20} /></div><div className='min-w-0'><p className='truncate text-sm font-semibold'>{compactFileName(attachment.name, 22)}</p><p className='text-secondary mt-1 text-xs'>{failed ? attachment.error || '接收失败' : attachment.status === 'offered' ? '准备缓存' : transferMeta(attachment, true)}</p></div></div>
+			<div className='flex items-center gap-3'><div className='bg-brand/10 text-brand flex size-11 items-center justify-center rounded-xl'><ImageIcon size={20} /></div><div className='min-w-0'><p className='truncate text-sm font-semibold'>{compactFileName(attachment.name, 22)}</p><p className='text-secondary mt-1 text-xs'>{failed ? attachment.error || '接收失败' : `${transferStage(attachment)} · ${transferMeta(attachment, true)}`}</p></div></div>
 			{transferring && <Progress value={attachment.progress} />}
 		</div>
 	)
@@ -60,7 +69,7 @@ function ImageAttachmentCard({ attachment, onDownload }: AttachmentCardProps) {
 		<>
 			<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
 				<button type='button' onClick={() => setPreviewOpen(true)} className='block cursor-zoom-in' aria-label={`查看图片：${attachment.name}`}><img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' /></button>
-				{transferring && <div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'><div className='mb-1 flex justify-between text-[11px] font-medium'><span>{attachment.status === 'receiving' ? '接收中' : '发送中'}</span><span>{transferMeta(attachment, true)}</span></div><Progress value={attachment.progress} /></div>}
+				{transferring && <div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'><div className='mb-1 flex justify-between text-[11px] font-medium'><span>{transferStage(attachment)}</span><span>{transferMeta(attachment, true)}</span></div><Progress value={attachment.progress} /></div>}
 				{downloadableUrl && <button onClick={() => onDownload(attachment.name, downloadableUrl)} className='absolute right-2 bottom-2 flex size-9 items-center justify-center rounded-full border border-border bg-background/80' aria-label='下载图片'><Download size={16} /></button>}
 				{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
 			</div>
@@ -81,7 +90,7 @@ function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
 		return () => player.destroy()
 	}, [failed, outgoing, source])
 	const duration = Math.max(0, Math.round((attachment.durationMs || 0) / 1000))
-	const status = failed ? attachment.error || '播放失败' : transferring ? transferMeta(attachment, true) : `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`
+	const status = failed ? attachment.error || '播放失败' : transferring ? `${transferStage(attachment)} · ${transferMeta(attachment, true)}` : `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`
 	return <div className={cn('w-[72vw] min-w-[215px] max-w-[300px] rounded-[24px] px-3 py-1.5 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}><div className='flex items-center gap-3'><div className='min-w-0 flex-1'>{source && !failed ? <div ref={playerRef} className='[&_.waveform-container]:min-h-9' /> : <div className='h-9 rounded-full bg-background/25' />}</div><span className='shrink-0 text-sm font-semibold tabular-nums'>{status}</span></div>{transferring && <Progress value={attachment.progress} />}</div>
 }
 
@@ -97,7 +106,7 @@ function FileAttachmentCard({ attachment, onDownload, onStartReceive }: Attachme
 	const canAct = waiting || Boolean(attachment.url)
 	const action = () => waiting ? onStartReceive(attachment.id) : attachment.url && onDownload(attachment.name, attachment.url)
 	const className = cn('w-[320px] max-w-[72vw] rounded-xl px-3 py-3 text-left shadow-sm transition sm:w-[390px]', failed ? 'border border-red-300 bg-red-500/10' : 'bg-article', canAct && 'cursor-pointer hover:bg-article/90 active:scale-[0.99]')
-	const content = <><div className='flex items-center gap-2.5'><div className='bg-brand/15 text-brand flex size-9 items-center justify-center rounded-lg'><FileArchive size={18} /></div><p title={attachment.name} className='min-w-0 flex-1 truncate text-sm font-semibold'>{compactFileName(attachment.name, 42)}</p></div>{transferring && <Progress value={attachment.progress} />}<p className='text-secondary mt-1.5 text-xs tabular-nums'>{transferring ? transferMeta(attachment) : waiting ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)}</p>{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}</>
+	const content = <><div className='flex items-center gap-2.5'><div className='bg-brand/15 text-brand flex size-9 items-center justify-center rounded-lg'><FileArchive size={18} /></div><p title={attachment.name} className='min-w-0 flex-1 truncate text-sm font-semibold'>{compactFileName(attachment.name, 42)}</p></div>{transferring && <Progress value={attachment.progress} />}<p className='text-secondary mt-1.5 text-xs tabular-nums'>{transferring ? `${transferStage(attachment)} · ${transferMeta(attachment)}` : waiting ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)}</p>{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}</>
 	return canAct ? <button type='button' onClick={action} className={className}>{content}</button> : <div className={className}>{content}</div>
 }
 

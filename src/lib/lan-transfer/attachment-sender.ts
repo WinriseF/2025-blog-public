@@ -1,10 +1,21 @@
 import { selectStorageForFile } from './capability'
 import { attachmentFromPrepared, fileRecord, isInlineMediaKind } from './connection-runtime-helpers'
 import type { AttachmentPatch, RuntimeContext, RuntimeControlBase, RuntimeEmit, SendFilesOptions } from './connection-runtime-types'
-import { imagePreviewUrl, messageId, prepareLanAttachment, sendPreparedAttachment } from './file-transfer'
+import {
+	abortableTransferWait,
+	commitPreparedAttachmentChunk,
+	createPreparedAttachmentCursor,
+	imagePreviewUrl,
+	messageId,
+	nextPreparedAttachmentChunkBytes,
+	prepareLanAttachment,
+	readPreparedAttachmentChunk,
+	type PreparedAttachmentCursor,
+} from './file-transfer'
 import type { LanConnectionTransport } from './transport-types'
-import { type LanAttachmentAccept, type LanAttachmentProgress, type LanAttachmentReceived, type LanControlMessage, type LanResumeState, type PreparedLanAttachment } from './types'
+import { LAN_LIMITS, type LanAttachmentAccept, type LanAttachmentProgress, type LanAttachmentReceived, type LanControlMessage, type LanResumeState, type PreparedLanAttachment } from './types'
 
+type SenderSlotKind = 'file' | 'media'
 type PreparedEntry = {
 	file: PreparedLanAttachment
 	createdAt: number
@@ -15,11 +26,12 @@ type PreparedEntry = {
 	pausedReason?: string
 	offered: boolean
 	accepted?: LanAttachmentAccept
+	cursor?: PreparedAttachmentCursor
+	completeSent: boolean
 }
 type ResumeSync = { id: string; epoch: number; generation: number; ids: Set<string>; attempt: number; timer?: ReturnType<typeof setTimeout> }
 type TransferSample = { bytes: number; ts: number; speedBps: number }
-type SenderLaneKind = 'file' | 'media'
-type SenderLane = { activeId: string | null; controller: AbortController | null; task: Promise<void> | null }
+type ScheduledEntry = { id: string; kind: SenderSlotKind; entry: PreparedEntry; nextBytes: number }
 
 type SenderDependencies = {
 	getContext: () => RuntimeContext | null
@@ -37,10 +49,10 @@ const resumeRetryDelays = [1000, 2000, 4000]
 export class LanAttachmentSender {
 	private prepared = new Map<string, PreparedEntry>()
 	private queue: string[] = []
-	private lanes: Record<SenderLaneKind, SenderLane> = {
-		file: { activeId: null, controller: null, task: null },
-		media: { activeId: null, controller: null, task: null },
-	}
+	private slots: Record<SenderSlotKind, string | null> = { file: null, media: null }
+	private nextSlot: SenderSlotKind = 'media'
+	private activeController: AbortController | null = null
+	private activeTask: Promise<void> | null = null
 	private sendBarrier: Promise<void> = Promise.resolve()
 	private resumePending = false
 	private resumeSync: ResumeSync | null = null
@@ -71,7 +83,7 @@ export class LanAttachmentSender {
 			if (this.destroyed) return void attachments.forEach(attachment => attachment.url && URL.revokeObjectURL(attachment.url))
 			this.deps.emit({ type: 'message-upsert', message: { id, direction: 'out', kind: 'attachments', attachments, status: 'queued', createdAt, peerId: context.session.instanceId } })
 			for (const attachment of attachments) this.deps.emit({ type: 'file-record-upsert', record: fileRecord(id, attachment, context.remotePeerName) })
-			for (const file of prepared) this.prepared.set(file.id, { file, createdAt, committed: 0, ranges: [], receiveWindowBytes: 0, queuedBytes: 0, offered: false })
+			for (const file of prepared) this.prepared.set(file.id, { file, createdAt, committed: 0, ranges: [], receiveWindowBytes: 0, queuedBytes: 0, offered: false, completeSent: false })
 			this.flushOffersAndQueue()
 		} catch (error) {
 			this.deps.setStatus(error instanceof Error ? error.message : '发送失败')
@@ -80,14 +92,15 @@ export class LanAttachmentSender {
 
 	prepareForResume() {
 		this.resumePending = true
-		for (const lane of Object.values(this.lanes)) {
-			const activeId = lane.activeId
-			if (activeId && this.prepared.get(activeId)?.accepted && !this.queue.includes(activeId)) this.queue.unshift(activeId)
-			this.abortLane(lane)
-			lane.activeId = null
-		}
+		this.abortActive()
+		this.slots = { file: null, media: null }
+		this.queue = []
 		this.clearResumeSync()
-		this.prepared.forEach(entry => { entry.offered = false })
+		this.prepared.forEach(entry => {
+			entry.offered = false
+			entry.cursor = undefined
+			entry.completeSent = false
+		})
 		this.deps.onActivityChange()
 	}
 
@@ -109,11 +122,17 @@ export class LanAttachmentSender {
 	handleAccept(message: LanAttachmentAccept) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
+		const resetCursor = !entry.cursor || entry.completeSent
 		entry.accepted = message
 		this.applyFlow(entry, message.receivedBytes, message.receivedRanges, message.receiveWindowBytes, message.queuedBytes, message.pausedReason)
+		if (resetCursor) {
+			entry.cursor = createPreparedAttachmentCursor(entry.file, entry.ranges)
+			entry.completeSent = false
+		}
 		this.resetSample(message.id, entry.committed)
-		const lane = this.lanes[this.laneKind(entry)]
-		if (!this.queue.includes(message.id) && lane.activeId !== message.id) this.queue.push(message.id)
+		this.enqueue(message.id)
+		if (this.slotKind(entry) === 'media') this.nextSlot = 'media'
+		this.deps.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'queued', entry.committed, entry.file.size) })
 		this.pumpQueue()
 	}
 
@@ -123,21 +142,19 @@ export class LanAttachmentSender {
 		this.applyFlow(entry, message.committedBytes, message.committedRanges, message.receiveWindowBytes, message.queuedBytes, message.pausedReason)
 		this.deps.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', entry.committed, entry.file.size) })
 		if (message.pausedReason) this.deps.setStatus(message.pausedReason)
+		this.pumpQueue()
 	}
 
 	handleReceived(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
-		const lane = this.lanes[this.laneKind(entry)]
-		if (lane.activeId === message.id) this.abortLane(lane)
 		this.prepared.delete(message.id)
 		this.queue = this.queue.filter(id => id !== message.id)
-		if (lane.activeId === message.id) lane.activeId = null
+		this.releaseSlot(message.id)
 		this.deps.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'complete', progress: 1, transferredBytes: entry.file.size, speedBps: undefined, etaSeconds: undefined } })
 		this.deps.emit({ type: 'file-record-patch', id: message.id, patch: { status: 'complete' } })
 		this.samples.delete(message.id)
 		this.deps.setStatus('对方已收到')
-		this.deps.onActivityChange()
 		this.pumpQueue()
 	}
 
@@ -157,12 +174,16 @@ export class LanAttachmentSender {
 			if (item?.state === 'receiving' && item.messageId === entry.file.messageId && item.storage) {
 				this.applyFlow(entry, item.receivedBytes, item.receivedRanges, item.receiveWindowBytes, item.queuedBytes, item.pausedReason)
 				if (entry.accepted) entry.accepted = { ...entry.accepted, storage: item.storage, receivedRanges: entry.ranges, receivedBytes: entry.committed, receiveWindowBytes: entry.receiveWindowBytes, queuedBytes: entry.queuedBytes, pausedReason: entry.pausedReason }
+				entry.cursor = createPreparedAttachmentCursor(entry.file, entry.ranges)
+				entry.completeSent = false
 				this.resetSample(id, entry.committed)
 				this.deps.emit({ type: 'attachment-patch', patch: this.transferPatch(id, entry.file.messageId, 'queued', entry.committed, entry.file.size) })
-				if (entry.accepted && !this.queue.includes(id)) this.queue.push(id)
+				if (entry.accepted) this.enqueue(id)
 				continue
 			}
 			entry.accepted = undefined
+			entry.cursor = undefined
+			entry.completeSent = false
 			entry.ranges = []
 			entry.committed = 0
 			entry.receiveWindowBytes = 0
@@ -182,25 +203,27 @@ export class LanAttachmentSender {
 	}
 
 	isActive() {
-		return Object.values(this.lanes).some(lane => Boolean(lane.activeId)) || Array.from(this.prepared.values()).some(entry => Boolean(entry.accepted))
+		return Boolean(this.activeTask)
 	}
 
 	diagnostics() {
-		const entries = Object.values(this.lanes).flatMap(lane => lane.activeId ? [this.prepared.get(lane.activeId)] : []).filter((entry): entry is PreparedEntry => Boolean(entry))
+		const entries = Object.values(this.slots).flatMap(id => id ? [this.prepared.get(id)] : []).filter((entry): entry is PreparedEntry => Boolean(entry && !entry.completeSent))
+		const blocked = entries.length > 0 && entries.every(entry => !this.canSendNext(entry))
 		return {
-			active: entries.length > 0,
+			active: Boolean(this.activeTask),
 			queuedBytes: entries.reduce((sum, entry) => sum + entry.queuedBytes, 0),
 			receiveWindowBytes: entries.length ? Math.min(...entries.map(entry => entry.receiveWindowBytes)) : 0,
-			pausedReason: entries.find(entry => entry.pausedReason)?.pausedReason,
+			pausedReason: entries.find(entry => entry.pausedReason)?.pausedReason || (blocked ? '等待对方写入并释放接收窗口' : undefined),
 		}
 	}
 
 	destroy() {
 		this.destroyed = true
-		Object.values(this.lanes).forEach(lane => this.abortLane(lane))
+		this.abortActive()
 		this.clearResumeSync()
 		this.prepared.clear()
 		this.queue = []
+		this.slots = { file: null, media: null }
 		this.samples.clear()
 		this.objectUrls.forEach(url => URL.revokeObjectURL(url))
 		this.objectUrls = []
@@ -215,64 +238,135 @@ export class LanAttachmentSender {
 			if (!offered) return
 			entry.offered = true
 			this.deps.emit({ type: 'attachment-patch', patch: { id: file.id, messageId: file.messageId, status: 'offered' } })
-			this.deps.setStatus(`等待对方下载 ${file.name}`)
+			this.deps.setStatus(`等待对方准备 ${file.name}`)
 		})
 		this.pumpQueue()
 	}
 
 	private pumpQueue() {
-		this.pumpLane('media')
-		this.pumpLane('file')
-	}
-
-	private pumpLane(kind: SenderLaneKind) {
-		const lane = this.lanes[kind]
-		if (!this.deps.getTransport()?.isOpen() || this.resumePending || this.resumeSync || lane.activeId || lane.task) return
-		const nextId = this.queue.find(id => {
-			const entry = this.prepared.get(id)
-			return entry?.accepted && this.laneKind(entry) === kind
-		})
-		const entry = nextId ? this.prepared.get(nextId) : undefined
-		const accepted = entry?.accepted
-		if (!nextId || !entry || !accepted) return
-		this.queue = this.queue.filter(id => id !== nextId)
-		lane.activeId = nextId
+		this.fillSlots()
+		if (!this.deps.getTransport()?.isOpen() || this.resumePending || this.resumeSync || this.activeTask || !this.hasSchedulableEntry()) return
 		const transport = this.deps.getTransport()
 		const epoch = this.deps.getTransportEpoch()
 		if (!transport) return
 		const controller = new AbortController()
-		lane.controller = controller
-		this.resetSample(nextId, entry.committed)
-		this.deps.emit({ type: 'attachment-patch', patch: this.transferPatch(nextId, entry.file.messageId, 'sending', entry.committed, entry.file.size) })
-		this.deps.setStatus(`正在发送 ${entry.file.name}`)
-		this.deps.onActivityChange()
+		this.activeController = controller
 		let task!: Promise<void>
-		task = sendPreparedAttachment(transport, entry.file, () => {}, {
-			mobile: this.isLocalMobile(),
-			getFlowState: () => ({ committedBytes: entry.committed, receiveWindowBytes: entry.receiveWindowBytes, pausedReason: entry.pausedReason }),
-			receivedRanges: entry.ranges.map(range => [...range] as [number, number]),
-			signal: controller.signal,
-			completeMessage: { ...this.deps.controlBase('attachment-complete'), id: entry.file.id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount },
-		}).then(() => {
-			if (epoch !== this.deps.getTransportEpoch() || this.deps.getTransport() !== transport) return
-			if (kind === 'media' && lane.activeId === nextId) lane.activeId = null
-			this.deps.setStatus(`已发送 ${entry.file.name}，等待对方写入完成`)
-		}).catch(error => {
+		task = this.runScheduler(transport, epoch, controller.signal).catch(error => {
 			if (controller.signal.aborted || epoch !== this.deps.getTransportEpoch() || this.deps.getTransport() !== transport) return
-			lane.activeId = null
-			if (!this.deps.getTransport()?.isOpen()) {
-				if (entry.accepted && !this.queue.includes(nextId)) this.queue.unshift(nextId)
-				this.deps.emit({ type: 'attachment-patch', patch: { id: nextId, messageId: entry.file.messageId, status: 'queued' } })
+			const currentId = error instanceof ScheduledTransferError ? error.id : ''
+			const reason = error instanceof Error ? error.message : '发送失败'
+			if (!transport.isOpen()) {
+				if (currentId) {
+					const entry = this.prepared.get(currentId)
+					if (entry) this.deps.emit({ type: 'attachment-patch', patch: { id: currentId, messageId: entry.file.messageId, status: 'queued' } })
+				}
 				return void this.deps.setStatus('连接断了，恢复后会继续')
 			}
-			this.fail(nextId, entry.file.messageId, error instanceof Error ? error.message : '发送失败')
+			if (currentId) {
+				const entry = this.prepared.get(currentId)
+				if (entry) this.fail(currentId, entry.file.messageId, reason)
+			} else this.deps.setStatus(reason)
 		}).finally(() => {
-			if (lane.task === task) lane.task = null
-			if (lane.controller === controller) lane.controller = null
+			if (this.activeTask === task) this.activeTask = null
+			if (this.activeController === controller) this.activeController = null
 			this.deps.onActivityChange()
 			this.pumpQueue()
 		})
-		lane.task = task
+		this.activeTask = task
+		this.deps.onActivityChange()
+	}
+
+	private async runScheduler(transport: LanConnectionTransport, epoch: number, signal: AbortSignal) {
+		const mobile = this.isLocalMobile()
+		const high = mobile ? LAN_LIMITS.mobileBufferHighWatermark : LAN_LIMITS.bufferHighWatermark
+		const low = mobile ? LAN_LIMITS.mobileBufferLowWatermark : LAN_LIMITS.bufferLowWatermark
+		while (!this.destroyed && !this.resumePending && !this.resumeSync && epoch === this.deps.getTransportEpoch() && this.deps.getTransport() === transport && transport.isOpen()) {
+			this.fillSlots()
+			const scheduled = this.pickNext()
+			if (!scheduled) return
+			const { id, kind, entry, nextBytes } = scheduled
+			try {
+				if (!nextBytes) {
+					if (!this.deps.sendControl({ ...this.deps.controlBase('attachment-complete'), id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount })) throw new Error('连接已断开，请重新连接后再发送')
+					entry.completeSent = true
+					entry.cursor = undefined
+					if (kind === 'media') this.releaseSlot(id)
+					this.deps.setStatus(`已发送 ${entry.file.name}，等待对方保存`)
+					continue
+				}
+				await abortableTransferWait(transport.waitUntilDataWritable(high, low, LAN_LIMITS.bufferDrainTimeoutMs), signal)
+				const cursor = entry.cursor
+				if (!cursor || this.prepared.get(id) !== entry || entry.completeSent) continue
+				const chunk = await readPreparedAttachmentChunk(entry.file, cursor, signal)
+				if (!chunk || this.prepared.get(id) !== entry || entry.completeSent) continue
+				if (!transport.sendData(chunk.frame)) throw new Error('连接已断开，请重新连接后再发送')
+				commitPreparedAttachmentChunk(cursor, chunk.chunkIndex, chunk.bytes)
+				this.deps.emit({ type: 'attachment-patch', patch: this.transferPatch(id, entry.file.messageId, 'sending', entry.committed, entry.file.size) })
+				this.deps.setStatus(`正在发送 ${entry.file.name}`)
+			} catch (error) {
+				if (signal.aborted) throw error
+				throw new ScheduledTransferError(id, error instanceof Error ? error.message : '发送失败')
+			}
+		}
+	}
+
+	private pickNext(): ScheduledEntry | null {
+		const order: SenderSlotKind[] = this.nextSlot === 'media' ? ['media', 'file'] : ['file', 'media']
+		for (const kind of order) {
+			const id = this.slots[kind]
+			const entry = id ? this.prepared.get(id) : undefined
+			if (!id || !entry || entry.completeSent || !entry.accepted || !entry.cursor || !this.canSendNext(entry)) continue
+			this.nextSlot = kind === 'media' ? 'file' : 'media'
+			return { id, kind, entry, nextBytes: nextPreparedAttachmentChunkBytes(entry.file, entry.cursor) }
+		}
+		return null
+	}
+
+	private hasSchedulableEntry() {
+		return (['media', 'file'] as const).some(kind => {
+			const id = this.slots[kind]
+			const entry = id ? this.prepared.get(id) : undefined
+			return Boolean(entry?.accepted && entry.cursor && !entry.completeSent && this.canSendNext(entry))
+		})
+	}
+
+	private canSendNext(entry: PreparedEntry) {
+		const cursor = entry.cursor
+		if (!cursor) return false
+		const nextBytes = nextPreparedAttachmentChunkBytes(entry.file, cursor)
+		if (!nextBytes) return true
+		const maxAhead = this.isLocalMobile() ? LAN_LIMITS.mobileMaxSenderAheadBytes : LAN_LIMITS.maxSenderAheadBytes
+		const windowBytes = Math.min(maxAhead, Math.max(0, entry.receiveWindowBytes))
+		const ahead = Math.max(0, cursor.sentBytes - entry.committed)
+		return windowBytes > 0 && ahead + nextBytes <= windowBytes
+	}
+
+	private fillSlots() {
+		for (const kind of ['media', 'file'] as const) {
+			if (this.slots[kind]) continue
+			const index = this.queue.findIndex(id => {
+				const entry = this.prepared.get(id)
+				return Boolean(entry?.accepted && !entry.completeSent && this.slotKind(entry) === kind)
+			})
+			if (index < 0) continue
+			this.slots[kind] = this.queue[index]
+			this.queue.splice(index, 1)
+		}
+	}
+
+	private enqueue(id: string) {
+		if (this.queue.includes(id) || Object.values(this.slots).includes(id)) return
+		this.queue.push(id)
+	}
+
+	private releaseSlot(id: string) {
+		if (this.slots.file === id) this.slots.file = null
+		if (this.slots.media === id) this.slots.media = null
+	}
+
+	private slotKind(entry: PreparedEntry): SenderSlotKind {
+		return isInlineMediaKind(entry.file.kind) ? 'media' : 'file'
 	}
 
 	private sendResumeQuery(sync: ResumeSync) {
@@ -297,10 +391,13 @@ export class LanAttachmentSender {
 			if (!entry) continue
 			entry.offered = false
 			entry.accepted = undefined
+			entry.cursor = undefined
+			entry.completeSent = false
 			entry.ranges = []
 			entry.committed = 0
 			entry.receiveWindowBytes = 0
 			this.queue = this.queue.filter(item => item !== id)
+			this.releaseSlot(id)
 		}
 		this.deps.setStatus('断点同步失败，已重新发送文件请求')
 		this.flushOffersAndQueue()
@@ -337,13 +434,9 @@ export class LanAttachmentSender {
 		return context?.session.localPeer.deviceType !== 'desktop' || platform === 'android' || platform === 'ios'
 	}
 
-	private laneKind(entry: PreparedEntry): SenderLaneKind {
-		return isInlineMediaKind(entry.file.kind) ? 'media' : 'file'
-	}
-
-	private abortLane(lane: SenderLane) {
-		if (!lane.controller?.signal.aborted) lane.controller?.abort()
-		if (lane.task) this.sendBarrier = Promise.all([this.sendBarrier, lane.task.catch(() => {})]).then(() => {})
+	private abortActive() {
+		if (!this.activeController?.signal.aborted) this.activeController?.abort()
+		if (this.activeTask) this.sendBarrier = Promise.all([this.sendBarrier, this.activeTask.catch(() => {})]).then(() => {})
 	}
 
 	private clearResumeSync() {
@@ -352,17 +445,20 @@ export class LanAttachmentSender {
 	}
 
 	private fail(id: string, messageIdValue: string | undefined, reason: string, notifyPeer = true) {
-		const entry = this.prepared.get(id)
-		const lane = entry ? this.lanes[this.laneKind(entry)] : undefined
-		if (lane?.activeId === id) this.abortLane(lane)
 		this.deps.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'failed', error: reason } })
 		this.deps.emit({ type: 'file-record-patch', id, patch: { status: 'failed' } })
 		if (notifyPeer) this.deps.sendControl({ ...this.deps.controlBase('attachment-cancel'), id, messageId: messageIdValue, reason })
 		this.prepared.delete(id)
-		if (lane?.activeId === id) lane.activeId = null
 		this.queue = this.queue.filter(item => item !== id)
+		this.releaseSlot(id)
 		this.samples.delete(id)
 		this.deps.onActivityChange()
 		this.deps.setStatus(reason)
+	}
+}
+
+class ScheduledTransferError extends Error {
+	constructor(readonly id: string, message: string) {
+		super(message)
 	}
 }
