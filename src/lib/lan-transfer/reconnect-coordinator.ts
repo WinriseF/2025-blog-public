@@ -1,6 +1,6 @@
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportFactory, LanTransportState } from './transport-types'
+import type { LanRecoveryKind } from './diagnostics'
 import type { LanConnectionState, LanPeer, LanRole, LanSignalMessage, LanSignalSendDetails, LanSignalTarget, LanSignalType } from './types'
-
 const suspectGraceMs = 4000
 const resumeProbeMs = 3000
 const iceRestartTimeoutMs = 8000
@@ -17,8 +17,10 @@ export type ReconnectCoordinatorOptions = {
 	onState: (peer: LanPeer, state: LanConnectionState, status: string, connected: boolean) => void
 	onAttach: (peer: LanPeer, transport: LanReconnectTransport, route: LanConnectionRoute) => void
 	onRoute: (peer: LanPeer, transportId: string, route: LanConnectionRoute) => void
+	onResume: (peer: LanPeer, transportId: string) => void
+	onRecovery: (peer: LanPeer, kind: LanRecoveryKind, reason: string) => void
 	onDetach: (peer: LanPeer, transportId: string | null, state: LanConnectionState, status: string) => void
-	onData: (peer: LanPeer, transportId: string, data: unknown) => void
+	onData: (peer: LanPeer, transportId: string, channel: 'control' | 'data', data: unknown) => void
 }
 
 function randomId() {
@@ -120,6 +122,7 @@ export class ReconnectCoordinator {
 		if (this.closed) return
 		const transport = this.transport
 		if (!transport?.isOpen()) return this.recover('页面已恢复')
+		if (transport.isTransferActive()) return this.refreshRoute(transport)
 		void transport.probe(resumeProbeMs).then(alive => {
 			if (this.closed || this.transport !== transport) return
 			if (alive) this.restoreConnected(transport)
@@ -175,6 +178,7 @@ export class ReconnectCoordinator {
 		if (this.state === 'rebuilding') return
 		this.clearAttempt()
 		this.clearSuspect()
+		this.recordRecovery('rebuild', reason)
 		this.closeTransport('正在重新建立连接', 'rebuilding')
 		this.generation += 1
 		this.negotiationId = randomId()
@@ -192,6 +196,7 @@ export class ReconnectCoordinator {
 	private acceptRebuild(message: LanSignalMessage) {
 		if (message.generation < this.generation) return
 		if (message.generation === this.generation && message.negotiationId === this.negotiationId && this.transport) return
+		this.recordRecovery('rebuild', '主机发起连接重建')
 		this.clearTimers()
 		this.closeTransport('主机正在重新建立连接', 'rebuilding')
 		this.generation = message.generation
@@ -207,6 +212,7 @@ export class ReconnectCoordinator {
 		if (this.state === 'ice-restarting' || this.state === 'rebuilding') return
 		this.clearAttempt()
 		this.clearSuspect()
+		this.recordRecovery('ice-restart', '开始 ICE Restart')
 		this.negotiationId = randomId()
 		transport.setNegotiationId(this.negotiationId)
 		this.detachCurrent('正在恢复网络路径', 'ice-restarting')
@@ -222,6 +228,7 @@ export class ReconnectCoordinator {
 
 	private acceptIceRestart(message: LanSignalMessage) {
 		if (message.generation !== this.generation || !this.transport) return
+		this.recordRecovery('ice-restart', '主机发起 ICE Restart')
 		this.clearTimers()
 		this.negotiationId = message.negotiationId
 		this.transport.setNegotiationId(message.negotiationId)
@@ -270,8 +277,8 @@ export class ReconnectCoordinator {
 			onCandidate: candidate => {
 				if (this.transport === transport) void this.options.sendSignal('candidate', this.target(), { generation, negotiationId: transport.negotiationId, candidate }).catch(() => {})
 			},
-			onData: data => {
-				if (this.transport === transport) this.options.onData(this.peer, transport.id, data)
+			onData: (channel, data) => {
+				if (this.transport === transport) this.options.onData(this.peer, transport.id, channel, data)
 			},
 			onState: state => this.handleTransportState(transport, state),
 			onReady: () => {
@@ -287,7 +294,6 @@ export class ReconnectCoordinator {
 		this.drainCandidates(transport, generation, negotiationId)
 		return transport
 	}
-
 	private acceptCandidate(message: LanSignalMessage) {
 		if (!message.candidate || message.generation < this.generation || message.generation > this.generation + 1) return
 		if (message.negotiationId !== this.negotiationId && message.seq < this.remoteNegotiationSeq) return
@@ -313,7 +319,6 @@ export class ReconnectCoordinator {
 			if (pendingGeneration < generation) this.pendingCandidates.delete(pendingKey)
 		}
 	}
-
 	private handleTransportState(transport: LanReconnectTransport, state: LanTransportState) {
 		if (this.closed || this.transport !== transport) return
 		if (state === 'connected') {
@@ -322,18 +327,27 @@ export class ReconnectCoordinator {
 		}
 		if (state === 'disconnected') return this.enterSuspect('连接暂时中断，等待恢复')
 		if (state === 'failed') {
-			this.detachCurrent('连接失败，正在恢复', 'suspect')
+			this.recordRecovery('suspect', '连接失败')
+			this.setState('suspect', '连接失败，正在恢复')
 			if (this.options.role === 'host') void this.startIceRestart()
-			else this.recover('连接失败', true)
+			else {
+				this.detachCurrent('连接失败，正在恢复', 'suspect')
+				this.recover('连接失败', true)
+			}
 		}
 	}
 
 	private restoreConnected(transport: LanReconnectTransport) {
 		if (this.closed || this.transport !== transport || !transport.isOpen()) return
+		const recovered = this.state === 'suspect' || this.state === 'ice-restarting'
 		this.clearTimers()
 		this.backoffIndex = 0
 		if (this.attachedTransportId === transport.id) {
 			this.setState('connected', '已连接，可以发送消息和文件', true)
+			if (recovered) {
+				this.recordRecovery('recovered', '连接已自然恢复')
+				this.options.onResume(this.peer, transport.id)
+			}
 			this.refreshRoute(transport)
 			return this.scheduleHealthCheck()
 		}
@@ -343,6 +357,7 @@ export class ReconnectCoordinator {
 			this.attachedTransportId = transport.id
 			this.options.onAttach(this.peer, transport, route)
 			this.setState('connected', '已连接，可以发送消息和文件', true)
+			if (recovered) this.recordRecovery('recovered', '连接恢复完成')
 			this.scheduleHealthCheck()
 		}).catch(() => this.handleAttemptFailure())
 	}
@@ -351,12 +366,12 @@ export class ReconnectCoordinator {
 		void transport.inspectRoute().then(route => {
 			if (this.closed || this.transport !== transport || this.attachedTransportId !== transport.id || !transport.isOpen()) return
 			this.options.onRoute(this.peer, transport.id, route)
-		}).catch(() => this.handleAttemptFailure())
+		}).catch(() => {})
 	}
 
 	private enterSuspect(status: string, immediate = false) {
 		if (this.closed || this.state === 'suspect' || this.state === 'ice-restarting' || this.state === 'rebuilding') return
-		this.detachCurrent(status, 'suspect')
+		this.recordRecovery('suspect', status)
 		this.setState('suspect', status)
 		this.clearSuspect()
 		this.suspectTimer = setTimeout(() => {
@@ -372,6 +387,7 @@ export class ReconnectCoordinator {
 			this.healthTimer = null
 			const transport = this.transport
 			if (this.closed || !transport || !visible()) return this.scheduleHealthCheck()
+			if (transport.isTransferActive()) return this.scheduleHealthCheck()
 			if (Date.now() - transport.lastInboundAt < healthIdleMs) return this.scheduleHealthCheck()
 			void transport.probe(resumeProbeMs).then(alive => {
 				if (this.transport !== transport || this.closed) return
@@ -443,6 +459,11 @@ export class ReconnectCoordinator {
 	private setState(state: LanConnectionState, status: string, connected = false) {
 		this.state = state
 		this.options.onState(this.peer, state, status, connected)
+	}
+
+	private recordRecovery(kind: LanRecoveryKind, reason: string) {
+		if (kind !== 'recovered' && this.healthTimer) { clearTimeout(this.healthTimer); this.healthTimer = null }
+		this.options.onRecovery(this.peer, kind, reason)
 	}
 
 	private armAttempt(timeoutMs: number, callback: () => void) {

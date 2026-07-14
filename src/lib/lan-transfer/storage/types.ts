@@ -32,6 +32,7 @@ export interface LanStorageEngine {
 	kind: LanStorageKind
 	prepare(meta: TransferFileMeta): Promise<void>
 	writeChunk(meta: TransferFileMeta, chunkIndex: number, data: Uint8Array): Promise<TransferManifest>
+	writeChunks?(meta: TransferFileMeta, chunks: Array<{ chunkIndex: number; data: Uint8Array }>): Promise<TransferManifest>
 	checkpoint(meta: TransferFileMeta): Promise<TransferManifest | null>
 	getManifest(fileId: string): Promise<TransferManifest | null>
 	getReceivedRanges(fileId: string): Promise<ChunkRange[]>

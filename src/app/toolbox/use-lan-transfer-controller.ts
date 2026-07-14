@@ -77,10 +77,12 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				setStatus('已连接，可以发送消息和文件')
 			},
 			onRoute: (remotePeer, transportId, route) => engineRef.current.updateConnectionRoute(remotePeer.deviceId, transportId, route),
+			onResume: (remotePeer, transportId) => engineRef.current.resumePeer(remotePeer.deviceId, transportId),
+			onRecovery: (remotePeer, kind, reason) => engineRef.current.recordRecovery(remotePeer.deviceId, kind, reason),
 			onDetach: (remotePeer, transportId, connectionState, message) => {
 				engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || '')
 			},
-			onData: (remotePeer, transportId, data) => engineRef.current.handlePeerData(remotePeer.deviceId, transportId, data),
+			onData: (remotePeer, transportId, channel, data) => engineRef.current.handlePeerData(remotePeer.deviceId, transportId, channel, data),
 		})
 		coordinatorRef.current.set(peer.deviceId, coordinator)
 		coordinator.setSignalingOnline(signalingOnlineRef.current)

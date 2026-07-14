@@ -18,10 +18,22 @@ export interface LanConnectionTransport {
 	readonly id: string
 	readonly generation: number
 	isOpen(): boolean
-	send(data: Uint8Array): boolean
+	sendControl(data: Uint8Array): boolean
+	sendData(data: Uint8Array): boolean
 	negotiateChunkSize(peerMaxChunkSize?: number): Promise<number>
-	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number): Promise<void>
-	waitUntilDrained(lowWatermark: number, timeoutMs: number): Promise<void>
+	waitUntilDataWritable(highWatermark: number, lowWatermark: number, timeoutMs: number): Promise<void>
+	waitUntilDataDrained(lowWatermark: number, timeoutMs: number): Promise<void>
+	setTransferActive(active: boolean): void
+	isTransferActive(): boolean
+	getDiagnostics(): LanTransportDiagnostics
+}
+
+export type LanTransportDiagnostics = {
+	chunkSize: number
+	dataBufferedAmount: number
+	networkSendBps: number
+	networkReceiveBps: number
+	lastDataActivityAt: number
 }
 
 export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed'
@@ -32,7 +44,7 @@ export type LanTransportCreateOptions = {
 	negotiationId: string
 	onDescription: (description: RTCSessionDescriptionInit) => void
 	onCandidate: (candidate: RTCIceCandidateInit | null) => void
-	onData: (data: unknown) => void
+	onData: (channel: 'control' | 'data', data: unknown) => void
 	onState: (state: LanTransportState) => void
 	onReady: () => void
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Mut
 import { createEmptyLanChatState, lanChatReducer, type LanChatAction, type LanChatState } from './use-lan-chat-state'
 import { downloadUrl } from '@/lib/lan-transfer/file-transfer'
 import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
+import { emptyLanTransferDiagnostics, type LanRecoveryKind, type LanTransferDiagnostics } from '@/lib/lan-transfer/diagnostics'
 import type { LanConnectionRoute, LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
 
@@ -30,6 +31,7 @@ type ConnectionStateRecord = {
 	connectionRoute: LanConnectionRoute | null
 	status: string
 	remoteCapability: LanCapability | null
+	diagnostics: LanTransferDiagnostics
 	chat: LanChatState
 	updatedAt: number
 }
@@ -74,6 +76,7 @@ function connectionReducer(state: ConnectionStateRecord[], action: ConnectionAct
 				connectionRoute: null,
 				status: '找到设备，正在连接',
 				remoteCapability: null,
+				diagnostics: emptyLanTransferDiagnostics(),
 				chat: createEmptyLanChatState(),
 				updatedAt: Date.now(),
 				...action.patch,
@@ -94,6 +97,7 @@ function toView(record: ConnectionStateRecord): LanConnectionView {
 		connectionRoute: record.connectionRoute,
 		status: record.status,
 		remoteCapability: record.remoteCapability,
+		diagnostics: { ...record.diagnostics, connectionState: record.connectionState, route: record.connectionRoute },
 		updatedAt: record.updatedAt,
 		messages: record.chat.messages,
 		fileRecords: record.chat.fileRecords,
@@ -153,6 +157,10 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 					if (current) current.remoteCapability = event.capability
 					dispatch({ type: 'patch', peerId: connectionId, patch: { remoteCapability: event.capability } })
 				}
+				if (event.type === 'diagnostics') {
+					const record = recordsRef.current.find(item => item.peerId === connectionId)
+					if (record) dispatch({ type: 'patch', peerId: connectionId, patch: { diagnostics: { ...record.diagnostics, ...event.diagnostics } } })
+				}
 				if (event.type === 'download-ready') downloadUrl(event.name, event.url)
 			})
 			entry = { peer, runtime, remoteCapability: null, transportId: '', unsubscribe }
@@ -195,7 +203,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		if (transportId && entry?.transportId && entry.transportId !== transportId) return
 		entry?.runtime.detachTransport()
 		if (entry) entry.transportId = ''
-		dispatch({ type: 'patch', peerId, patch: { connected: false, connectionState: state, connectionRoute: null, status } })
+		const record = recordsRef.current.find(item => item.peerId === peerId)
+		dispatch({ type: 'patch', peerId, patch: { connected: false, connectionState: state, connectionRoute: null, status, ...(record ? { diagnostics: { ...record.diagnostics, active: false, dataChannelBufferedBytes: 0, pausedReason: undefined } } : {}) } })
 		if (!activePeerIdRef.current || activePeerIdRef.current === peerId) optionsRef.current.setStatus(status)
 	}, [])
 
@@ -218,9 +227,35 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		setActivePeerId(null)
 	}, [])
 
-	const handlePeerData = useCallback((peerId: string, transportId: string, data: unknown) => {
+	const handlePeerData = useCallback((peerId: string, transportId: string, channel: 'control' | 'data', data: unknown) => {
 		const entry = managedRef.current.get(peerId)
-		if (entry?.transportId === transportId) entry.runtime.handleFrame(data)
+		if (entry?.transportId !== transportId) return
+		if (channel === 'control') entry.runtime.handleControlFrame(data)
+		else entry.runtime.handleDataFrame(data)
+	}, [])
+
+	const resumePeer = useCallback((peerId: string, transportId: string) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) entry.runtime.recoverTransport(transportId)
+	}, [])
+
+	const recordRecovery = useCallback((peerId: string, kind: LanRecoveryKind, reason: string) => {
+		const record = recordsRef.current.find(item => item.peerId === peerId)
+		if (!record) return
+		const event = { kind, reason, at: Date.now() }
+		const recoveryHistory = [...record.diagnostics.recoveryHistory, event].slice(-8)
+		dispatch({
+			type: 'patch',
+			peerId,
+			patch: {
+				diagnostics: {
+					...record.diagnostics,
+					reconnectCount: record.diagnostics.reconnectCount + (kind === 'ice-restart' || kind === 'rebuild' ? 1 : 0),
+					latestReconnectReason: reason,
+					recoveryHistory,
+				},
+			},
+		})
 	}, [])
 
 	const getActiveRuntime = useCallback(() => {
@@ -266,6 +301,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		removeConnection,
 		resetAll,
 		handlePeerData,
+		resumePeer,
+		recordRecovery,
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,
