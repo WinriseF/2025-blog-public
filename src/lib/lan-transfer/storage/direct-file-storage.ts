@@ -1,23 +1,40 @@
 import type { LanStorageEngine, TransferFileMeta, TransferManifest } from './types'
-import { addRange, hasChunk, type ChunkRange } from './ranges'
+import { addRange, type ChunkRange } from './ranges'
 
-type SaveFilePicker = (options?: { suggestedName?: string }) => Promise<FileSystemFileHandle>
+type SaveFilePicker = (options?: { suggestedName?: string; types?: Array<{ description?: string; accept: Record<string, string[]> }> }) => Promise<FileSystemFileHandle>
 type WritableFileStream = {
 	write: (data: unknown) => Promise<void>
 	close: () => Promise<void>
 	abort: () => Promise<void>
 }
-type WritableFileHandle = FileSystemFileHandle & { createWritable: () => Promise<WritableFileStream> }
+type WritableFileHandle = FileSystemFileHandle & {
+	createWritable: () => Promise<WritableFileStream>
+}
+
 type ActiveDirectFile = {
+	fileHandle: FileSystemFileHandle
 	writable: WritableFileStream | null
 	manifest: TransferManifest
 	closed: boolean
+	writeBuffer: Array<{ chunkIndex: number; data: Uint8Array }>
+	writeBufferBytes: number
 	writePosition: number
 }
 
+const DIRECT_FILE_BATCH_BYTES = 2 * 1024 * 1024
+
 function manifestFor(meta: TransferFileMeta): TransferManifest {
 	const now = Date.now()
-	return { ...meta, version: 3, receivedBytes: 0, receivedChunks: 0, receivedRanges: [], status: 'pending', createdAt: now, updatedAt: now }
+	return {
+		...meta,
+		version: 3,
+		receivedBytes: 0,
+		receivedChunks: 0,
+		receivedRanges: [],
+		status: 'pending',
+		createdAt: now,
+		updatedAt: now,
+	}
 }
 
 function saveFilePicker(): SaveFilePicker {
@@ -42,43 +59,57 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 	private activeFiles = new Map<string, ActiveDirectFile>()
 	private manifests = new Map<string, TransferManifest>()
 
-	async prepare(meta: TransferFileMeta) {
-		const handle = await saveFilePicker()({ suggestedName: meta.name || 'lan-transfer-file' })
-		const writable = await (handle as WritableFileHandle).createWritable()
-		const manifest = manifestFor(meta)
-		this.activeFiles.set(meta.id, { writable, manifest, closed: false, writePosition: 0 })
-		this.manifests.set(meta.id, manifest)
-	}
-
-	async writeChunk(meta: TransferFileMeta, chunkIndex: number, data: Uint8Array) {
-		return this.writeChunks(meta, [{ chunkIndex, data }])
-	}
-
-	async writeChunks(meta: TransferFileMeta, chunks: Array<{ chunkIndex: number; data: Uint8Array }>) {
-		const active = this.activeFiles.get(meta.id)
-		if (!active?.writable || active.closed) throw new Error('文件保存失败，请重新接收')
-		const pending = chunks.filter(item => !hasChunk(active.manifest.receivedRanges, item.chunkIndex))
-		if (!pending.length) return active.manifest
-		const first = pending[0].chunkIndex
-		for (let index = 1; index < pending.length; index += 1) {
-			if (pending[index].chunkIndex !== first + index) throw new Error('文件分块不连续，请重新接收')
-		}
-		const position = first * meta.chunkSize
-		const data = combineBuffers(pending.map(item => item.data))
+	private async flushBufferedData(active: ActiveDirectFile, meta: TransferFileMeta) {
+		if (!active.writeBuffer.length) return active.manifest
+		if (!active.writable || active.closed) throw new Error('文件保存失败，请重新接收')
+		const firstChunkIndex = active.writeBuffer[0].chunkIndex
+		const position = firstChunkIndex * meta.chunkSize
+		const data = combineBuffers(active.writeBuffer.map(item => item.data))
 		if (position === active.writePosition) await active.writable.write(data)
 		else await active.writable.write({ type: 'write', position, data })
 		active.writePosition = position + data.byteLength
 		let manifest = active.manifest
-		for (const item of pending) manifest = {
-			...manifest,
-			receivedBytes: manifest.receivedBytes + item.data.byteLength,
-			receivedChunks: manifest.receivedChunks + 1,
-			receivedRanges: addRange(manifest.receivedRanges, item.chunkIndex),
-			status: manifest.receivedChunks + 1 >= meta.chunkCount ? 'complete' : 'receiving',
-			updatedAt: Date.now(),
+		for (const item of active.writeBuffer) {
+			manifest = {
+				...manifest,
+				receivedBytes: manifest.receivedBytes + item.data.byteLength,
+				receivedChunks: manifest.receivedChunks + 1,
+				receivedRanges: addRange(manifest.receivedRanges, item.chunkIndex),
+				status: manifest.receivedChunks + 1 >= meta.chunkCount ? 'complete' : 'receiving',
+				updatedAt: Date.now(),
+			}
 		}
+		active.writeBuffer = []
+		active.writeBufferBytes = 0
 		active.manifest = manifest
 		this.manifests.set(meta.id, manifest)
+		return manifest
+	}
+
+	async prepare(meta: TransferFileMeta) {
+		const picker = saveFilePicker()
+		const fileHandle = await picker({
+			suggestedName: meta.name || 'lan-transfer-file',
+		})
+		const writable = await (fileHandle as WritableFileHandle).createWritable()
+		const manifest = manifestFor(meta)
+		this.activeFiles.set(meta.id, { fileHandle, writable, manifest, closed: false, writeBuffer: [], writeBufferBytes: 0, writePosition: 0 })
+		this.manifests.set(meta.id, manifest)
+	}
+
+	async writeChunk(meta: TransferFileMeta, chunkIndex: number, data: Uint8Array) {
+		const active = this.activeFiles.get(meta.id)
+		if (!active || !active.writable || active.closed) throw new Error('文件保存失败，请重新接收')
+		let manifest = active.manifest
+		if (manifest.receivedRanges.some(([start, end]) => chunkIndex >= start && chunkIndex <= end)) return manifest
+		const expectedNextIndex = active.writeBuffer.length ? active.writeBuffer[0].chunkIndex + active.writeBuffer.length : chunkIndex
+		if (chunkIndex !== expectedNextIndex) {
+			manifest = await this.flushBufferedData(active, meta)
+			if (manifest.receivedRanges.some(([start, end]) => chunkIndex >= start && chunkIndex <= end)) return manifest
+		}
+		active.writeBuffer.push({ chunkIndex, data })
+		active.writeBufferBytes += data.byteLength
+		if (active.writeBufferBytes >= DIRECT_FILE_BATCH_BYTES || chunkIndex + 1 >= meta.chunkCount) manifest = await this.flushBufferedData(active, meta)
 		return manifest
 	}
 
@@ -87,6 +118,8 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 	}
 
 	async checkpoint(meta: TransferFileMeta) {
+		const active = this.activeFiles.get(meta.id)
+		if (active) await this.flushBufferedData(active, meta)
 		return this.getManifest(meta.id)
 	}
 
@@ -96,7 +129,8 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 
 	async finalize(meta: TransferFileMeta) {
 		const active = this.activeFiles.get(meta.id)
-		if (!active?.writable || active.closed) throw new Error('文件保存失败，请重新接收')
+		if (!active || !active.writable || active.closed) throw new Error('文件保存失败，请重新接收')
+		await this.flushBufferedData(active, meta)
 		await active.writable.close()
 		active.closed = true
 		active.writable = null
