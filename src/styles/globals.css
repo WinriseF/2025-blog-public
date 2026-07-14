@@ -537,7 +537,7 @@
 	pointer-events: none;
 }
 
-.lan-session-v8 {
+.lan-session-v9 {
 	--lan-veil: color-mix(in srgb, var(--color-bg) 16%, transparent);
 	--lan-pane: color-mix(in srgb, var(--color-bg) 38%, transparent);
 	--lan-surface: color-mix(in srgb, var(--color-article) 76%, transparent);
@@ -550,7 +550,7 @@
 	isolation: isolate;
 }
 
-.lan-session-v8 > div {
+.lan-session-v9 > div {
 	animation: lan-session-content-enter 260ms ease-out 100ms both;
 	position: relative;
 	z-index: 1;
@@ -574,36 +574,36 @@
 	100% { opacity: 0; }
 }
 
-.lan-session-v8 .bg-background\/30 {
+.lan-session-v9 .bg-background\/30 {
 	background-color: var(--lan-pane);
 }
 
-.lan-session-v8 .bg-article {
+.lan-session-v9 .bg-article {
 	background-color: var(--lan-surface);
 	backdrop-filter: blur(18px) saturate(1.08);
 }
 
-.lan-session-v8 :is(header.bg-article, .bg-article.p-3) {
+.lan-session-v9 :is(header.bg-article, .bg-article.p-3) {
 	background-color: var(--lan-surface-strong);
 	backdrop-filter: blur(24px) saturate(1.08);
 	box-shadow: 0 16px 34px -30px color-mix(in srgb, var(--color-primary) 54%, transparent);
 }
 
-.lan-session-v8 .lan-session-qr-canvas {
+.lan-session-v9 .lan-session-qr-canvas {
 	background-color: #fff;
 	backdrop-filter: none;
 }
 
-.lan-session-v8 .border-border {
+.lan-session-v9 .border-border {
 	border-color: color-mix(in srgb, var(--color-border) 76%, var(--color-brand) 10%);
 }
 
-.lan-session-v8 input,
-.lan-session-v8 textarea {
+.lan-session-v9 input,
+.lan-session-v9 textarea {
 	background-color: color-mix(in srgb, var(--color-article) 72%, transparent);
 }
 
-html[data-time-theme='night'] .lan-session-v8 {
+html[data-time-theme='night'] .lan-session-v9 {
 	--lan-veil: color-mix(in srgb, var(--color-bg) 48%, transparent);
 	--lan-pane: color-mix(in srgb, var(--color-bg) 64%, transparent);
 	--lan-surface: color-mix(in srgb, var(--color-article) 88%, transparent);
@@ -611,7 +611,7 @@ html[data-time-theme='night'] .lan-session-v8 {
 }
 
 @media (max-width: 640px) {
-	.lan-session-v8 {
+	.lan-session-v9 {
 		--lan-veil: color-mix(in srgb, var(--color-bg) 36%, transparent);
 		--lan-pane: color-mix(in srgb, var(--color-bg) 54%, transparent);
 		--lan-surface: color-mix(in srgb, var(--color-article) 88%, transparent);
@@ -635,8 +635,8 @@ html[data-time-theme='night'] .lan-session-v8 {
 	.news-panel-enter,
 	.lan-session-underlay,
 	.lan-session-active main,
-	.lan-session-v8,
-	.lan-session-v8 > div {
+	.lan-session-v9,
+	.lan-session-v9 > div {
 		animation-duration: 1ms !important;
 		animation-iteration-count: 1 !important;
 		scroll-behavior: auto !important;

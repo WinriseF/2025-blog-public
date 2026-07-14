@@ -1,17 +1,11 @@
 import { hasChunk, type ChunkRange } from './storage/ranges'
-import { LAN_CHUNK_TIERS, LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
+import { LAN_CHUNK_TIERS, LAN_FILE_IO_BATCH_BYTES, LAN_LIMITS, type LanAttachmentKind, type LanControlMessage, type LanStorageKind, type PreparedLanAttachment } from './types'
 import type { LanConnectionTransport } from './transport-types'
 
 const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
-const FILE_READ_BATCH_BYTES = 2 * 1024 * 1024
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
-const crc32Table = Array.from({ length: 256 }, (_, index) => {
-	let value = index
-	for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1
-	return value >>> 0
-})
 
 function transferId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -27,12 +21,6 @@ function receivedBytesFromRanges(file: PreparedLanAttachment, ranges: ChunkRange
 		}
 	}
 	return total
-}
-
-function crc32Hex(bytes: Uint8Array) {
-	let crc = 0xffffffff
-	for (let index = 0; index < bytes.length; index += 1) crc = crc32Table[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8)
-	return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0')
 }
 
 export function formatBytes(bytes: number) {
@@ -102,7 +90,7 @@ export function encodeControl(message: LanControlMessage) {
 }
 
 export function encodeChunk(attachmentId: string, chunkIndex: number, bytes: Uint8Array) {
-	const header = encoder.encode(JSON.stringify({ id: attachmentId, index: chunkIndex, checksum: crc32Hex(bytes) }))
+	const header = encoder.encode(JSON.stringify({ id: attachmentId, index: chunkIndex }))
 	if (header.byteLength > 0xffff) throw new Error('文件发送失败，请重新发送')
 	const frame = new Uint8Array(1 + 2 + header.byteLength + bytes.byteLength)
 	frame[0] = CHUNK_FRAME
@@ -134,14 +122,13 @@ export function decodeFrame(data: unknown) {
 	const headerLength = (bytes[1] << 8) | bytes[2]
 	const headerEnd = 3 + headerLength
 	if (bytes.byteLength < headerEnd) return null
-	let header: { id: string; index: number; checksum?: string }
+	let header: { id: string; index: number }
 	try {
-		header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number; checksum?: string }
+		header = JSON.parse(decoder.decode(bytes.slice(3, headerEnd))) as { id: string; index: number }
 	} catch {
 		return null
 	}
 	const chunk = bytes.subarray(headerEnd)
-	if (header.checksum && crc32Hex(chunk) !== header.checksum) return { kind: 'corrupt' as const, id: header.id }
 	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: chunk }
 }
 
@@ -195,7 +182,7 @@ export async function sendPreparedAttachment(
 		const chunkEnd = Math.min(offset + file.chunkSize, file.size)
 		if (readBatchOffset < 0 || offset < readBatchOffset || chunkEnd > readBatchOffset + readBatch.byteLength) {
 			readBatchOffset = offset
-			readBatch = new Uint8Array(await file.file.slice(offset, Math.min(offset + FILE_READ_BATCH_BYTES, file.size)).arrayBuffer())
+			readBatch = new Uint8Array(await file.file.slice(offset, Math.min(offset + LAN_FILE_IO_BATCH_BYTES, file.size)).arrayBuffer())
 			throwIfAborted(options.signal)
 		}
 		const chunkOffset = offset - readBatchOffset
