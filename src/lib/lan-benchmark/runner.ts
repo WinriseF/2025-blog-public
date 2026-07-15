@@ -1,7 +1,7 @@
 import { decodeFrame, encodeChunk } from '@/lib/lan-transfer/file-transfer'
 import type { LanStorageEngine, TransferFileMeta } from '@/lib/lan-transfer/storage/types'
 import { createBenchmarkStorageEngine } from './storage'
-import { bytesToMiBps, type BenchmarkResult, type BenchmarkRunConfig, type BenchmarkSample } from './types'
+import { appendBenchmarkSample, bytesToMiBps, type BenchmarkCategory, type BenchmarkResult, type BenchmarkRunConfig, type BenchmarkSample } from './types'
 import type { BenchmarkPeer } from './peer'
 
 const controlName = 'lan-benchmark-control-v1'
@@ -22,7 +22,6 @@ type ReceiveRun = {
 	startedAt: number
 	startedPerf: number
 	samples: BenchmarkSample[]
-	lastSample: number
 	queue: Promise<void>
 }
 
@@ -32,7 +31,6 @@ type SendRun = {
 	startedAt: number
 	startedPerf: number
 	samples: BenchmarkSample[]
-	lastSample: number
 }
 
 export type BenchmarkRunnerEvents = {
@@ -61,10 +59,8 @@ function makeSeed(size: number) {
 	return bytes
 }
 
-function nowSample(run: { bytes: number; startedPerf: number; samples: BenchmarkSample[] }, bufferedAmount?: number): BenchmarkSample {
-	const elapsedMs = performance.now() - run.startedPerf
-	const previous = run.samples.at(-1)
-	return { elapsedMs, bytes: run.bytes, mibPerSecond: bytesToMiBps(run.bytes - (previous?.bytes || 0), elapsedMs - (previous?.elapsedMs || 0)), bufferedAmount }
+function categoryFor(storage: BenchmarkRunConfig['storage']): BenchmarkCategory {
+	return storage === 'sink' ? 'framed-rtc' : 'production-e2e'
 }
 
 export class BenchmarkRunner {
@@ -89,18 +85,19 @@ export class BenchmarkRunner {
 		const frame = decodeFrame(data)
 		if (!frame || frame.kind !== 'chunk') return
 		const run = this.receiveRun
-		if (!run || frame.id !== run.config.id || !run.meta || !run.engine) return
+		if (!run || frame.id !== run.config.id) return
+		if (run.config.storage === 'sink') {
+			run.bytes += frame.bytes.byteLength
+			if (appendBenchmarkSample(run.samples, run.startedPerf, run.bytes, undefined, run.bytes >= run.config.totalBytes)) this.events.onProgress(run.config.id, run.bytes, run.config.totalBytes, run.samples)
+			return
+		}
+		if (!run.meta || !run.engine) return
 		run.queue = run.queue.then(async () => {
 			const started = performance.now()
 			await run.engine?.writeChunk(run.meta as TransferFileMeta, frame.index, frame.bytes)
 			run.writeMs += performance.now() - started
 			run.bytes += frame.bytes.byteLength
-			const now = performance.now()
-			if (now - run.lastSample >= 250 || run.bytes >= run.config.totalBytes) {
-				run.samples.push(nowSample(run))
-				this.events.onProgress(run.config.id, run.bytes, run.config.totalBytes, run.samples)
-				run.lastSample = now
-			}
+			if (appendBenchmarkSample(run.samples, run.startedPerf, run.bytes, undefined, run.bytes >= run.config.totalBytes)) this.events.onProgress(run.config.id, run.bytes, run.config.totalBytes, run.samples)
 		}).catch(error => this.abort(run.config.id, error instanceof Error ? error.message : '接收写入失败', true))
 	}
 
@@ -172,7 +169,7 @@ export class BenchmarkRunner {
 				if (engine && meta) await engine.cleanup(meta.id).catch(() => {})
 				return
 			}
-			this.receiveRun = { config, engine, meta, bytes: 0, writeMs: 0, startedAt, startedPerf, samples: [], lastSample: startedPerf, queue: Promise.resolve() }
+			this.receiveRun = { config, engine, meta, bytes: 0, writeMs: 0, startedAt, startedPerf, samples: [], queue: Promise.resolve() }
 			this.preparingRun = null
 			if (!this.peer.sendControl({ name: controlName, type: 'ready', id: config.id } satisfies BenchmarkControl)) throw new Error('无法确认接收端就绪')
 			this.events.onStatus(storage === 'sink' ? '接收端就绪：将只计数不写盘' : `接收端就绪：写入 ${storage}`)
@@ -193,7 +190,7 @@ export class BenchmarkRunner {
 		this.clearWaitTimer()
 		const startedAt = Date.now()
 		const startedPerf = performance.now()
-		const run: SendRun = { config, bytes: 0, startedAt, startedPerf, samples: [], lastSample: startedPerf }
+		const run: SendRun = { config, bytes: 0, startedAt, startedPerf, samples: [] }
 		this.sendRun = run
 		this.events.onRunStart(config)
 		this.events.onStatus(config.storage === 'sink' ? '正在进行 WebRTC Sink 极限测试' : `正在进行 WebRTC + ${config.storage} 端到端测试`)
@@ -206,12 +203,7 @@ export class BenchmarkRunner {
 				const frame = encodeChunk(config.id, index, makeChunk(seed, index, size))
 				if (!this.peer.send(frame)) throw new Error('DataChannel 写入失败')
 				run.bytes += size
-				const now = performance.now()
-				if (now - run.lastSample >= 250 || run.bytes >= config.totalBytes) {
-					run.samples.push(nowSample(run, this.peer.bufferedAmount))
-					this.events.onProgress(config.id, run.bytes, config.totalBytes, run.samples)
-					run.lastSample = now
-				}
+				if (appendBenchmarkSample(run.samples, run.startedPerf, run.bytes, this.peer.bufferedAmount, run.bytes >= config.totalBytes)) this.events.onProgress(config.id, run.bytes, config.totalBytes, run.samples)
 			}
 			if (!this.peer.sendControl({ name: controlName, type: 'finish', id: config.id, bytes: run.bytes, chunkCount } satisfies BenchmarkControl)) throw new Error('无法发送完成确认')
 			this.waitFor(config.id, '接收端结果确认超时')
@@ -250,6 +242,7 @@ export class BenchmarkRunner {
 			const result: BenchmarkResult = {
 				id: run.config.id,
 				label: run.config.label,
+				category: categoryFor(run.config.storage),
 				scope: 'peer-receive',
 				storage: run.config.storage,
 				totalBytes: run.config.totalBytes,
@@ -282,6 +275,7 @@ export class BenchmarkRunner {
 		const result: BenchmarkResult = {
 			id: run.config.id,
 			label: run.config.label,
+			category: categoryFor(run.config.storage),
 			scope: 'peer-send',
 			storage: run.config.storage,
 			totalBytes: run.config.totalBytes,
@@ -295,6 +289,7 @@ export class BenchmarkRunner {
 			route: stats?.route,
 			status: 'complete',
 		}
+		this.events.onResult(remoteResult)
 		this.events.onResult(result)
 		this.events.onStatus('双端基准测试完成')
 		this.sendRun = null
@@ -308,6 +303,7 @@ export class BenchmarkRunner {
 		this.events.onResult({
 			id: config.id,
 			label: config.label,
+			category: categoryFor(config.storage),
 			scope: 'peer-receive',
 			storage: config.storage,
 			totalBytes: config.totalBytes,
@@ -338,6 +334,7 @@ export class BenchmarkRunner {
 		const result: BenchmarkResult = {
 			id,
 			label: config.label,
+			category: categoryFor(config.storage),
 			scope: receive?.config.id === id || preparing || direct ? 'peer-receive' : 'peer-send',
 			storage: config.storage,
 			totalBytes: config.totalBytes,

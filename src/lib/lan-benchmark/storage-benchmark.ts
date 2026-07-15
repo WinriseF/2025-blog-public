@@ -1,6 +1,6 @@
 import type { TransferFileMeta } from '@/lib/lan-transfer/storage/types'
 import { createBenchmarkStorageEngine } from './storage'
-import { bytesToMiBps, randomBenchmarkId, type BenchmarkResult, type BenchmarkSample, type BenchmarkStorageKind } from './types'
+import { appendBenchmarkSample, bytesToMiBps, randomBenchmarkId, type BenchmarkResult, type BenchmarkSample, type BenchmarkStorageKind } from './types'
 
 export type LocalStorageBenchmarkOptions = {
 	storage: BenchmarkStorageKind
@@ -43,7 +43,6 @@ export async function runLocalStorageBenchmark({ storage, totalBytes, chunkSize,
 	let prepareMs = 0
 	let checkpointMs = 0
 	let finalizeMs = 0
-	let lastSample = startedPerf
 	const seed = createSeed(chunkSize)
 
 	try {
@@ -57,14 +56,7 @@ export async function runLocalStorageBenchmark({ storage, totalBytes, chunkSize,
 			await engine.writeChunk(meta, index, data)
 			writeMs += performance.now() - writeStarted
 			bytes += size
-			const now = performance.now()
-			if (now - lastSample >= 250 || bytes === totalBytes) {
-				const elapsedMs = now - startedPerf
-				const previous = samples.at(-1)
-				samples.push({ elapsedMs, bytes, mibPerSecond: bytesToMiBps(bytes - (previous?.bytes || 0), elapsedMs - (previous?.elapsedMs || 0)) })
-				onProgress?.(bytes, samples)
-				lastSample = now
-			}
+			if (appendBenchmarkSample(samples, startedPerf, bytes, undefined, bytes === totalBytes)) onProgress?.(bytes, samples)
 		}
 		const checkpointStarted = performance.now()
 		await engine.checkpoint(meta)
@@ -77,6 +69,7 @@ export async function runLocalStorageBenchmark({ storage, totalBytes, chunkSize,
 		return {
 			id,
 			label: `本机 ${storage} 顺序写`,
+			category: 'local-storage',
 			scope: 'local',
 			storage,
 			totalBytes,
@@ -94,6 +87,7 @@ export async function runLocalStorageBenchmark({ storage, totalBytes, chunkSize,
 		return {
 			id,
 			label: `本机 ${storage} 顺序写`,
+			category: 'local-storage',
 			scope: 'local',
 			storage,
 			totalBytes,

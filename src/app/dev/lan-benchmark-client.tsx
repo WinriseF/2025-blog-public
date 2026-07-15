@@ -1,16 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Activity, BarChart3, Copy, Download, Eraser, HardDrive, Network, Play, QrCode, RotateCcw, ShieldAlert, Wifi } from 'lucide-react'
+import { Activity, BarChart3, Copy, Download, Eraser, Gauge, HardDrive, Network, Play, QrCode, RotateCcw, ShieldAlert, Wifi } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
 import { LAN_LIMITS } from '@/lib/lan-transfer/types'
 import { BenchmarkPeer } from '@/lib/lan-benchmark/peer'
+import { RawRtcRunner } from '@/lib/lan-benchmark/raw-rtc-runner'
 import { BenchmarkRunner } from '@/lib/lan-benchmark/runner'
 import { createBenchmarkSession, BenchmarkSignalingClient } from '@/lib/lan-benchmark/signaling'
 import { cleanupBenchmarkStorage } from '@/lib/lan-benchmark/storage'
 import { runLocalStorageBenchmark } from '@/lib/lan-benchmark/storage-benchmark'
-import { bytesToMib, randomBenchmarkId, type BenchmarkCapabilities, type BenchmarkPeerStorage, type BenchmarkResult, type BenchmarkRunConfig, type BenchmarkSample, type BenchmarkSession, type BenchmarkStorageKind } from '@/lib/lan-benchmark/types'
+import { bytesToMib, randomBenchmarkId, type BenchmarkCapabilities, type BenchmarkPeerStorage, type BenchmarkResult, type BenchmarkRunConfig, type BenchmarkSample, type BenchmarkSession, type BenchmarkStorageKind, type RawRtcRunConfig } from '@/lib/lan-benchmark/types'
 
 const inviteStorageKey = 'winrisef-lan-benchmark-invite-v1'
 const MiB = 1024 * 1024
@@ -20,13 +21,13 @@ const localStorages: Array<{ value: BenchmarkStorageKind; label: string }> = [
 	{ value: 'indexeddb', label: 'IndexedDB' },
 	{ value: 'file', label: 'Direct File' },
 ]
-const peerStorages: Array<{ value: BenchmarkPeerStorage; label: string }> = [
-	{ value: 'sink', label: 'WebRTC Sink（不写盘）' },
+const productionStorages: Array<{ value: BenchmarkStorageKind; label: string }> = [
 	{ value: 'memory', label: 'Memory' },
 	{ value: 'opfs', label: 'OPFS' },
 	{ value: 'indexeddb', label: 'IndexedDB' },
 	{ value: 'file', label: 'Direct File' },
 ]
+const rawMessageSizesKiB = [16, 64, 256, 1024] as const
 
 type Progress = { id: string; bytes: number; totalBytes: number; samples: BenchmarkSample[] } | null
 
@@ -47,6 +48,23 @@ function formatSpeed(value?: number) {
 
 function formatDuration(value?: number) {
 	return value === undefined ? '—' : value < 1_000 ? `${Math.round(value)} ms` : `${(value / 1_000).toFixed(2)} s`
+}
+
+function resultCategoryLabel(category: BenchmarkResult['category']) {
+	if (category === 'raw-rtc') return 'Raw RTC'
+	if (category === 'framed-rtc') return 'Framed RTC'
+	if (category === 'production-e2e') return 'Production E2E'
+	return '本机存储'
+}
+
+function rawStatDelta(result: BenchmarkResult, key: 'dataChannelBytesSent' | 'dataChannelBytesReceived' | 'transportBytesSent' | 'transportBytesReceived') {
+	if (!result.raw) return 0
+	return Math.max(0, result.raw.endStats[key] - result.raw.startStats[key])
+}
+
+function rawStatSpeed(result: BenchmarkResult, key: Parameters<typeof rawStatDelta>[1]) {
+	if (!result.raw || result.raw.receiverElapsedMs <= 0) return undefined
+	return bytesToMib(rawStatDelta(result, key)) / (result.raw.receiverElapsedMs / 1_000)
 }
 
 function storageAvailability(kind: BenchmarkStorageKind, capabilities: BenchmarkCapabilities | null) {
@@ -86,11 +104,18 @@ function ResultRow({ result }: { result: BenchmarkResult }) {
 		<div className='grid gap-2 border-t border-border py-3 text-xs sm:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]'>
 			<div className='min-w-0'>
 				<p className='truncate font-medium'>{result.label}</p>
-				<p className='mt-1 text-secondary'>{result.scope} · {formatBytes(result.bytes)} · {result.status === 'complete' ? '完成' : result.error || '已取消'}</p>
+				<p className='mt-1 text-secondary'>{resultCategoryLabel(result.category)} · {result.scope} · {formatBytes(result.bytes)} · {result.status === 'complete' ? '完成' : result.error || '已取消'}</p>
 			</div>
 			<div><p className='text-secondary'>写入 / 发送</p><p className='mt-1 font-medium'>{formatSpeed(result.throughputMiBps)}</p></div>
 			<div><p className='text-secondary'>端到端</p><p className='mt-1 font-medium'>{formatDuration(result.timings.endToEndMs)}</p></div>
 			<div><p className='text-secondary'>Finalize</p><p className='mt-1 font-medium'>{formatDuration(result.timings.finalizeMs)}</p></div>
+			{result.raw && <div className='grid gap-2 border-t border-border pt-3 sm:col-span-4 sm:grid-cols-3'>
+				<div><p className='text-secondary'>消息 / 实测时长</p><p className='mt-1 font-medium'>{formatBytes(result.raw.messageSize)} · {formatDuration(result.raw.receiverElapsedMs)}</p></div>
+				<div><p className='text-secondary'>DC bytes ↑ / ↓</p><p className='mt-1 font-medium'>{formatBytes(rawStatDelta(result, 'dataChannelBytesSent'))} / {formatBytes(rawStatDelta(result, 'dataChannelBytesReceived'))}</p></div>
+				<div><p className='text-secondary'>Transport ↑ / ↓</p><p className='mt-1 font-medium'>{formatSpeed(rawStatSpeed(result, 'transportBytesSent'))} / {formatSpeed(rawStatSpeed(result, 'transportBytesReceived'))}</p></div>
+				<div><p className='text-secondary'>RTT / Outgoing</p><p className='mt-1 font-medium'>{formatDuration(result.raw.endStats.rttMs)} / {formatSpeed(result.raw.endStats.availableOutgoingBps === undefined ? undefined : result.raw.endStats.availableOutgoingBps / 8 / MiB)}</p></div>
+				<div><p className='text-secondary'>最大缓冲 / 背压等待</p><p className='mt-1 font-medium'>{formatBytes(result.raw.maxBufferedAmount)} / {formatDuration(result.raw.backpressureWaitMs)}</p></div>
+			</div>}
 		</div>
 	)
 }
@@ -104,7 +129,10 @@ export function LanBenchmarkClient() {
 	const [capabilities, setCapabilities] = useState<BenchmarkCapabilities | null>(null)
 	const [peerStats, setPeerStats] = useState<{ route: string; rtt?: number; bitrate?: number } | null>(null)
 	const [localStorage, setLocalStorage] = useState<BenchmarkStorageKind>('opfs')
-	const [peerStorage, setPeerStorage] = useState<BenchmarkPeerStorage>('sink')
+	const [productionStorage, setProductionStorage] = useState<BenchmarkStorageKind>('opfs')
+	const [rawMessageKiB, setRawMessageKiB] = useState<(typeof rawMessageSizesKiB)[number]>(64)
+	const [rawReady, setRawReady] = useState(false)
+	const [rawMessageLimit, setRawMessageLimit] = useState<number | null>(null)
 	const [sizeMiB, setSizeMiB] = useState(256)
 	const [chunkKiB, setChunkKiB] = useState(124)
 	const [running, setRunning] = useState(false)
@@ -115,6 +143,7 @@ export function LanBenchmarkClient() {
 	const signalRef = useRef<BenchmarkSignalingClient | null>(null)
 	const peerRef = useRef<BenchmarkPeer | null>(null)
 	const runnerRef = useRef<BenchmarkRunner | null>(null)
+	const rawRunnerRef = useRef<RawRtcRunner | null>(null)
 	const mountedRef = useRef(true)
 
 	const totalBytes = Math.max(16, Math.min(1_024, sizeMiB)) * MiB
@@ -135,10 +164,14 @@ export function LanBenchmarkClient() {
 
 	const disconnect = useCallback(async () => {
 		setConnected(false)
+		setRawReady(false)
+		setRawMessageLimit(null)
 		setPeerStats(null)
 		setDirectFilePending(null)
 		runnerRef.current?.cancel()
 		runnerRef.current = null
+		rawRunnerRef.current?.cancel()
+		rawRunnerRef.current = null
 		peerRef.current?.close()
 		peerRef.current = null
 		const signal = signalRef.current
@@ -172,17 +205,32 @@ export function LanBenchmarkClient() {
 				if (run) setRunning(true)
 			},
 		})
+		const rawRunner = new RawRtcRunner(peer, {
+			onStatus: message => mountedRef.current && setStatus(message),
+			onRunStart: () => mountedRef.current && setRunning(true),
+			onResult: appendResult,
+		})
 		peer.setHandlers({
 			onState: message => {
 				if (!mountedRef.current) return
 				setStatus(message)
 				window.setTimeout(() => setConnected(peer.isOpen()), 0)
 			},
-			onControl: value => runner.handleControl(value),
+			onControl: value => {
+				runner.handleControl(value)
+				rawRunner.handleControl(value)
+			},
 			onData: value => runner.handleData(value),
+			onRawData: byteLength => rawRunner.handleRawData(byteLength),
+			onRawState: state => {
+				if (!mountedRef.current) return
+				setRawReady(state === 'open' && peer.isRawOpen())
+				setRawMessageLimit(peer.rawMessageSizeLimit())
+			},
 		})
 		peerRef.current = peer
 		runnerRef.current = runner
+		rawRunnerRef.current = rawRunner
 		signal = new BenchmarkSignalingClient(next, event => void peer.handleSignal(event).catch(error => setStatus(error instanceof Error ? error.message : '协商失败')), message => mountedRef.current && setStatus(message))
 		signalRef.current = signal
 		try {
@@ -250,7 +298,9 @@ export function LanBenchmarkClient() {
 	const chartSamples = progress?.samples || results.at(-1)?.samples || []
 	const memorySizeAllowed = totalBytes <= LAN_LIMITS.memoryMaxBytes
 	const canUseLocalStorage = storageAvailability(localStorage, capabilities) && (localStorage !== 'memory' || memorySizeAllowed)
-	const canUsePeerStorage = (peerStorage === 'sink' || storageAvailability(peerStorage, capabilities)) && (peerStorage !== 'memory' || memorySizeAllowed)
+	const canUseProductionStorage = storageAvailability(productionStorage, capabilities) && (productionStorage !== 'memory' || memorySizeAllowed)
+	const rawMessageSize = rawMessageKiB * 1024
+	const rawMessageSizeAllowed = rawMessageLimit !== null && rawMessageSize <= rawMessageLimit
 
 	const runLocal = async () => {
 		if (!canUseLocalStorage || running) return
@@ -261,13 +311,14 @@ export function LanBenchmarkClient() {
 		setStatus(result.status === 'complete' ? '本机存储基准完成' : result.error || '本机存储基准失败')
 	}
 
-	const runPeer = () => {
-		if (!connected || session?.role !== 'host' || !canUsePeerStorage || running) return
+	const runPeer = (storage: BenchmarkPeerStorage) => {
+		if (!connected || session?.role !== 'host' || running) return
+		if (storage !== 'sink' && !canUseProductionStorage) return
 		const mobile = /android|iphone|ipad|mobile/i.test(navigator.userAgent)
 		const run: BenchmarkRunConfig = {
 			id: randomBenchmarkId('peer'),
-			label: peerStorage === 'sink' ? 'WebRTC Sink 极限' : `生产单附件 E2E · ${peerStorage}`,
-			storage: peerStorage,
+			label: storage === 'sink' ? 'Framed RTC · 生产帧编解码，不写盘' : `Production E2E · ${storage}`,
+			storage,
 			totalBytes,
 			chunkSize,
 			highWatermark: mobile ? 4 * MiB : 8 * MiB,
@@ -279,6 +330,28 @@ export function LanBenchmarkClient() {
 		} catch (error) {
 			setRunning(false)
 			setStatus(error instanceof Error ? error.message : '无法启动双端测试')
+		}
+	}
+
+	const runRaw = () => {
+		if (!connected || !rawReady || !rawMessageSizeAllowed || running) return
+		const mobile = /android|iphone|ipad|mobile/i.test(navigator.userAgent)
+		const run: RawRtcRunConfig = {
+			id: randomBenchmarkId('raw'),
+			messageSize: rawMessageSize,
+			warmupMs: 5_000,
+			testMs: 30_000,
+			highWatermark: mobile ? 32 * MiB : 128 * MiB,
+			lowWatermark: mobile ? 8 * MiB : 32 * MiB,
+		}
+		try {
+			setRunning(true)
+			const runner = rawRunnerRef.current
+			if (!runner) throw new Error('Raw RTC 诊断尚未就绪')
+			runner.start(run)
+		} catch (error) {
+			setRunning(false)
+			setStatus(error instanceof Error ? error.message : '无法启动 Raw RTC 测试')
 		}
 	}
 
@@ -304,7 +377,7 @@ export function LanBenchmarkClient() {
 				<div>
 					<p className='text-brand text-xs font-semibold tracking-[0.18em] uppercase'>LAN diagnostics</p>
 					<h1 className='mt-2 text-2xl font-semibold'>局域网快传诊断台</h1>
-					<p className='text-secondary mt-2 max-w-2xl leading-6'>独立信令、独立 DataChannel、独立浏览器存储。先测网络 Sink 上限，再测各存储后端和生产单附件端到端路径。</p>
+					<p className='text-secondary mt-2 max-w-2xl leading-6'>Raw RTC（纯原生 DataChannel）、Framed RTC（生产帧编解码但不写盘）、Production E2E（生产帧加真实存储）分开测量，避免把网络与落盘瓶颈混在一起。</p>
 				</div>
 				<div className='flex flex-wrap gap-2'>
 					<button onClick={() => void cleanupBenchmarkStorage().then(() => { setStatus('已清理诊断 OPFS 与 IndexedDB 数据'); void refreshCapabilities() })} className='text-secondary inline-flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-2 text-xs font-medium transition hover:border-brand/45 hover:text-primary'><Eraser size={14} />清理测试数据</button>
@@ -321,7 +394,7 @@ export function LanBenchmarkClient() {
 					{session?.role === 'host' && inviteLink ? (
 						<div className='grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]'>
 							<div className='flex items-center justify-center rounded-2xl border border-dashed border-brand/30 bg-brand/5 p-3'>{qrDataUrl ? <img src={qrDataUrl} alt='局域网诊断配对二维码' className='size-[190px]' /> : <QrCode className='text-secondary' size={42} />}</div>
-							<div className='space-y-3'><p className='text-sm font-medium'>扫描后会建立独立的 `lan-benchmark-v1` DataChannel。</p><p className='break-all text-xs leading-5 text-secondary'>{inviteLink}</p><button onClick={() => void copyInvite()} className='inline-flex items-center gap-2 rounded-full border border-border bg-article px-3 py-2 text-xs font-medium'><Copy size={14} />复制诊断链接</button></div>
+							<div className='space-y-3'><p className='text-sm font-medium'>扫描后会建立常规 `lan-benchmark-v1` 与 Raw `raw-benchmark-v1` 两条独立 DataChannel。</p><p className='break-all text-xs leading-5 text-secondary'>{inviteLink}</p><button onClick={() => void copyInvite()} className='inline-flex items-center gap-2 rounded-full border border-border bg-article px-3 py-2 text-xs font-medium'><Copy size={14} />复制诊断链接</button></div>
 						</div>
 					) : session?.role === 'guest' ? (
 						<div className='rounded-2xl border border-brand/25 bg-brand/5 p-4 text-sm'><p className='font-medium'>已加入诊断房间</p><p className='mt-1 text-secondary'>{status}</p></div>
@@ -339,13 +412,15 @@ export function LanBenchmarkClient() {
 						<div><p className='text-secondary'>IndexedDB</p><p className='mt-1 font-medium'>{capabilities?.indexedDb ? '可用' : '不可用'}</p></div>
 						<div><p className='text-secondary'>Direct File</p><p className='mt-1 font-medium'>{capabilities?.fileSystemAccess ? '可用' : '不可用'}</p></div>
 						<div><p className='text-secondary'>可用配额</p><p className='mt-1 font-medium'>{capabilities?.available ? formatBytes(capabilities.available) : '未知'}</p></div>
+						<div><p className='text-secondary'>Raw RTC</p><p className='mt-1 font-medium'>{rawReady ? '已就绪' : '等待通道'}</p></div>
+						<div><p className='text-secondary'>SCTP 单消息上限</p><p className='mt-1 font-medium'>{rawMessageLimit === null ? '等待协商' : rawMessageLimit === Infinity ? '未报告上限' : formatBytes(rawMessageLimit)}</p></div>
 					</div>
 					{peerStats && <div className='border-t border-border pt-3 text-xs'><p className='font-medium'>{peerStats.route}</p><p className='text-secondary mt-1'>RTT {peerStats.rtt ? `${peerStats.rtt.toFixed(1)} ms` : '—'} · 浏览器预估上行 {peerStats.bitrate ? formatSpeed(peerStats.bitrate / 8 / MiB) : '—'}</p></div>}
 				</section>
 			</div>
 
 			<section className='space-y-5 rounded-2xl border border-border bg-background/30 p-5'>
-				<div className='flex items-start gap-3'><div className='bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-full'><Activity size={19} /></div><div><p className='text-secondary text-xs tracking-[0.18em] uppercase'>Profiles</p><h2 className='mt-1 text-lg font-semibold'>生产参数基准</h2><p className='text-secondary mt-1 text-xs'>顺序写、单并发、当前 60 / 124 KiB 分块与 4 MiB 聚合写路径；实验扫描应另开配置，不与此结果混合。</p></div></div>
+				<div className='flex items-start gap-3'><div className='bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-full'><Activity size={19} /></div><div><p className='text-secondary text-xs tracking-[0.18em] uppercase'>Profiles</p><h2 className='mt-1 text-lg font-semibold'>分层基准</h2><p className='text-secondary mt-1 text-xs'>Raw RTC 为固定时长纯通道测试；其余两项使用当前 60 / 124 KiB 生产分块。只有 Production E2E 会写入真实浏览器存储。</p></div></div>
 				<div className='grid gap-3 sm:grid-cols-3'>
 					<label className='text-xs text-secondary'>数据量（MiB）<select value={sizeMiB} onChange={event => setSizeMiB(Number(event.target.value))} disabled={running} className='mt-1 w-full rounded-xl border border-border bg-article px-3 py-2 text-primary'><option value={64}>64</option><option value={128}>128</option><option value={256}>256</option><option value={512}>512</option></select></label>
 					<label className='text-xs text-secondary'>分块大小<select value={chunkKiB} onChange={event => setChunkKiB(Number(event.target.value))} disabled={running} className='mt-1 w-full rounded-xl border border-border bg-article px-3 py-2 text-primary'><option value={60}>60 KiB（兼容档）</option><option value={124}>124 KiB（探测成功档）</option></select></label>
@@ -353,16 +428,20 @@ export function LanBenchmarkClient() {
 				</div>
 				<div className='grid gap-4 lg:grid-cols-2'>
 					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>本机 fio 式顺序写</p><p className='text-secondary mt-1 text-xs'>测 prepare、chunk write、checkpoint、finalize；Direct File 会打开文件保存选择器并保留测试文件供手动删除。Memory 沿用正式 200 MiB 上限。</p><div className='mt-3 flex flex-wrap gap-2'>{localStorages.map(item => { const available = storageAvailability(item.value, capabilities) && (item.value !== 'memory' || memorySizeAllowed); return <button key={item.value} onClick={() => setLocalStorage(item.value)} disabled={running || !available} className={cn('rounded-full border px-3 py-1.5 text-xs', localStorage === item.value ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !available && 'opacity-40')}>{item.label}</button> })}</div><button onClick={() => void runLocal()} disabled={running || !canUseLocalStorage} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Play size={13} />运行本机基准</button></div>
-					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>真实 WebRTC 双端基准</p><p className='text-secondary mt-1 text-xs'>Sink 只计数不写盘，给出真实局域网连接下的 DataChannel 传输极限；其余项使用同一分块与真实存储引擎。</p><div className='mt-3 flex flex-wrap gap-2'>{peerStorages.map(item => { const available = (item.value === 'sink' || storageAvailability(item.value, capabilities)) && (item.value !== 'memory' || memorySizeAllowed); return <button key={item.value} onClick={() => setPeerStorage(item.value)} disabled={running || !available} className={cn('rounded-full border px-3 py-1.5 text-xs', peerStorage === item.value ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !available && 'opacity-40')}>{item.label}</button> })}</div><button onClick={runPeer} disabled={running || !connected || session?.role !== 'host' || !canUsePeerStorage} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行双端基准</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>主机负责发起测试；此设备会自动成为接收端。</p>}</div>
+					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Raw RTC 极限测试</p><p className='text-secondary mt-1 text-xs'>只在 `raw-benchmark-v1` 上循环发送预创建 Uint8Array；接收端只累计 ArrayBuffer.byteLength 后立即丢弃。预热 5 秒，实测 30 秒。</p><div className='mt-3 flex flex-wrap gap-2'>{rawMessageSizesKiB.map(size => { const allowed = rawMessageLimit !== null && size * 1024 <= rawMessageLimit; return <button key={size} onClick={() => setRawMessageKiB(size)} disabled={running || !allowed} className={cn('rounded-full border px-3 py-1.5 text-xs', rawMessageKiB === size ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !allowed && 'opacity-40')}>{size} KiB</button> })}</div><p className='text-secondary mt-3 text-xs'>SCTP 上限：{rawMessageLimit === null ? '等待 Raw 通道协商' : rawMessageLimit === Infinity ? '浏览器未报告（允许所选档位）' : formatBytes(rawMessageLimit)}。发送方向由点击测试的设备决定。</p><button onClick={runRaw} disabled={running || !connected || !rawReady || !rawMessageSizeAllowed} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Gauge size={13} />运行 Raw RTC（5s + 30s）</button><p className='text-secondary mt-3 text-xs'>电脑点击即测电脑→手机；手机点击即可测手机→电脑。</p></div>
+				</div>
+				<div className='grid gap-4 lg:grid-cols-2'>
+					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Framed RTC</p><p className='text-secondary mt-1 text-xs'>沿用生产 encodeChunk/decodeFrame 与分块协议，但接收端只计数、不写盘。它反映帧编解码和生产分块协议的代价。</p><button onClick={() => runPeer('sink')} disabled={running || !connected || session?.role !== 'host'} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行 Framed RTC</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>常规协议由创建二维码的设备发起；此设备会自动成为接收端。</p>}</div>
+					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Production E2E</p><p className='text-secondary mt-1 text-xs'>使用生产帧编解码、分块协议与接收端真实浏览器存储，测完整单附件端到端路径。</p><div className='mt-3 flex flex-wrap gap-2'>{productionStorages.map(item => { const available = storageAvailability(item.value, capabilities) && (item.value !== 'memory' || memorySizeAllowed); return <button key={item.value} onClick={() => setProductionStorage(item.value)} disabled={running || !available} className={cn('rounded-full border px-3 py-1.5 text-xs', productionStorage === item.value ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !available && 'opacity-40')}>{item.label}</button> })}</div><button onClick={() => runPeer(productionStorage)} disabled={running || !connected || session?.role !== 'host' || !canUseProductionStorage} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行 Production E2E</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>常规协议由创建二维码的设备发起；此设备会自动成为接收端。</p>}</div>
 				</div>
 				{directFilePending && <div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/5 p-4 text-sm'><div><p className='font-medium'>对方请求 Direct File 接收测试</p><p className='text-secondary mt-1 text-xs'>选择一个新测试文件位置后，才会开始写入。</p></div><button onClick={() => void runnerRef.current?.prepareDirectFile()} className='bg-brand text-background rounded-full px-3 py-2 text-xs font-semibold'>选择位置并继续</button></div>}
-				{running && <button onClick={() => runnerRef.current?.cancel()} className='text-secondary inline-flex items-center gap-2 text-xs underline underline-offset-4'><RotateCcw size={13} />取消当前测试</button>}
+				{running && <button onClick={() => { runnerRef.current?.cancel(); rawRunnerRef.current?.cancel() }} className='text-secondary inline-flex items-center gap-2 text-xs underline underline-offset-4'><RotateCcw size={13} />取消当前测试</button>}
 			</section>
 
 			<section className='rounded-2xl border border-border bg-background/30 p-5'>
 				<div className='flex items-start gap-3'><div className='bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-full'><BarChart3 size={19} /></div><div><p className='text-secondary text-xs tracking-[0.18em] uppercase'>Results</p><h2 className='mt-1 text-lg font-semibold'>吞吐与阶段结果</h2></div></div>
 				{progress && <div className='mt-5 space-y-3'><div className='flex flex-wrap items-center justify-between gap-2 text-xs'><span>{formatBytes(progress.bytes)} / {formatBytes(progress.totalBytes)}</span><span className='text-secondary'>{progress.totalBytes ? `${(progress.bytes / progress.totalBytes * 100).toFixed(1)}%` : '0%'}</span></div><ThroughputChart samples={chartSamples} /></div>}
-				{!progress && results.length === 0 && <div className='text-secondary mt-6 flex items-center gap-2 text-sm'><ShieldAlert size={16} />尚无结果。先运行 Sink，确认网络上限后再比较各存储后端。</div>}
+				{!progress && results.length === 0 && <div className='text-secondary mt-6 flex items-center gap-2 text-sm'><ShieldAlert size={16} />尚无结果。先运行 Raw RTC 确认纯通道上限，再对比 Framed RTC 与 Production E2E。</div>}
 				{results.length > 0 && <div className='mt-5'><ThroughputChart samples={chartSamples} /><div className='mt-4'>{results.slice().reverse().map((result, index) => <ResultRow key={`${result.id}-${result.scope}-${index}`} result={result} />)}</div></div>}
 			</section>
 		</div>

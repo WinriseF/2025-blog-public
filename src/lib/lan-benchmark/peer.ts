@@ -1,5 +1,5 @@
 import type { LanConnectionRoute } from '@/lib/lan-transfer/transport-types'
-import type { BenchmarkRole } from './types'
+import type { BenchmarkRole, RawRtcStatsSnapshot } from './types'
 import type { BenchmarkSignal, BenchmarkSignalType } from './signaling'
 
 const controlPrefix = '__winrisef_lan_benchmark_v1__:'
@@ -16,6 +16,8 @@ type PeerHandlers = {
 	onState: (state: string) => void
 	onControl: (value: unknown) => void
 	onData: (data: unknown) => void
+	onRawData: (byteLength: number) => void
+	onRawState: (state: 'open' | 'closed' | 'error') => void
 }
 
 type Stats = RTCStats & {
@@ -71,6 +73,7 @@ function routeFromStats(stats: RTCStatsReport): LanConnectionRoute | null {
 export class BenchmarkPeer {
 	private readonly pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }], iceCandidatePoolSize: 2 })
 	private channel: RTCDataChannel | null = null
+	private rawChannel: RTCDataChannel | null = null
 	private remoteId = ''
 	private pendingCandidates: RTCIceCandidateInit[] = []
 	private handlers: PeerHandlers | null = null
@@ -83,8 +86,15 @@ export class BenchmarkPeer {
 		this.pc.onicecandidate = event => void this.sendSignal('candidate', { candidate: event.candidate?.toJSON() || null }, this.remoteId || '*').catch(() => {})
 		this.pc.onconnectionstatechange = () => this.handlers?.onState(this.pc.connectionState)
 		this.pc.oniceconnectionstatechange = () => this.handlers?.onState(this.pc.iceConnectionState)
-		if (role === 'host') this.bindChannel(this.pc.createDataChannel('lan-benchmark-v1', { ordered: true }))
-		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
+		if (role === 'host') {
+			this.bindChannel(this.pc.createDataChannel('lan-benchmark-v1', { ordered: true }))
+			this.bindRawChannel(this.pc.createDataChannel('raw-benchmark-v1', { ordered: true }))
+		} else {
+			this.pc.ondatachannel = event => {
+				if (event.channel.label === 'raw-benchmark-v1') this.bindRawChannel(event.channel)
+				else this.bindChannel(event.channel)
+			}
+		}
 	}
 
 	setHandlers(handlers: PeerHandlers) {
@@ -95,8 +105,23 @@ export class BenchmarkPeer {
 		return !this.closed && this.channel?.readyState === 'open' && (this.pc.connectionState === 'connected' || this.pc.iceConnectionState === 'connected' || this.pc.iceConnectionState === 'completed')
 	}
 
+	isRawOpen() {
+		return !this.closed && this.rawChannel?.readyState === 'open' && (this.pc.connectionState === 'connected' || this.pc.iceConnectionState === 'connected' || this.pc.iceConnectionState === 'completed')
+	}
+
 	get bufferedAmount() {
 		return this.channel?.bufferedAmount || 0
+	}
+
+	get rawBufferedAmount() {
+		return this.rawChannel?.bufferedAmount || 0
+	}
+
+	rawMessageSizeLimit() {
+		if (!this.isRawOpen()) return null
+		const value = this.pc.sctp?.maxMessageSize
+		if (typeof value !== 'number') return null
+		return value === 0 ? Number.POSITIVE_INFINITY : value
 	}
 
 	sendControl(value: unknown) {
@@ -120,13 +145,47 @@ export class BenchmarkPeer {
 		}
 	}
 
+	sendRaw(data: Uint8Array) {
+		if (!this.isRawOpen() || !this.rawChannel) return false
+		try {
+			this.rawChannel.send(data)
+			return true
+		} catch {
+			return false
+		}
+	}
+
+	async waitUntilRawWritable(highWatermark: number, lowWatermark: number, timeoutMs: number) {
+		const rawChannel = this.rawChannel
+		if (!rawChannel || !this.isRawOpen()) throw new Error('Raw RTC DataChannel 已断开')
+		const channel: RTCDataChannel = rawChannel
+		if (channel.bufferedAmount <= highWatermark) return
+		channel.bufferedAmountLowThreshold = lowWatermark
+		if (channel.bufferedAmount <= lowWatermark) return
+		await new Promise<void>((resolve, reject) => {
+			const timer = window.setTimeout(fail, timeoutMs)
+			function cleanup() {
+				window.clearTimeout(timer)
+				channel.removeEventListener('bufferedamountlow', done)
+				channel.removeEventListener('close', fail)
+				channel.removeEventListener('error', fail)
+			}
+			function done() { cleanup(); resolve() }
+			function fail() { cleanup(); reject(new Error('Raw RTC DataChannel 缓冲长时间未排空')) }
+			channel.addEventListener('bufferedamountlow', done, { once: true })
+			channel.addEventListener('close', fail, { once: true })
+			channel.addEventListener('error', fail, { once: true })
+		})
+	}
+
 	async waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number) {
 		const startedAt = performance.now()
 		while (this.bufferedAmount > highWatermark) {
 			if (!this.isOpen()) throw new Error('诊断连接已断开')
 			if (performance.now() - startedAt > timeoutMs) throw new Error('DataChannel 缓冲长时间未排空')
-			const channel = this.channel
-			if (!channel) throw new Error('诊断连接已断开')
+			const currentChannel = this.channel
+			if (!currentChannel) throw new Error('诊断连接已断开')
+			const channel: RTCDataChannel = currentChannel
 			channel.bufferedAmountLowThreshold = lowWatermark
 			await new Promise<void>((resolve, reject) => {
 				const timer = window.setTimeout(done, 250)
@@ -190,18 +249,45 @@ export class BenchmarkPeer {
 		return { route: routeFromStats(stats), rttMs, availableOutgoingBps, bytesSent, bytesReceived }
 	}
 
+	async getRawStats(): Promise<RawRtcStatsSnapshot> {
+		const stats = await this.pc.getStats()
+		let dataChannelBytesSent = 0
+		let dataChannelBytesReceived = 0
+		let transportBytesSent = 0
+		let transportBytesReceived = 0
+		let rttMs: number | undefined
+		let availableOutgoingBps: number | undefined
+		stats.forEach(item => {
+			const report = item as Stats
+			if (report.type === 'data-channel' && report.label === 'raw-benchmark-v1') {
+				dataChannelBytesSent = report.bytesSent || 0
+				dataChannelBytesReceived = report.bytesReceived || 0
+			}
+			if (report.type === 'transport') {
+				transportBytesSent += report.bytesSent || 0
+				transportBytesReceived += report.bytesReceived || 0
+			}
+			if (report.type === 'candidate-pair' && report.currentRoundTripTime !== undefined) rttMs ||= report.currentRoundTripTime * 1000
+			if (report.type === 'candidate-pair' && report.availableOutgoingBitrate !== undefined) availableOutgoingBps ||= report.availableOutgoingBitrate
+		})
+		return { capturedAt: performance.now(), dataChannelBytesSent, dataChannelBytesReceived, transportBytesSent, transportBytesReceived, rttMs, availableOutgoingBps }
+	}
+
 	close() {
 		if (this.closed) return
 		this.closed = true
 		this.channel?.close()
+		this.rawChannel?.close()
 		this.pc.close()
 	}
 
 	private async createOffer() {
-		if (this.closed || !this.remoteId || this.pc.signalingState !== 'stable' || this.pc.localDescription) return
+		const existingDescription = this.pc.localDescription
+		if (this.closed || !this.remoteId || this.pc.signalingState !== 'stable' || existingDescription) return
 		const offer = await this.pc.createOffer()
 		await this.pc.setLocalDescription(offer)
-		if (this.pc.localDescription) await this.sendSignal('offer', { description: this.pc.localDescription.toJSON() }, this.remoteId)
+		const description = this.pc.localDescription
+		if (description) await this.sendSignal('offer', { description: description.toJSON() }, this.remoteId)
 	}
 
 	private async flushCandidates() {
@@ -222,6 +308,17 @@ export class BenchmarkPeer {
 				return
 			}
 			this.handlers?.onData(event.data)
+		}
+	}
+
+	private bindRawChannel(channel: RTCDataChannel) {
+		this.rawChannel = channel
+		channel.binaryType = 'arraybuffer'
+		channel.onopen = () => this.handlers?.onRawState('open')
+		channel.onclose = () => this.handlers?.onRawState('closed')
+		channel.onerror = () => this.handlers?.onRawState('error')
+		channel.onmessage = event => {
+			if (event.data instanceof ArrayBuffer) this.handlers?.onRawData(event.data.byteLength)
 		}
 	}
 }

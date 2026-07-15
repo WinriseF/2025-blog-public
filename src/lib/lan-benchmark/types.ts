@@ -7,6 +7,7 @@ export const LAN_BENCHMARK_OPFS_DIRECTORY_NAME = 'winrisef-lan-benchmark-v1'
 export type BenchmarkStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
 export type BenchmarkPeerStorage = BenchmarkStorageKind | 'sink'
 export type BenchmarkRole = 'host' | 'guest'
+export type BenchmarkCategory = 'local-storage' | 'raw-rtc' | 'framed-rtc' | 'production-e2e'
 
 export type BenchmarkSession = {
 	roomId: string
@@ -33,6 +34,36 @@ export type BenchmarkRunConfig = {
 	lowWatermark: number
 }
 
+export type RawRtcRunConfig = {
+	id: string
+	messageSize: number
+	warmupMs: number
+	testMs: number
+	highWatermark: number
+	lowWatermark: number
+}
+
+export type RawRtcStatsSnapshot = {
+	capturedAt: number
+	dataChannelBytesSent: number
+	dataChannelBytesReceived: number
+	transportBytesSent: number
+	transportBytesReceived: number
+	rttMs?: number
+	availableOutgoingBps?: number
+}
+
+export type RawRtcMetrics = {
+	messageSize: number
+	warmupMs: number
+	testMs: number
+	receiverElapsedMs: number
+	startStats: RawRtcStatsSnapshot
+	endStats: RawRtcStatsSnapshot
+	maxBufferedAmount: number
+	backpressureWaitMs: number
+}
+
 export type BenchmarkStageTimings = {
 	prepareMs?: number
 	writeMs?: number
@@ -45,6 +76,7 @@ export type BenchmarkStageTimings = {
 export type BenchmarkResult = {
 	id: string
 	label: string
+	category: BenchmarkCategory
 	scope: 'local' | 'peer-send' | 'peer-receive'
 	storage: BenchmarkPeerStorage
 	totalBytes: number
@@ -56,6 +88,7 @@ export type BenchmarkResult = {
 	timings: BenchmarkStageTimings
 	samples: BenchmarkSample[]
 	route?: LanConnectionRoute | null
+	raw?: RawRtcMetrics
 	status: 'complete' | 'failed' | 'cancelled'
 	error?: string
 }
@@ -81,4 +114,27 @@ export function bytesToMib(bytes: number) {
 export function bytesToMiBps(bytes: number, elapsedMs: number) {
 	if (!elapsedMs) return 0
 	return bytesToMib(bytes) / (elapsedMs / 1000)
+}
+
+export const BENCHMARK_SAMPLE_INTERVAL_MS = 250
+
+export function appendBenchmarkSample(samples: BenchmarkSample[], startedPerf: number, bytes: number, bufferedAmount?: number, force = false) {
+	const elapsedMs = performance.now() - startedPerf
+	const previous = samples.at(-1)
+	if (!previous) {
+		if (elapsedMs < BENCHMARK_SAMPLE_INTERVAL_MS) return false
+		samples.push({ elapsedMs, bytes, mibPerSecond: bytesToMiBps(bytes, elapsedMs), bufferedAmount })
+		return true
+	}
+	if (elapsedMs - previous.elapsedMs < BENCHMARK_SAMPLE_INTERVAL_MS) {
+		if (!force) return false
+		const before = samples.at(-2)
+		previous.elapsedMs = elapsedMs
+		previous.bytes = bytes
+		previous.mibPerSecond = bytesToMiBps(bytes - (before?.bytes || 0), elapsedMs - (before?.elapsedMs || 0))
+		if (bufferedAmount !== undefined) previous.bufferedAmount = bufferedAmount
+		return true
+	}
+	samples.push({ elapsedMs, bytes, mibPerSecond: bytesToMiBps(bytes - previous.bytes, elapsedMs - previous.elapsedMs), bufferedAmount })
+	return true
 }
