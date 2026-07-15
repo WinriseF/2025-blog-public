@@ -105,6 +105,7 @@ Main route groups and pages:
 - `/toolbox/markdown`: local Markdown preview tool.
 - `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
+- `/dev`: browser-only LAN transfer diagnostics workbench. It is intentionally not linked into the normal transfer session or its navigation.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.
@@ -387,6 +388,24 @@ Important constraints:
 - LAN transfer environment variables: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are required in the browser bundle. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted only as a compatibility fallback.
 - LAN transfer has no TURN relay. IPv6-only and IPv4-only peers are not guaranteed to connect to each other even when signaling succeeds; at least one mutually reachable ICE address family/path is required.
 - Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus a scheduled cleanup that clears the whole `transfer/` prefix each Beijing 02:00.
+
+## LAN Benchmark Workbench
+
+Frontend and isolated diagnostics module:
+
+- `src/app/dev/page.tsx`
+- `src/app/dev/lan-benchmark-client.tsx`
+- `src/lib/lan-benchmark/`
+
+`/dev` is a browser-only diagnostic page for locating a LAN transfer bottleneck without changing or joining a V9 conversation. It has three comparable profiles:
+
+1. Local sequential-write benchmarks run the production storage engines for Memory, Direct File, OPFS, and IndexedDB. They record prepare, write, checkpoint, finalize, and total time with a 250ms throughput series. This measures the browser-side transfer storage pipeline, not an OS-level raw-device `fio` result.
+2. A paired WebRTC Sink benchmark sends production-format chunk frames over an independent reliable ordered `lan-benchmark-v1` DataChannel while the receiver only counts bytes. This is the real two-device network ceiling: it removes browser storage from the measured receiving path while retaining WebRTC, SCTP, framing, and sender backpressure.
+3. A paired end-to-end profile uses the same frame codec, 60KiB or 124KiB payload setting, and high/low DataChannel watermarks, but makes the receiver write to the selected real storage engine. It separates network ceiling from receiver storage and finalization cost. It is intentionally single-attachment only, so V9 attachment scheduling, chat state, persistence, and resume recovery do not contaminate the result.
+
+The benchmark host creates `/dev#mode=benchmark&room=<room>&token=<token>` and the guest consumes the hash into sessionStorage before removing it from the address bar. `src/lib/lan-benchmark/signaling.ts` hashes the token locally and sends only `tokenHash` to the dedicated Supabase Broadcast channel `lan-benchmark:<room>`. Its peer connection, controls, timers, and errors are all scoped to `src/lib/lan-benchmark/`; it never imports `connection-runtime`, the V9 scheduler, or normal LAN session storage.
+
+Benchmark OPFS and IndexedDB data use the separate `winrisef-lan-benchmark-v1` namespace. `OpfsStorageEngine` and `IndexedDbStorageEngine` accept an optional namespace while preserving the normal V9 defaults. Cleanup from `/dev` therefore cannot delete normal received attachments. Direct File is deliberately a user-gesture step on the receiving device and writes a disposable benchmark file selected there. Results include only structured route kind/family, RTT, browser bitrate estimate, phase timing, 250ms samples, and an optional locally downloaded JSON export; no candidate IP address or normal transfer payload is retained.
 
 ## Face Privacy Masking Toolbox
 

@@ -47,12 +47,13 @@ function transactionDone(tx: IDBTransaction) {
 	})
 }
 
-let dbPromise: Promise<IDBDatabase> | null = null
+const dbPromises = new Map<string, Promise<IDBDatabase>>()
 
-function openDb() {
-	if (dbPromise) return dbPromise
-	dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-		const request = indexedDB.open(LAN_INDEXEDDB_NAME, DB_VERSION)
+function openDb(name = LAN_INDEXEDDB_NAME) {
+	const current = dbPromises.get(name)
+	if (current) return current
+	const next = new Promise<IDBDatabase>((resolve, reject) => {
+		const request = indexedDB.open(name, DB_VERSION)
 		request.onupgradeneeded = () => {
 			const db = request.result
 			if (!db.objectStoreNames.contains(MANIFESTS)) db.createObjectStore(MANIFESTS, { keyPath: 'id' })
@@ -64,21 +65,29 @@ function openDb() {
 		request.onsuccess = () => resolve(request.result)
 		request.onerror = () => reject(request.error || new Error('无法准备接收文件'))
 	})
-	return dbPromise
+	dbPromises.set(name, next)
+	return next
 }
 
-export async function closeLanIndexedDb() {
-	if (!dbPromise) return
-	const db = await dbPromise.catch(() => null)
+export async function closeIndexedDb(name = LAN_INDEXEDDB_NAME) {
+	const promise = dbPromises.get(name)
+	if (!promise) return
+	const db = await promise.catch(() => null)
 	db?.close()
-	dbPromise = null
+	dbPromises.delete(name)
+}
+
+export function closeLanIndexedDb() {
+	return closeIndexedDb()
 }
 
 export class IndexedDbStorageEngine implements LanStorageEngine {
 	kind = 'indexeddb' as const
 
+	constructor(private readonly databaseName = LAN_INDEXEDDB_NAME) {}
+
 	async prepare(meta: TransferFileMeta) {
-		const db = await openDb()
+		const db = await openDb(this.databaseName)
 		const existing = await this.getManifest(meta.id)
 		if (existing) return
 		const tx = db.transaction(MANIFESTS, 'readwrite')
@@ -87,7 +96,7 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	}
 
 	async writeChunk(meta: TransferFileMeta, chunkIndex: number, data: Uint8Array) {
-		const db = await openDb()
+		const db = await openDb(this.databaseName)
 		let manifest = (await this.getManifest(meta.id)) || manifestFor(meta)
 		const key = chunkKey(meta.id, chunkIndex)
 		const exists = await requestToPromise(db.transaction(CHUNKS, 'readonly').objectStore(CHUNKS).getKey(key))
@@ -110,7 +119,7 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	}
 
 	async getManifest(fileId: string) {
-		const db = await openDb()
+		const db = await openDb(this.databaseName)
 		return ((await requestToPromise(db.transaction(MANIFESTS, 'readonly').objectStore(MANIFESTS).get(fileId))) as TransferManifest | undefined) || null
 	}
 
@@ -124,7 +133,7 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 
 	async finalize(meta: TransferFileMeta) {
 		if (meta.size > LAN_LIMITS.indexedDbExperimentalBytes) throw new Error('当前设备不能接收这么大的文件')
-		const db = await openDb()
+		const db = await openDb(this.databaseName)
 		const tx = db.transaction(CHUNKS, 'readonly')
 		const store = tx.objectStore(CHUNKS)
 		const parts: BlobPart[] = []
@@ -139,7 +148,7 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	}
 
 	async cleanup(fileId: string) {
-		const db = await openDb()
+		const db = await openDb(this.databaseName)
 		const manifestTx = db.transaction(MANIFESTS, 'readwrite')
 		manifestTx.objectStore(MANIFESTS).delete(fileId)
 		await transactionDone(manifestTx)
