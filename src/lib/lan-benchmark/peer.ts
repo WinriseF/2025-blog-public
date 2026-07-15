@@ -4,6 +4,23 @@ import type { BenchmarkSignal, BenchmarkSignalType } from './signaling'
 
 const controlPrefix = '__winrisef_lan_benchmark_v1__:'
 
+export type RawRtcSendErrorDetails = {
+	name: string
+	message: string
+	readyState?: RTCDataChannelState
+	connectionState: RTCPeerConnectionState
+	iceConnectionState: RTCIceConnectionState
+	bufferedAmount: number
+	maxMessageSize?: number
+}
+
+export class RawRtcSendError extends Error {
+	constructor(readonly details: RawRtcSendErrorDetails) {
+		super(`${details.name}: ${details.message}`)
+		this.name = 'RawRtcSendError'
+	}
+}
+
 export type BenchmarkPeerStats = {
 	route: LanConnectionRoute | null
 	rttMs?: number
@@ -146,12 +163,12 @@ export class BenchmarkPeer {
 	}
 
 	sendRaw(data: Uint8Array) {
-		if (!this.isRawOpen() || !this.rawChannel) return false
+		const channel = this.rawChannel
+		if (!channel || !this.isRawOpen()) throw this.rawSendError(new DOMException('Raw RTC DataChannel 已断开', 'InvalidStateError'))
 		try {
-			this.rawChannel.send(data)
-			return true
-		} catch {
-			return false
+			channel.send(data)
+		} catch (error) {
+			throw this.rawSendError(error)
 		}
 	}
 
@@ -159,9 +176,11 @@ export class BenchmarkPeer {
 		const rawChannel = this.rawChannel
 		if (!rawChannel || !this.isRawOpen()) throw new Error('Raw RTC DataChannel 已断开')
 		const channel: RTCDataChannel = rawChannel
-		if (channel.bufferedAmount <= highWatermark) return
+		if (channel.bufferedAmount <= highWatermark) return 0
 		channel.bufferedAmountLowThreshold = lowWatermark
-		if (channel.bufferedAmount <= lowWatermark) return
+		if (channel.bufferedAmount <= lowWatermark) return 0
+		const startedAt = performance.now()
+		const makeFailure = () => this.rawSendError(new DOMException('Raw RTC DataChannel 缓冲长时间未排空或通道已断开', 'TimeoutError'))
 		await new Promise<void>((resolve, reject) => {
 			const timer = window.setTimeout(fail, timeoutMs)
 			function cleanup() {
@@ -171,11 +190,13 @@ export class BenchmarkPeer {
 				channel.removeEventListener('error', fail)
 			}
 			function done() { cleanup(); resolve() }
-			function fail() { cleanup(); reject(new Error('Raw RTC DataChannel 缓冲长时间未排空')) }
+			function fail() { cleanup(); reject(makeFailure()) }
 			channel.addEventListener('bufferedamountlow', done, { once: true })
 			channel.addEventListener('close', fail, { once: true })
 			channel.addEventListener('error', fail, { once: true })
+			if (channel.bufferedAmount <= lowWatermark) done()
 		})
+		return performance.now() - startedAt
 	}
 
 	async waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number) {
@@ -320,5 +341,18 @@ export class BenchmarkPeer {
 		channel.onmessage = event => {
 			if (event.data instanceof ArrayBuffer) this.handlers?.onRawData(event.data.byteLength)
 		}
+	}
+
+	private rawSendError(error: unknown) {
+		const source = error && typeof error === 'object' ? error as { name?: unknown; message?: unknown } : null
+		return new RawRtcSendError({
+			name: typeof source?.name === 'string' ? source.name : 'Error',
+			message: typeof source?.message === 'string' ? source.message : String(error),
+			readyState: this.rawChannel?.readyState,
+			connectionState: this.pc.connectionState,
+			iceConnectionState: this.pc.iceConnectionState,
+			bufferedAmount: this.rawChannel?.bufferedAmount || 0,
+			maxMessageSize: this.pc.sctp?.maxMessageSize,
+		})
 	}
 }

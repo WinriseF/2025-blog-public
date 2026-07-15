@@ -27,7 +27,7 @@ const productionStorages: Array<{ value: BenchmarkStorageKind; label: string }> 
 	{ value: 'indexeddb', label: 'IndexedDB' },
 	{ value: 'file', label: 'Direct File' },
 ]
-const rawMessageSizesKiB = [16, 64, 256, 1024] as const
+const rawMessageSizesKiB = [16, 64, 200, 252, 256, 1024] as const
 
 type Progress = { id: string; bytes: number; totalBytes: number; samples: BenchmarkSample[] } | null
 
@@ -55,6 +55,13 @@ function resultCategoryLabel(category: BenchmarkResult['category']) {
 	if (category === 'framed-rtc') return 'Framed RTC'
 	if (category === 'production-e2e') return 'Production E2E'
 	return '本机存储'
+}
+
+function rawPhaseLabel(phase: NonNullable<BenchmarkResult['rawFailure']>['phase']) {
+	if (phase === 'preparing') return '准备'
+	if (phase === 'warmup') return '预热'
+	if (phase === 'measuring') return '正式测量'
+	return '收尾'
 }
 
 function rawStatDelta(result: BenchmarkResult, key: 'dataChannelBytesSent' | 'dataChannelBytesReceived' | 'transportBytesSent' | 'transportBytesReceived') {
@@ -104,17 +111,28 @@ function ResultRow({ result }: { result: BenchmarkResult }) {
 		<div className='grid gap-2 border-t border-border py-3 text-xs sm:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]'>
 			<div className='min-w-0'>
 				<p className='truncate font-medium'>{result.label}</p>
-				<p className='mt-1 text-secondary'>{resultCategoryLabel(result.category)} · {result.scope} · {formatBytes(result.bytes)} · {result.status === 'complete' ? '完成' : result.error || '已取消'}</p>
+				<p className='mt-1 text-secondary'>{resultCategoryLabel(result.category)} · {result.scope} · chunk {formatBytes(result.chunkSize)} · {formatBytes(result.bytes)} · {result.status === 'complete' ? '完成' : result.error || '已取消'}</p>
 			</div>
 			<div><p className='text-secondary'>写入 / 发送</p><p className='mt-1 font-medium'>{formatSpeed(result.throughputMiBps)}</p></div>
 			<div><p className='text-secondary'>端到端</p><p className='mt-1 font-medium'>{formatDuration(result.timings.endToEndMs)}</p></div>
 			<div><p className='text-secondary'>Finalize</p><p className='mt-1 font-medium'>{formatDuration(result.timings.finalizeMs)}</p></div>
 			{result.raw && <div className='grid gap-2 border-t border-border pt-3 sm:col-span-4 sm:grid-cols-3'>
 				<div><p className='text-secondary'>消息 / 实测时长</p><p className='mt-1 font-medium'>{formatBytes(result.raw.messageSize)} · {formatDuration(result.raw.receiverElapsedMs)}</p></div>
+				<div><p className='text-secondary'>预热流量</p><p className='mt-1 font-medium'>{formatBytes(result.raw.warmupBytes)}</p></div>
 				<div><p className='text-secondary'>DC bytes ↑ / ↓</p><p className='mt-1 font-medium'>{formatBytes(rawStatDelta(result, 'dataChannelBytesSent'))} / {formatBytes(rawStatDelta(result, 'dataChannelBytesReceived'))}</p></div>
 				<div><p className='text-secondary'>Transport ↑ / ↓</p><p className='mt-1 font-medium'>{formatSpeed(rawStatSpeed(result, 'transportBytesSent'))} / {formatSpeed(rawStatSpeed(result, 'transportBytesReceived'))}</p></div>
 				<div><p className='text-secondary'>RTT / Outgoing</p><p className='mt-1 font-medium'>{formatDuration(result.raw.endStats.rttMs)} / {formatSpeed(result.raw.endStats.availableOutgoingBps === undefined ? undefined : result.raw.endStats.availableOutgoingBps / 8 / MiB)}</p></div>
+				<div><p className='text-secondary'>配置水位 / 实际水位</p><p className='mt-1 font-medium'>{formatBytes(result.raw.configuredHighWatermark)} / {formatBytes(result.raw.configuredLowWatermark)} · {result.raw.effectiveHighWatermark === undefined ? '接收端不适用' : `${formatBytes(result.raw.effectiveHighWatermark)} / ${formatBytes(result.raw.effectiveLowWatermark || 0)}`}</p></div>
 				<div><p className='text-secondary'>最大缓冲 / 背压等待</p><p className='mt-1 font-medium'>{formatBytes(result.raw.maxBufferedAmount)} / {formatDuration(result.raw.backpressureWaitMs)}</p></div>
+				<div><p className='text-secondary'>背压 / 自适应</p><p className='mt-1 font-medium'>{result.raw.backpressureCount} 次 / {result.raw.adaptiveBackpressureCount} 次</p></div>
+			</div>}
+			{result.rawFailure && <div className='grid gap-2 border-t border-border pt-3 sm:col-span-4 sm:grid-cols-3'>
+				<div><p className='text-secondary'>失败阶段 / 实际耗时</p><p className='mt-1 font-medium'>{rawPhaseLabel(result.rawFailure.phase)} · {formatDuration(result.rawFailure.elapsedMs)}</p></div>
+				<div><p className='text-secondary'>预热 / 正式字节</p><p className='mt-1 font-medium'>{formatBytes(result.rawFailure.warmupBytes)} / {formatBytes(result.rawFailure.measurementBytes)}</p></div>
+				<div><p className='text-secondary'>异常</p><p className='mt-1 break-all font-medium'>{result.rawFailure.exceptionName || '远端中止'}{result.rawFailure.exceptionMessage ? `: ${result.rawFailure.exceptionMessage}` : ''}</p></div>
+				<div><p className='text-secondary'>通道 / Peer / ICE</p><p className='mt-1 font-medium'>{result.rawFailure.readyState || '—'} / {result.rawFailure.connectionState || '—'} / {result.rawFailure.iceConnectionState || '—'}</p></div>
+				<div><p className='text-secondary'>失败时缓冲 / SCTP 上限</p><p className='mt-1 font-medium'>{result.rawFailure.bufferedAmount === undefined ? '—' : formatBytes(result.rawFailure.bufferedAmount)} / {result.rawFailure.maxMessageSize === undefined ? '—' : result.rawFailure.maxMessageSize === 0 ? '未报告' : formatBytes(result.rawFailure.maxMessageSize)}</p></div>
+				<div><p className='text-secondary'>配置水位 / 实际水位</p><p className='mt-1 font-medium'>{formatBytes(result.rawFailure.configuredHighWatermark)} / {formatBytes(result.rawFailure.configuredLowWatermark)} · {result.rawFailure.effectiveHighWatermark === undefined ? '—' : `${formatBytes(result.rawFailure.effectiveHighWatermark)} / ${formatBytes(result.rawFailure.effectiveLowWatermark || 0)}`}</p></div>
 			</div>}
 		</div>
 	)
@@ -301,6 +319,7 @@ export function LanBenchmarkClient() {
 	const canUseProductionStorage = storageAvailability(productionStorage, capabilities) && (productionStorage !== 'memory' || memorySizeAllowed)
 	const rawMessageSize = rawMessageKiB * 1024
 	const rawMessageSizeAllowed = rawMessageLimit !== null && rawMessageSize <= rawMessageLimit
+	const framedChunkSizeAllowed = rawMessageLimit === null || chunkSize + 4 * 1024 <= rawMessageLimit
 
 	const runLocal = async () => {
 		if (!canUseLocalStorage || running) return
@@ -312,7 +331,7 @@ export function LanBenchmarkClient() {
 	}
 
 	const runPeer = (storage: BenchmarkPeerStorage) => {
-		if (!connected || session?.role !== 'host' || running) return
+		if (!connected || session?.role !== 'host' || running || !framedChunkSizeAllowed) return
 		if (storage !== 'sink' && !canUseProductionStorage) return
 		const mobile = /android|iphone|ipad|mobile/i.test(navigator.userAgent)
 		const run: BenchmarkRunConfig = {
@@ -420,10 +439,10 @@ export function LanBenchmarkClient() {
 			</div>
 
 			<section className='space-y-5 rounded-2xl border border-border bg-background/30 p-5'>
-				<div className='flex items-start gap-3'><div className='bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-full'><Activity size={19} /></div><div><p className='text-secondary text-xs tracking-[0.18em] uppercase'>Profiles</p><h2 className='mt-1 text-lg font-semibold'>分层基准</h2><p className='text-secondary mt-1 text-xs'>Raw RTC 为固定时长纯通道测试；其余两项使用当前 60 / 124 KiB 生产分块。只有 Production E2E 会写入真实浏览器存储。</p></div></div>
+				<div className='flex items-start gap-3'><div className='bg-brand/10 text-brand flex size-10 shrink-0 items-center justify-center rounded-full'><Activity size={19} /></div><div><p className='text-secondary text-xs tracking-[0.18em] uppercase'>Profiles</p><h2 className='mt-1 text-lg font-semibold'>分层基准</h2><p className='text-secondary mt-1 text-xs'>Raw RTC 为固定时长纯通道测试；Framed / Production 可对比 60、124、200、252 KiB 分块，其中 200 / 252 KiB 为诊断实验档。只有 Production E2E 会写入真实浏览器存储。</p></div></div>
 				<div className='grid gap-3 sm:grid-cols-3'>
 					<label className='text-xs text-secondary'>数据量（MiB）<select value={sizeMiB} onChange={event => setSizeMiB(Number(event.target.value))} disabled={running} className='mt-1 w-full rounded-xl border border-border bg-article px-3 py-2 text-primary'><option value={64}>64</option><option value={128}>128</option><option value={256}>256</option><option value={512}>512</option></select></label>
-					<label className='text-xs text-secondary'>分块大小<select value={chunkKiB} onChange={event => setChunkKiB(Number(event.target.value))} disabled={running} className='mt-1 w-full rounded-xl border border-border bg-article px-3 py-2 text-primary'><option value={60}>60 KiB（兼容档）</option><option value={124}>124 KiB（探测成功档）</option></select></label>
+					<label className='text-xs text-secondary'>分块大小<select value={chunkKiB} onChange={event => setChunkKiB(Number(event.target.value))} disabled={running} className='mt-1 w-full rounded-xl border border-border bg-article px-3 py-2 text-primary'><option value={60}>60 KiB（兼容档）</option><option value={124}>124 KiB（生产高速档）</option><option value={200} disabled={rawMessageLimit !== null && 204 * 1024 > rawMessageLimit}>200 KiB（实验档）</option><option value={252} disabled={rawMessageLimit !== null && 256 * 1024 > rawMessageLimit}>252 KiB（实验档）</option></select>{!framedChunkSizeAllowed && <span className='mt-1 block'>当前 SCTP 单消息上限不足以容纳分块与帧头。</span>}</label>
 					<div className='text-xs text-secondary'><p>测试工作量</p><p className='mt-3 font-medium text-primary'>{formatBytes(totalBytes)} · {Math.ceil(totalBytes / chunkSize).toLocaleString()} chunks</p></div>
 				</div>
 				<div className='grid gap-4 lg:grid-cols-2'>
@@ -431,8 +450,8 @@ export function LanBenchmarkClient() {
 					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Raw RTC 极限测试</p><p className='text-secondary mt-1 text-xs'>只在 `raw-benchmark-v1` 上循环发送预创建 Uint8Array；接收端只累计 ArrayBuffer.byteLength 后立即丢弃。预热 5 秒，实测 30 秒。</p><div className='mt-3 flex flex-wrap gap-2'>{rawMessageSizesKiB.map(size => { const allowed = rawMessageLimit !== null && size * 1024 <= rawMessageLimit; return <button key={size} onClick={() => setRawMessageKiB(size)} disabled={running || !allowed} className={cn('rounded-full border px-3 py-1.5 text-xs', rawMessageKiB === size ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !allowed && 'opacity-40')}>{size} KiB</button> })}</div><p className='text-secondary mt-3 text-xs'>SCTP 上限：{rawMessageLimit === null ? '等待 Raw 通道协商' : rawMessageLimit === Infinity ? '浏览器未报告（允许所选档位）' : formatBytes(rawMessageLimit)}。发送方向由点击测试的设备决定。</p><button onClick={runRaw} disabled={running || !connected || !rawReady || !rawMessageSizeAllowed} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Gauge size={13} />运行 Raw RTC（5s + 30s）</button><p className='text-secondary mt-3 text-xs'>电脑点击即测电脑→手机；手机点击即可测手机→电脑。</p></div>
 				</div>
 				<div className='grid gap-4 lg:grid-cols-2'>
-					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Framed RTC</p><p className='text-secondary mt-1 text-xs'>沿用生产 encodeChunk/decodeFrame 与分块协议，但接收端只计数、不写盘。它反映帧编解码和生产分块协议的代价。</p><button onClick={() => runPeer('sink')} disabled={running || !connected || session?.role !== 'host'} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行 Framed RTC</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>常规协议由创建二维码的设备发起；此设备会自动成为接收端。</p>}</div>
-					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Production E2E</p><p className='text-secondary mt-1 text-xs'>使用生产帧编解码、分块协议与接收端真实浏览器存储，测完整单附件端到端路径。</p><div className='mt-3 flex flex-wrap gap-2'>{productionStorages.map(item => { const available = storageAvailability(item.value, capabilities) && (item.value !== 'memory' || memorySizeAllowed); return <button key={item.value} onClick={() => setProductionStorage(item.value)} disabled={running || !available} className={cn('rounded-full border px-3 py-1.5 text-xs', productionStorage === item.value ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !available && 'opacity-40')}>{item.label}</button> })}</div><button onClick={() => runPeer(productionStorage)} disabled={running || !connected || session?.role !== 'host' || !canUseProductionStorage} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行 Production E2E</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>常规协议由创建二维码的设备发起；此设备会自动成为接收端。</p>}</div>
+					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Framed RTC</p><p className='text-secondary mt-1 text-xs'>沿用生产 encodeChunk/decodeFrame 与分块协议，但接收端只计数、不写盘。它反映帧编解码和不同分块大小的代价。</p><button onClick={() => runPeer('sink')} disabled={running || !connected || session?.role !== 'host' || !framedChunkSizeAllowed} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行 Framed RTC</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>常规协议由创建二维码的设备发起；此设备会自动成为接收端。</p>}</div>
+					<div className='rounded-2xl border border-border bg-article p-4'><p className='font-medium'>Production E2E</p><p className='text-secondary mt-1 text-xs'>使用生产帧编解码、所选分块协议与接收端真实浏览器存储，测完整单附件端到端路径。</p><div className='mt-3 flex flex-wrap gap-2'>{productionStorages.map(item => { const available = storageAvailability(item.value, capabilities) && (item.value !== 'memory' || memorySizeAllowed); return <button key={item.value} onClick={() => setProductionStorage(item.value)} disabled={running || !available} className={cn('rounded-full border px-3 py-1.5 text-xs', productionStorage === item.value ? 'border-brand bg-brand/10 text-brand' : 'border-border text-secondary', !available && 'opacity-40')}>{item.label}</button> })}</div><button onClick={() => runPeer(productionStorage)} disabled={running || !connected || session?.role !== 'host' || !canUseProductionStorage || !framedChunkSizeAllowed} className='bg-brand text-background mt-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40'><Wifi size={13} />运行 Production E2E</button>{session?.role === 'guest' && <p className='text-secondary mt-3 text-xs'>常规协议由创建二维码的设备发起；此设备会自动成为接收端。</p>}</div>
 				</div>
 				{directFilePending && <div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/5 p-4 text-sm'><div><p className='font-medium'>对方请求 Direct File 接收测试</p><p className='text-secondary mt-1 text-xs'>选择一个新测试文件位置后，才会开始写入。</p></div><button onClick={() => void runnerRef.current?.prepareDirectFile()} className='bg-brand text-background rounded-full px-3 py-2 text-xs font-semibold'>选择位置并继续</button></div>}
 				{running && <button onClick={() => { runnerRef.current?.cancel(); rawRunnerRef.current?.cancel() }} className='text-secondary inline-flex items-center gap-2 text-xs underline underline-offset-4'><RotateCcw size={13} />取消当前测试</button>}

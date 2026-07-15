@@ -1,5 +1,5 @@
-import { bytesToMiBps, type BenchmarkResult, type RawRtcRunConfig, type RawRtcStatsSnapshot } from './types'
-import type { BenchmarkPeer } from './peer'
+import { bytesToMiBps, type BenchmarkResult, type RawRtcFailureDetails, type RawRtcRunConfig, type RawRtcStatsSnapshot } from './types'
+import { RawRtcSendError, type BenchmarkPeer } from './peer'
 
 const controlName = 'lan-raw-rtc-control-v1'
 
@@ -9,13 +9,15 @@ type RawControl =
 	| { name: typeof controlName; type: 'begin'; id: string }
 	| { name: typeof controlName; type: 'started'; id: string }
 	| { name: typeof controlName; type: 'result'; result: BenchmarkResult }
-	| { name: typeof controlName; type: 'abort'; id: string; reason: string }
+	| { name: typeof controlName; type: 'abort'; id: string; reason: string; failure?: RawRtcFailureDetails }
 
 type RawReceiveRun = {
 	config: RawRtcRunConfig
 	phase: 'prepared' | 'warmup' | 'measuring' | 'complete'
 	bytes: number
+	warmupBytes: number
 	startedAt: number
+	startedPerf: number
 	measurementStartedPerf: number
 	startStats: Promise<RawRtcStatsSnapshot> | null
 	warmupTimer: number | null
@@ -26,14 +28,20 @@ type RawSendRun = {
 	config: RawRtcRunConfig
 	payload: Uint8Array
 	bytes: number
+	warmupBytes: number
 	startedAt: number
 	startedPerf: number
+	phase: RawRtcFailureDetails['phase']
 	measuring: boolean
 	measurementTimer: number | null
 	startStats: RawRtcStatsSnapshot | null
 	endStats: RawRtcStatsSnapshot | null
 	maxBufferedAmount: number
 	backpressureWaitMs: number
+	backpressureCount: number
+	adaptiveBackpressureCount: number
+	effectiveHighWatermark: number
+	effectiveLowWatermark: number
 	finishedSending: boolean
 	receiverResult: BenchmarkResult | null
 }
@@ -73,12 +81,13 @@ export class RawRtcRunner {
 		if (value.type === 'begin') return this.startReceive(value.id)
 		if (value.type === 'started') return void this.startSending(value.id)
 		if (value.type === 'result') return this.finishSend(value.result)
-		this.abort(value.id, value.reason)
+		this.abort(value.id, value.reason, false, value.failure)
 	}
 
 	handleRawData(byteLength: number) {
 		const run = this.receiveRun
-		if (run?.phase === 'measuring') run.bytes += byteLength
+		if (run?.phase === 'warmup') run.warmupBytes += byteLength
+		else if (run?.phase === 'measuring') run.bytes += byteLength
 	}
 
 	start(config: RawRtcRunConfig) {
@@ -111,7 +120,7 @@ export class RawRtcRunner {
 			this.peer.sendControl({ name: controlName, type: 'abort', id: config.id, reason: '接收端 SCTP 消息大小不可用' } satisfies RawControl)
 			return
 		}
-		this.receiveRun = { config, phase: 'prepared', bytes: 0, startedAt: Date.now(), measurementStartedPerf: 0, startStats: null, warmupTimer: null, finishTimer: null }
+		this.receiveRun = { config, phase: 'prepared', bytes: 0, warmupBytes: 0, startedAt: Date.now(), startedPerf: performance.now(), measurementStartedPerf: 0, startStats: null, warmupTimer: null, finishTimer: null }
 		this.events.onStatus('Raw RTC 接收端已就绪')
 		this.peer.sendControl({ name: controlName, type: 'ready', id: config.id } satisfies RawControl)
 	}
@@ -128,6 +137,7 @@ export class RawRtcRunner {
 		if (!run || run.config.id !== id || run.phase !== 'prepared') return
 		run.phase = 'warmup'
 		run.startedAt = Date.now()
+		run.startedPerf = performance.now()
 		this.events.onRunStart(run.config)
 		run.warmupTimer = window.setTimeout(() => {
 			if (this.receiveRun !== run || run.phase !== 'warmup') return
@@ -152,20 +162,27 @@ export class RawRtcRunner {
 			config,
 			payload: new Uint8Array(config.messageSize),
 			bytes: 0,
+			warmupBytes: 0,
 			startedAt: Date.now(),
 			startedPerf: performance.now(),
+			phase: 'warmup',
 			measuring: false,
 			measurementTimer: null,
 			startStats: null,
 			endStats: null,
 			maxBufferedAmount: 0,
 			backpressureWaitMs: 0,
+			backpressureCount: 0,
+			adaptiveBackpressureCount: 0,
+			effectiveHighWatermark: config.highWatermark,
+			effectiveLowWatermark: config.lowWatermark,
 			finishedSending: false,
 			receiverResult: null,
 		}
 		this.sendRun = run
 		run.measurementTimer = window.setTimeout(() => {
 			if (this.sendRun !== run) return
+			run.phase = 'measuring'
 			run.measuring = true
 			run.bytes = 0
 			void this.peer.getRawStats().then(stats => {
@@ -185,19 +202,73 @@ export class RawRtcRunner {
 		try {
 			while (this.sendRun === run && performance.now() < deadline) {
 				run.maxBufferedAmount = Math.max(run.maxBufferedAmount, this.peer.rawBufferedAmount)
-				const waitStarted = performance.now()
-				await this.peer.waitUntilRawWritable(run.config.highWatermark, run.config.lowWatermark, 60_000)
-				run.backpressureWaitMs += performance.now() - waitStarted
+				const waitedMs = await this.peer.waitUntilRawWritable(run.effectiveHighWatermark, run.effectiveLowWatermark, 60_000)
+				if (waitedMs > 0) {
+					run.backpressureCount += 1
+					run.backpressureWaitMs += waitedMs
+				}
 				if (this.sendRun !== run || performance.now() >= deadline) break
-				if (!this.peer.sendRaw(run.payload)) throw new Error('Raw RTC DataChannel 写入失败')
+				try {
+					this.peer.sendRaw(run.payload)
+				} catch (error) {
+					if (await this.recoverQueueLimit(run, error)) continue
+					throw error
+				}
 				if (run.measuring) run.bytes += run.payload.byteLength
+				else run.warmupBytes += run.payload.byteLength
 				run.maxBufferedAmount = Math.max(run.maxBufferedAmount, this.peer.rawBufferedAmount)
 			}
+			run.phase = 'finishing'
 			run.endStats = await this.peer.getRawStats().catch(() => emptyStats())
 			run.finishedSending = true
 			this.finishSenderIfReady(run)
 		} catch (error) {
-			this.abort(run.config.id, error instanceof Error ? error.message : 'Raw RTC 测试失败', true)
+			const failure = this.createSendFailure(run, error)
+			const reason = failure.exceptionName ? `${failure.exceptionName}: ${failure.exceptionMessage || 'Raw RTC 发送失败'}` : 'Raw RTC 测试失败'
+			this.abort(run.config.id, reason, true, failure)
+		}
+	}
+
+	private async recoverQueueLimit(run: RawSendRun, error: unknown) {
+		if (!(error instanceof RawRtcSendError) || error.details.name !== 'OperationError' || !this.peer.isRawOpen()) return false
+		const observed = Math.max(error.details.bufferedAmount, this.peer.rawBufferedAmount)
+		run.maxBufferedAmount = Math.max(run.maxBufferedAmount, observed)
+		if (observed <= run.config.messageSize) return false
+		const nextHigh = Math.max(run.config.messageSize, Math.floor(Math.min(run.effectiveHighWatermark, observed) * 0.75))
+		if (nextHigh >= observed) return false
+		run.effectiveHighWatermark = nextHigh
+		run.effectiveLowWatermark = Math.min(run.config.lowWatermark, Math.floor(nextHigh / 4))
+		run.adaptiveBackpressureCount += 1
+		this.events.onStatus(`浏览器发送队列约 ${messageSizeLabel(observed)}，Raw 水位已调整为 ${messageSizeLabel(nextHigh)} / ${messageSizeLabel(run.effectiveLowWatermark)}`)
+		const waitedMs = await this.peer.waitUntilRawWritable(nextHigh, run.effectiveLowWatermark, 60_000)
+		if (waitedMs > 0) {
+			run.backpressureCount += 1
+			run.backpressureWaitMs += waitedMs
+		}
+		return true
+	}
+
+	private createSendFailure(run: RawSendRun, error: unknown): RawRtcFailureDetails {
+		const details = error instanceof RawRtcSendError ? error.details : null
+		const source = error instanceof Error ? error : null
+		return {
+			phase: run.phase,
+			elapsedMs: performance.now() - run.startedPerf,
+			warmupBytes: run.warmupBytes,
+			measurementBytes: run.bytes,
+			exceptionName: details?.name || source?.name,
+			exceptionMessage: details?.message || source?.message || String(error),
+			readyState: details?.readyState,
+			connectionState: details?.connectionState,
+			iceConnectionState: details?.iceConnectionState,
+			bufferedAmount: details?.bufferedAmount ?? this.peer.rawBufferedAmount,
+			maxMessageSize: details?.maxMessageSize,
+			configuredHighWatermark: run.config.highWatermark,
+			configuredLowWatermark: run.config.lowWatermark,
+			effectiveHighWatermark: run.effectiveHighWatermark,
+			effectiveLowWatermark: run.effectiveLowWatermark,
+			backpressureCount: run.backpressureCount,
+			adaptiveBackpressureCount: run.adaptiveBackpressureCount,
 		}
 	}
 
@@ -226,7 +297,7 @@ export class RawRtcRunner {
 			timings: { endToEndMs: run.config.warmupMs + receiverElapsedMs },
 			samples: [],
 			route: routeStats?.route,
-			raw: { messageSize: run.config.messageSize, warmupMs: run.config.warmupMs, testMs: run.config.testMs, receiverElapsedMs, startStats, endStats, maxBufferedAmount: 0, backpressureWaitMs: 0 },
+			raw: { messageSize: run.config.messageSize, warmupMs: run.config.warmupMs, testMs: run.config.testMs, warmupBytes: run.warmupBytes, receiverElapsedMs, startStats, endStats, configuredHighWatermark: run.config.highWatermark, configuredLowWatermark: run.config.lowWatermark, maxBufferedAmount: 0, backpressureWaitMs: 0, backpressureCount: 0, adaptiveBackpressureCount: 0 },
 			status: 'complete',
 		}
 		this.events.onResult(result)
@@ -259,7 +330,7 @@ export class RawRtcRunner {
 			finishedAt: Date.now(),
 			timings: { sendMs: senderElapsedMs, endToEndMs: senderElapsedMs },
 			samples: [],
-			raw: { messageSize: run.config.messageSize, warmupMs: run.config.warmupMs, testMs: run.config.testMs, receiverElapsedMs: run.receiverResult.raw?.receiverElapsedMs || 0, startStats: run.startStats || emptyStats(), endStats: run.endStats, maxBufferedAmount: run.maxBufferedAmount, backpressureWaitMs: run.backpressureWaitMs },
+			raw: { messageSize: run.config.messageSize, warmupMs: run.config.warmupMs, testMs: run.config.testMs, warmupBytes: run.warmupBytes, receiverElapsedMs: run.receiverResult.raw?.receiverElapsedMs || 0, startStats: run.startStats || emptyStats(), endStats: run.endStats, configuredHighWatermark: run.config.highWatermark, configuredLowWatermark: run.config.lowWatermark, effectiveHighWatermark: run.effectiveHighWatermark, effectiveLowWatermark: run.effectiveLowWatermark, maxBufferedAmount: run.maxBufferedAmount, backpressureWaitMs: run.backpressureWaitMs, backpressureCount: run.backpressureCount, adaptiveBackpressureCount: run.adaptiveBackpressureCount },
 			status: 'complete',
 		}
 		this.events.onResult(run.receiverResult)
@@ -270,13 +341,27 @@ export class RawRtcRunner {
 		this.clearWaitTimer()
 	}
 
-	private abort(id: string, reason: string, notifyRemote = false) {
+	private abort(id: string, reason: string, notifyRemote = false, failure?: RawRtcFailureDetails) {
 		const receive = this.receiveRun?.config.id === id ? this.receiveRun : null
 		const send = this.sendRun?.config.id === id ? this.sendRun : null
 		const pending = this.pendingRuns.get(id)
 		const config = receive?.config || send?.config || pending
 		if (!config) return
 		const bytes = receive?.bytes || send?.bytes || 0
+		const elapsedMs = send ? performance.now() - send.startedPerf : receive ? performance.now() - receive.startedPerf : 0
+		const receivePhase = receive?.phase === 'measuring' ? 'measuring' : receive?.phase === 'warmup' ? 'warmup' : 'preparing'
+		const rawFailure = reason === '测试已取消' ? undefined : failure || {
+			phase: send?.phase || receivePhase,
+			elapsedMs,
+			warmupBytes: send?.warmupBytes || receive?.warmupBytes || 0,
+			measurementBytes: bytes,
+			configuredHighWatermark: config.highWatermark,
+			configuredLowWatermark: config.lowWatermark,
+			effectiveHighWatermark: send?.effectiveHighWatermark,
+			effectiveLowWatermark: send?.effectiveLowWatermark,
+			backpressureCount: send?.backpressureCount || 0,
+			adaptiveBackpressureCount: send?.adaptiveBackpressureCount || 0,
+		} satisfies RawRtcFailureDetails
 		this.events.onResult({
 			id,
 			label: `Raw RTC · ${messageSizeLabel(config.messageSize)}`,
@@ -287,12 +372,13 @@ export class RawRtcRunner {
 			chunkSize: config.messageSize,
 			bytes,
 			throughputMiBps: 0,
-			startedAt: Date.now(),
+			startedAt: send?.startedAt || receive?.startedAt || Date.now(),
 			finishedAt: Date.now(),
-			timings: { endToEndMs: 0 },
+			timings: { endToEndMs: elapsedMs },
 			samples: [],
 			status: reason === '测试已取消' ? 'cancelled' : 'failed',
 			error: reason,
+			rawFailure,
 		})
 		this.events.onStatus(reason)
 		this.pendingRuns.delete(id)
@@ -302,7 +388,7 @@ export class RawRtcRunner {
 			this.sendRun = null
 		}
 		this.clearWaitTimer()
-		if (notifyRemote) this.peer.sendControl({ name: controlName, type: 'abort', id, reason } satisfies RawControl)
+		if (notifyRemote) this.peer.sendControl({ name: controlName, type: 'abort', id, reason, failure: rawFailure } satisfies RawControl)
 	}
 
 	private clearReceiveRun(run: RawReceiveRun) {

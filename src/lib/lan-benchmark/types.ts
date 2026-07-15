@@ -57,11 +57,38 @@ export type RawRtcMetrics = {
 	messageSize: number
 	warmupMs: number
 	testMs: number
+	warmupBytes: number
 	receiverElapsedMs: number
 	startStats: RawRtcStatsSnapshot
 	endStats: RawRtcStatsSnapshot
+	configuredHighWatermark: number
+	configuredLowWatermark: number
+	effectiveHighWatermark?: number
+	effectiveLowWatermark?: number
 	maxBufferedAmount: number
 	backpressureWaitMs: number
+	backpressureCount: number
+	adaptiveBackpressureCount: number
+}
+
+export type RawRtcFailureDetails = {
+	phase: 'preparing' | 'warmup' | 'measuring' | 'finishing'
+	elapsedMs: number
+	warmupBytes: number
+	measurementBytes: number
+	exceptionName?: string
+	exceptionMessage?: string
+	readyState?: RTCDataChannelState
+	connectionState?: RTCPeerConnectionState
+	iceConnectionState?: RTCIceConnectionState
+	bufferedAmount?: number
+	maxMessageSize?: number
+	configuredHighWatermark: number
+	configuredLowWatermark: number
+	effectiveHighWatermark?: number
+	effectiveLowWatermark?: number
+	backpressureCount: number
+	adaptiveBackpressureCount: number
 }
 
 export type BenchmarkStageTimings = {
@@ -89,6 +116,7 @@ export type BenchmarkResult = {
 	samples: BenchmarkSample[]
 	route?: LanConnectionRoute | null
 	raw?: RawRtcMetrics
+	rawFailure?: RawRtcFailureDetails
 	status: 'complete' | 'failed' | 'cancelled'
 	error?: string
 }
