@@ -538,14 +538,9 @@
 }
 
 .lan-session-v9 {
-	--lan-veil: color-mix(in srgb, var(--color-bg) 16%, transparent);
-	--lan-pane: color-mix(in srgb, var(--color-bg) 38%, transparent);
-	--lan-surface: color-mix(in srgb, var(--color-article) 76%, transparent);
+	--lan-surface: var(--color-card);
 	animation: lan-session-expand 520ms cubic-bezier(0.65, 0, 0.35, 1) both;
-	background:
-		radial-gradient(circle at 84% 8%, color-mix(in srgb, var(--color-brand-secondary) 18%, transparent), transparent 30%),
-		radial-gradient(circle at 12% 90%, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent 34%),
-		var(--lan-veil);
+	background: transparent;
 	isolation: isolate;
 }
 
@@ -573,13 +568,8 @@
 	100% { opacity: 0; }
 }
 
-.lan-session-v9 .bg-background\/30 {
-	background-color: var(--lan-pane);
-}
-
 .lan-session-v9 .bg-article {
 	background-color: var(--lan-surface);
-	backdrop-filter: blur(18px) saturate(1.08);
 }
 
 .lan-session-v9 header.bg-article {
@@ -589,31 +579,13 @@
 
 .lan-session-v9 .lan-session-qr-canvas {
 	background-color: #fff;
-	backdrop-filter: none;
 }
 
 .lan-session-v9 .border-border {
 	border-color: color-mix(in srgb, var(--color-border) 76%, var(--color-brand) 10%);
 }
 
-.lan-session-v9 input,
-.lan-session-v9 textarea {
-	background-color: color-mix(in srgb, var(--color-article) 72%, transparent);
-}
-
-html[data-time-theme='night'] .lan-session-v9 {
-	--lan-veil: color-mix(in srgb, var(--color-bg) 48%, transparent);
-	--lan-pane: color-mix(in srgb, var(--color-bg) 64%, transparent);
-	--lan-surface: color-mix(in srgb, var(--color-article) 88%, transparent);
-}
-
 @media (max-width: 640px) {
-	.lan-session-v9 {
-		--lan-veil: color-mix(in srgb, var(--color-bg) 36%, transparent);
-		--lan-pane: color-mix(in srgb, var(--color-bg) 54%, transparent);
-		--lan-surface: color-mix(in srgb, var(--color-article) 88%, transparent);
-	}
-
 	.news-stat {
 		border-left: 0;
 		border-top: 1px solid var(--news-border);

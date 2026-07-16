@@ -154,7 +154,7 @@ function WaitingConnectionCard({ controller, onToggleQr }: { controller: LanCont
 function DesktopSidebar({ controller, wakeLock, onSwitchRelay, qrOpen, onToggleQr, collapsed, onToggleCollapse }: { controller: LanController; wakeLock: LanScreenWakeLockState; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; collapsed: boolean; onToggleCollapse: () => void }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
-		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-background/30 lg:block'>
+		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-transparent lg:block'>
 			<button
 				onClick={onToggleCollapse}
 				className={cn('text-secondary absolute top-7 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background/70 transition-[right,color,border-color] duration-300 ease-in-out hover:border-brand/45 hover:text-primary', collapsed ? 'right-4' : 'right-5')}
@@ -238,7 +238,7 @@ function ChatPane({
 	}, [controller.activePeerId, lastMessageKey])
 
 	return (
-		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background/30'>
+		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-transparent'>
 			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-3 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)] sm:px-5'>
 				<div className='flex min-w-0 items-center gap-3'>
 					{onBack ? (
@@ -302,7 +302,7 @@ function DevicePage({
 }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
-		<div className='flex h-full min-h-0 flex-col bg-background/30'>
+		<div className='flex h-full min-h-0 flex-col bg-transparent'>
 			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
 				<div className='flex items-center gap-2'>
 					{onSwitchRelay && <button onClick={onSwitchRelay} className='text-secondary -ml-2 flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具'><ChevronLeft size={24} /></button>}
