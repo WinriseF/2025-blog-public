@@ -541,7 +541,6 @@
 	--lan-veil: color-mix(in srgb, var(--color-bg) 16%, transparent);
 	--lan-pane: color-mix(in srgb, var(--color-bg) 38%, transparent);
 	--lan-surface: color-mix(in srgb, var(--color-article) 76%, transparent);
-	--lan-surface-strong: color-mix(in srgb, var(--color-article) 91%, transparent);
 	animation: lan-session-expand 520ms cubic-bezier(0.65, 0, 0.35, 1) both;
 	background:
 		radial-gradient(circle at 84% 8%, color-mix(in srgb, var(--color-brand-secondary) 18%, transparent), transparent 30%),
@@ -583,10 +582,9 @@
 	backdrop-filter: blur(18px) saturate(1.08);
 }
 
-.lan-session-v9 :is(header.bg-article, .bg-article.p-3) {
-	background-color: var(--lan-surface-strong);
-	backdrop-filter: blur(24px) saturate(1.08);
-	box-shadow: 0 16px 34px -30px color-mix(in srgb, var(--color-primary) 54%, transparent);
+.lan-session-v9 header.bg-article {
+	border-bottom-color: color-mix(in srgb, var(--color-border) 88%, var(--color-brand) 12%);
+	box-shadow: 0 12px 26px -24px color-mix(in srgb, var(--color-primary) 42%, transparent);
 }
 
 .lan-session-v9 .lan-session-qr-canvas {
@@ -607,7 +605,6 @@ html[data-time-theme='night'] .lan-session-v9 {
 	--lan-veil: color-mix(in srgb, var(--color-bg) 48%, transparent);
 	--lan-pane: color-mix(in srgb, var(--color-bg) 64%, transparent);
 	--lan-surface: color-mix(in srgb, var(--color-article) 88%, transparent);
-	--lan-surface-strong: color-mix(in srgb, var(--color-article) 96%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -615,7 +612,6 @@ html[data-time-theme='night'] .lan-session-v9 {
 		--lan-veil: color-mix(in srgb, var(--color-bg) 36%, transparent);
 		--lan-pane: color-mix(in srgb, var(--color-bg) 54%, transparent);
 		--lan-surface: color-mix(in srgb, var(--color-article) 88%, transparent);
-		--lan-surface-strong: color-mix(in srgb, var(--color-article) 96%, transparent);
 	}
 
 	.news-stat {
