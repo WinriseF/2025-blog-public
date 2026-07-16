@@ -142,6 +142,10 @@ export class LanAttachmentSendScheduler {
 		this.wakeAndPump()
 	}
 
+	hasPendingTransfer() {
+		return this.tasks.size > 0
+	}
+
 	remove(id: string) {
 		const task = this.tasks.get(id)
 		if (!task) return

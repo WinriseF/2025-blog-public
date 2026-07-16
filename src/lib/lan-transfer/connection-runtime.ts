@@ -209,6 +209,10 @@ export class LanConnectionRuntime {
 		return () => this.listeners.delete(listener)
 	}
 
+	hasActiveTransfer() {
+		return this.incoming.size > 0 || this.sender.hasPendingTransfer()
+	}
+
 	attachTransport(transport: LanConnectionTransport, context: RuntimeContext) {
 		if (this.destroyed) return
 		this.transportEpoch += 1

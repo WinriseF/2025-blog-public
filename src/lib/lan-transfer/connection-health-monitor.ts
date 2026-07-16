@@ -12,6 +12,7 @@ const healthBufferedStallMs = LAN_LIMITS.bufferDrainTimeoutMs
 
 type HealthMonitorOptions = {
 	getTransport: () => LanReconnectTransport | null
+	isTransferActive: () => boolean
 	onHealthy: (transport: LanReconnectTransport, refreshRoute: boolean, wasSlow: boolean) => void
 	onSlow: (transport: LanReconnectTransport) => void
 	onSuspect: (status: string, requireInbound: boolean) => void
@@ -27,6 +28,7 @@ export class ConnectionHealthMonitor {
 	private misses = 0
 	private bufferedAmount = 0
 	private bufferedSince = 0
+	private activeInboundAt = 0
 
 	constructor(private readonly options: HealthMonitorOptions) {}
 
@@ -58,6 +60,7 @@ export class ConnectionHealthMonitor {
 		}
 		if (!transport.isOpen()) return this.options.onSuspect('连接暂时中断，等待恢复', false)
 		const now = Date.now()
+		if (this.options.isTransferActive()) return this.checkActiveTransfer(transport, now)
 		if (!forceProbe && now - transport.lastInboundAt < healthIdleMs) return this.markHealthy(transport, false)
 
 		const bufferedAmount = transport.bufferedAmount
@@ -92,6 +95,7 @@ export class ConnectionHealthMonitor {
 				this.resetEvidence()
 				return this.start()
 			}
+			if (this.options.isTransferActive()) return this.markHealthy(transport, false)
 			if (alive || transport.lastInboundAt > inboundAt) return this.markHealthy(transport, refreshRoute)
 			this.misses += 1
 			if (this.misses < healthMissLimit) {
@@ -102,6 +106,20 @@ export class ConnectionHealthMonitor {
 		}).finally(() => {
 			if (this.probe === probe) this.probe = null
 		})
+	}
+
+	private checkActiveTransfer(transport: LanReconnectTransport, now: number) {
+		const bufferedAmount = transport.bufferedAmount
+		const inboundProgressed = transport.lastInboundAt > this.activeInboundAt
+		const bufferProgressed = Boolean(this.bufferedSince && bufferedAmount < this.bufferedAmount)
+		const wasSlow = this.misses > 0
+		if (!this.bufferedSince || inboundProgressed || bufferProgressed) this.bufferedSince = now
+		this.activeInboundAt = transport.lastInboundAt
+		this.bufferedAmount = bufferedAmount
+		this.misses = 0
+		if (wasSlow) this.options.onHealthy(transport, false, true)
+		if (now - this.bufferedSince >= healthBufferedStallMs) return this.options.onSuspect('文件传输长时间无进展，正在恢复', true)
+		this.start()
 	}
 
 	private markHealthy(transport: LanReconnectTransport, refreshRoute: boolean) {
@@ -115,5 +133,6 @@ export class ConnectionHealthMonitor {
 		this.misses = 0
 		this.bufferedAmount = 0
 		this.bufferedSince = 0
+		this.activeInboundAt = 0
 	}
 }

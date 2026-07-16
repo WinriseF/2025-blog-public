@@ -11,6 +11,7 @@ export type ReconnectCoordinatorOptions = {
 	role: LanRole
 	remotePeer: LanPeer
 	createTransport: LanTransportFactory
+	isTransferActive: () => boolean
 	sendSignal: (type: LanSignalType, target: LanSignalTarget, details?: LanSignalSendDetails) => Promise<void>
 	onState: (peer: LanPeer, state: LanConnectionState, status: string, connected: boolean) => void
 	onAttach: (peer: LanPeer, transport: LanReconnectTransport, route: LanConnectionRoute) => void
@@ -51,6 +52,7 @@ export class ReconnectCoordinator {
 		this.peer = options.remotePeer
 		this.healthMonitor = new ConnectionHealthMonitor({
 			getTransport: () => this.transport,
+			isTransferActive: options.isTransferActive,
 			onHealthy: (transport, refreshRoute, wasSlow) => {
 				if (this.closed || this.transport !== transport) return
 				if (refreshRoute) return this.restoreConnected(transport)

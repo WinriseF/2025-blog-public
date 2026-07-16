@@ -228,6 +228,10 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return peerId ? managedRef.current.get(peerId)?.runtime || null : null
 	}, [])
 
+	const isTransferActive = useCallback((peerId: string) => {
+		return managedRef.current.get(peerId)?.runtime.hasActiveTransfer() || false
+	}, [])
+
 	const sendText = useCallback((text: string) => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
@@ -266,6 +270,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		removeConnection,
 		resetAll,
 		handlePeerData,
+		isTransferActive,
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,

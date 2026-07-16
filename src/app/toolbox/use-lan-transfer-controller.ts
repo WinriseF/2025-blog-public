@@ -63,6 +63,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			role: current.role,
 			remotePeer: peer,
 			createTransport: createNativeWebRtcTransport,
+			isTransferActive: () => engineRef.current.isTransferActive(peer.deviceId),
 			sendSignal: (type, target, details) => {
 				const client = signalClientRef.current
 				if (!client) return Promise.reject(new Error('连接服务尚未就绪'))
