@@ -1,16 +1,16 @@
 'use client'
 
-import { Copy, ExternalLink, X } from 'lucide-react'
+import { Copy, ExternalLink, Network } from 'lucide-react'
 import { toast } from 'sonner'
 import { DialogModal } from '@/components/dialog-modal'
 
 type EmbeddedBrowserInviteDialogProps = {
 	browser: '微信' | 'QQ'
 	url: string
-	onClose: () => void
+	onContinue: () => void
 }
 
-export function EmbeddedBrowserInviteDialog({ browser, url, onClose }: EmbeddedBrowserInviteDialogProps) {
+export function EmbeddedBrowserInviteDialog({ browser, url, onContinue }: EmbeddedBrowserInviteDialogProps) {
 	const copyLink = async () => {
 		try {
 			await navigator.clipboard.writeText(url)
@@ -21,7 +21,7 @@ export function EmbeddedBrowserInviteDialog({ browser, url, onClose }: EmbeddedB
 	}
 
 	return (
-		<DialogModal open onClose={onClose}>
+		<DialogModal open onClose={onContinue} disableCloseOnOverlay closeOnEsc={false}>
 			<section role='dialog' aria-modal='true' aria-labelledby='embedded-browser-title' className='w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border bg-article p-5 text-primary shadow-2xl sm:p-6'>
 				<ExternalLink className='text-brand' size={24} />
 				<h2 id='embedded-browser-title' className='mt-4 text-lg font-semibold'>当前正在使用{browser}打开，传输文件可能受限</h2>
@@ -31,8 +31,8 @@ export function EmbeddedBrowserInviteDialog({ browser, url, onClose }: EmbeddedB
 					<button type='button' onClick={() => void copyLink()} className='bg-brand text-background flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold'>
 						<Copy size={16} />复制链接
 					</button>
-					<button type='button' onClick={onClose} className='text-secondary flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background/35 px-4 text-sm font-medium'>
-						<X size={16} />关闭
+					<button type='button' onClick={onContinue} className='text-secondary flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background/35 px-4 text-sm font-medium'>
+						<Network size={16} />仍在{browser}使用
 					</button>
 				</div>
 			</section>
