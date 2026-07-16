@@ -46,10 +46,10 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 	}
 }
 
-async function rootDirectory(directoryName = LAN_OPFS_DIRECTORY_NAME) {
+async function rootDirectory() {
 	if (!navigator.storage || !('getDirectory' in navigator.storage)) throw new Error('当前设备不支持接收大文件')
 	const root = await navigator.storage.getDirectory()
-	return await root.getDirectoryHandle(directoryName, {
+	return await root.getDirectoryHandle(LAN_OPFS_DIRECTORY_NAME, {
 		create: true,
 	})
 }
@@ -103,10 +103,8 @@ export class OpfsStorageEngine implements LanStorageEngine {
 	private manifests = new Map<string, TransferManifest>()
 	private activeFiles = new Map<string, ActiveOpfsFile>()
 
-	constructor(private readonly directoryName = LAN_OPFS_DIRECTORY_NAME) {}
-
 	private async getDir(fileId: string) {
-		return fileDirectory(await rootDirectory(this.directoryName), fileId)
+		return fileDirectory(await rootDirectory(), fileId)
 	}
 
 	private async flushBufferedData(active: ActiveOpfsFile, meta: TransferFileMeta) {
@@ -176,7 +174,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 	}
 
 	async prepare(meta: TransferFileMeta) {
-		const root = await rootDirectory(this.directoryName)
+		const root = await rootDirectory()
 		await root.removeEntry(meta.id, { recursive: true }).catch(() => {})
 		const dir = await fileDirectory(root, meta.id)
 		const dataHandle = await dir.getFileHandle('data.part', { create: true })
@@ -268,7 +266,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 			// ignore writer cleanup errors
 		}
 		try {
-			const root = await rootDirectory(this.directoryName)
+			const root = await rootDirectory()
 			await root.removeEntry(fileId, { recursive: true })
 		} catch {
 			// ignore cleanup errors

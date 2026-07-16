@@ -105,7 +105,6 @@ Main route groups and pages:
 - `/toolbox/markdown`: local Markdown preview tool.
 - `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
-- `/dev`: browser-only LAN transfer diagnostics workbench. It is intentionally not linked into the normal transfer session or its navigation.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.
@@ -388,25 +387,6 @@ Important constraints:
 - LAN transfer environment variables: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are required in the browser bundle. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted only as a compatibility fallback.
 - LAN transfer has no TURN relay. IPv6-only and IPv4-only peers are not guaranteed to connect to each other even when signaling succeeds; at least one mutually reachable ICE address family/path is required.
 - Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus a scheduled cleanup that clears the whole `transfer/` prefix each Beijing 02:00.
-
-## LAN Benchmark Workbench
-
-Frontend and isolated diagnostics module:
-
-- `src/app/dev/page.tsx`
-- `src/app/dev/lan-benchmark-client.tsx`
-- `src/lib/lan-benchmark/`
-
-`/dev` is a browser-only diagnostic page for locating a LAN transfer bottleneck without changing or joining a V9 conversation. Its paired-network results are explicitly separated into Raw RTC, Framed RTC, and Production E2E; local storage is a fourth, standalone reference profile:
-
-1. Local sequential-write benchmarks run the production storage engines for Memory, Direct File, OPFS, and IndexedDB. They record prepare, write, checkpoint, finalize, and total time with a 250ms throughput series. This measures the browser-side transfer storage pipeline, not an OS-level raw-device `fio` result.
-2. Raw RTC opens a second reliable ordered `raw-benchmark-v1` DataChannel alongside the normal benchmark channel. Its payload loop reuses one pre-created `Uint8Array` and the receiver only adds `ArrayBuffer.byteLength` before dropping the message. Raw payloads contain no frame codec, JSON header, file id, ACK, scheduler, storage write, or resume logic. It warms up for five seconds and measures for thirty seconds; the authoritative rate is receiver bytes divided by the receiver's actual measured duration. Either endpoint may start it, so the UI can measure desktop-to-mobile and mobile-to-desktop separately. Selectable Raw message sizes are 16, 64, 200, 252, 256, and 1024KiB subject to the negotiated SCTP limit. It starts with `bufferedAmount` high/low targets of 128/32MiB on desktop and 32/8MiB on mobile, using only `bufferedamountlow` for normal queue waiting. Because browser-native send queues can reject before those targets, a recoverable `OperationError` calibrates an effective high watermark to 75% of the observed queue and an effective low watermark to one quarter, waits for the low event, and retries the unsent payload. Results retain configured/effective watermarks, warmup bytes, queue adaptation counts, maximum queued bytes, true backpressure wait time, and original channel/connection exception details; they also record start/end RTC stats for the Raw channel and transport, RTT, and the browser outgoing-bitrate estimate.
-3. Framed RTC sends production-format chunk frames over the independent reliable ordered `lan-benchmark-v1` DataChannel while the receiver only counts decoded frame bytes. It retains frame codec and sender backpressure but excludes storage, so it exposes framing/protocol cost relative to Raw RTC. Alongside the production 60/124KiB payload sizes, `/dev` offers diagnostic-only 200/252KiB payload sizes to compare larger chunks; these are disabled when the SCTP message limit cannot fit the payload plus the reserved 4KiB frame-header budget.
-4. Production E2E uses the same frame codec, selectable 60/124/200/252KiB diagnostic payload setting, and high/low DataChannel watermarks, but makes the receiver write to the selected real storage engine. It separates network/framing ceiling from receiver storage and finalization cost. The normal V9 production pipeline still negotiates only 60/124KiB payloads; the larger `/dev` settings do not change it. Production E2E is intentionally single-attachment only, so V9 attachment scheduling, chat state, persistence, and resume recovery do not contaminate the result.
-
-The benchmark host creates `/dev#mode=benchmark&room=<room>&token=<token>` and the guest consumes the hash into sessionStorage before removing it from the address bar. `src/lib/lan-benchmark/signaling.ts` hashes the token locally and sends only `tokenHash` to the dedicated Supabase Broadcast channel `lan-benchmark:<room>`. Its peer connection, controls, timers, and errors are all scoped to `src/lib/lan-benchmark/`; it never imports `connection-runtime`, the V9 scheduler, or normal LAN session storage.
-
-Benchmark OPFS and IndexedDB data use the separate `winrisef-lan-benchmark-v1` namespace. `OpfsStorageEngine` and `IndexedDbStorageEngine` accept an optional namespace while preserving the normal V9 defaults. Cleanup from `/dev` therefore cannot delete normal received attachments. Direct File is deliberately a user-gesture step on the receiving device and writes a disposable benchmark file selected there. Throughput samples never make a standalone instantaneous-rate point for a final interval shorter than 250ms; that final byte count is folded into the preceding sample (or omitted when there is no full sample), preventing chart-end spikes. Results include only structured route kind/family, RTT, browser bitrate estimate, phase timing, 250ms samples, and an optional locally downloaded JSON export; no candidate IP address or normal transfer payload is retained.
 
 ## Face Privacy Masking Toolbox
 
