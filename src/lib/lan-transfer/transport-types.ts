@@ -24,7 +24,17 @@ export interface LanConnectionTransport {
 	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal): Promise<void>
 }
 
-export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed'
+export type LanTransportHealthStats = {
+	connectionState: RTCPeerConnectionState
+	iceConnectionState: RTCIceConnectionState
+	candidatePairId: string
+	bytesSent: number
+	bytesReceived: number
+	consentRequestsSent: number | null
+	responsesReceived: number | null
+}
+
+export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'channel-closed' | 'closed'
 
 export type LanTransportCreateOptions = {
 	role: LanRole
@@ -39,13 +49,12 @@ export type LanTransportCreateOptions = {
 
 export interface LanReconnectTransport extends LanConnectionTransport {
 	readonly negotiationId: string
-	readonly lastInboundAt: number
 	start(): Promise<void>
 	setNegotiationId(negotiationId: string): void
 	restartIce(negotiationId: string): Promise<void>
 	acceptDescription(description: RTCSessionDescriptionInit): Promise<void>
 	addRemoteCandidate(candidate: RTCIceCandidateInit | null): Promise<void>
-	probe(timeoutMs?: number): Promise<boolean>
+	getHealthStats(): Promise<LanTransportHealthStats>
 	inspectRoute(): Promise<LanConnectionRoute>
 	close(): void
 }

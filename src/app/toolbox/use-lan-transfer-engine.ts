@@ -228,6 +228,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return peerId ? managedRef.current.get(peerId)?.runtime || null : null
 	}, [])
 
+	const pauseTransport = useCallback((peerId: string, transportId: string) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) entry.runtime.pauseTransport()
+	}, [])
+
+	const resumeTransport = useCallback((peerId: string, transportId: string) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) entry.runtime.resumeTransport()
+	}, [])
+
 	const isTransferActive = useCallback((peerId: string) => {
 		return managedRef.current.get(peerId)?.runtime.hasActiveTransfer() || false
 	}, [])
@@ -266,6 +276,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		patchConnection,
 		attachTransport,
 		updateConnectionRoute,
+		pauseTransport,
+		resumeTransport,
 		detachPeer,
 		removeConnection,
 		resetAll,

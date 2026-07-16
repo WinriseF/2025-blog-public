@@ -537,14 +537,14 @@
 	pointer-events: none;
 }
 
-.lan-session-v9 {
+.lan-session-v10 {
 	--lan-surface: var(--color-card);
 	animation: lan-session-expand 520ms cubic-bezier(0.65, 0, 0.35, 1) both;
 	background: transparent;
 	isolation: isolate;
 }
 
-.lan-session-v9 > div {
+.lan-session-v10 > div {
 	animation: lan-session-content-enter 260ms ease-out 100ms both;
 	position: relative;
 	z-index: 1;
@@ -568,20 +568,20 @@
 	100% { opacity: 0; }
 }
 
-.lan-session-v9 .bg-article {
+.lan-session-v10 .bg-article {
 	background-color: var(--lan-surface);
 }
 
-.lan-session-v9 header.bg-article {
+.lan-session-v10 header.bg-article {
 	border-bottom-color: color-mix(in srgb, var(--color-border) 88%, var(--color-brand) 12%);
 	box-shadow: 0 12px 26px -24px color-mix(in srgb, var(--color-primary) 42%, transparent);
 }
 
-.lan-session-v9 .lan-session-qr-canvas {
+.lan-session-v10 .lan-session-qr-canvas {
 	background-color: #fff;
 }
 
-.lan-session-v9 .border-border {
+.lan-session-v10 .border-border {
 	border-color: color-mix(in srgb, var(--color-border) 76%, var(--color-brand) 10%);
 }
 
@@ -603,8 +603,8 @@
 	.news-panel-enter,
 	.lan-session-underlay,
 	.lan-session-active main,
-	.lan-session-v9,
-	.lan-session-v9 > div {
+	.lan-session-v10,
+	.lan-session-v10 > div {
 		animation-duration: 1ms !important;
 		animation-iteration-count: 1 !important;
 		scroll-behavior: auto !important;

@@ -231,6 +231,14 @@ export class LanConnectionRuntime {
 		this.transport = null
 	}
 
+	pauseTransport() {
+		this.sender.pause()
+	}
+
+	resumeTransport() {
+		if (this.isOpen()) this.sender.resume()
+	}
+
 	destroy() {
 		if (this.destroyed) return
 		this.destroyed = true
