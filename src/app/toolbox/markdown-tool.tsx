@@ -1,6 +1,9 @@
 'use client'
 
 import { useDeferredValue, useState, type DragEvent } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+import { toast } from 'sonner'
+import { INIT_DELAY } from '@/consts'
 import { readFileAsText } from '@/lib/file-utils'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
 
@@ -19,6 +22,7 @@ function downloadText(filename: string, text: string) {
 }
 
 export function MarkdownTool() {
+	const shouldReduceMotion = useReducedMotion()
 	const [markdown, setMarkdown] = useState(defaultMarkdown)
 	const [fileName, setFileName] = useState('preview.md')
 	const deferredMarkdown = useDeferredValue(markdown)
@@ -27,8 +31,13 @@ export function MarkdownTool() {
 	const handleFiles = async (files: FileList | null) => {
 		const file = files?.[0]
 		if (!file) return
-		setFileName(file.name || 'preview.md')
-		setMarkdown(await readFileAsText(file))
+		try {
+			const text = await readFileAsText(file)
+			setFileName(file.name || 'preview.md')
+			setMarkdown(text)
+		} catch {
+			toast.error('文件读取失败')
+		}
 	}
 
 	const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
@@ -36,8 +45,24 @@ export function MarkdownTool() {
 		void handleFiles(event.dataTransfer.files)
 	}
 
+	const copyMarkdown = async () => {
+		try {
+			await navigator.clipboard.writeText(markdown)
+			toast.success('Markdown 已复制')
+		} catch {
+			toast.error('复制失败，请手动复制')
+		}
+	}
+
+	const buttonHover = shouldReduceMotion ? undefined : { y: -1 }
+	const buttonTap = shouldReduceMotion ? undefined : { scale: 0.95 }
+
 	return (
-		<div className='grid gap-6 max-sm:px-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
+		<motion.div
+			initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ delay: INIT_DELAY }}
+			className='grid gap-6 max-sm:px-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]'>
 			<section className='flex min-h-[640px] flex-col max-sm:min-h-0'>
 				<div className='flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3'>
 					<div>
@@ -45,25 +70,27 @@ export function MarkdownTool() {
 						<p className='text-secondary mt-1 text-xs tracking-[0.18em] uppercase'>{fileName}</p>
 					</div>
 					<div className='flex flex-wrap gap-2 text-xs'>
-						<button className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => navigator.clipboard.writeText(markdown)}>
+						<motion.button type='button' whileHover={buttonHover} whileTap={buttonTap} className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => void copyMarkdown()}>
 							复制
-						</button>
-						<button className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => downloadText(fileName || 'preview.md', markdown)}>
+						</motion.button>
+						<motion.button type='button' whileHover={buttonHover} whileTap={buttonTap} className='rounded-full border border-border px-3 py-1.5 font-medium' onClick={() => downloadText(fileName || 'preview.md', markdown)}>
 							下载
-						</button>
-						<button className='rounded-full border border-rose-300/50 px-3 py-1.5 font-medium text-rose-400' onClick={() => setMarkdown('')}>
+						</motion.button>
+						<motion.button type='button' whileHover={buttonHover} whileTap={buttonTap} className='rounded-full border border-rose-300/50 px-3 py-1.5 font-medium text-rose-400' onClick={() => setMarkdown('')}>
 							清空
-						</button>
+						</motion.button>
 					</div>
 				</div>
 
-				<label
+				<motion.label
 					onDragOver={event => event.preventDefault()}
 					onDrop={handleDrop}
+					whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+					whileTap={shouldReduceMotion ? undefined : { scale: 0.995 }}
 					className='border-brand/20 bg-brand/5 text-secondary mt-4 flex cursor-pointer items-center justify-center rounded-2xl border border-dashed px-4 py-3 text-xs'>
 					<input type='file' accept='.md,text/markdown,text/plain' className='hidden' onChange={event => void handleFiles(event.target.files)} />
 					选择或拖入 Markdown 文件
-				</label>
+				</motion.label>
 
 				<textarea
 					value={markdown}
@@ -75,8 +102,10 @@ export function MarkdownTool() {
 
 			<section className='min-h-[640px] overflow-auto max-sm:min-h-[360px]'>
 				<div className='text-secondary border-b border-border pb-3 text-xs tracking-[0.18em] uppercase'>Preview</div>
-				<div className='prose mt-5 max-w-none cursor-text'>{loading ? <div className='text-secondary text-sm'>渲染中...</div> : content}</div>
+				<motion.div animate={{ opacity: loading && !shouldReduceMotion ? 0.55 : 1 }} className='prose mt-5 max-w-none cursor-text'>
+					{loading ? <div className='text-secondary text-sm'>渲染中...</div> : content}
+				</motion.div>
 			</section>
-		</div>
+		</motion.div>
 	)
 }

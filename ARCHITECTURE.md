@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-07-15.
+Last updated: 2026-07-17.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -100,10 +100,11 @@ Main route groups and pages:
 - `/about`: about page from `src/app/about/`.
 - `/news` and `/news/[date]`: news index/detail.
 - `/calendar`, `/world-clock`, `/music`, `/game`, `/svgs`: utility or experimental pages.
-- `/toolbox`: toolbox directory page with links to `/toolbox/compress`, `/toolbox/markdown`, `/toolbox/face-mask`, and `/t`.
+- `/toolbox`: toolbox directory page with links to `/toolbox/compress`, `/toolbox/markdown`, `/toolbox/face-mask`, `/toolbox/password`, and `/t`.
 - `/toolbox/compress`: image compression tool.
 - `/toolbox/markdown`: local Markdown preview tool.
 - `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
+- `/toolbox/password`: browser-only random password, passphrase, and PIN generator.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
 
@@ -333,6 +334,8 @@ Frontend:
 - `src/lib/transfer-crypto.ts`
 - `src/lib/transfer-relay.ts`
 
+Toolbox UI uses short `motion/react` entry, upload-state, and button-press feedback with reduced-motion opt-outs. Transfer progress and connection state keep their existing lightweight CSS transitions to avoid animation work on high-frequency events.
+
 Backend:
 
 - `edge-functions/api/transfer/[[default]].js`
@@ -387,6 +390,21 @@ Important constraints:
 - LAN transfer environment variables: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are required in the browser bundle. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted only as a compatibility fallback.
 - LAN transfer has no TURN relay. IPv6-only and IPv4-only peers are not guaranteed to connect to each other even when signaling succeeds; at least one mutually reachable ICE address family/path is required.
 - Blob has no native TTL in this project; expiry is enforced by read-time lazy deletion plus a scheduled cleanup that clears the whole `transfer/` prefix each Beijing 02:00.
+
+## Password Generator Toolbox
+
+Frontend:
+
+- `src/app/toolbox/password-generator-tool.tsx`
+- `src/lib/password-generator.ts`
+
+Flow:
+
+1. `/toolbox/password` loads a browser-only generator wrapped in `ToolPageShell`; passwords and settings stay in React memory and are never sent to an application server or persisted in browser storage.
+2. Random-character and PIN modes use `crypto.getRandomValues` with rejection sampling. Random-character generation guarantees every enabled character group appears, applies optional exclusions, and can prevent adjacent repeats.
+3. Passphrase mode lazily fetches a pinned wordlist from jsDelivr only after the user enters that mode: BIP39 English has 2048 entries, while the CC BY 4.0 `chinese-diceware` list provides 8192 unique lowercase pinyin-and-Hanzi pairs. Chinese mode uses pinyin as the copyable password and shows the matching Hanzi as a lighter, non-copying memory hint. The optional no-separator setting concatenates the real password while rendering visual-only gaps between word segments. The client verifies the exact SHA-256 digest, format, entry count, non-empty pairs, and uniqueness before use; failed loads expose a retry action and do not affect the offline character or PIN modes.
+4. Strength labels are entropy estimates derived from the effective character pool, the active passphrase wordlist size (11 bits per English word or 13 bits per Chinese pinyin word), or the PIN digit space. Clipboard writes happen only after the user presses the copy action.
+5. The generator uses `motion/react` for shared selection indicators, button press feedback, switch springs, result changes, strength updates, and advanced-setting disclosure; reduced-motion preferences disable nonessential movement.
 
 ## Face Privacy Masking Toolbox
 

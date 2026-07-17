@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, FileText, ImageIcon, ScanFace, Send } from 'lucide-react'
-import { motion } from 'motion/react'
+import { ArrowUpRight, FileText, ImageIcon, KeyRound, ScanFace, Send } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
 const tools = [
@@ -34,19 +34,33 @@ const tools = [
 		tone: 'from-rose-300/25 via-pink-200/10 to-transparent',
 		icon: ScanFace
 	},
+	{
+		href: '/toolbox/password',
+		label: '随机密码',
+		desc: '字符 / 口令 / PIN',
+		tone: 'from-violet-400/25 via-cyan-300/10 to-transparent',
+		icon: KeyRound
+	},
 ]
 
 export function ToolboxClient() {
+	const shouldReduceMotion = useReducedMotion()
+
 	return (
 		<main className='mx-auto max-w-[1180px] px-6 pt-28 pb-12 text-sm max-sm:px-4 max-sm:pt-24'>
-			<motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: INIT_DELAY }} className='max-w-2xl'>
+			<motion.header initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: INIT_DELAY }} className='max-w-2xl'>
 				<p className='text-secondary text-xs tracking-[0.22em] uppercase'>Toolbox</p>
 				<h1 className='mt-2 text-3xl font-semibold tracking-normal text-primary max-sm:text-2xl'>客户端工具箱</h1>
 			</motion.header>
 
 			<section className='mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
 				{tools.map(({ href, label, desc, tone, icon: Icon }, index) => (
-					<motion.div key={href} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: INIT_DELAY + index * 0.06 }}>
+					<motion.div
+						key={href}
+						initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
+						animate={{ opacity: 1, y: 0 }}
+						whileTap={shouldReduceMotion ? undefined : { scale: 0.985 }}
+						transition={{ delay: INIT_DELAY + index * 0.06 }}>
 						<Link
 							href={href}
 							className='group relative flex min-h-[170px] flex-col overflow-hidden rounded-lg border border-border bg-article p-5 shadow-[0_18px_60px_-42px_var(--color-primary)] transition duration-300 hover:-translate-y-1 hover:border-brand/45 hover:shadow-[0_24px_70px_-46px_var(--color-brand)]'>
