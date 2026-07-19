@@ -1,5 +1,5 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
-import { NATIVE_AGENT_BENCHMARK_SESSIONS, NATIVE_AGENT_BENCHMARK_VERSION } from './types'
+import { nativeAgentBenchmarkSessionCount, NATIVE_AGENT_BENCHMARK_VERSION } from './types'
 import { createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTimeout, writeU64, type WebTransportLike } from './webtransport'
 
 const LANE_COUNT = 4
@@ -19,7 +19,8 @@ export async function runLanNativeBenchmark(options: {
 	onProgress?: (progress: LanNativeBenchmarkProgress) => void
 }): Promise<LanNativeBenchmarkResult> {
 	if (!Number.isSafeInteger(options.totalBytes) || options.totalBytes <= 0) throw new Error('测速大小无效')
-	if (options.tickets.length !== NATIVE_AGENT_BENCHMARK_SESSIONS) throw new Error('极速通道并行凭据数量不完整')
+	const sessionCount = nativeAgentBenchmarkSessionCount(options.direction)
+	if (options.tickets.length !== sessionCount) throw new Error('极速通道并行凭据数量不完整')
 	const shardSizes = splitBytes(options.totalBytes, options.tickets.length)
 	const preparedResults = await Promise.allSettled(
 		options.tickets.map((ticket, index) => prepareBenchmarkSession(ticket, options.direction, shardSizes[index]!))
@@ -34,14 +35,14 @@ export async function runLanNativeBenchmark(options: {
 	const startedAt = performance.now()
 	const shardProgress = new Array<number>(sessions.length).fill(0)
 	let lastProgressAt = startedAt
-	options.onProgress?.({ direction: options.direction, bytes: 0, totalBytes: options.totalBytes, startedAt })
+	options.onProgress?.({ direction: options.direction, sessionCount, bytes: 0, totalBytes: options.totalBytes, startedAt })
 	const report = (index: number, bytes: number) => {
 		shardProgress[index] = bytes
 		const transferred = shardProgress.reduce((sum, value) => sum + value, 0)
 		const now = performance.now()
 		if (now - lastProgressAt >= 100 || transferred === options.totalBytes) {
 			lastProgressAt = now
-			options.onProgress?.({ direction: options.direction, bytes: transferred, totalBytes: options.totalBytes, startedAt })
+			options.onProgress?.({ direction: options.direction, sessionCount, bytes: transferred, totalBytes: options.totalBytes, startedAt })
 		}
 	}
 
@@ -53,6 +54,7 @@ export async function runLanNativeBenchmark(options: {
 		const agentElapsedMs = Math.max(...results.map(result => result.agentElapsedMs))
 		return {
 			direction: options.direction,
+			sessionCount,
 			bytes,
 			clientElapsedMs,
 			agentElapsedMs,

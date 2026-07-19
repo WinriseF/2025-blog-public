@@ -6,7 +6,7 @@ import { createLanAgentLaunchRequest, launchLanNativeAgent, subscribeLanAgentCal
 import { LanNativeLocalBridge } from '@/lib/lan-transfer/native-agent/local-bridge'
 import { runLanNativeBenchmark } from '@/lib/lan-transfer/native-agent/peer-webtransport'
 import {
-	NATIVE_AGENT_BENCHMARK_SESSIONS,
+	nativeAgentBenchmarkSessionCount,
 	NATIVE_AGENT_BENCHMARK_VERSION,
 	NATIVE_AGENT_BRIDGE_VERSION,
 	type LanNativeAgentAdvertisement,
@@ -194,9 +194,10 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		async (direction: LanNativeBenchmarkDirection, totalBytes: number, requestTicket: () => Promise<LanNativeAgentTicket>) => {
 			if (!remoteAdvertisement) return void setBenchmark({ state: 'error', error: '当前连接没有可用的加速电脑' })
 			if (!capability.webTransport) return void setBenchmark({ state: 'error', error: '当前浏览器不支持 WebTransport' })
-			setBenchmark({ state: 'running', progress: { direction, bytes: 0, totalBytes, startedAt: performance.now() } })
+			const sessionCount = nativeAgentBenchmarkSessionCount(direction)
+			setBenchmark({ state: 'running', progress: { direction, sessionCount, bytes: 0, totalBytes, startedAt: performance.now() } })
 			try {
-				const tickets = await Promise.all(Array.from({ length: NATIVE_AGENT_BENCHMARK_SESSIONS }, () => requestTicket()))
+				const tickets = await Promise.all(Array.from({ length: sessionCount }, () => requestTicket()))
 				if (tickets.some(ticket => ticket.ownerDeviceId !== remoteAdvertisement.ownerDeviceId)) throw new Error('极速通道凭据来自错误的设备')
 				const result = await runLanNativeBenchmark({
 					tickets,

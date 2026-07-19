@@ -72,7 +72,7 @@ export function LanSpeedModeToggle({
 
 			{speedMode.canBenchmark && (
 				<div className='border-border mt-3 border-t pt-3'>
-					<p className='text-secondary mb-2 text-[11px]'>当前使用 6 路独立 QUIC 聚合测速，聊天附件仍使用普通模式；以 1GB 结果作为性能门。</p>
+					<p className='text-secondary mb-2 text-[11px]'>上传使用 6 路独立 QUIC 聚合，下载使用 1 路 QUIC、内部 4 条数据流；聊天附件仍使用普通模式。</p>
 					<div className='flex items-center gap-2'>
 						<select
 							value={benchmarkBytes}
@@ -105,12 +105,15 @@ export function LanSpeedModeToggle({
 							<div className='bg-border h-1.5 overflow-hidden rounded-full'>
 								<div className='bg-brand h-full transition-[width]' style={{ width: `${progressPercent}%` }} />
 							</div>
-							<p className='text-secondary mt-1.5 text-[11px]'>正在测速 {progressPercent.toFixed(0)}%</p>
+							<p className='text-secondary mt-1.5 text-[11px]'>
+								正在使用 {speedMode.benchmark.progress?.sessionCount ?? 1} 路 QUIC 测速 {progressPercent.toFixed(0)}%
+							</p>
 						</div>
 					)}
 					{speedMode.benchmark.state === 'complete' && speedMode.benchmark.result && (
 						<p className='text-brand mt-2 text-xs font-semibold'>
-							有效载荷：浏览器 {speedMode.benchmark.result.clientMbps.toFixed(0)} Mbps · Agent {speedMode.benchmark.result.agentMbps.toFixed(0)} Mbps
+							{speedMode.benchmark.result.sessionCount} 路 QUIC 有效载荷：浏览器 {speedMode.benchmark.result.clientMbps.toFixed(0)} Mbps · Agent{' '}
+							{speedMode.benchmark.result.agentMbps.toFixed(0)} Mbps
 						</p>
 					)}
 					{speedMode.benchmark.state === 'error' && <p className='mt-2 text-xs text-red-400'>{speedMode.benchmark.error}</p>}
