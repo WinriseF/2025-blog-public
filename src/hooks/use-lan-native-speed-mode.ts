@@ -217,17 +217,19 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			? '本机组件已连接，等待网页设备测速'
 			: remoteAdvertisement
 				? '已发现加速电脑，可以开始测速'
-				: capability.device === 'mobile'
-					? '连接加速电脑后自动使用'
-					: agentState === 'launching'
-						? '正在启动本机加速组件'
-						: agentState === 'connecting'
-							? '正在建立安全本机连接'
-							: agentState === 'error'
-								? agentError
-								: preferenceEnabled
-									? '等待重新连接本机加速组件'
-									: '大文件继续使用网页直传'
+				: agentState === 'connected'
+					? '本机组件已连接，创建配对码后启用'
+					: capability.device === 'mobile'
+						? '连接加速电脑后自动使用'
+						: agentState === 'launching'
+							? '正在启动本机加速组件'
+							: agentState === 'connecting'
+								? '正在建立安全本机连接'
+								: agentState === 'error'
+									? agentError
+									: preferenceEnabled
+										? '等待重新连接本机加速组件'
+										: '大文件继续使用网页直传'
 
 	return {
 		...capability,
