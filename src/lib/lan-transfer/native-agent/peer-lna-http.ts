@@ -5,6 +5,7 @@ import { validLanHttpBaseEndpoint } from './endpoint-validation'
 const HTTP_REQUEST_BYTES = 30 * 1024 * 1024
 const PAYLOAD_BLOCK_BYTES = 4 * 1024 * 1024
 const REQUEST_TIMEOUT_MS = 120_000
+const REQUEST_SETTLEMENT_GRACE_MS = 5_000
 
 type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'available'; endpoint: string }
 type PermissionNameWithLna = PermissionName | 'local-network-access'
@@ -138,15 +139,18 @@ function uploadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTi
 		xhr.responseType = 'json'
 		xhr.timeout = REQUEST_TIMEOUT_MS
 		xhr.setRequestHeader('X-WinriseF-Ticket', ticket.token)
+		const settlement = settleXmlHttpRequest(xhr, resolve, reject, 'HTTP/TCP 上传')
 		xhr.upload.onprogress = event => onProgress(Math.min(bytes, event.loaded))
-		xhr.onerror = () => reject(new Error('HTTP/TCP 上传连接失败，请检查防火墙和本地网络权限'))
-		xhr.ontimeout = () => reject(new Error('HTTP/TCP 上传超时'))
 		xhr.onload = () => {
-			const response = xhr.response as { bytes?: unknown } | null
-			if (xhr.status !== 200) return reject(httpStatusError(xhr.status, response))
-			if (response?.bytes !== bytes) return reject(new Error('Agent 报告的 HTTP/TCP 上传字节数不一致'))
-			onProgress(bytes)
-			resolve()
+			try {
+				const response = xhr.response as { bytes?: unknown } | null
+				if (xhr.status !== 200) return settlement.fail(httpStatusError(xhr.status, response))
+				if (response?.bytes !== bytes) return settlement.fail(new Error('Agent 报告的 HTTP/TCP 上传字节数不一致'))
+				onProgress(bytes)
+				settlement.succeed()
+			} catch (error) {
+				settlement.fail(error instanceof Error ? error : new Error('无法解析 Agent 的 HTTP/TCP 上传结果'))
+			}
 		}
 		xhr.send(createPayloadBlob(bytes))
 	})
@@ -158,20 +162,50 @@ function downloadRequest(endpoint: string, bytes: number, ticket: LanNativeAgent
 		url.searchParams.set('bytes', String(bytes))
 		const xhr = new XMLHttpRequest()
 		xhr.open('GET', url)
-		xhr.responseType = 'blob'
+		xhr.responseType = 'arraybuffer'
 		xhr.timeout = REQUEST_TIMEOUT_MS
 		xhr.setRequestHeader('X-WinriseF-Ticket', ticket.token)
+		const settlement = settleXmlHttpRequest(xhr, resolve, reject, 'HTTP/TCP 下载')
 		xhr.onprogress = event => onProgress(Math.min(bytes, event.loaded))
-		xhr.onerror = () => reject(new Error('HTTP/TCP 下载连接失败，请检查防火墙和本地网络权限'))
-		xhr.ontimeout = () => reject(new Error('HTTP/TCP 下载超时'))
 		xhr.onload = () => {
-			if (xhr.status !== 200) return reject(httpStatusError(xhr.status))
-			if (!(xhr.response instanceof Blob) || xhr.response.size !== bytes) return reject(new Error('Agent 返回的 HTTP/TCP 下载字节数不一致'))
-			onProgress(bytes)
-			resolve()
+			try {
+				if (xhr.status !== 200) return settlement.fail(httpStatusError(xhr.status))
+				if (!(xhr.response instanceof ArrayBuffer) || xhr.response.byteLength !== bytes)
+					return settlement.fail(new Error('Agent 返回的 HTTP/TCP 下载字节数不一致'))
+				onProgress(bytes)
+				settlement.succeed()
+			} catch (error) {
+				settlement.fail(error instanceof Error ? error : new Error('无法解析 Agent 的 HTTP/TCP 下载结果'))
+			}
 		}
 		xhr.send()
 	})
+}
+
+function settleXmlHttpRequest(xhr: XMLHttpRequest, resolve: () => void, reject: (reason: Error) => void, label: string) {
+	let settled = false
+	const watchdog = window.setTimeout(() => {
+		if (settled) return
+		fail(new Error(`${label}已传输数据，但浏览器迟迟没有返回最终结果`))
+		xhr.abort()
+	}, REQUEST_TIMEOUT_MS + REQUEST_SETTLEMENT_GRACE_MS)
+	const finish = (callback: () => void) => {
+		if (settled) return false
+		settled = true
+		window.clearTimeout(watchdog)
+		callback()
+		return true
+	}
+	const succeed = () => finish(resolve)
+	const fail = (error: Error) => finish(() => reject(error))
+
+	xhr.onerror = () => fail(new Error(`${label}连接失败，请检查防火墙和本地网络权限`))
+	xhr.ontimeout = () => fail(new Error(`${label}超时`))
+	xhr.onabort = () => fail(new Error(`${label}被浏览器中止，请保持页面在前台后重试`))
+	xhr.onloadend = () => {
+		if (!settled) fail(new Error(`${label}连接已经结束，但浏览器没有返回可用结果`))
+	}
+	return { succeed, fail }
 }
 
 let payloadBlock: Blob | null = null

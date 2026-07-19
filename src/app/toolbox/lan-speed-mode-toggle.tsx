@@ -24,7 +24,9 @@ export function LanSpeedModeToggle({
 	const mobile = speedMode.device === 'mobile'
 	const running = speedMode.benchmark.state === 'running'
 	const progress = speedMode.benchmark.progress
-	const progressPercent = progress ? Math.min(100, (progress.bytes / progress.totalBytes) * 100) : 0
+	const transferredPercent = progress ? Math.min(100, (progress.bytes / progress.totalBytes) * 100) : 0
+	const confirmingResult = running && transferredPercent >= 100
+	const progressPercent = confirmingResult ? 99 : transferredPercent
 
 	return (
 		<div className='border-border bg-article rounded-3xl border p-4 shadow-sm'>
@@ -108,8 +110,14 @@ export function LanSpeedModeToggle({
 								<div className='bg-brand h-full transition-[width]' style={{ width: `${progressPercent}%` }} />
 							</div>
 							<p className='text-secondary mt-1.5 text-[11px]'>
-								正在使用 {speedMode.benchmark.progress?.sessionCount ?? 6} 路{speedMode.benchmark.progress?.transport === 'webtransport' ? ' QUIC' : ' TCP'}{' '}
-								测速 {progressPercent.toFixed(0)}%
+								{confirmingResult ? (
+									'数据传输完成，正在确认 Agent 测速结果…'
+								) : (
+									<>
+										正在使用 {speedMode.benchmark.progress?.sessionCount ?? 6} 路{speedMode.benchmark.progress?.transport === 'webtransport' ? ' QUIC' : ' TCP'}{' '}
+										测速 {progressPercent.toFixed(0)}%
+									</>
+								)}
 							</p>
 						</div>
 					)}

@@ -21,7 +21,6 @@ type LanTransferToolProps = {
 	onLeaveSession?: () => void
 	onSwitchRelay?: () => void
 }
-
 type LanController = ReturnType<typeof useLanTransferController>
 type LanConnectionItem = LanController['connections'][number]
 
@@ -167,8 +166,8 @@ function DesktopSidebar({ controller, wakeLock, speedMode, onRunBenchmark, onSwi
 				<PanelLeftClose size={18} className={cn('transition-transform duration-300 ease-in-out', collapsed && 'rotate-180')} />
 			</button>
 
-			<div aria-hidden={collapsed} className={cn('flex h-full w-[360px] flex-col gap-4 overflow-y-auto p-5 pr-5 transition-[opacity,transform] duration-200 ease-out', collapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100 delay-100')}>
-				<div className='flex h-14 shrink-0 items-center gap-2 pr-12'>
+			<div aria-hidden={collapsed} className={cn('flex h-full min-h-0 w-[360px] flex-col transition-[opacity,transform] duration-200 ease-out', collapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100 delay-100')}>
+				<div className='flex h-24 shrink-0 items-center gap-2 px-5 pr-16'>
 					{onSwitchRelay && (
 						<button onClick={onSwitchRelay} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具' title='返回'>
 							<ChevronLeft size={21} />
@@ -184,23 +183,25 @@ function DesktopSidebar({ controller, wakeLock, speedMode, onRunBenchmark, onSwi
 						</button>
 					)}
 				</div>
-				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
-				{qrOpen && <InvitePanel controller={controller} />}
-				<LanWakeLockToggle wakeLock={wakeLock} />
-				<LanSpeedModeToggle speedMode={speedMode} onRunBenchmark={onRunBenchmark} />
-				<div className='min-h-0 flex-1 space-y-3'>
-					<div className='flex items-center justify-between'>
-						<p className='text-secondary text-xs font-medium'>当前连接</p>
-						<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
-					</div>
-					<div className='space-y-2'>
-						{controller.connections.length ? (
-							controller.connections.map(connection => (
-								<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
-							))
-						) : (
-							<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
-						)}
+				<div className='min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5'>
+					<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
+					{qrOpen && <InvitePanel controller={controller} />}
+					<LanWakeLockToggle wakeLock={wakeLock} />
+					<LanSpeedModeToggle speedMode={speedMode} onRunBenchmark={onRunBenchmark} />
+					<div className='space-y-3'>
+						<div className='flex items-center justify-between'>
+							<p className='text-secondary text-xs font-medium'>当前连接</p>
+							<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
+						</div>
+						<div className='space-y-2'>
+							{controller.connections.length ? (
+								controller.connections.map(connection => (
+									<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
+								))
+							) : (
+								<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -310,11 +311,14 @@ function DevicePage({
 }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
-		<div className='flex h-full min-h-0 flex-col bg-transparent'>
-			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
+		<div className='flex h-full min-h-0 flex-col overflow-hidden bg-transparent'>
+			<header className='flex h-20 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(5rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
 				<div className='flex items-center gap-2'>
 					{onSwitchRelay && <button onClick={onSwitchRelay} className='text-secondary -ml-2 flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具'><ChevronLeft size={24} /></button>}
-					<h2 className='text-lg font-semibold'>设备</h2>
+					<div className='min-w-0'>
+						<p className='text-brand text-[10px] font-semibold tracking-[0.16em] uppercase'>局域网互传</p>
+						<h2 className='mt-0.5 text-lg font-semibold'>连接设备</h2>
+					</div>
 				</div>
 				<div className='flex items-center gap-2'>
 					{controller.session && (
@@ -357,7 +361,7 @@ function DevicePage({
 function MobileShell({ controller, wakeLock, speedMode, onRunBenchmark, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; wakeLock: LanScreenWakeLockState; speedMode: LanNativeSpeedModeState; onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
 	const [page, setPage] = useState<'devices' | 'chat'>('devices')
 	return (
-		<div className='h-full lg:hidden'>
+		<div className='h-full min-h-0 overflow-hidden lg:hidden'>
 			{page === 'chat' ? (
 				<ChatPane controller={controller} onBack={() => setPage('devices')} />
 			) : (
