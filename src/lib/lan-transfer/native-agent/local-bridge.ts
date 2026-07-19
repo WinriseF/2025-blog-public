@@ -1,5 +1,5 @@
 import type { LanNativeAgentCallback, LanNativeAgentTicket } from './types'
-import { NATIVE_AGENT_BENCHMARK_VERSION, NATIVE_AGENT_BRIDGE_VERSION } from './types'
+import { NATIVE_AGENT_BENCHMARK_VERSION, NATIVE_AGENT_BRIDGE_VERSION, NATIVE_AGENT_LNA_HTTP_VERSION } from './types'
 import { bytesHex, createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTimeout, type WebTransportLike } from './webtransport'
 
 const HELLO_MAGIC = new TextEncoder().encode('WRNFBH01')
@@ -58,6 +58,8 @@ export class LanNativeLocalBridge {
 				benchmarkVersion: NATIVE_AGENT_BENCHMARK_VERSION,
 				ownerDeviceId,
 				endpoints: this.callback.benchmarkEndpoints,
+				lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
+				lnaHttpEndpoints: this.callback.lnaHttpEndpoints,
 				certificateSha256: this.callback.certificateSha256,
 				token: bytesHex(response.subarray(16, 32)),
 				expiresAt

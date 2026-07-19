@@ -35,25 +35,35 @@ export async function runLanNativeBenchmark(options: {
 	const startedAt = performance.now()
 	const shardProgress = new Array<number>(sessions.length).fill(0)
 	let lastProgressAt = startedAt
-	options.onProgress?.({ direction: options.direction, sessionCount, bytes: 0, totalBytes: options.totalBytes, startedAt })
+	options.onProgress?.({ direction: options.direction, transport: 'webtransport', sessionCount, bytes: 0, totalBytes: options.totalBytes, startedAt })
 	const report = (index: number, bytes: number) => {
 		shardProgress[index] = bytes
 		const transferred = shardProgress.reduce((sum, value) => sum + value, 0)
 		const now = performance.now()
 		if (now - lastProgressAt >= 100 || transferred === options.totalBytes) {
 			lastProgressAt = now
-			options.onProgress?.({ direction: options.direction, sessionCount, bytes: transferred, totalBytes: options.totalBytes, startedAt })
+			options.onProgress?.({
+				direction: options.direction,
+				transport: 'webtransport',
+				sessionCount,
+				bytes: transferred,
+				totalBytes: options.totalBytes,
+				startedAt
+			})
 		}
 	}
 
 	try {
-		const results = await Promise.all(sessions.map((session, index) => runPreparedSession(session, options.direction, startedAt, bytes => report(index, bytes))))
+		const results = await Promise.all(
+			sessions.map((session, index) => runPreparedSession(session, options.direction, startedAt, bytes => report(index, bytes)))
+		)
 		const bytes = results.reduce((sum, result) => sum + result.bytes, 0)
 		if (bytes !== options.totalBytes) throw new Error('并行测速字节数不一致')
 		const clientElapsedMs = Math.max(...results.map(result => result.clientElapsedMs))
 		const agentElapsedMs = Math.max(...results.map(result => result.agentElapsedMs))
 		return {
 			direction: options.direction,
+			transport: 'webtransport',
 			sessionCount,
 			bytes,
 			clientElapsedMs,

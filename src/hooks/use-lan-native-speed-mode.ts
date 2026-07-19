@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectLanNativeAgentCapability, type LanNativeAgentCapability } from '@/lib/lan-transfer/native-agent/capability'
 import { createLanAgentLaunchRequest, launchLanNativeAgent, subscribeLanAgentCallbacks } from '@/lib/lan-transfer/native-agent/launch-client'
 import { LanNativeLocalBridge } from '@/lib/lan-transfer/native-agent/local-bridge'
+import { nativeAgentLnaTicketCount, runLanNativeHttpBenchmark, selectLocalNetworkAccessEndpoint } from '@/lib/lan-transfer/native-agent/peer-lna-http'
 import { runLanNativeBenchmark } from '@/lib/lan-transfer/native-agent/peer-webtransport'
 import {
 	nativeAgentBenchmarkSessionCount,
 	NATIVE_AGENT_BENCHMARK_VERSION,
 	NATIVE_AGENT_BRIDGE_VERSION,
+	NATIVE_AGENT_LNA_HTTP_VERSION,
 	type LanNativeAgentAdvertisement,
 	type LanNativeAgentCallback,
 	type LanNativeAgentTicket,
@@ -64,37 +66,34 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		setCallback(null)
 	}, [])
 
-	const connectCallback = useCallback(
-		async (next: LanNativeAgentCallback) => {
-			if (next.nonce !== launchNonceRef.current || next.nonce === handledNonceRef.current) return
-			handledNonceRef.current = next.nonce
-			const attempt = (connectionAttemptRef.current += 1)
-			if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
-			launchTimerRef.current = null
-			setAgentState('connecting')
-			setAgentError('')
-			try {
-				const bridge = await LanNativeLocalBridge.connect(next)
-				if (attempt !== connectionAttemptRef.current) {
-					bridge.close()
-					return
-				}
-				bridgeRef.current?.close()
-				bridgeRef.current = bridge
-				setCallback(next)
-				setAgentState('connected')
-			} catch (error) {
-				if (attempt !== connectionAttemptRef.current) return
-				if (bridgeRef.current) {
-					setAgentState('connected')
-					return
-				}
-				setAgentState('error')
-				setAgentError(error instanceof Error ? error.message : '无法连接本机加速组件')
+	const connectCallback = useCallback(async (next: LanNativeAgentCallback) => {
+		if (next.nonce !== launchNonceRef.current || next.nonce === handledNonceRef.current) return
+		handledNonceRef.current = next.nonce
+		const attempt = (connectionAttemptRef.current += 1)
+		if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
+		launchTimerRef.current = null
+		setAgentState('connecting')
+		setAgentError('')
+		try {
+			const bridge = await LanNativeLocalBridge.connect(next)
+			if (attempt !== connectionAttemptRef.current) {
+				bridge.close()
+				return
 			}
-		},
-		[]
-	)
+			bridgeRef.current?.close()
+			bridgeRef.current = bridge
+			setCallback(next)
+			setAgentState('connected')
+		} catch (error) {
+			if (attempt !== connectionAttemptRef.current) return
+			if (bridgeRef.current) {
+				setAgentState('connected')
+				return
+			}
+			setAgentState('error')
+			setAgentError(error instanceof Error ? error.message : '无法连接本机加速组件')
+		}
+	}, [])
 
 	useEffect(() => {
 		const nextCapability = detectLanNativeAgentCapability()
@@ -163,8 +162,10 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		return {
 			bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION,
 			benchmarkVersion: NATIVE_AGENT_BENCHMARK_VERSION,
+			lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
 			ownerDeviceId,
 			endpoints: callback.benchmarkEndpoints,
+			lnaHttpEndpoints: callback.lnaHttpEndpoints,
 			certificateSha256: callback.certificateSha256
 		}
 	}, [agentState, callback, ownerDeviceId])
@@ -193,18 +194,25 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	const runBenchmark = useCallback(
 		async (direction: LanNativeBenchmarkDirection, totalBytes: number, requestTicket: () => Promise<LanNativeAgentTicket>) => {
 			if (!remoteAdvertisement) return void setBenchmark({ state: 'error', error: '当前连接没有可用的加速电脑' })
-			if (!capability.webTransport) return void setBenchmark({ state: 'error', error: '当前浏览器不支持 WebTransport' })
 			const sessionCount = nativeAgentBenchmarkSessionCount(direction)
-			setBenchmark({ state: 'running', progress: { direction, sessionCount, bytes: 0, totalBytes, startedAt: performance.now() } })
+			setBenchmark({ state: 'running', progress: { direction, transport: 'lna-http', sessionCount, bytes: 0, totalBytes, startedAt: performance.now() } })
 			try {
-				const tickets = await Promise.all(Array.from({ length: sessionCount }, () => requestTicket()))
+				const lna = await selectLocalNetworkAccessEndpoint(remoteAdvertisement.lnaHttpEndpoints || [])
+				if (lna.state === 'denied') throw new Error('你已拒绝本地网络访问权限，极速模式不可用；请在浏览器网站权限中重新允许后再试')
+				const ticketCount = lna.state === 'available' ? nativeAgentLnaTicketCount(totalBytes) : sessionCount
+				if (lna.state === 'unsupported' && !capability.webTransport) throw new Error('当前浏览器既不支持本地网络访问，也不支持 WebTransport，无法使用极速模式')
+				const tickets = await Promise.all(Array.from({ length: ticketCount }, () => requestTicket()))
 				if (tickets.some(ticket => ticket.ownerDeviceId !== remoteAdvertisement.ownerDeviceId)) throw new Error('极速通道凭据来自错误的设备')
-				const result = await runLanNativeBenchmark({
-					tickets,
-					direction,
-					totalBytes,
-					onProgress: progress => setBenchmark({ state: 'running', progress })
-				})
+				const result =
+					lna.state === 'available'
+						? await runLanNativeHttpBenchmark({
+								tickets,
+								endpoint: lna.endpoint,
+								direction,
+								totalBytes,
+								onProgress: progress => setBenchmark({ state: 'running', progress })
+							})
+						: await runLanNativeBenchmark({ tickets, direction, totalBytes, onProgress: progress => setBenchmark({ state: 'running', progress }) })
 				setBenchmark({ state: 'complete', result })
 			} catch (error) {
 				setBenchmark({ state: 'error', error: error instanceof Error ? error.message : '极速模式测速失败' })
@@ -213,25 +221,23 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		[capability.webTransport, remoteAdvertisement]
 	)
 
-	const status = !capability.webTransport
-		? '当前浏览器不支持，使用普通模式'
-		: localAdvertisement
-			? '本机组件已连接，等待网页设备测速'
-			: remoteAdvertisement
-				? '已发现加速电脑，可以开始测速'
-				: agentState === 'connected'
-					? '本机组件已连接，创建配对码后启用'
-					: capability.device === 'mobile'
-						? '连接加速电脑后自动使用'
-						: agentState === 'launching'
-							? '正在启动本机加速组件'
-							: agentState === 'connecting'
-								? '正在建立安全本机连接'
-								: agentState === 'error'
-									? agentError
-									: preferenceEnabled
-										? '等待重新连接本机加速组件'
-										: '大文件继续使用网页直传'
+	const status = localAdvertisement
+		? '本机组件已连接，等待网页设备测速'
+		: remoteAdvertisement
+			? '已发现加速电脑，可以开始测速'
+			: agentState === 'connected'
+				? '本机组件已连接，创建配对码后启用'
+				: capability.device === 'mobile'
+					? '连接加速电脑后自动使用'
+					: agentState === 'launching'
+						? '正在启动本机加速组件'
+						: agentState === 'connecting'
+							? '正在建立安全本机连接'
+							: agentState === 'error'
+								? agentError
+								: preferenceEnabled
+									? '等待重新连接本机加速组件'
+									: '大文件继续使用网页直传'
 
 	return {
 		...capability,
@@ -241,7 +247,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		status,
 		localAdvertisement,
 		remoteAdvertisement,
-		canBenchmark: Boolean(remoteAdvertisement && capability.webTransport && !localAdvertisement),
+		canBenchmark: Boolean(remoteAdvertisement && !localAdvertisement),
 		benchmark,
 		setEnabled,
 		reconnect: launch,

@@ -1,4 +1,5 @@
 import type { LanNativeAgentCallback } from './types'
+import { validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
 
 const CALLBACK_CHANNEL = 'winrisef-native-agent-callback-v1'
 const CALLBACK_STORAGE_KEY = 'winrisef-native-agent-callback-handoff'
@@ -30,8 +31,9 @@ export function consumeLanAgentCallback(): LanNativeAgentCallback | null {
 	const launchToken = params.get('token') || ''
 	const expiresAt = Number(params.get('expires'))
 	const benchmarkEndpoints = params.getAll('lan')
+	const lnaHttpEndpoints = params.getAll('lan-http')
 	window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
-	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, certificateSha256, launchToken, expiresAt })
+	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, certificateSha256, launchToken, expiresAt })
 }
 
 export function deliverLanAgentCallback(callback: LanNativeAgentCallback) {
@@ -82,7 +84,10 @@ function parseCallback(value: unknown): LanNativeAgentCallback | null {
 		!Array.isArray(callback.benchmarkEndpoints)
 	)
 		return null
-	return validateCallback(callback as LanNativeAgentCallback)
+	return validateCallback({
+		...callback,
+		lnaHttpEndpoints: Array.isArray(callback.lnaHttpEndpoints) ? callback.lnaHttpEndpoints : []
+	} as LanNativeAgentCallback)
 }
 
 function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallback | null {
@@ -92,7 +97,8 @@ function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallb
 	if (
 		!validBridgeEndpoint(callback.bridgeEndpoint) ||
 		callback.benchmarkEndpoints.length === 0 ||
-		callback.benchmarkEndpoints.some(endpoint => typeof endpoint !== 'string' || !validBenchmarkEndpoint(endpoint))
+		callback.benchmarkEndpoints.some(endpoint => typeof endpoint !== 'string' || !validLanWebTransportEndpoint(endpoint)) ||
+		callback.lnaHttpEndpoints.some(endpoint => typeof endpoint !== 'string' || !validLanHttpBaseEndpoint(endpoint))
 	)
 		return null
 	return callback
@@ -102,15 +108,6 @@ function validBridgeEndpoint(value: string) {
 	try {
 		const url = new URL(value)
 		return url.protocol === 'https:' && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) && url.pathname === '/winrisef/bridge/v1'
-	} catch {
-		return false
-	}
-}
-
-function validBenchmarkEndpoint(value: string) {
-	try {
-		const url = new URL(value)
-		return url.protocol === 'https:' && url.pathname === '/winrisef/benchmark/v3'
 	} catch {
 		return false
 	}
