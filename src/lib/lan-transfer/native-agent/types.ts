@@ -1,5 +1,5 @@
 export const NATIVE_AGENT_BRIDGE_VERSION = 1
-export const NATIVE_AGENT_BENCHMARK_VERSION = 1
+export const NATIVE_AGENT_BENCHMARK_VERSION = 2
 
 export type LanNativeAgentAdvertisement = {
 	bridgeVersion: typeof NATIVE_AGENT_BRIDGE_VERSION

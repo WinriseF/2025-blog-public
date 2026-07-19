@@ -6,9 +6,9 @@ import type { LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
 import type { LanNativeBenchmarkDirection } from '@/lib/lan-transfer/native-agent/types'
 
 const BENCHMARK_SIZES = [
-	{ label: '64MB', bytes: 64 * 1024 * 1024 },
+	{ label: '64MB 快速', bytes: 64 * 1024 * 1024 },
 	{ label: '256MB', bytes: 256 * 1024 * 1024 },
-	{ label: '1GB', bytes: 1024 * 1024 * 1024 }
+	{ label: '1GB 精准', bytes: 1024 * 1024 * 1024 }
 ]
 
 export function LanSpeedModeToggle({
@@ -18,7 +18,7 @@ export function LanSpeedModeToggle({
 	speedMode: LanNativeSpeedModeState
 	onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void
 }) {
-	const [benchmarkBytes, setBenchmarkBytes] = useState(BENCHMARK_SIZES[1].bytes)
+	const [benchmarkBytes, setBenchmarkBytes] = useState(BENCHMARK_SIZES[2].bytes)
 	if (!speedMode.ready) return null
 
 	const mobile = speedMode.device === 'mobile'
@@ -72,6 +72,7 @@ export function LanSpeedModeToggle({
 
 			{speedMode.canBenchmark && (
 				<div className='border-border mt-3 border-t pt-3'>
+					<p className='text-secondary mb-2 text-[11px]'>当前只测试原生通道，聊天附件仍使用普通模式；以 1GB 结果作为性能门。</p>
 					<div className='flex items-center gap-2'>
 						<select
 							value={benchmarkBytes}
@@ -109,7 +110,7 @@ export function LanSpeedModeToggle({
 					)}
 					{speedMode.benchmark.state === 'complete' && speedMode.benchmark.result && (
 						<p className='text-brand mt-2 text-xs font-semibold'>
-							浏览器 {speedMode.benchmark.result.clientMbps.toFixed(0)} Mbps · Agent {speedMode.benchmark.result.agentMbps.toFixed(0)} Mbps
+							有效载荷：浏览器 {speedMode.benchmark.result.clientMbps.toFixed(0)} Mbps · Agent {speedMode.benchmark.result.agentMbps.toFixed(0)} Mbps
 						</p>
 					)}
 					{speedMode.benchmark.state === 'error' && <p className='mt-2 text-xs text-red-400'>{speedMode.benchmark.error}</p>}

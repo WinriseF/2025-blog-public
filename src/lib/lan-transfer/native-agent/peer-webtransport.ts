@@ -4,12 +4,13 @@ import { createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTim
 
 const LANE_COUNT = 4
 const BLOCK_SIZE = 4 * 1024 * 1024
-const EXTENT_SIZE = 64 * 1024 * 1024
+const EXTENT_SIZE = 16 * 1024 * 1024
 const HELLO_MAGIC = new TextEncoder().encode('WRNFHEL1')
 const ACK_MAGIC = new TextEncoder().encode('WRNFACK1')
 const LANE_MAGIC = new TextEncoder().encode('WRNFLAN1')
 const RESULT_MAGIC = new TextEncoder().encode('WRNFDON1')
-const ZERO_BLOCK = new Uint8Array(BLOCK_SIZE)
+const WRITES_IN_FLIGHT_PER_LANE = 2
+const ZERO_BLOCKS = Array.from({ length: LANE_COUNT }, () => new Uint8Array(BLOCK_SIZE))
 
 export async function runLanNativeBenchmark(options: {
 	ticket: LanNativeAgentTicket
@@ -22,17 +23,6 @@ export async function runLanNativeBenchmark(options: {
 	const endpoint = options.ticket.endpoints[0]
 	if (!endpoint) throw new Error('加速电脑没有可用的局域网地址')
 	const transport = createPinnedWebTransport(endpoint, options.ticket.certificateSha256)
-	const startedAt = performance.now()
-	let transferred = 0
-	let lastProgressAt = 0
-	const report = (bytes: number) => {
-		transferred += bytes
-		const now = performance.now()
-		if (now - lastProgressAt >= 100 || transferred === options.totalBytes) {
-			lastProgressAt = now
-			options.onProgress?.({ direction: options.direction, bytes: transferred, totalBytes: options.totalBytes, startedAt })
-		}
-	}
 	try {
 		await withTimeout(transport.ready, 10_000, '连接加速电脑超时，请检查防火墙和局域网')
 		const control = await transport.createBidirectionalStream()
@@ -43,6 +33,19 @@ export async function runLanNativeBenchmark(options: {
 		validateAck(ack, options.totalBytes)
 		await controlWriter.close()
 		controlWriter.releaseLock()
+
+		const startedAt = performance.now()
+		let transferred = 0
+		let lastProgressAt = startedAt
+		options.onProgress?.({ direction: options.direction, bytes: 0, totalBytes: options.totalBytes, startedAt })
+		const report = (bytes: number) => {
+			transferred += bytes
+			const now = performance.now()
+			if (now - lastProgressAt >= 100 || transferred === options.totalBytes) {
+				lastProgressAt = now
+				options.onProgress?.({ direction: options.direction, bytes: transferred, totalBytes: options.totalBytes, startedAt })
+			}
+		}
 
 		if (options.direction === 'browser-to-agent') await sendBrowserMemory(transport, options.totalBytes, report)
 		else await receiveAgentMemory(transport, options.totalBytes, report)
@@ -97,15 +100,29 @@ async function sendBrowserMemory(transport: WebTransportLike, totalBytes: number
 async function sendLane(transport: WebTransportLike, laneId: number, totalBytes: number, onBytes: (bytes: number) => void) {
 	const stream = await transport.createUnidirectionalStream()
 	const writer = stream.getWriter()
+	const zeroBlock = ZERO_BLOCKS[laneId]
+	if (!zeroBlock) throw new Error('测速数据通道编号无效')
 	await writer.write(encodeLaneHeader(laneId, totalBytes))
 	for (let offset = laneId * EXTENT_SIZE; offset < totalBytes; offset += LANE_COUNT * EXTENT_SIZE) {
 		const length = Math.min(EXTENT_SIZE, totalBytes - offset)
 		await writer.write(encodeExtent(offset, length))
+		let pendingWrites: Promise<void>[] = []
+		let pendingBytes = 0
 		for (let sent = 0; sent < length;) {
 			const count = Math.min(BLOCK_SIZE, length - sent)
-			await writer.write(count === BLOCK_SIZE ? ZERO_BLOCK : ZERO_BLOCK.subarray(0, count))
+			pendingWrites.push(writer.write(count === BLOCK_SIZE ? zeroBlock : zeroBlock.subarray(0, count)))
+			pendingBytes += count
 			sent += count
-			onBytes(count)
+			if (pendingWrites.length === WRITES_IN_FLIGHT_PER_LANE) {
+				await Promise.all(pendingWrites)
+				onBytes(pendingBytes)
+				pendingWrites = []
+				pendingBytes = 0
+			}
+		}
+		if (pendingWrites.length > 0) {
+			await Promise.all(pendingWrites)
+			onBytes(pendingBytes)
 		}
 	}
 	await writer.write(new Uint8Array(16))

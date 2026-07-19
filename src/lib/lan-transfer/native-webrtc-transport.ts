@@ -407,21 +407,23 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 
 	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {
 		const channel = this.channel
-		if (!this.isOpen() || !channel) throw new Error('连接已断开，请重新连接后再发送')
-		if (channel.bufferedAmount <= limit) return
+		if (!channel) throw new Error('连接已断开，请重新连接后再发送')
+		if (!this.isOpen()) throw new Error('连接已断开，请重新连接后再发送')
+		const activeChannel: RTCDataChannel = channel
+		if (activeChannel.bufferedAmount <= limit) return
 		const startedAt = Date.now()
-		channel.bufferedAmountLowThreshold = lowWatermark
-		while (channel.bufferedAmount > lowWatermark) {
+		activeChannel.bufferedAmountLowThreshold = lowWatermark
+		while (activeChannel.bufferedAmount > lowWatermark) {
 			if (signal?.aborted) throw new DOMException('发送已暂停', 'AbortError')
-			if (!this.isOpen() || this.channel !== channel) throw new Error('连接已断开，请重新连接后再发送')
+			if (!this.isOpen() || this.channel !== activeChannel) throw new Error('连接已断开，请重新连接后再发送')
 			if (Date.now() - startedAt > timeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
 			await new Promise<void>((resolve, reject) => {
 				const timer = setTimeout(done, 250)
 				function cleanup() {
 					clearTimeout(timer)
-					channel.removeEventListener('bufferedamountlow', done)
-					channel.removeEventListener('close', fail)
-					channel.removeEventListener('error', fail)
+					activeChannel.removeEventListener('bufferedamountlow', done)
+					activeChannel.removeEventListener('close', fail)
+					activeChannel.removeEventListener('error', fail)
 					signal?.removeEventListener('abort', abort)
 				}
 				function done() {
@@ -436,8 +438,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 					cleanup()
 					reject(new DOMException('发送已暂停', 'AbortError'))
 				}
-				channel.addEventListener('bufferedamountlow', done, { once: true })
-				channel.addEventListener('close', fail, { once: true })
+				activeChannel.addEventListener('bufferedamountlow', done, { once: true })
+				activeChannel.addEventListener('close', fail, { once: true })
 				channel.addEventListener('error', fail, { once: true })
 				signal?.addEventListener('abort', abort, { once: true })
 			})

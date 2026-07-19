@@ -11,6 +11,9 @@ type WebTransportConstructor = new (
 	url: string,
 	options?: {
 		serverCertificateHashes?: Array<{ algorithm: 'sha-256'; value: ArrayBuffer }>
+		congestionControl?: 'default' | 'throughput' | 'low-latency'
+		requireUnreliable?: boolean
+		anticipatedConcurrentIncomingUnidirectionalStreams?: number
 	}
 ) => WebTransportLike
 
@@ -19,7 +22,10 @@ export function createPinnedWebTransport(endpoint: string, certificateSha256: st
 	if (!Constructor) throw new Error('当前浏览器不支持 WebTransport')
 	const hash = hexBytes(certificateSha256, 32, '证书摘要')
 	return new Constructor(endpoint, {
-		serverCertificateHashes: [{ algorithm: 'sha-256', value: Uint8Array.from(hash).buffer }]
+		serverCertificateHashes: [{ algorithm: 'sha-256', value: Uint8Array.from(hash).buffer }],
+		congestionControl: 'throughput',
+		requireUnreliable: true,
+		anticipatedConcurrentIncomingUnidirectionalStreams: 4
 	})
 }
 
@@ -77,6 +83,7 @@ export class ExactStreamReader {
 
 	async discard(length: number, onBytes?: (bytes: number) => void) {
 		let remaining = length
+		let unreported = 0
 		while (remaining > 0) {
 			if (this.offset >= this.buffered.byteLength) {
 				const next = await this.reader.read()
@@ -87,7 +94,11 @@ export class ExactStreamReader {
 			const count = Math.min(remaining, this.buffered.byteLength - this.offset)
 			this.offset += count
 			remaining -= count
-			onBytes?.(count)
+			unreported += count
+			if (unreported >= 4 * 1024 * 1024 || remaining === 0) {
+				onBytes?.(unreported)
+				unreported = 0
+			}
 		}
 	}
 

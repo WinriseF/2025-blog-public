@@ -38,7 +38,7 @@ export class LanNativeLocalBridge {
 	}
 
 	issueTicket(ownerDeviceId: string): Promise<LanNativeAgentTicket> {
-		const run = this.requestQueue.then(async () => {
+		const run = this.requestQueue.then(async (): Promise<LanNativeAgentTicket> => {
 			const requestId = (this.requestId = (this.requestId + 1) >>> 0)
 			const request = new Uint8Array(16)
 			request.set(TICKET_REQUEST_MAGIC)
