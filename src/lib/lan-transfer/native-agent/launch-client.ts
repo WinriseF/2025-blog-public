@@ -110,7 +110,7 @@ function validBridgeEndpoint(value: string) {
 function validBenchmarkEndpoint(value: string) {
 	try {
 		const url = new URL(value)
-		return url.protocol === 'https:' && url.pathname === '/winrisef/benchmark/v2'
+		return url.protocol === 'https:' && url.pathname === '/winrisef/benchmark/v3'
 	} catch {
 		return false
 	}

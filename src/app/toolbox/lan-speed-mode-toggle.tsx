@@ -72,7 +72,7 @@ export function LanSpeedModeToggle({
 
 			{speedMode.canBenchmark && (
 				<div className='border-border mt-3 border-t pt-3'>
-					<p className='text-secondary mb-2 text-[11px]'>当前只测试原生通道，聊天附件仍使用普通模式；以 1GB 结果作为性能门。</p>
+					<p className='text-secondary mb-2 text-[11px]'>当前使用 6 路独立 QUIC 聚合测速，聊天附件仍使用普通模式；以 1GB 结果作为性能门。</p>
 					<div className='flex items-center gap-2'>
 						<select
 							value={benchmarkBytes}

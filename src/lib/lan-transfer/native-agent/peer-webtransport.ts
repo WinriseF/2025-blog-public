@@ -1,5 +1,5 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
-import { NATIVE_AGENT_BENCHMARK_VERSION } from './types'
+import { NATIVE_AGENT_BENCHMARK_SESSIONS, NATIVE_AGENT_BENCHMARK_VERSION } from './types'
 import { createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTimeout, writeU64, type WebTransportLike } from './webtransport'
 
 const LANE_COUNT = 4
@@ -13,58 +13,117 @@ const WRITES_IN_FLIGHT_PER_LANE = 2
 const ZERO_BLOCKS = Array.from({ length: LANE_COUNT }, () => new Uint8Array(BLOCK_SIZE))
 
 export async function runLanNativeBenchmark(options: {
-	ticket: LanNativeAgentTicket
+	tickets: LanNativeAgentTicket[]
 	direction: LanNativeBenchmarkDirection
 	totalBytes: number
 	onProgress?: (progress: LanNativeBenchmarkProgress) => void
 }): Promise<LanNativeBenchmarkResult> {
 	if (!Number.isSafeInteger(options.totalBytes) || options.totalBytes <= 0) throw new Error('测速大小无效')
-	if (options.ticket.expiresAt <= Date.now()) throw new Error('极速通道凭据已过期，请重试')
-	const endpoint = options.ticket.endpoints[0]
+	if (options.tickets.length !== NATIVE_AGENT_BENCHMARK_SESSIONS) throw new Error('极速通道并行凭据数量不完整')
+	const shardSizes = splitBytes(options.totalBytes, options.tickets.length)
+	const preparedResults = await Promise.allSettled(
+		options.tickets.map((ticket, index) => prepareBenchmarkSession(ticket, options.direction, shardSizes[index]!))
+	)
+	const sessions = preparedResults.flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
+	const rejected = preparedResults.find(result => result.status === 'rejected')
+	if (rejected?.status === 'rejected') {
+		for (const session of sessions) session.transport.close({ closeCode: 1, reason: 'parallel setup failed' })
+		throw rejected.reason
+	}
+
+	const startedAt = performance.now()
+	const shardProgress = new Array<number>(sessions.length).fill(0)
+	let lastProgressAt = startedAt
+	options.onProgress?.({ direction: options.direction, bytes: 0, totalBytes: options.totalBytes, startedAt })
+	const report = (index: number, bytes: number) => {
+		shardProgress[index] = bytes
+		const transferred = shardProgress.reduce((sum, value) => sum + value, 0)
+		const now = performance.now()
+		if (now - lastProgressAt >= 100 || transferred === options.totalBytes) {
+			lastProgressAt = now
+			options.onProgress?.({ direction: options.direction, bytes: transferred, totalBytes: options.totalBytes, startedAt })
+		}
+	}
+
+	try {
+		const results = await Promise.all(sessions.map((session, index) => runPreparedSession(session, options.direction, startedAt, bytes => report(index, bytes))))
+		const bytes = results.reduce((sum, result) => sum + result.bytes, 0)
+		if (bytes !== options.totalBytes) throw new Error('并行测速字节数不一致')
+		const clientElapsedMs = Math.max(...results.map(result => result.clientElapsedMs))
+		const agentElapsedMs = Math.max(...results.map(result => result.agentElapsedMs))
+		return {
+			direction: options.direction,
+			bytes,
+			clientElapsedMs,
+			agentElapsedMs,
+			clientMbps: (bytes * 8) / Math.max(clientElapsedMs, 0.001) / 1_000,
+			agentMbps: (bytes * 8) / Math.max(agentElapsedMs, 0.001) / 1_000
+		}
+	} finally {
+		for (const session of sessions) session.transport.close({ closeCode: 0, reason: 'parallel benchmark complete' })
+	}
+}
+
+type PreparedBenchmarkSession = {
+	transport: WebTransportLike
+	controlReader: ExactStreamReader
+	totalBytes: number
+}
+
+async function prepareBenchmarkSession(
+	ticket: LanNativeAgentTicket,
+	direction: LanNativeBenchmarkDirection,
+	totalBytes: number
+): Promise<PreparedBenchmarkSession> {
+	if (ticket.expiresAt <= Date.now()) throw new Error('极速通道凭据已过期，请重试')
+	const endpoint = ticket.endpoints[0]
 	if (!endpoint) throw new Error('加速电脑没有可用的局域网地址')
-	const transport = createPinnedWebTransport(endpoint, options.ticket.certificateSha256)
+	const transport = createPinnedWebTransport(endpoint, ticket.certificateSha256)
 	try {
 		await withTimeout(transport.ready, 10_000, '连接加速电脑超时，请检查防火墙和局域网')
 		const control = await transport.createBidirectionalStream()
 		const controlWriter = control.writable.getWriter()
 		const controlReader = new ExactStreamReader(control.readable)
-		await controlWriter.write(encodeHello(options.direction, options.totalBytes, options.ticket.token))
+		await controlWriter.write(encodeHello(direction, totalBytes, ticket.token))
 		const ack = await withTimeout(controlReader.readExact(32), 10_000, '加速电脑握手超时')
-		validateAck(ack, options.totalBytes)
+		validateAck(ack, totalBytes)
 		await controlWriter.close()
 		controlWriter.releaseLock()
-
-		const startedAt = performance.now()
-		let transferred = 0
-		let lastProgressAt = startedAt
-		options.onProgress?.({ direction: options.direction, bytes: 0, totalBytes: options.totalBytes, startedAt })
-		const report = (bytes: number) => {
-			transferred += bytes
-			const now = performance.now()
-			if (now - lastProgressAt >= 100 || transferred === options.totalBytes) {
-				lastProgressAt = now
-				options.onProgress?.({ direction: options.direction, bytes: transferred, totalBytes: options.totalBytes, startedAt })
-			}
-		}
-
-		if (options.direction === 'browser-to-agent') await sendBrowserMemory(transport, options.totalBytes, report)
-		else await receiveAgentMemory(transport, options.totalBytes, report)
-
-		const resultBytes = await withTimeout(controlReader.readExact(32), 30_000, '等待测速结果超时')
-		const result = parseResult(resultBytes, options.totalBytes)
-		const clientElapsedMs = performance.now() - startedAt
-		controlReader.release()
-		return {
-			direction: options.direction,
-			bytes: result.bytes,
-			clientElapsedMs,
-			agentElapsedMs: result.elapsedNanos / 1_000_000,
-			clientMbps: (result.bytes * 8) / Math.max(clientElapsedMs, 0.001) / 1_000,
-			agentMbps: (result.bytes * 8_000) / Math.max(result.elapsedNanos, 1)
-		}
-	} finally {
-		transport.close({ closeCode: 0, reason: 'benchmark complete' })
+		return { transport, controlReader, totalBytes }
+	} catch (error) {
+		transport.close({ closeCode: 1, reason: 'benchmark setup failed' })
+		throw error
 	}
+}
+
+async function runPreparedSession(
+	session: PreparedBenchmarkSession,
+	direction: LanNativeBenchmarkDirection,
+	startedAt: number,
+	onProgress: (bytes: number) => void
+) {
+	let transferred = 0
+	const report = (bytes: number) => {
+		transferred += bytes
+		onProgress(transferred)
+	}
+	if (direction === 'browser-to-agent') await sendBrowserMemory(session.transport, session.totalBytes, report)
+	else await receiveAgentMemory(session.transport, session.totalBytes, report)
+
+	const resultBytes = await withTimeout(session.controlReader.readExact(32), 30_000, '等待测速结果超时')
+	const result = parseResult(resultBytes, session.totalBytes)
+	session.controlReader.release()
+	return {
+		bytes: result.bytes,
+		clientElapsedMs: performance.now() - startedAt,
+		agentElapsedMs: result.elapsedNanos / 1_000_000
+	}
+}
+
+function splitBytes(totalBytes: number, count: number) {
+	const quotient = Math.floor(totalBytes / count)
+	const remainder = totalBytes % count
+	return Array.from({ length: count }, (_, index) => quotient + (index < remainder ? 1 : 0))
 }
 
 function encodeHello(direction: LanNativeBenchmarkDirection, totalBytes: number, token: string) {
@@ -132,16 +191,16 @@ async function sendLane(transport: WebTransportLike, laneId: number, totalBytes:
 
 async function receiveAgentMemory(transport: WebTransportLike, totalBytes: number, onBytes: (bytes: number) => void) {
 	const incoming = transport.incomingUnidirectionalStreams.getReader()
-	const streams: ReadableStream<Uint8Array>[] = []
+	const receivers: Promise<void>[] = []
+	const seenLanes = new Set<number>()
+	const seenExtents = new Set<number>()
 	for (let index = 0; index < LANE_COUNT; index += 1) {
 		const next = await incoming.read()
 		if (next.done) throw new Error('Agent 没有创建完整的数据通道')
-		streams.push(next.value)
+		receivers.push(receiveLane(next.value, totalBytes, seenLanes, seenExtents, onBytes))
 	}
 	incoming.releaseLock()
-	const seenLanes = new Set<number>()
-	const seenExtents = new Set<number>()
-	await Promise.all(streams.map(stream => receiveLane(stream, totalBytes, seenLanes, seenExtents, onBytes)))
+	await Promise.all(receivers)
 	if (seenLanes.size !== LANE_COUNT || seenExtents.size !== Math.ceil(totalBytes / EXTENT_SIZE)) throw new Error('Agent 发送的数据范围不完整')
 }
 
