@@ -5,7 +5,10 @@ import { createPortal } from 'react-dom'
 import { ChevronLeft, Copy, MessageCircle, PanelLeftClose, QrCode, X } from 'lucide-react'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
 import { useLanScreenWakeLock, type LanScreenWakeLockState } from '@/hooks/use-lan-screen-wake-lock'
+import { useLanNativeSpeedMode, type LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
+import type { LanNativeBenchmarkDirection } from '@/lib/lan-transfer/native-agent/types'
 import { ChatComposer, DeviceAvatar, MessageList } from './lan-chat-ui'
+import { LanSpeedModeToggle } from './lan-speed-mode-toggle'
 import { LanWakeLockToggle } from './lan-wake-lock-toggle'
 import { useLanTransferController } from './use-lan-transfer-controller'
 
@@ -151,7 +154,7 @@ function WaitingConnectionCard({ controller, onToggleQr }: { controller: LanCont
 	)
 }
 
-function DesktopSidebar({ controller, wakeLock, onSwitchRelay, qrOpen, onToggleQr, collapsed, onToggleCollapse }: { controller: LanController; wakeLock: LanScreenWakeLockState; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; collapsed: boolean; onToggleCollapse: () => void }) {
+function DesktopSidebar({ controller, wakeLock, speedMode, onRunBenchmark, onSwitchRelay, qrOpen, onToggleQr, collapsed, onToggleCollapse }: { controller: LanController; wakeLock: LanScreenWakeLockState; speedMode: LanNativeSpeedModeState; onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; collapsed: boolean; onToggleCollapse: () => void }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
 		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-transparent lg:block'>
@@ -184,6 +187,7 @@ function DesktopSidebar({ controller, wakeLock, onSwitchRelay, qrOpen, onToggleQ
 				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
 				{qrOpen && <InvitePanel controller={controller} />}
 				<LanWakeLockToggle wakeLock={wakeLock} />
+				<LanSpeedModeToggle speedMode={speedMode} onRunBenchmark={onRunBenchmark} />
 				<div className='min-h-0 flex-1 space-y-3'>
 					<div className='flex items-center justify-between'>
 						<p className='text-secondary text-xs font-medium'>当前连接</p>
@@ -290,6 +294,8 @@ function DevicePage({
 	onOpenChat,
 	onSwitchRelay,
 	wakeLock,
+	speedMode,
+	onRunBenchmark,
 	qrOpen,
 	onToggleQr,
 }: {
@@ -297,6 +303,8 @@ function DevicePage({
 	onOpenChat: (peerId?: string) => void
 	onSwitchRelay?: () => void
 	wakeLock: LanScreenWakeLockState
+	speedMode: LanNativeSpeedModeState
+	onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void
 	qrOpen: boolean
 	onToggleQr: () => void
 }) {
@@ -320,6 +328,7 @@ function DevicePage({
 				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
 				{qrOpen && <InvitePanel controller={controller} />}
 				<LanWakeLockToggle wakeLock={wakeLock} />
+				<LanSpeedModeToggle speedMode={speedMode} onRunBenchmark={onRunBenchmark} />
 				<div className='space-y-2'>
 					<p className='text-secondary text-xs font-medium'>当前连接</p>
 					{controller.connections.length ? (
@@ -345,7 +354,7 @@ function DevicePage({
 	)
 }
 
-function MobileShell({ controller, wakeLock, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; wakeLock: LanScreenWakeLockState; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
+function MobileShell({ controller, wakeLock, speedMode, onRunBenchmark, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; wakeLock: LanScreenWakeLockState; speedMode: LanNativeSpeedModeState; onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
 	const [page, setPage] = useState<'devices' | 'chat'>('devices')
 	return (
 		<div className='h-full lg:hidden'>
@@ -360,6 +369,8 @@ function MobileShell({ controller, wakeLock, onSwitchRelay, qrOpen, onToggleQr }
 					}}
 					onSwitchRelay={onSwitchRelay}
 					wakeLock={wakeLock}
+					speedMode={speedMode}
+					onRunBenchmark={onRunBenchmark}
 					qrOpen={qrOpen}
 					onToggleQr={onToggleQr}
 				/>
@@ -371,6 +382,7 @@ function MobileShell({ controller, wakeLock, onSwitchRelay, qrOpen, onToggleQr }
 export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
 	const wakeLock = useLanScreenWakeLock()
+	const speedMode = useLanNativeSpeedMode(controller.session?.localPeer.deviceId || '', controller.activeConnection?.remoteCapability?.nativeAgent || null)
 	const [qrOpen, setQrOpen] = useState(false)
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 	useEffect(() => {
@@ -386,6 +398,21 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 	useEffect(() => {
 		if (!controller.session || controller.session.role !== 'host') setQrOpen(false)
 	}, [controller.session])
+
+	useEffect(() => {
+		controller.setNativeTicketIssuer(speedMode.issuePeerTicket)
+		return () => controller.setNativeTicketIssuer(null)
+	}, [controller.setNativeTicketIssuer, speedMode.issuePeerTicket])
+
+	useEffect(() => {
+		controller.setNativeAgentAdvertisement(speedMode.localAdvertisement)
+	}, [controller.localCapability, controller.setNativeAgentAdvertisement, speedMode.localAdvertisement])
+
+	const handleRunBenchmark = (direction: LanNativeBenchmarkDirection, totalBytes: number) => {
+		const peerId = controller.activePeerId
+		if (!peerId) return
+		void speedMode.runBenchmark(direction, totalBytes, () => controller.requestNativeAgentTicket(peerId))
+	}
 
 	const handleToggleQr = () => {
 		if (controller.session?.role === 'host') {
@@ -403,10 +430,10 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
 		>
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
-				<DesktopSidebar controller={controller} wakeLock={wakeLock} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
+				<DesktopSidebar controller={controller} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={handleRunBenchmark} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				<ChatPane controller={controller} />
 			</div>
-			<MobileShell controller={controller} wakeLock={wakeLock} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
+			<MobileShell controller={controller} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={handleRunBenchmark} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
 		</div>
 	)
 

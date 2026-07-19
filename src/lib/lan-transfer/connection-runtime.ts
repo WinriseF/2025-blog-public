@@ -24,6 +24,7 @@ import {
 	type LanChatMessage,
 	type LanControlMessage,
 	type LanFileRecord,
+	type LanNativeAgentTicket,
 	type LanSession,
 	type PreparedLanAttachment,
 } from './types'
@@ -41,6 +42,8 @@ type RuntimeContext = {
 	remoteCapability?: LanCapability | null
 	localCapability?: LanCapability | null
 	getHistory?: () => LanChatMessage[]
+	issueNativeAgentTicket?: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
+	remoteDeviceId: string
 }
 
 type SendFilesOptions = {
@@ -186,6 +189,7 @@ export class LanConnectionRuntime {
 	private chunkWriteQueue: Promise<void> = Promise.resolve()
 	private finalizingIncoming = new Map<string, Promise<void>>()
 	private outgoingObjectUrls: string[] = []
+	private pendingNativeTickets = new Map<string, { resolve: (ticket: LanNativeAgentTicket) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
 	private destroyed = false
 	private sender = new LanAttachmentSendScheduler({
 		createCompleteMessage: file => ({ ...this.controlBase('attachment-complete'), id: file.id, messageId: file.messageId, sent: file.size, chunkCount: file.chunkCount }),
@@ -231,6 +235,12 @@ export class LanConnectionRuntime {
 		this.transport = null
 	}
 
+	updateLocalCapability(capability: LanCapability) {
+		if (!this.context) return
+		this.context.localCapability = capability
+		if (this.isOpen()) this.sendControl({ ...capability, ...this.controlBase('capability') })
+	}
+
 	pauseTransport() {
 		this.sender.pause()
 	}
@@ -271,6 +281,11 @@ export class LanConnectionRuntime {
 		this.context = null
 		this.outgoingObjectUrls.forEach(url => URL.revokeObjectURL(url))
 		this.outgoingObjectUrls = []
+		this.pendingNativeTickets.forEach(pending => {
+			clearTimeout(pending.timer)
+			pending.reject(new Error('连接已关闭'))
+		})
+		this.pendingNativeTickets.clear()
 	}
 
 	handleFrame(data: unknown) {
@@ -547,6 +562,23 @@ export class LanConnectionRuntime {
 		this.sender.resume()
 	}
 
+	requestNativeAgentTicket() {
+		if (!this.context || !this.isOpen()) return Promise.reject(new Error('请先连接加速电脑'))
+		const requestId = messageId()
+		return new Promise<LanNativeAgentTicket>((resolve, reject) => {
+			const timer = setTimeout(() => {
+				this.pendingNativeTickets.delete(requestId)
+				reject(new Error('获取极速通道凭据超时'))
+			}, 10_000)
+			this.pendingNativeTickets.set(requestId, { resolve, reject, timer })
+			if (!this.sendControl({ ...this.controlBase('native-agent-ticket-request'), requestId })) {
+				clearTimeout(timer)
+				this.pendingNativeTickets.delete(requestId)
+				reject(new Error('无法向加速电脑请求凭据'))
+			}
+		})
+	}
+
 	private completeOutgoing(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
@@ -734,6 +766,29 @@ export class LanConnectionRuntime {
 			this.emit({ type: 'remote-capability', capability: message })
 			this.setStatus(this.resumeSync ? '已连接，正在同步文件断点' : '已连接，可以发送消息和文件')
 			this.flushOffersAndQueue()
+			return
+		}
+		if (message.type === 'native-agent-ticket-request') {
+			const context = this.context
+			if (!context?.issueNativeAgentTicket) {
+				this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: '本机加速组件未连接' })
+				return
+			}
+			try {
+				const ticket = await context.issueNativeAgentTicket(context.remoteDeviceId)
+				this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, ticket })
+			} catch (error) {
+				this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: error instanceof Error ? error.message : '无法签发极速通道凭据' })
+			}
+			return
+		}
+		if (message.type === 'native-agent-ticket-response') {
+			const pending = this.pendingNativeTickets.get(message.requestId)
+			if (!pending) return
+			clearTimeout(pending.timer)
+			this.pendingNativeTickets.delete(message.requestId)
+			if (message.ticket) pending.resolve(message.ticket)
+			else pending.reject(new Error(message.error || '加速电脑没有返回有效凭据'))
 			return
 		}
 		if (message.type === 'chat-message') {

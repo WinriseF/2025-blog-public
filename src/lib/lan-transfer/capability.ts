@@ -123,6 +123,7 @@ export async function detectLanCapability(peerId: string, fileSize = 0): Promise
 		platform,
 		browser,
 		isEmbeddedBrowser,
+		webTransport: typeof window !== 'undefined' && window.isSecureContext && 'WebTransport' in window,
 		storage: {
 			memory: true,
 			opfs: opfsSupported,

@@ -6,12 +6,14 @@ import { downloadUrl } from '@/lib/lan-transfer/file-transfer'
 import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
 import type { LanConnectionRoute, LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
+import type { LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
 
 type UseLanTransferEngineOptions = {
 	sessionRef: MutableRefObject<LanSession | null>
 	localCapabilityRef: MutableRefObject<LanCapability | null>
 	setLocalCapability: (capability: LanCapability | null) => void
 	setStatus: (status: string) => void
+	issueNativeAgentTicket: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
 }
 
 type ManagedConnection = {
@@ -181,6 +183,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			remoteCapability: entry.remoteCapability,
 			localCapability: optionsRef.current.localCapabilityRef.current,
 			getHistory: () => recordsRef.current.find(item => item.peerId === connectionId)?.chat.messages || [],
+			issueNativeAgentTicket: optionsRef.current.issueNativeAgentTicket,
+			remoteDeviceId: remotePeer.deviceId,
 		})
 		setActivePeerId(current => current || connectionId)
 	}, [ensureConnection])
@@ -242,6 +246,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return managedRef.current.get(peerId)?.runtime.hasActiveTransfer() || false
 	}, [])
 
+	const updateLocalCapability = useCallback((capability: LanCapability) => {
+		managedRef.current.forEach(entry => entry.runtime.updateLocalCapability(capability))
+	}, [])
+
+	const requestNativeAgentTicket = useCallback((peerId: string) => {
+		const runtime = managedRef.current.get(peerId)?.runtime
+		if (!runtime) return Promise.reject(new Error('请先选择加速电脑'))
+		return runtime.requestNativeAgentTicket()
+	}, [])
+
 	const sendText = useCallback((text: string) => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
@@ -283,6 +297,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		resetAll,
 		handlePeerData,
 		isTransferActive,
+		updateLocalCapability,
+		requestNativeAgentTicket,
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,

@@ -1,3 +1,6 @@
+import type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from './native-agent/types'
+export type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from './native-agent/types'
+
 export const LAN_PROTOCOL_VERSION = 10
 export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
@@ -113,6 +116,8 @@ export type LanCapability = {
 	platform: LanPlatformKind
 	browser: LanBrowserKind
 	isEmbeddedBrowser: boolean
+	webTransport: boolean
+	nativeAgent?: LanNativeAgentAdvertisement
 	storage: {
 		memory: true
 		opfs: boolean
@@ -130,6 +135,26 @@ export type LanCapability = {
 		recommendedStorage: LanStorageKind
 	}
 	notes: string[]
+}
+
+export type LanNativeAgentTicketRequest = {
+	type: 'native-agent-ticket-request'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	requestId: string
+}
+
+export type LanNativeAgentTicketResponse = {
+	type: 'native-agent-ticket-response'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	requestId: string
+	ticket?: LanNativeAgentTicket
+	error?: string
 }
 
 export type LanAttachmentManifest = {
@@ -325,6 +350,8 @@ export type LanChatHistorySync = {
 
 export type LanControlMessage =
 	| LanCapability
+	| LanNativeAgentTicketRequest
+	| LanNativeAgentTicketResponse
 	| LanChatMessageControl
 	| LanChatReceipt
 	| LanAttachmentOffer
