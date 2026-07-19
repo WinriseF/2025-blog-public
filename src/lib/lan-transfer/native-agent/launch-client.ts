@@ -39,6 +39,7 @@ export function deliverLanAgentCallback(callback: LanNativeAgentCallback) {
 		const channel = new BroadcastChannel(CALLBACK_CHANNEL)
 		channel.postMessage(callback)
 		channel.close()
+		return
 	}
 	try {
 		localStorage.setItem(CALLBACK_STORAGE_KEY, JSON.stringify(callback))
@@ -59,12 +60,13 @@ export function subscribeLanAgentCallbacks(listener: (callback: LanNativeAgentCa
 			if (callback) listener(callback)
 		} catch {}
 	}
-	channel?.addEventListener('message', onMessage)
-	window.addEventListener('storage', onStorage)
+	if (channel) channel.addEventListener('message', onMessage)
+	else window.addEventListener('storage', onStorage)
 	return () => {
-		channel?.removeEventListener('message', onMessage)
-		channel?.close()
-		window.removeEventListener('storage', onStorage)
+		if (channel) {
+			channel.removeEventListener('message', onMessage)
+			channel.close()
+		} else window.removeEventListener('storage', onStorage)
 	}
 }
 

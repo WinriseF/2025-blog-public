@@ -44,6 +44,8 @@ export type LanNativeSpeedModeState = LanNativeAgentCapability & {
 export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanNativeAgentAdvertisement | null = null): LanNativeSpeedModeState {
 	const bridgeRef = useRef<LanNativeLocalBridge | null>(null)
 	const launchNonceRef = useRef('')
+	const handledNonceRef = useRef('')
+	const connectionAttemptRef = useRef(0)
 	const launchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const autoLaunchAttemptedRef = useRef(false)
 	const [ready, setReady] = useState(false)
@@ -55,6 +57,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	const [benchmark, setBenchmark] = useState<LanNativeBenchmarkState>({ state: 'idle' })
 
 	const closeBridge = useCallback(() => {
+		connectionAttemptRef.current += 1
 		bridgeRef.current?.close()
 		bridgeRef.current = null
 		setCallback(null)
@@ -62,24 +65,34 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 
 	const connectCallback = useCallback(
 		async (next: LanNativeAgentCallback) => {
-			if (next.nonce !== launchNonceRef.current) return
+			if (next.nonce !== launchNonceRef.current || next.nonce === handledNonceRef.current) return
+			handledNonceRef.current = next.nonce
+			const attempt = (connectionAttemptRef.current += 1)
 			if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 			launchTimerRef.current = null
 			setAgentState('connecting')
 			setAgentError('')
 			try {
 				const bridge = await LanNativeLocalBridge.connect(next)
+				if (attempt !== connectionAttemptRef.current) {
+					bridge.close()
+					return
+				}
 				bridgeRef.current?.close()
 				bridgeRef.current = bridge
 				setCallback(next)
 				setAgentState('connected')
 			} catch (error) {
-				closeBridge()
+				if (attempt !== connectionAttemptRef.current) return
+				if (bridgeRef.current) {
+					setAgentState('connected')
+					return
+				}
 				setAgentState('error')
 				setAgentError(error instanceof Error ? error.message : '无法连接本机加速组件')
 			}
 		},
-		[closeBridge]
+		[]
 	)
 
 	useEffect(() => {
@@ -96,6 +109,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 
 	useEffect(
 		() => () => {
+			connectionAttemptRef.current += 1
 			if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 			bridgeRef.current?.close()
 		},
@@ -106,6 +120,8 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		if (!capability.canHostAgent) return
 		autoLaunchAttemptedRef.current = true
 		const request = createLanAgentLaunchRequest()
+		connectionAttemptRef.current += 1
+		handledNonceRef.current = ''
 		launchNonceRef.current = request.nonce
 		setAgentState('launching')
 		setAgentError('')
