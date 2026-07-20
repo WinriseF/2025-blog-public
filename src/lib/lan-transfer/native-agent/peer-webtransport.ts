@@ -1,5 +1,5 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
-import { nativeAgentBenchmarkSessionCount, NATIVE_AGENT_BENCHMARK_VERSION } from './types'
+import { NATIVE_AGENT_BENCHMARK_VERSION, NATIVE_AGENT_SESSION_COUNT } from './types'
 import { createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTimeout, writeU64, type WebTransportLike } from './webtransport'
 
 const LANE_COUNT = 4
@@ -19,7 +19,7 @@ export async function runLanNativeBenchmark(options: {
 	onProgress?: (progress: LanNativeBenchmarkProgress) => void
 }): Promise<LanNativeBenchmarkResult> {
 	if (!Number.isSafeInteger(options.totalBytes) || options.totalBytes <= 0) throw new Error('测速大小无效')
-	const sessionCount = nativeAgentBenchmarkSessionCount(options.direction)
+	const sessionCount = NATIVE_AGENT_SESSION_COUNT
 	if (options.tickets.length !== sessionCount) throw new Error('极速通道并行凭据数量不完整')
 	const shardSizes = splitBytes(options.totalBytes, options.tickets.length)
 	const preparedResults = await Promise.allSettled(

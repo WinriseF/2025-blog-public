@@ -45,7 +45,7 @@ type RuntimeContext = {
 	localCapability?: LanCapability | null
 	getHistory?: () => LanChatMessage[]
 	issueNativeAgentTicket?: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
-	getNativeLocalAgentPort?: () => LanNativeLocalAgentPort | null
+	getNativeLocalAgentPort: () => LanNativeLocalAgentPort | null
 	remoteDeviceId: string
 }
 
@@ -219,7 +219,7 @@ export class LanConnectionRuntime {
 				peerDeviceId: this.context.remoteDeviceId,
 				localCapability: this.context.localCapability || null,
 				remoteCapability: this.context.remoteCapability || null,
-				localPort: this.context.getNativeLocalAgentPort?.() || null,
+				localPort: this.context.getNativeLocalAgentPort(),
 			} : null,
 			peerBulk: nativePeerBulk,
 			controlBase: (type, createdAt) => this.controlBase(type, createdAt),
@@ -866,7 +866,6 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'attachment-progress') {
-			if (this.native.handleProgress(message.id, message.received)) return
 			const entry = this.prepared.get(message.id)
 			if (entry && message.messageId === entry.file.messageId) {
 				entry.acked = Math.max(entry.acked, message.received)

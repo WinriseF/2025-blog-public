@@ -83,15 +83,13 @@ function parseCallback(value: unknown): LanNativeAgentCallback | null {
 		typeof callback.certificateSha256 !== 'string' ||
 		typeof callback.launchToken !== 'string' ||
 		typeof callback.expiresAt !== 'number' ||
-		!Array.isArray(callback.benchmarkEndpoints)
+		!Array.isArray(callback.benchmarkEndpoints) ||
+		!Array.isArray(callback.lnaHttpEndpoints) ||
+		!Array.isArray(callback.fileHttpEndpoints) ||
+		!Array.isArray(callback.fileWebTransportEndpoints)
 	)
 		return null
-	return validateCallback({
-		...callback,
-		lnaHttpEndpoints: Array.isArray(callback.lnaHttpEndpoints) ? callback.lnaHttpEndpoints : [],
-		fileHttpEndpoints: Array.isArray(callback.fileHttpEndpoints) ? callback.fileHttpEndpoints : [],
-		fileWebTransportEndpoints: Array.isArray(callback.fileWebTransportEndpoints) ? callback.fileWebTransportEndpoints : []
-	} as LanNativeAgentCallback)
+	return validateCallback(callback as LanNativeAgentCallback)
 }
 
 function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallback | null {

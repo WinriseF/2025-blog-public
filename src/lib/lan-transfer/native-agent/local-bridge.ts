@@ -112,17 +112,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 	}
 
 	close() {
-		if (this.closed) return
-		this.closed = true
-		const error = new Error('本机加速组件连接已关闭')
-		this.pending.forEach(pending => pending.reject(error))
-		this.pending.clear()
-		this.listeners.clear()
-		this.transferReleases.forEach(release => release())
-		this.transferReleases.clear()
-		void this.writer.close().catch(() => {})
-		this.reader.release()
-		this.transport.close({ closeCode: 0, reason: 'speed mode disabled' })
+		this.shutdown(new Error('本机加速组件连接已关闭'), 0, 'speed mode disabled')
 	}
 
 	private decorateGrant(grant: Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'>): LanNativeTransferGrant {
@@ -173,6 +163,19 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 		release()
 	}
 
+	private shutdown(error: Error, closeCode: number, reason: string) {
+		if (this.closed) return
+		this.closed = true
+		this.pending.forEach(pending => pending.reject(error))
+		this.pending.clear()
+		this.listeners.clear()
+		this.transferReleases.forEach(release => release())
+		this.transferReleases.clear()
+		void this.writer.close().catch(() => {})
+		this.reader.release()
+		this.transport.close({ closeCode, reason })
+	}
+
 	private async readLoop() {
 		try {
 			while (!this.closed) {
@@ -191,16 +194,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 				}
 			}
 		} catch (error) {
-			if (!this.closed) {
-				this.closed = true
-				const reason = error instanceof Error ? error : new Error('本机组件控制连接中断')
-				this.pending.forEach(pending => pending.reject(reason))
-				this.pending.clear()
-				this.transferReleases.forEach(release => release())
-				this.transferReleases.clear()
-				this.listeners.clear()
-				this.transport.close({ closeCode: 1, reason: 'bridge control failed' })
-			}
+			this.shutdown(error instanceof Error ? error : new Error('本机组件控制连接中断'), 1, 'bridge control failed')
 		}
 	}
 }
@@ -230,5 +224,5 @@ function isBridgeResponse(value: unknown): value is BridgeResponse {
 function isTransferEvent(value: unknown): value is LanNativeTransferEvent {
 	if (!value || typeof value !== 'object') return false
 	const type = (value as { type?: unknown }).type
-	return type === 'transfer-started' || type === 'transfer-progress' || type === 'transfer-confirming' || type === 'transfer-complete' || type === 'transfer-failed' || type === 'transfer-cancelled'
+	return type === 'transfer-progress' || type === 'transfer-confirming' || type === 'transfer-complete' || type === 'transfer-failed' || type === 'transfer-cancelled'
 }

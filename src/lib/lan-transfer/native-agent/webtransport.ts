@@ -1,6 +1,5 @@
 export type WebTransportLike = {
 	ready: Promise<void>
-	closed: Promise<{ closeCode?: number; reason?: string }>
 	incomingUnidirectionalStreams: ReadableStream<ReadableStream<Uint8Array>>
 	createBidirectionalStream: () => Promise<{ readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> }>
 	createUnidirectionalStream: () => Promise<WritableStream<Uint8Array>>
@@ -34,10 +33,6 @@ export function hexBytes(value: string, expectedBytes: number, label: string) {
 	const bytes = new Uint8Array(expectedBytes)
 	for (let index = 0; index < expectedBytes; index += 1) bytes[index] = Number.parseInt(value.slice(index * 2, index * 2 + 2), 16)
 	return bytes
-}
-
-export function bytesHex(bytes: Uint8Array) {
-	return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {

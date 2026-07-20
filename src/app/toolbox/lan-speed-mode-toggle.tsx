@@ -75,7 +75,7 @@ export function LanSpeedModeToggle({
 			{speedMode.canBenchmark && (
 				<div className='border-border mt-3 border-t pt-3'>
 					<p className='text-secondary mb-2 text-[11px]'>
-						默认使用 6 路本地网络 TCP 极速通道；浏览器不支持时回退 6 路 QUIC，拒绝本地网络权限则不启用极速模式。聊天附件暂时仍使用普通模式。
+						默认使用 6 路本地网络 TCP 极速通道；浏览器不支持时回退 6 路 QUIC。64MiB 以上普通文件自动使用极速通道，图片、语音和小文件继续走 WebRTC。
 					</p>
 					<div className='flex items-center gap-2'>
 						<select

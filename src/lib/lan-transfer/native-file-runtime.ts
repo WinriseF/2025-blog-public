@@ -42,17 +42,15 @@ type NativeRuntimeHost = {
 	status: (message: string) => void
 }
 
-type NativeOutgoing = {
+type NativeOutgoingBase = {
 	manifest: LanAttachmentManifest
 	messageId: string
 	createdAt: number
-	source: 'agent' | 'browser'
-	sourceId?: string
-	file?: File
-	offered: boolean
 	transferId?: string
 	abort?: AbortController
 }
+
+type NativeOutgoing = NativeOutgoingBase & ({ source: 'agent'; sourceId: string } | { source: 'browser'; file: File })
 
 type NativeIncoming = {
 	offer: LanAttachmentOffer
@@ -65,7 +63,6 @@ type NativeIncoming = {
 export class LanNativeFileRuntime {
 	private outgoing = new Map<string, NativeOutgoing>()
 	private incoming = new Map<string, NativeIncoming>()
-	private outgoingOrder: string[] = []
 	private activeOutgoingId = ''
 	private unsubscribeAgent: (() => void) | null = null
 	private subscribedPort: LanNativeLocalAgentPort | null = null
@@ -90,7 +87,7 @@ export class LanNativeFileRuntime {
 		this.outgoing.forEach(entry => {
 			entry.abort?.abort()
 			if (entry.transferId) void port?.cancelTransfer(entry.transferId).catch(() => {})
-			else if (entry.sourceId) void port?.releaseSource(entry.sourceId).catch(() => {})
+			else if (entry.source === 'agent') void port?.releaseSource(entry.sourceId).catch(() => {})
 		})
 		this.incoming.forEach(entry => {
 			entry.abort?.abort()
@@ -99,7 +96,6 @@ export class LanNativeFileRuntime {
 		})
 		this.outgoing.clear()
 		this.incoming.clear()
-		this.outgoingOrder = []
 		this.activeOutgoingId = ''
 		this.objectUrls.forEach(url => URL.revokeObjectURL(url))
 		this.objectUrls = []
@@ -115,22 +111,12 @@ export class LanNativeFileRuntime {
 				remaining.push(file)
 				continue
 			}
-			let dataPlane: Exclude<LanBulkDataPlane, 'webrtc'>
 			try {
-				const lna = await selectLocalNetworkAccessFileEndpoint(advertisement.fileHttpEndpoints)
-				if (lna.state === 'available') dataPlane = 'native-lna-http'
-				else if (lna.state === 'unsupported' && context.localCapability?.webTransport) dataPlane = 'native-webtransport'
-				else {
-					remaining.push(file)
-					continue
-				}
+				const dataPlane = await selectNativeDataPlane(advertisement.fileHttpEndpoints, Boolean(context.localCapability?.webTransport))
+				this.addOutgoing(this.browserOutgoing(file, dataPlane, Date.now()))
 			} catch {
 				remaining.push(file)
-				continue
 			}
-			const createdAt = Date.now()
-			const outgoing = this.browserOutgoing(file, dataPlane, createdAt)
-			this.addOutgoing(outgoing)
 		}
 		this.flushNextOffer()
 		return remaining
@@ -182,7 +168,7 @@ export class LanNativeFileRuntime {
 				})
 				if (!grant) throw new DOMException('用户取消了保存位置', 'AbortError')
 				incoming.transferId = grant.transferId
-				this.patchProgress(incoming, 0, 'receiving')
+				this.patchProgress(incoming, 0)
 				this.host.sendControl({ ...this.host.controlBase('native-transfer-ready'), id, messageId: offer.messageId, grant })
 				this.host.status(`正在接收 ${offer.attachment.name}`)
 				return true
@@ -192,15 +178,11 @@ export class LanNativeFileRuntime {
 			incoming.storage = storage
 			const advertisement = context.remoteCapability?.nativeAgent
 			if (!advertisement || advertisement.ownerDeviceId !== offer.agentOwnerDeviceId) throw new Error('加速电脑信息已经变化，请重新发送')
-			const lna = await selectLocalNetworkAccessFileEndpoint(advertisement.fileHttpEndpoints)
-			let dataPlane: Exclude<LanBulkDataPlane, 'webrtc'>
-			if (lna.state === 'available') dataPlane = 'native-lna-http'
-			else if (lna.state === 'unsupported' && context.localCapability?.webTransport) dataPlane = 'native-webtransport'
-			else throw new Error(lna.state === 'denied' ? '你已拒绝本地网络访问权限，无法使用极速模式' : '当前浏览器不支持极速文件通道')
+			const dataPlane = await selectNativeDataPlane(advertisement.fileHttpEndpoints, Boolean(context.localCapability?.webTransport))
 			offer.attachment.dataPlane = dataPlane
 			this.host.patchAttachment(id, offer.messageId, { dataPlane, storage: storage.engine.kind, status: 'receiving' })
 			this.host.patchFile(id, { storage: storage.engine.kind, status: 'receiving' })
-			this.host.sendControl({ ...this.host.controlBase('native-transfer-request'), id, messageId: offer.messageId, dataPlane, storage: storage.engine.kind })
+			this.host.sendControl({ ...this.host.controlBase('native-transfer-request'), id, messageId: offer.messageId, dataPlane })
 			return true
 		} catch (error) {
 			await this.failIncoming(incoming, error)
@@ -215,7 +197,7 @@ export class LanNativeFileRuntime {
 		if (!outgoing || outgoing.source !== 'agent' || !context || !port || outgoing.messageId !== message.messageId) return
 		try {
 			const grant = await port.createSendTransfer({
-				sourceId: outgoing.sourceId!,
+				sourceId: outgoing.sourceId,
 				attachmentId: message.id,
 				ownerDeviceId: context.localDeviceId,
 				peerDeviceId: context.peerDeviceId,
@@ -234,9 +216,9 @@ export class LanNativeFileRuntime {
 		const context = this.host.context()
 		if (!context) return
 		const outgoing = this.outgoing.get(message.id)
-		if (outgoing?.source === 'browser' && outgoing.file) {
+		if (outgoing?.source === 'browser') {
 			try {
-				validateGrant(message.grant, outgoing.manifest, 'browser-to-agent', context.peerDeviceId)
+				validateGrant(message.grant, outgoing.manifest, context.peerDeviceId)
 				outgoing.transferId = message.grant.transferId
 				outgoing.abort = new AbortController()
 				this.host.patchAttachment(message.id, message.messageId, { status: 'sending', phase: 'transferring' })
@@ -253,7 +235,7 @@ export class LanNativeFileRuntime {
 		const incoming = this.incoming.get(message.id)
 		if (!incoming?.storage) return
 		try {
-			validateGrant(message.grant, incoming.offer.attachment, 'agent-to-browser', incoming.offer.agentOwnerDeviceId || '')
+			validateGrant(message.grant, incoming.offer.attachment, incoming.offer.agentOwnerDeviceId || '')
 			incoming.transferId = message.grant.transferId
 			incoming.abort = new AbortController()
 			await this.host.peerBulk.download({
@@ -274,13 +256,6 @@ export class LanNativeFileRuntime {
 		} catch (error) {
 			await this.failIncoming(incoming, error)
 		}
-	}
-
-	handleProgress(id: string, bytes: number) {
-		const outgoing = this.outgoing.get(id)
-		if (!outgoing) return false
-		this.patchOutgoingProgress(outgoing, bytes)
-		return true
 	}
 
 	async handleReceived(id: string, messageIdValue: string, received: number, expected: number) {
@@ -308,9 +283,8 @@ export class LanNativeFileRuntime {
 
 	private addOutgoing(outgoing: NativeOutgoing) {
 		this.outgoing.set(outgoing.manifest.id, outgoing)
-		this.outgoingOrder.push(outgoing.manifest.id)
 		const attachment = attachmentFromManifest(outgoing.manifest, 'out', 'queued')
-		if (outgoing.file) {
+		if (outgoing.source === 'browser') {
 			const url = URL.createObjectURL(outgoing.file)
 			attachment.url = url
 			this.objectUrls.push(url)
@@ -320,10 +294,9 @@ export class LanNativeFileRuntime {
 
 	private flushNextOffer() {
 		if (this.activeOutgoingId || !this.host.context()) return
-		const id = this.outgoingOrder.find(candidate => !this.outgoing.get(candidate)?.offered)
-		if (!id) return
-		const outgoing = this.outgoing.get(id)
+		const outgoing = this.outgoing.values().next().value
 		if (!outgoing) return
+		const id = outgoing.manifest.id
 		const context = this.host.context()!
 		const sent = this.host.sendControl({
 			...this.host.controlBase('attachment-offer', outgoing.createdAt),
@@ -333,7 +306,6 @@ export class LanNativeFileRuntime {
 			agentOwnerDeviceId: outgoing.source === 'agent' ? context.localDeviceId : context.peerDeviceId,
 		})
 		if (!sent) return
-		outgoing.offered = true
 		this.activeOutgoingId = id
 		this.host.patchAttachment(id, outgoing.messageId, { status: 'offered' })
 		this.host.status(`等待对方下载 ${outgoing.manifest.name}`)
@@ -352,8 +324,10 @@ export class LanNativeFileRuntime {
 		if (event.type === 'transfer-progress' || event.type === 'transfer-confirming') {
 			const outgoing = this.outgoing.get(event.attachmentId)
 			if (outgoing) this.patchOutgoingProgress(outgoing, event.bytes)
-			const incoming = this.incoming.get(event.attachmentId)
-			if (incoming) this.patchIncomingProgress(incoming, event.bytes)
+			else {
+				const incoming = this.incoming.get(event.attachmentId)
+				if (incoming) this.patchIncomingProgress(incoming, event.bytes)
+			}
 			return
 		}
 		if (event.type === 'transfer-complete') {
@@ -384,24 +358,24 @@ export class LanNativeFileRuntime {
 		const total = incoming.offer.attachment.size
 		if (bytes < total && incoming.lastProgress && bytes - incoming.lastProgress.bytes < 32 * 1024 * 1024 && now - incoming.lastProgress.at < 250) return
 		incoming.lastProgress = { bytes, at: now }
-		this.patchProgress(incoming, bytes, 'receiving')
-		this.host.sendControl({ ...this.host.controlBase('attachment-progress'), id: incoming.offer.attachment.id, messageId: incoming.offer.messageId, received: Math.min(bytes, total), chunkCount: Math.floor(Math.min(bytes, total) / NATIVE_FILE_IO_BLOCK_BYTES), storage: incoming.storage?.engine.kind || 'file' })
+		this.patchProgress(incoming, bytes)
 	}
 
-	private patchProgress(incoming: NativeIncoming, bytes: number, status: LanAttachment['status']) {
+	private patchProgress(incoming: NativeIncoming, bytes: number) {
 		const total = incoming.offer.attachment.size
-		this.host.patchAttachment(incoming.offer.attachment.id, incoming.offer.messageId, { status, phase: bytes >= total ? 'confirming' : 'transferring', progress: Math.min(1, bytes / total), transferredBytes: Math.min(bytes, total) })
+		this.host.patchAttachment(incoming.offer.attachment.id, incoming.offer.messageId, { status: 'receiving', phase: bytes >= total ? 'confirming' : 'transferring', progress: Math.min(1, bytes / total), transferredBytes: Math.min(bytes, total) })
 	}
 
 	private async failIncoming(incoming: NativeIncoming, error: unknown, notify = true) {
-		const reason = isUserCancel(error) ? '已取消下载' : error instanceof Error ? error.message : '极速文件接收失败'
+		const cancelled = isUserCancel(error)
+		const reason = cancelled ? '已取消下载' : error instanceof Error ? error.message : '极速文件接收失败'
 		incoming.abort?.abort()
 		if (incoming.transferId) await this.host.context()?.localPort?.cancelTransfer(incoming.transferId).catch(() => {})
 		if (incoming.storage) await incoming.storage.engine.cleanup(incoming.storage.meta.id).catch(() => {})
 		const id = incoming.offer.attachment.id
 		this.incoming.delete(id)
-		this.host.patchAttachment(id, incoming.offer.messageId, { status: isUserCancel(error) ? 'cancelled' : 'failed', error: reason, phase: undefined })
-		this.host.patchFile(id, { status: isUserCancel(error) ? 'cancelled' : 'failed' })
+		this.host.patchAttachment(id, incoming.offer.messageId, { status: cancelled ? 'cancelled' : 'failed', error: reason, phase: undefined })
+		this.host.patchFile(id, { status: cancelled ? 'cancelled' : 'failed' })
 		if (notify) this.host.sendControl({ ...this.host.controlBase('attachment-cancel'), id, messageId: incoming.offer.messageId, reason })
 		this.host.status(reason)
 	}
@@ -410,7 +384,7 @@ export class LanNativeFileRuntime {
 		outgoing.abort?.abort()
 		const port = this.host.context()?.localPort
 		if (outgoing.transferId) void port?.cancelTransfer(outgoing.transferId).catch(() => {})
-		else if (outgoing.sourceId) void port?.releaseSource(outgoing.sourceId).catch(() => {})
+		else if (outgoing.source === 'agent') void port?.releaseSource(outgoing.sourceId).catch(() => {})
 		this.host.patchAttachment(outgoing.manifest.id, outgoing.messageId, { status: 'failed', error: reason, phase: undefined })
 		this.host.patchFile(outgoing.manifest.id, { status: 'failed' })
 		if (notify) this.host.sendControl({ ...this.host.controlBase('attachment-cancel'), id: outgoing.manifest.id, messageId: outgoing.messageId, reason })
@@ -420,7 +394,6 @@ export class LanNativeFileRuntime {
 
 	private removeOutgoing(id: string) {
 		this.outgoing.delete(id)
-		this.outgoingOrder = this.outgoingOrder.filter(candidate => candidate !== id)
 		if (this.activeOutgoingId === id) this.activeOutgoingId = ''
 		this.flushNextOffer()
 	}
@@ -433,7 +406,6 @@ export class LanNativeFileRuntime {
 			createdAt,
 			source: 'browser',
 			file,
-			offered: false,
 		}
 	}
 
@@ -444,7 +416,6 @@ export class LanNativeFileRuntime {
 			createdAt,
 			source: 'agent',
 			sourceId: file.sourceId,
-			offered: false,
 		}
 	}
 }
@@ -457,8 +428,16 @@ function attachmentFromManifest(manifest: LanAttachmentManifest, direction: 'in'
 	return { ...manifest, direction, storage: manifest.suggestedStorage, status, progress: 0 }
 }
 
-function validateGrant(grant: LanNativeTransferGrant, manifest: LanAttachmentManifest, direction: LanNativeTransferGrant['direction'], ownerDeviceId: string) {
-	if (grant.attachmentId !== manifest.id || grant.totalBytes !== manifest.size || grant.direction !== direction || grant.ownerDeviceId !== ownerDeviceId || grant.dataPlane !== manifest.dataPlane) throw new Error('极速文件授权与附件不匹配')
+function validateGrant(grant: LanNativeTransferGrant, manifest: LanAttachmentManifest, ownerDeviceId: string) {
+	const dataPlane = grant.authorization.kind === 'lna-http' ? 'native-lna-http' : 'native-webtransport'
+	if (grant.attachmentId !== manifest.id || grant.ownerDeviceId !== ownerDeviceId || dataPlane !== manifest.dataPlane) throw new Error('极速文件授权与附件不匹配')
+}
+
+async function selectNativeDataPlane(fileHttpEndpoints: string[], webTransport: boolean): Promise<Exclude<LanBulkDataPlane, 'webrtc'>> {
+	const lna = await selectLocalNetworkAccessFileEndpoint(fileHttpEndpoints)
+	if (lna.state === 'available') return 'native-lna-http'
+	if (lna.state === 'unsupported' && webTransport) return 'native-webtransport'
+	throw new Error(lna.state === 'denied' ? '你已拒绝本地网络访问权限，无法使用极速模式' : '当前浏览器不支持极速文件通道')
 }
 
 function isUserCancel(error: unknown) {

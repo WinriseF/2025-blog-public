@@ -253,7 +253,6 @@ export type LanNativeTransferRequest = {
 	seq: number
 	createdAt: number
 	dataPlane: Exclude<LanBulkDataPlane, 'webrtc'>
-	storage: LanStorageKind
 }
 
 export type LanNativeTransferReady = {

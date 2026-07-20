@@ -1,45 +1,46 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
-import { nativeAgentBenchmarkSessionCount } from './types'
+import { NATIVE_AGENT_SESSION_COUNT } from './types'
 import { validLanFileHttpEndpoint, validLanHttpBaseEndpoint } from './endpoint-validation'
 
 const HTTP_REQUEST_BYTES = 30 * 1024 * 1024
 const PAYLOAD_BLOCK_BYTES = 4 * 1024 * 1024
 const REQUEST_TIMEOUT_MS = 120_000
-const REQUEST_SETTLEMENT_GRACE_MS = 5_000
 
 export type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'available'; endpoint: string }
 type PermissionNameWithLna = PermissionName | 'local-network-access'
 
 export async function selectLocalNetworkAccessEndpoint(endpoints: string[]): Promise<LocalNetworkAccessDecision> {
-	const initialPermission = await queryLocalNetworkAccessPermission()
-	if (initialPermission === 'unsupported') return { state: 'unsupported' }
-	if (initialPermission === 'denied') return { state: 'denied' }
-	if (endpoints.length === 0) throw new Error('加速电脑版本过旧，不支持 HTTP/TCP 极速通道，请重新打包 Agent')
-	if (endpoints.some(endpoint => !validLanHttpBaseEndpoint(endpoint))) throw new Error('加速电脑发布了无效的 HTTP/TCP 局域网地址')
-
-	for (const endpoint of endpoints) {
-		try {
-			const response = await fetch(endpointUrl(endpoint, 'probe'), {
-				method: 'GET',
-				mode: 'cors',
-				credentials: 'omit',
-				cache: 'no-store',
-				referrerPolicy: 'no-referrer'
-			})
-			if (response.status === 204) return { state: 'available', endpoint }
-		} catch {}
-	}
-	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
-	if (permissionAfterProbe === 'denied') return { state: 'denied' }
-	throw new Error('本地网络权限可用，但无法连接加速电脑的 HTTP/TCP 端口，请检查 Agent 版本和防火墙')
+	return selectLocalNetworkEndpoint(
+		endpoints,
+		validLanHttpBaseEndpoint,
+		'加速电脑版本过旧，不支持 HTTP/TCP 极速通道，请重新打包 Agent',
+		'加速电脑发布了无效的 HTTP/TCP 局域网地址',
+		'本地网络权限可用，但无法连接加速电脑的 HTTP/TCP 端口，请检查 Agent 版本和防火墙'
+	)
 }
 
 export async function selectLocalNetworkAccessFileEndpoint(endpoints: string[]): Promise<LocalNetworkAccessDecision> {
+	return selectLocalNetworkEndpoint(
+		endpoints,
+		validLanFileHttpEndpoint,
+		'加速电脑版本过旧，不支持正式文件极速通道',
+		'加速电脑发布了无效的文件极速通道地址',
+		'本地网络权限可用，但无法连接加速电脑的正式文件端口，请检查 Agent 和防火墙'
+	)
+}
+
+async function selectLocalNetworkEndpoint(
+	endpoints: string[],
+	validate: (endpoint: string) => boolean,
+	emptyMessage: string,
+	invalidMessage: string,
+	unreachableMessage: string
+): Promise<LocalNetworkAccessDecision> {
 	const initialPermission = await queryLocalNetworkAccessPermission()
 	if (initialPermission === 'unsupported') return { state: 'unsupported' }
 	if (initialPermission === 'denied') return { state: 'denied' }
-	if (endpoints.length === 0) throw new Error('加速电脑版本过旧，不支持正式文件极速通道')
-	if (endpoints.some(endpoint => !validLanFileHttpEndpoint(endpoint))) throw new Error('加速电脑发布了无效的文件极速通道地址')
+	if (!endpoints.length) throw new Error(emptyMessage)
+	if (endpoints.some(endpoint => !validate(endpoint))) throw new Error(invalidMessage)
 	for (const endpoint of endpoints) {
 		try {
 			const response = await fetch(endpointUrl(endpoint, 'probe'), { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' })
@@ -48,11 +49,11 @@ export async function selectLocalNetworkAccessFileEndpoint(endpoints: string[]):
 	}
 	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
 	if (permissionAfterProbe === 'denied') return { state: 'denied' }
-	throw new Error('本地网络权限可用，但无法连接加速电脑的正式文件端口，请检查 Agent 和防火墙')
+	throw new Error(unreachableMessage)
 }
 
 export function nativeAgentLnaTicketCount(totalBytes: number) {
-	return createWorkerRequestSizes(totalBytes, 6).reduce((count, requests) => count + requests.length, 0)
+	return createWorkerRequestSizes(totalBytes, NATIVE_AGENT_SESSION_COUNT).reduce((count, requests) => count + requests.length, 0)
 }
 
 export async function runLanNativeHttpBenchmark(options: {
@@ -62,8 +63,7 @@ export async function runLanNativeHttpBenchmark(options: {
 	totalBytes: number
 	onProgress?: (progress: LanNativeBenchmarkProgress) => void
 }): Promise<LanNativeBenchmarkResult> {
-	if (!Number.isSafeInteger(options.totalBytes) || options.totalBytes <= 0) throw new Error('测速大小无效')
-	const sessionCount = nativeAgentBenchmarkSessionCount(options.direction)
+	const sessionCount = NATIVE_AGENT_SESSION_COUNT
 	const workerRequests = createWorkerRequestSizes(options.totalBytes, sessionCount)
 	const requiredTickets = workerRequests.reduce((count, requests) => count + requests.length, 0)
 	if (options.tickets.length !== requiredTickets) throw new Error('HTTP/TCP 极速通道凭据数量不完整')
@@ -156,17 +156,19 @@ function uploadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTi
 		xhr.responseType = 'json'
 		xhr.timeout = REQUEST_TIMEOUT_MS
 		xhr.setRequestHeader('X-WinriseF-Ticket', ticket.token)
-		const settlement = settleXmlHttpRequest(xhr, resolve, reject, 'HTTP/TCP 上传')
 		xhr.upload.onprogress = event => onProgress(Math.min(bytes, event.loaded))
+		xhr.onerror = () => reject(new Error('HTTP/TCP 上传连接失败，请检查防火墙和本地网络权限'))
+		xhr.ontimeout = () => reject(new Error('HTTP/TCP 上传超时'))
+		xhr.onabort = () => reject(new Error('HTTP/TCP 上传被浏览器中止'))
 		xhr.onload = () => {
 			try {
 				const response = xhr.response as { bytes?: unknown } | null
-				if (xhr.status !== 200) return settlement.fail(httpStatusError(xhr.status, response))
-				if (response?.bytes !== bytes) return settlement.fail(new Error('Agent 报告的 HTTP/TCP 上传字节数不一致'))
+				if (xhr.status !== 200) return reject(httpStatusError(xhr.status, response))
+				if (response?.bytes !== bytes) return reject(new Error('Agent 报告的 HTTP/TCP 上传字节数不一致'))
 				onProgress(bytes)
-				settlement.succeed()
+				resolve()
 			} catch (error) {
-				settlement.fail(error instanceof Error ? error : new Error('无法解析 Agent 的 HTTP/TCP 上传结果'))
+				reject(error instanceof Error ? error : new Error('无法解析 Agent 的 HTTP/TCP 上传结果'))
 			}
 		}
 		xhr.send(createPayloadBlob(bytes))
@@ -182,47 +184,23 @@ function downloadRequest(endpoint: string, bytes: number, ticket: LanNativeAgent
 		xhr.responseType = 'arraybuffer'
 		xhr.timeout = REQUEST_TIMEOUT_MS
 		xhr.setRequestHeader('X-WinriseF-Ticket', ticket.token)
-		const settlement = settleXmlHttpRequest(xhr, resolve, reject, 'HTTP/TCP 下载')
 		xhr.onprogress = event => onProgress(Math.min(bytes, event.loaded))
+		xhr.onerror = () => reject(new Error('HTTP/TCP 下载连接失败，请检查防火墙和本地网络权限'))
+		xhr.ontimeout = () => reject(new Error('HTTP/TCP 下载超时'))
+		xhr.onabort = () => reject(new Error('HTTP/TCP 下载被浏览器中止'))
 		xhr.onload = () => {
 			try {
-				if (xhr.status !== 200) return settlement.fail(httpStatusError(xhr.status))
+				if (xhr.status !== 200) return reject(httpStatusError(xhr.status))
 				if (!(xhr.response instanceof ArrayBuffer) || xhr.response.byteLength !== bytes)
-					return settlement.fail(new Error('Agent 返回的 HTTP/TCP 下载字节数不一致'))
+					return reject(new Error('Agent 返回的 HTTP/TCP 下载字节数不一致'))
 				onProgress(bytes)
-				settlement.succeed()
+				resolve()
 			} catch (error) {
-				settlement.fail(error instanceof Error ? error : new Error('无法解析 Agent 的 HTTP/TCP 下载结果'))
+				reject(error instanceof Error ? error : new Error('无法解析 Agent 的 HTTP/TCP 下载结果'))
 			}
 		}
 		xhr.send()
 	})
-}
-
-function settleXmlHttpRequest(xhr: XMLHttpRequest, resolve: () => void, reject: (reason: Error) => void, label: string) {
-	let settled = false
-	const watchdog = window.setTimeout(() => {
-		if (settled) return
-		fail(new Error(`${label}已传输数据，但浏览器迟迟没有返回最终结果`))
-		xhr.abort()
-	}, REQUEST_TIMEOUT_MS + REQUEST_SETTLEMENT_GRACE_MS)
-	const finish = (callback: () => void) => {
-		if (settled) return false
-		settled = true
-		window.clearTimeout(watchdog)
-		callback()
-		return true
-	}
-	const succeed = () => finish(resolve)
-	const fail = (error: Error) => finish(() => reject(error))
-
-	xhr.onerror = () => fail(new Error(`${label}连接失败，请检查防火墙和本地网络权限`))
-	xhr.ontimeout = () => fail(new Error(`${label}超时`))
-	xhr.onabort = () => fail(new Error(`${label}被浏览器中止，请保持页面在前台后重试`))
-	xhr.onloadend = () => {
-		if (!settled) fail(new Error(`${label}连接已经结束，但浏览器没有返回可用结果`))
-	}
-	return { succeed, fail }
 }
 
 let payloadBlock: Blob | null = null

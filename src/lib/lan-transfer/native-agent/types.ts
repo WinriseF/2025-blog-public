@@ -5,12 +5,7 @@ export const NATIVE_AGENT_FILE_VERSION = 1
 
 export type LanNativeBenchmarkDirection = 'browser-to-agent' | 'agent-to-browser'
 
-export const NATIVE_AGENT_BROWSER_TO_AGENT_SESSIONS = 6
-export const NATIVE_AGENT_AGENT_TO_BROWSER_SESSIONS = 6
-
-export function nativeAgentBenchmarkSessionCount(direction: LanNativeBenchmarkDirection) {
-	return direction === 'browser-to-agent' ? NATIVE_AGENT_BROWSER_TO_AGENT_SESSIONS : NATIVE_AGENT_AGENT_TO_BROWSER_SESSIONS
-}
+export const NATIVE_AGENT_SESSION_COUNT = 6
 
 export type LanNativeAgentAdvertisement = {
 	bridgeVersion: typeof NATIVE_AGENT_BRIDGE_VERSION
@@ -58,16 +53,9 @@ export type LanNativeTransferAuthorization =
 	| { kind: 'web-transport'; tokens: string[] }
 
 export type LanNativeTransferGrant = {
-	fileTransferVersion: typeof NATIVE_AGENT_FILE_VERSION
 	transferId: string
 	attachmentId: string
 	ownerDeviceId: string
-	direction: LanNativeFileDirection
-	dataPlane: LanNativeFileDataPlane
-	totalBytes: number
-	segmentBytes: number
-	parallelism: number
-	expiresAt: number
 	authorization: LanNativeTransferAuthorization
 	fileHttpEndpoints: string[]
 	fileWebTransportEndpoints: string[]
@@ -75,10 +63,9 @@ export type LanNativeTransferGrant = {
 }
 
 export type LanNativeTransferEvent =
-	| { type: 'transfer-started'; transferId: string; attachmentId: string; totalBytes: number }
-	| { type: 'transfer-progress'; transferId: string; attachmentId: string; bytes: number; totalBytes: number }
-	| { type: 'transfer-confirming'; transferId: string; attachmentId: string; bytes: number; totalBytes: number }
-	| { type: 'transfer-complete'; transferId: string; attachmentId: string; bytes: number; totalBytes: number }
+	| { type: 'transfer-progress'; transferId: string; attachmentId: string; bytes: number }
+	| { type: 'transfer-confirming'; transferId: string; attachmentId: string; bytes: number }
+	| { type: 'transfer-complete'; transferId: string; attachmentId: string }
 	| { type: 'transfer-failed'; transferId: string; attachmentId: string; error: string }
 	| { type: 'transfer-cancelled'; transferId: string; attachmentId: string }
 

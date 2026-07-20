@@ -1,5 +1,5 @@
 import type { LanNativePeerBulkPort } from './ports'
-import type { LanNativeTransferGrant } from './types'
+import type { LanNativeFileDirection, LanNativeTransferGrant } from './types'
 import { NATIVE_AGENT_FILE_VERSION } from './types'
 import { selectLocalNetworkAccessFileEndpoint } from './peer-lna-http'
 import { NativeFileStorageWriter, NATIVE_FILE_IO_BLOCK_BYTES } from './native-storage-writer'
@@ -28,14 +28,12 @@ type FileWtConnection = {
 
 export class LanNativePeerBulkAdapter implements LanNativePeerBulkPort {
 	async download(options: DownloadOptions) {
-		validateGrant(options.grant, 'agent-to-browser')
-		if (options.grant.dataPlane === 'native-lna-http') return downloadLna(options)
+		if (options.grant.authorization.kind === 'lna-http') return downloadLna(options)
 		return downloadWebTransport(options)
 	}
 
 	async upload(options: UploadOptions) {
-		validateGrant(options.grant, 'browser-to-agent')
-		if (options.grant.dataPlane === 'native-lna-http') return uploadLna(options)
+		if (options.grant.authorization.kind === 'lna-http') return uploadLna(options)
 		return uploadWebTransport(options)
 	}
 }
@@ -43,14 +41,15 @@ export class LanNativePeerBulkAdapter implements LanNativePeerBulkPort {
 async function downloadLna(options: DownloadOptions) {
 	const grant = options.grant
 	if (grant.authorization.kind !== 'lna-http') throw new Error('极速 TCP 文件授权不完整')
+	const token = grant.authorization.token
 	const decision = await selectLocalNetworkAccessFileEndpoint(grant.fileHttpEndpoints)
 	if (decision.state !== 'available') throw new Error(decision.state === 'denied' ? '本地网络访问权限已被拒绝' : '浏览器不支持本地网络访问')
-	const segments = fileSegments(grant.totalBytes, LNA_SEGMENT_BYTES)
+	const segments = fileSegments(options.meta.size)
 	const progress = progressReporter(segments.length, options.onProgress)
 	const writer = new NativeFileStorageWriter(options.storage, options.meta)
 	await runLnaDownloadRounds(segments, segment =>
-		xhrDownload(decision.endpoint, grant, segment, options.signal, bytes => progress(segment.index, bytes)).then(async response => {
-			await writer.writeResponse(segment.offset, response)
+		xhrDownload(decision.endpoint, grant.transferId, token, segment, options.signal, bytes => progress(segment.index, bytes)).then(async response => {
+			await writer.write(segment.offset, response)
 			progress(segment.index, segment.bytes)
 		})
 	)
@@ -60,14 +59,15 @@ async function downloadLna(options: DownloadOptions) {
 async function uploadLna(options: UploadOptions) {
 	const grant = options.grant
 	if (grant.authorization.kind !== 'lna-http') throw new Error('极速 TCP 文件授权不完整')
+	const token = grant.authorization.token
 	const decision = await selectLocalNetworkAccessFileEndpoint(grant.fileHttpEndpoints)
 	if (decision.state !== 'available') throw new Error(decision.state === 'denied' ? '本地网络访问权限已被拒绝' : '浏览器不支持本地网络访问')
-	const segments = fileSegments(grant.totalBytes, LNA_SEGMENT_BYTES)
+	const segments = fileSegments(options.file.size)
 	const progress = progressReporter(segments.length, options.onProgress)
 	await Promise.all(Array.from({ length: LNA_WORKERS }, (_, worker) => runLnaWorker(segments.filter(segment => segment.index % LNA_WORKERS === worker), segment =>
-		xhrUpload(decision.endpoint, grant, options.file, segment, options.signal, bytes => progress(segment.index, bytes)).then(() => progress(segment.index, segment.bytes))
+		xhrUpload(decision.endpoint, grant.transferId, token, options.file, segment, options.signal, bytes => progress(segment.index, bytes)).then(() => progress(segment.index, segment.bytes))
 	)))
-	await completeLnaUpload(decision.endpoint, grant, options.signal)
+	await completeLnaUpload(decision.endpoint, grant.transferId, token, options.signal)
 }
 
 async function runLnaWorker(segments: FileSegment[], run: (segment: FileSegment) => Promise<void>) {
@@ -82,21 +82,21 @@ async function runLnaDownloadRounds(segments: FileSegment[], run: (segment: File
 
 type FileSegment = { index: number; offset: number; bytes: number }
 
-function fileSegments(total: number, segmentBytes: number) {
+function fileSegments(total: number) {
 	const segments: FileSegment[] = []
-	for (let offset = 0, index = 0; offset < total; offset += segmentBytes, index += 1) segments.push({ index, offset, bytes: Math.min(segmentBytes, total - offset) })
+	for (let offset = 0, index = 0; offset < total; offset += LNA_SEGMENT_BYTES, index += 1) segments.push({ index, offset, bytes: Math.min(LNA_SEGMENT_BYTES, total - offset) })
 	return segments
 }
 
-function xhrDownload(endpoint: string, grant: LanNativeTransferGrant, segment: FileSegment, signal: AbortSignal, onProgress: (bytes: number) => void) {
+function xhrDownload(endpoint: string, transferId: string, token: string, segment: FileSegment, signal: AbortSignal, onProgress: (bytes: number) => void) {
 	return new Promise<ArrayBuffer>((resolve, reject) => {
-		const url = segmentUrl(endpoint, grant.transferId, segment.offset, segment.bytes)
+		const url = segmentUrl(endpoint, transferId, segment.offset, segment.bytes)
 		const xhr = new XMLHttpRequest()
 		xhr.open('GET', url)
 		if (signal.aborted) return reject(new Error('极速文件传输已取消'))
 		xhr.responseType = 'arraybuffer'
 		xhr.timeout = REQUEST_TIMEOUT_MS
-		xhr.setRequestHeader('X-WinriseF-Transfer-Token', lnaToken(grant))
+		xhr.setRequestHeader('X-WinriseF-Transfer-Token', token)
 		const cleanup = bindXhrAbort(xhr, signal, reject)
 		xhr.onprogress = event => onProgress(Math.min(segment.bytes, event.loaded))
 		xhr.onerror = () => { cleanup(); reject(new Error('极速 TCP 文件下载连接失败')) }
@@ -111,14 +111,14 @@ function xhrDownload(endpoint: string, grant: LanNativeTransferGrant, segment: F
 	})
 }
 
-function xhrUpload(endpoint: string, grant: LanNativeTransferGrant, file: File, segment: FileSegment, signal: AbortSignal, onProgress: (bytes: number) => void) {
+function xhrUpload(endpoint: string, transferId: string, token: string, file: File, segment: FileSegment, signal: AbortSignal, onProgress: (bytes: number) => void) {
 	return new Promise<void>((resolve, reject) => {
 		const xhr = new XMLHttpRequest()
-		xhr.open('POST', segmentUrl(endpoint, grant.transferId, segment.offset))
+		xhr.open('POST', segmentUrl(endpoint, transferId, segment.offset))
 		if (signal.aborted) return reject(new Error('极速文件传输已取消'))
 		xhr.responseType = 'json'
 		xhr.timeout = REQUEST_TIMEOUT_MS
-		xhr.setRequestHeader('X-WinriseF-Transfer-Token', lnaToken(grant))
+		xhr.setRequestHeader('X-WinriseF-Transfer-Token', token)
 		const cleanup = bindXhrAbort(xhr, signal, reject)
 		xhr.upload.onprogress = event => onProgress(Math.min(segment.bytes, event.loaded))
 		xhr.onerror = () => { cleanup(); reject(new Error('极速 TCP 文件上传连接失败')) }
@@ -132,15 +132,16 @@ function xhrUpload(endpoint: string, grant: LanNativeTransferGrant, file: File, 
 	})
 }
 
-async function completeLnaUpload(endpoint: string, grant: LanNativeTransferGrant, signal: AbortSignal) {
+async function completeLnaUpload(endpoint: string, transferId: string, token: string, signal: AbortSignal) {
 	const url = new URL(endpoint)
-	url.pathname = `${url.pathname}/transfers/${grant.transferId}/complete`
-	const response = await fetch(url, { method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store', signal, headers: { 'X-WinriseF-Transfer-Token': lnaToken(grant) } })
+	url.pathname = `${url.pathname}/transfers/${transferId}/complete`
+	const response = await fetch(url, { method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store', signal, headers: { 'X-WinriseF-Transfer-Token': token } })
 	if (response.status !== 204) throw new Error(`Agent 无法完成极速 TCP 文件（${response.status}）`)
 }
 
 async function downloadWebTransport(options: DownloadOptions) {
-	const connections = await openWtConnections(options)
+	const totalBytes = options.meta.size
+	const connections = await openWtConnections(options, 'agent-to-browser', totalBytes)
 	const abort = () => connections.forEach(connection => connection.transport.close({ closeCode: 1, reason: 'cancelled' }))
 	options.signal.addEventListener('abort', abort, { once: true })
 	const writer = new NativeFileStorageWriter(options.storage, options.meta)
@@ -158,8 +159,8 @@ async function downloadWebTransport(options: DownloadOptions) {
 					const laneIndex = new DataView(laneHeader.buffer, laneHeader.byteOffset, laneHeader.byteLength).getUint16(0)
 					if (seenLanes.has(laneIndex)) throw new Error('极速 QUIC 文件 lane 重复')
 					seenLanes.add(laneIndex)
-					await receiveWtLane(reader, connection.index, laneIndex, options.grant.totalBytes, async (offset, bytes) => {
-						await writer.writeBlock(offset, bytes)
+					await receiveWtLane(reader, connection.index, laneIndex, totalBytes, async (offset, bytes) => {
+						await writer.write(offset, bytes)
 						transferred += bytes.byteLength
 						options.onProgress(transferred)
 					})
@@ -177,7 +178,8 @@ async function downloadWebTransport(options: DownloadOptions) {
 }
 
 async function uploadWebTransport(options: UploadOptions) {
-	const connections = await openWtConnections(options)
+	const totalBytes = options.file.size
+	const connections = await openWtConnections(options, 'browser-to-agent', totalBytes)
 	const abort = () => connections.forEach(connection => connection.transport.close({ closeCode: 1, reason: 'cancelled' }))
 	options.signal.addEventListener('abort', abort, { once: true })
 	let transferred = 0
@@ -187,7 +189,7 @@ async function uploadWebTransport(options: UploadOptions) {
 				const stream = await connection.transport.createUnidirectionalStream()
 				const writer = stream.getWriter()
 				await writer.write(u16Bytes(laneIndex))
-				for (const segment of assignedWtExtents(options.grant.totalBytes, connection.index, laneIndex)) {
+				for (const segment of assignedWtExtents(totalBytes, connection.index, laneIndex)) {
 					await writer.write(extentHeader(segment.offset, segment.bytes))
 					for (let blockOffset = 0; blockOffset < segment.bytes; blockOffset += NATIVE_FILE_IO_BLOCK_BYTES) {
 						const bytes = Math.min(NATIVE_FILE_IO_BLOCK_BYTES, segment.bytes - blockOffset)
@@ -211,7 +213,7 @@ async function uploadWebTransport(options: UploadOptions) {
 	}
 }
 
-async function openWtConnections(options: NativeFileOptions) {
+async function openWtConnections(options: NativeFileOptions, direction: LanNativeFileDirection, totalBytes: number) {
 	const grant = options.grant
 	if (grant.authorization.kind !== 'web-transport' || grant.authorization.tokens.length !== WT_CONNECTIONS) throw new Error('极速 QUIC 文件授权不完整')
 	const endpoint = grant.fileWebTransportEndpoints[0]
@@ -230,12 +232,12 @@ async function openWtConnections(options: NativeFileOptions) {
 				transferId: grant.transferId,
 				token,
 				connectionIndex: index,
-				direction: grant.direction,
+				direction,
 				peerDeviceId: options.peerDeviceId,
 				lanes: WT_LANES,
 				blockBytes: NATIVE_FILE_IO_BLOCK_BYTES,
 				extentBytes: WT_EXTENT_BYTES,
-				totalBytes: grant.totalBytes,
+				totalBytes,
 			})
 			const ack = await readControl(controlReader) as { type?: string; accepted?: boolean; error?: string; connectionIndex?: number }
 			if (ack.type !== 'hello-ack' || !ack.accepted || ack.connectionIndex !== index) throw new Error(ack.error || 'Agent 拒绝了极速 QUIC 文件连接')
@@ -255,7 +257,7 @@ async function openWtConnections(options: NativeFileOptions) {
 }
 
 async function receiveWtLane(reader: ExactStreamReader, connectionIndex: number, laneIndex: number, totalBytes: number, write: (offset: number, bytes: Uint8Array) => Promise<void>) {
-	if (laneIndex < 0 || laneIndex >= WT_LANES) throw new Error('极速 QUIC lane 编号无效')
+	if (laneIndex >= WT_LANES) throw new Error('极速 QUIC lane 编号无效')
 	const expected = assignedWtExtents(totalBytes, connectionIndex, laneIndex)
 	for (const segment of expected) {
 		const header = await reader.readExact(16)
@@ -333,11 +335,6 @@ function segmentUrl(endpoint: string, transferId: string, offset: number, bytes?
 	return url.toString()
 }
 
-function lnaToken(grant: LanNativeTransferGrant) {
-	if (grant.authorization.kind !== 'lna-http') throw new Error('极速 TCP 文件凭据无效')
-	return grant.authorization.token
-}
-
 function progressReporter(segmentCount: number, onProgress: (bytes: number) => void) {
 	const current = new Array<number>(segmentCount).fill(0)
 	let total = 0
@@ -365,11 +362,4 @@ function httpFileError(xhr: XMLHttpRequest) {
 		message = parsed.error?.message || ''
 	} catch {}
 	return new Error(message || `Agent 拒绝了极速文件请求（${xhr.status || '网络错误'}）`)
-}
-
-function validateGrant(grant: LanNativeTransferGrant, direction: LanNativeTransferGrant['direction']) {
-	if (grant.fileTransferVersion !== NATIVE_AGENT_FILE_VERSION || grant.direction !== direction || grant.expiresAt <= Date.now()) throw new Error('极速文件授权无效或已过期')
-	if (!Number.isSafeInteger(grant.totalBytes) || grant.totalBytes <= 0 || grant.parallelism !== 6) throw new Error('极速文件参数无效')
-	if (grant.dataPlane === 'native-lna-http' && grant.segmentBytes !== LNA_SEGMENT_BYTES) throw new Error('极速 TCP segment 参数不兼容')
-	if (grant.dataPlane === 'native-webtransport' && grant.segmentBytes !== WT_EXTENT_BYTES) throw new Error('极速 QUIC extent 参数不兼容')
 }

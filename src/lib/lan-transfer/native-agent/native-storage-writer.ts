@@ -14,13 +14,8 @@ export class NativeFileStorageWriter {
 		private readonly meta: TransferFileMeta
 	) {}
 
-	writeResponse(offset: number, response: ArrayBuffer) {
-		const run = this.queue.then(() => this.writeBytes(offset, new Uint8Array(response)))
-		this.queue = run.then(() => undefined)
-		return run
-	}
-
-	writeBlock(offset: number, bytes: Uint8Array) {
+	write(offset: number, value: ArrayBuffer | Uint8Array) {
+		const bytes = value instanceof Uint8Array ? value : new Uint8Array(value)
 		const run = this.queue.then(() => this.writeBytes(offset, bytes))
 		this.queue = run.then(() => undefined)
 		return run
@@ -29,7 +24,7 @@ export class NativeFileStorageWriter {
 	async finish() {
 		await this.queue
 		if (this.partial.size) throw new Error('极速文件接收覆盖不完整')
-		const manifest = this.manifest || await this.storage.getManifest(this.meta.id)
+		const manifest = this.manifest
 		if (!manifest || manifest.receivedBytes !== this.meta.size || manifest.receivedChunks !== this.meta.chunkCount) throw new Error('极速文件接收不完整')
 		return manifest
 	}
