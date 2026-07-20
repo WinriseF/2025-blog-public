@@ -1,13 +1,13 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
 import { nativeAgentBenchmarkSessionCount } from './types'
-import { validLanHttpBaseEndpoint } from './endpoint-validation'
+import { validLanFileHttpEndpoint, validLanHttpBaseEndpoint } from './endpoint-validation'
 
 const HTTP_REQUEST_BYTES = 30 * 1024 * 1024
 const PAYLOAD_BLOCK_BYTES = 4 * 1024 * 1024
 const REQUEST_TIMEOUT_MS = 120_000
 const REQUEST_SETTLEMENT_GRACE_MS = 5_000
 
-type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'available'; endpoint: string }
+export type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'available'; endpoint: string }
 type PermissionNameWithLna = PermissionName | 'local-network-access'
 
 export async function selectLocalNetworkAccessEndpoint(endpoints: string[]): Promise<LocalNetworkAccessDecision> {
@@ -32,6 +32,23 @@ export async function selectLocalNetworkAccessEndpoint(endpoints: string[]): Pro
 	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
 	if (permissionAfterProbe === 'denied') return { state: 'denied' }
 	throw new Error('本地网络权限可用，但无法连接加速电脑的 HTTP/TCP 端口，请检查 Agent 版本和防火墙')
+}
+
+export async function selectLocalNetworkAccessFileEndpoint(endpoints: string[]): Promise<LocalNetworkAccessDecision> {
+	const initialPermission = await queryLocalNetworkAccessPermission()
+	if (initialPermission === 'unsupported') return { state: 'unsupported' }
+	if (initialPermission === 'denied') return { state: 'denied' }
+	if (endpoints.length === 0) throw new Error('加速电脑版本过旧，不支持正式文件极速通道')
+	if (endpoints.some(endpoint => !validLanFileHttpEndpoint(endpoint))) throw new Error('加速电脑发布了无效的文件极速通道地址')
+	for (const endpoint of endpoints) {
+		try {
+			const response = await fetch(endpointUrl(endpoint, 'probe'), { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' })
+			if (response.status === 204) return { state: 'available', endpoint }
+		} catch {}
+	}
+	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
+	if (permissionAfterProbe === 'denied') return { state: 'denied' }
+	throw new Error('本地网络权限可用，但无法连接加速电脑的正式文件端口，请检查 Agent 和防火墙')
 }
 
 export function nativeAgentLnaTicketCount(totalBytes: number) {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { detectLanNativeAgentCapability, type LanNativeAgentCapability } from '@/lib/lan-transfer/native-agent/capability'
 import { createLanAgentLaunchRequest, launchLanNativeAgent, subscribeLanAgentCallbacks } from '@/lib/lan-transfer/native-agent/launch-client'
 import { LanNativeLocalBridge } from '@/lib/lan-transfer/native-agent/local-bridge'
+import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 import { nativeAgentLnaTicketCount, runLanNativeHttpBenchmark, selectLocalNetworkAccessEndpoint } from '@/lib/lan-transfer/native-agent/peer-lna-http'
 import { runLanNativeBenchmark } from '@/lib/lan-transfer/native-agent/peer-webtransport'
 import {
@@ -11,6 +12,7 @@ import {
 	NATIVE_AGENT_BENCHMARK_VERSION,
 	NATIVE_AGENT_BRIDGE_VERSION,
 	NATIVE_AGENT_LNA_HTTP_VERSION,
+	NATIVE_AGENT_FILE_VERSION,
 	type LanNativeAgentAdvertisement,
 	type LanNativeAgentCallback,
 	type LanNativeAgentTicket,
@@ -42,6 +44,7 @@ export type LanNativeSpeedModeState = LanNativeAgentCapability & {
 	reconnect: () => void
 	issuePeerTicket: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
 	runBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number, requestTicket: () => Promise<LanNativeAgentTicket>) => Promise<void>
+	localAgentPort: LanNativeLocalAgentPort | null
 }
 
 export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanNativeAgentAdvertisement | null = null): LanNativeSpeedModeState {
@@ -166,6 +169,9 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			ownerDeviceId,
 			endpoints: callback.benchmarkEndpoints,
 			lnaHttpEndpoints: callback.lnaHttpEndpoints,
+			fileVersion: NATIVE_AGENT_FILE_VERSION,
+			fileHttpEndpoints: callback.fileHttpEndpoints,
+			fileWebTransportEndpoints: callback.fileWebTransportEndpoints,
 			certificateSha256: callback.certificateSha256
 		}
 	}, [agentState, callback, ownerDeviceId])
@@ -252,6 +258,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		setEnabled,
 		reconnect: launch,
 		issuePeerTicket,
-		runBenchmark
+		runBenchmark,
+		localAgentPort: bridgeRef.current
 	}
 }

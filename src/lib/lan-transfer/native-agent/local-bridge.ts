@@ -1,15 +1,35 @@
-import type { LanNativeAgentCallback, LanNativeAgentTicket } from './types'
-import { NATIVE_AGENT_BENCHMARK_VERSION, NATIVE_AGENT_BRIDGE_VERSION, NATIVE_AGENT_LNA_HTTP_VERSION } from './types'
-import { bytesHex, createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTimeout, type WebTransportLike } from './webtransport'
+import type { LanNativeLocalAgentPort } from './ports'
+import type {
+	LanNativeAgentCallback,
+	LanNativeAgentTicket,
+	LanNativeFileDataPlane,
+	LanNativeSelectedFile,
+	LanNativeTransferEvent,
+	LanNativeTransferGrant,
+} from './types'
+import {
+	NATIVE_AGENT_BENCHMARK_VERSION,
+	NATIVE_AGENT_BRIDGE_VERSION,
+	NATIVE_AGENT_FILE_VERSION,
+	NATIVE_AGENT_LNA_HTTP_VERSION,
+} from './types'
+import { createPinnedWebTransport, ExactStreamReader, withTimeout, type WebTransportLike } from './webtransport'
 
-const HELLO_MAGIC = new TextEncoder().encode('WRNFBH01')
-const ACK_MAGIC = new TextEncoder().encode('WRNFBA01')
-const TICKET_REQUEST_MAGIC = new TextEncoder().encode('WRNFTR01')
-const TICKET_RESPONSE_MAGIC = new TextEncoder().encode('WRNFTS01')
+const MAX_BRIDGE_FRAME_BYTES = 64 * 1024
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
-export class LanNativeLocalBridge {
+type BridgeResponse = { type: 'response'; requestId: number; ok: boolean; result?: unknown; error?: string }
+type BridgeHelloAck = { type: 'hello-ack'; version: number; accepted: boolean; error?: string }
+
+export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 	private requestId = 0
-	private requestQueue = Promise.resolve()
+	private writeQueue = Promise.resolve()
+	private closed = false
+	private pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>()
+	private listeners = new Set<(event: LanNativeTransferEvent) => void>()
+	private transferQueue = Promise.resolve()
+	private transferReleases = new Map<string, () => void>()
 
 	private constructor(
 		private readonly transport: WebTransportLike,
@@ -24,61 +44,191 @@ export class LanNativeLocalBridge {
 		const control = await transport.createBidirectionalStream()
 		const writer = control.writable.getWriter()
 		const reader = new ExactStreamReader(control.readable)
-		const hello = new Uint8Array(32)
-		hello.set(HELLO_MAGIC)
-		new DataView(hello.buffer).setUint16(8, NATIVE_AGENT_BRIDGE_VERSION)
-		hello.set(hexBytes(callback.launchToken, 16, '启动凭据'), 16)
-		await writer.write(hello)
-		const ack = await reader.readExact(16)
-		assertMagic(ack, ACK_MAGIC, 'Bridge 应答')
-		const view = new DataView(ack.buffer, ack.byteOffset, ack.byteLength)
-		if (view.getUint16(8) !== NATIVE_AGENT_BRIDGE_VERSION) throw new Error('本机加速组件版本不兼容')
-		if (ack[10] !== 0) throw new Error('本机加速组件拒绝了启动凭据，请重新开启极速模式')
-		return new LanNativeLocalBridge(transport, writer, reader, callback)
+		await writeJsonFrame(writer, { type: 'hello', version: NATIVE_AGENT_BRIDGE_VERSION, launchToken: callback.launchToken })
+		const ack = await readJsonFrame(reader) as BridgeHelloAck
+		if (ack.type !== 'hello-ack' || ack.version !== NATIVE_AGENT_BRIDGE_VERSION) throw new Error('本机加速组件版本不兼容')
+		if (!ack.accepted) throw new Error(ack.error || '本机加速组件拒绝了启动凭据，请重新开启极速模式')
+		const bridge = new LanNativeLocalBridge(transport, writer, reader, callback)
+		void bridge.readLoop()
+		return bridge
 	}
 
-	issueTicket(ownerDeviceId: string): Promise<LanNativeAgentTicket> {
-		const run = this.requestQueue.then(async (): Promise<LanNativeAgentTicket> => {
-			const requestId = (this.requestId = (this.requestId + 1) >>> 0)
-			const request = new Uint8Array(16)
-			request.set(TICKET_REQUEST_MAGIC)
-			const view = new DataView(request.buffer)
-			view.setUint16(8, NATIVE_AGENT_BRIDGE_VERSION)
-			view.setUint32(12, requestId)
-			await this.writer.write(request)
-			const response = await this.reader.readExact(40)
-			assertMagic(response, TICKET_RESPONSE_MAGIC, 'Ticket 应答')
-			const responseView = new DataView(response.buffer, response.byteOffset, response.byteLength)
-			if (responseView.getUint16(8) !== NATIVE_AGENT_BRIDGE_VERSION || responseView.getUint32(12) !== requestId) throw new Error('Ticket 应答与请求不匹配')
-			if (response[10] !== 0) throw new Error('本机加速组件暂时无法签发测试凭据')
-			const expiresAt = readU64(responseView, 32)
-			if (expiresAt <= Date.now()) throw new Error('测试凭据已过期')
-			return {
-				bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION,
-				benchmarkVersion: NATIVE_AGENT_BENCHMARK_VERSION,
-				ownerDeviceId,
-				endpoints: this.callback.benchmarkEndpoints,
-				lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
-				lnaHttpEndpoints: this.callback.lnaHttpEndpoints,
-				certificateSha256: this.callback.certificateSha256,
-				token: bytesHex(response.subarray(16, 32)),
-				expiresAt
-			}
-		})
-		this.requestQueue = run.then(
-			() => undefined,
-			() => undefined
-		)
-		return run
+	async issueTicket(ownerDeviceId: string): Promise<LanNativeAgentTicket> {
+		const result = await this.request<{ token: string; expiresAt: number }>('issue-benchmark-ticket')
+		if (!/^[0-9a-f]{32}$/i.test(result.token) || result.expiresAt <= Date.now()) throw new Error('本机组件返回了无效的测试凭据')
+		return {
+			bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION,
+			benchmarkVersion: NATIVE_AGENT_BENCHMARK_VERSION,
+			ownerDeviceId,
+			endpoints: this.callback.benchmarkEndpoints,
+			lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
+			lnaHttpEndpoints: this.callback.lnaHttpEndpoints,
+			fileVersion: NATIVE_AGENT_FILE_VERSION,
+			fileHttpEndpoints: this.callback.fileHttpEndpoints,
+			fileWebTransportEndpoints: this.callback.fileWebTransportEndpoints,
+			certificateSha256: this.callback.certificateSha256,
+			token: result.token,
+			expiresAt: result.expiresAt,
+		}
+	}
+
+	selectFiles() {
+		return this.request<LanNativeSelectedFile[]>('select-files')
+	}
+
+	async createSendTransfer(options: { sourceId: string; attachmentId: string; ownerDeviceId: string; peerDeviceId: string; dataPlane: LanNativeFileDataPlane }) {
+		const grant = await this.createSerializedTransfer(() => this.request<Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'>>('create-send-transfer', options))
+		return this.decorateGrant(grant)
+	}
+
+	async prepareReceiveTransfer(options: { attachmentId: string; ownerDeviceId: string; peerDeviceId: string; name: string; totalBytes: number; dataPlane: LanNativeFileDataPlane }) {
+		const grant = await this.createSerializedTransfer(() => this.request<Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'> | null>('prepare-receive-transfer', options))
+		return grant ? this.decorateGrant(grant) : null
+	}
+
+	async cancelTransfer(transferId: string) {
+		try {
+			await this.request('cancel-transfer', { transferId })
+		} finally {
+			this.releaseTransfer(transferId)
+		}
+	}
+
+	async finishSendTransfer(transferId: string) {
+		try {
+			await this.request('finish-send-transfer', { transferId })
+		} finally {
+			this.releaseTransfer(transferId)
+		}
+	}
+
+	async releaseSource(sourceId: string) {
+		await this.request('release-source', { sourceId })
+	}
+
+	subscribe(listener: (event: LanNativeTransferEvent) => void) {
+		this.listeners.add(listener)
+		return () => this.listeners.delete(listener)
 	}
 
 	close() {
+		if (this.closed) return
+		this.closed = true
+		const error = new Error('本机加速组件连接已关闭')
+		this.pending.forEach(pending => pending.reject(error))
+		this.pending.clear()
+		this.listeners.clear()
+		this.transferReleases.forEach(release => release())
+		this.transferReleases.clear()
 		void this.writer.close().catch(() => {})
 		this.reader.release()
 		this.transport.close({ closeCode: 0, reason: 'speed mode disabled' })
 	}
+
+	private decorateGrant(grant: Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'>): LanNativeTransferGrant {
+		return {
+			...grant,
+			fileHttpEndpoints: this.callback.fileHttpEndpoints,
+			fileWebTransportEndpoints: this.callback.fileWebTransportEndpoints,
+			certificateSha256: this.callback.certificateSha256,
+		}
+	}
+
+	private request<T = unknown>(type: string, body: Record<string, unknown> = {}) {
+		if (this.closed) return Promise.reject(new Error('本机加速组件连接已关闭'))
+		const requestId = (this.requestId = (this.requestId + 1) >>> 0)
+		const result = new Promise<T>((resolve, reject) => {
+			this.pending.set(requestId, { resolve: value => resolve(value as T), reject })
+		})
+		this.writeQueue = this.writeQueue.then(() => writeJsonFrame(this.writer, { type, requestId, ...body }))
+		this.writeQueue.catch(error => {
+			const pending = this.pending.get(requestId)
+			if (!pending) return
+			this.pending.delete(requestId)
+			pending.reject(error instanceof Error ? error : new Error('无法向本机组件发送命令'))
+		})
+		return result
+	}
+
+	private async createSerializedTransfer<T extends { transferId: string } | null>(create: () => Promise<T>) {
+		const previous = this.transferQueue
+		let release!: () => void
+		this.transferQueue = new Promise<void>(resolve => { release = resolve })
+		await previous
+		try {
+			const grant = await create()
+			if (grant) this.transferReleases.set(grant.transferId, release)
+			else release()
+			return grant
+		} catch (error) {
+			release()
+			throw error
+		}
+	}
+
+	private releaseTransfer(transferId: string) {
+		const release = this.transferReleases.get(transferId)
+		if (!release) return
+		this.transferReleases.delete(transferId)
+		release()
+	}
+
+	private async readLoop() {
+		try {
+			while (!this.closed) {
+				const frame = await readJsonFrame(this.reader)
+				if (isBridgeResponse(frame)) {
+					const pending = this.pending.get(frame.requestId)
+					if (!pending) continue
+					this.pending.delete(frame.requestId)
+					if (frame.ok) pending.resolve(frame.result)
+					else pending.reject(new Error(frame.error || '本机组件命令执行失败'))
+					continue
+				}
+				if (isTransferEvent(frame)) {
+					if (frame.type === 'transfer-complete' || frame.type === 'transfer-failed' || frame.type === 'transfer-cancelled') this.releaseTransfer(frame.transferId)
+					this.listeners.forEach(listener => listener(frame))
+				}
+			}
+		} catch (error) {
+			if (!this.closed) {
+				this.closed = true
+				const reason = error instanceof Error ? error : new Error('本机组件控制连接中断')
+				this.pending.forEach(pending => pending.reject(reason))
+				this.pending.clear()
+				this.transferReleases.forEach(release => release())
+				this.transferReleases.clear()
+				this.listeners.clear()
+				this.transport.close({ closeCode: 1, reason: 'bridge control failed' })
+			}
+		}
+	}
 }
 
-function assertMagic(actual: Uint8Array, expected: Uint8Array, label: string) {
-	if (expected.some((byte, index) => actual[index] !== byte)) throw new Error(`${label}格式错误`)
+async function writeJsonFrame(writer: WritableStreamDefaultWriter<Uint8Array>, value: unknown) {
+	const body = encoder.encode(JSON.stringify(value))
+	if (!body.byteLength || body.byteLength > MAX_BRIDGE_FRAME_BYTES) throw new Error('本机组件命令过大')
+	const frame = new Uint8Array(body.byteLength + 4)
+	new DataView(frame.buffer).setUint32(0, body.byteLength)
+	frame.set(body, 4)
+	await writer.write(frame)
+}
+
+async function readJsonFrame(reader: ExactStreamReader): Promise<unknown> {
+	const prefix = await reader.readExact(4)
+	const length = new DataView(prefix.buffer, prefix.byteOffset, 4).getUint32(0)
+	if (!length || length > MAX_BRIDGE_FRAME_BYTES) throw new Error('本机组件返回了无效控制帧')
+	return JSON.parse(decoder.decode(await reader.readExact(length)))
+}
+
+function isBridgeResponse(value: unknown): value is BridgeResponse {
+	if (!value || typeof value !== 'object') return false
+	const response = value as Partial<BridgeResponse>
+	return response.type === 'response' && Number.isSafeInteger(response.requestId) && typeof response.ok === 'boolean'
+}
+
+function isTransferEvent(value: unknown): value is LanNativeTransferEvent {
+	if (!value || typeof value !== 'object') return false
+	const type = (value as { type?: unknown }).type
+	return type === 'transfer-started' || type === 'transfer-progress' || type === 'transfer-confirming' || type === 'transfer-complete' || type === 'transfer-failed' || type === 'transfer-cancelled'
 }

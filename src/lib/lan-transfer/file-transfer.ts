@@ -76,6 +76,7 @@ export function prepareLanAttachment(file: File, options: PrepareLanAttachmentOp
 		chunkSize,
 		chunkCount: Math.ceil(file.size / chunkSize),
 		suggestedStorage,
+		dataPlane: 'webrtc',
 		file,
 	} satisfies PreparedLanAttachment
 }

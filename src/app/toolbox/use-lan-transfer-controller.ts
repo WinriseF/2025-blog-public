@@ -11,6 +11,7 @@ import { ReconnectCoordinator } from '@/lib/lan-transfer/reconnect-coordinator'
 import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
 import { LAN_PROTOCOL_VERSION, type LanAttachmentKind, type LanCapability, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
 import type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
+import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 
 type LanTransferControllerOptions = { initialInvite?: { roomId: string; token: string } | null; onLeaveSession?: () => void }
 
@@ -29,6 +30,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const localCapabilityRef = useRef<LanCapability | null>(null)
 	const handledInviteRef = useRef<typeof initialInvite>(null)
 	const nativeTicketIssuerRef = useRef<((peerDeviceId: string) => Promise<LanNativeAgentTicket>) | null>(null)
+	const nativeLocalAgentPortRef = useRef<LanNativeLocalAgentPort | null>(null)
 
 	useEffect(() => void (sessionRef.current = session), [session])
 	useEffect(() => void (localCapabilityRef.current = localCapability), [localCapability])
@@ -48,6 +50,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			const issuer = nativeTicketIssuerRef.current
 			return issuer ? issuer(peerDeviceId) : Promise.reject(new Error('本机加速组件未连接'))
 		},
+		getNativeLocalAgentPort: () => nativeLocalAgentPortRef.current,
 	})
 	const engineRef = useRef(engine)
 	useEffect(() => void (engineRef.current = engine), [engine])
@@ -250,6 +253,10 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		nativeTicketIssuerRef.current = issuer
 	}, [])
 
+	const setNativeLocalAgentPort = useCallback((port: LanNativeLocalAgentPort | null) => {
+		nativeLocalAgentPortRef.current = port
+	}, [])
+
 	useEffect(() => () => {
 		void stopSignaling()
 		coordinatorRef.current.forEach(coordinator => coordinator.close())
@@ -272,11 +279,13 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		selectConnection: engine.selectConnection,
 		sendText: engine.sendText,
 		sendFiles: (files: File[], kind?: LanAttachmentKind) => engine.sendFiles(files, kind),
+		selectNativeFiles: engine.selectNativeFiles,
 		startReceivingAttachment: engine.startReceivingAttachment,
 		stopRecordingAndSend,
 		copyInvite,
 		setNativeAgentAdvertisement,
 		setNativeTicketIssuer,
+		setNativeLocalAgentPort,
 		requestNativeAgentTicket: engine.requestNativeAgentTicket,
 		closeConnection,
 		leaveSession,

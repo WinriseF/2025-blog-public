@@ -353,6 +353,7 @@ function ChatPane({
 					recorderState={controller.recorder.state}
 					onSendText={controller.sendText}
 					onSendFiles={(files, mode) => void controller.sendFiles(files, mode === 'image' ? 'image' : undefined)}
+					onSelectNativeFiles={controller.localCapability?.nativeAgent ? () => void controller.selectNativeFiles() : undefined}
 					onRecordStart={() => void controller.recorder.start().catch(error => alert(error instanceof Error ? error.message : '无法录音'))}
 					onRecordStop={() => void controller.stopRecordingAndSend()}
 				/>
@@ -481,6 +482,11 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 	}, [controller.setNativeTicketIssuer, speedMode.issuePeerTicket])
 
 	useEffect(() => {
+		controller.setNativeLocalAgentPort(speedMode.localAgentPort)
+		return () => controller.setNativeLocalAgentPort(null)
+	}, [controller.setNativeLocalAgentPort, speedMode.localAgentPort])
+
+	useEffect(() => {
 		controller.setNativeAgentAdvertisement(speedMode.localAdvertisement)
 	}, [controller.localCapability, controller.setNativeAgentAdvertisement, speedMode.localAdvertisement])
 
@@ -507,7 +513,7 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 
 	const app = (
 		<div
-			className='lan-session-v10 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
+			className='lan-session-v11 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
 			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
 		>
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>

@@ -6,6 +6,14 @@ export function validLanHttpBaseEndpoint(value: string) {
 	return validLanEndpoint(value, 'http:', '/winrisef/lna/v1')
 }
 
+export function validLanFileHttpEndpoint(value: string) {
+	return validLanEndpoint(value, 'http:', '/winrisef/file/v1')
+}
+
+export function validLanFileWebTransportEndpoint(value: string) {
+	return validLanEndpoint(value, 'https:', '/winrisef/file/v1')
+}
+
 function validLanEndpoint(value: string, protocol: 'http:' | 'https:', pathname: string) {
 	try {
 		const url = new URL(value)

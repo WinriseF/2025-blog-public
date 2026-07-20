@@ -1,7 +1,7 @@
-import type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from './native-agent/types'
-export type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from './native-agent/types'
+import type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
+export type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 
-export const LAN_PROTOCOL_VERSION = 10
+export const LAN_PROTOCOL_VERSION = 11
 export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
 export const LAN_CHUNK_TIERS = [
@@ -52,6 +52,7 @@ export type LanMessageKind = 'text' | 'attachments' | 'system'
 export type LanMessageStatus = 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'received'
 export type LanAttachmentKind = 'image' | 'voice' | 'file'
 export type LanAttachmentStatus = 'queued' | 'offered' | 'receiving' | 'sending' | 'complete' | 'failed' | 'cancelled'
+export type LanBulkDataPlane = 'webrtc' | 'native-lna-http' | 'native-webtransport'
 
 export type LanPeer = {
 	instanceId: string
@@ -168,6 +169,7 @@ export type LanAttachmentManifest = {
 	chunkSize: number
 	chunkCount: number
 	suggestedStorage: LanStorageKind
+	dataPlane: LanBulkDataPlane
 }
 
 export type LanAttachment = LanAttachmentManifest & {
@@ -238,6 +240,31 @@ export type LanAttachmentOffer = {
 	peerId: string
 	seq: number
 	attachment: LanAttachmentManifest
+	nativeSource?: 'agent' | 'browser'
+	agentOwnerDeviceId?: string
+}
+
+export type LanNativeTransferRequest = {
+	type: 'native-transfer-request'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	id: string
+	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
+	dataPlane: Exclude<LanBulkDataPlane, 'webrtc'>
+	storage: LanStorageKind
+}
+
+export type LanNativeTransferReady = {
+	type: 'native-transfer-ready'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	id: string
+	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
+	grant: LanNativeTransferGrant
 }
 
 export type LanAttachmentAccept = {
@@ -355,6 +382,8 @@ export type LanControlMessage =
 	| LanChatMessageControl
 	| LanChatReceipt
 	| LanAttachmentOffer
+	| LanNativeTransferRequest
+	| LanNativeTransferReady
 	| LanAttachmentAccept
 	| LanAttachmentProgress
 	| LanAttachmentComplete

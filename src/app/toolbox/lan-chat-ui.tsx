@@ -64,6 +64,8 @@ function formatTransferProgress(attachment: LanAttachment, compact = false) {
 
 function formatTransferMeta(attachment: LanAttachment) {
 	const parts = [`${formatBytes(transferBytes(attachment))} / ${formatBytes(attachment.size)}`]
+	if (attachment.dataPlane === 'native-lna-http') parts.unshift('极速 TCP')
+	if (attachment.dataPlane === 'native-webtransport') parts.unshift('极速 QUIC')
 	if (attachment.phase === 'confirming') parts.unshift('等待对方保存确认')
 	const speed = formatTransferSpeed(attachment.speedBps)
 	if (speed) parts.push(speed)
@@ -277,11 +279,12 @@ export function MessageList({ messages, peerName, peerAvatarSeed, peerDeviceType
 	))}</>
 }
 
-export function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onRecordStart, onRecordStop }: {
+export function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onSelectNativeFiles, onRecordStart, onRecordStop }: {
 	connected: boolean
 	recorderState: string
 	onSendText: (text: string) => void
 	onSendFiles: (files: File[], mode?: AttachmentAction) => void
+	onSelectNativeFiles?: () => void
 	onRecordStart: () => void
 	onRecordStop: () => void
 }) {
@@ -314,7 +317,7 @@ export function ChatComposer({ connected, recorderState, onSendText, onSendFiles
 			<input ref={fileInputRef} type='file' multiple className='hidden' onChange={event => handleFiles(event, 'file')} />
 			<input ref={imageInputRef} type='file' multiple accept='image/*' className='hidden' onChange={event => handleFiles(event, 'image')} />
 			<div className='flex items-center gap-2'>
-				<button onClick={() => fileInputRef.current?.click()} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'><Paperclip size={19} /></button>
+				<button onClick={() => onSelectNativeFiles ? onSelectNativeFiles() : fileInputRef.current?.click()} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'><Paperclip size={19} /></button>
 				<button onClick={() => imageInputRef.current?.click()} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'><ImageIcon size={19} /></button>
 				<button onClick={recorderState === 'recording' ? onRecordStop : onRecordStart} className={cn('flex size-9 shrink-0 items-center justify-center rounded-full border transition', recorderState === 'recording' ? 'border-red-500 bg-red-500 text-white' : 'border-border bg-background/40 text-secondary hover:border-brand/45 hover:text-primary')}><Mic size={18} /></button>
 				<input value={text} onPaste={handlePaste} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submitText() } }} placeholder={connected ? '输入消息' : '连接后可发送'} className='min-w-0 flex-1 bg-transparent px-2 text-sm text-primary placeholder:text-secondary' />

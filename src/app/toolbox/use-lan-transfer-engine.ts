@@ -7,6 +7,8 @@ import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
 import type { LanConnectionRoute, LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
 import type { LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
+import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
+import { LanNativePeerBulkAdapter } from '@/lib/lan-transfer/native-agent/peer-native-file'
 
 type UseLanTransferEngineOptions = {
 	sessionRef: MutableRefObject<LanSession | null>
@@ -14,6 +16,7 @@ type UseLanTransferEngineOptions = {
 	setLocalCapability: (capability: LanCapability | null) => void
 	setStatus: (status: string) => void
 	issueNativeAgentTicket: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
+	getNativeLocalAgentPort: () => LanNativeLocalAgentPort | null
 }
 
 type ManagedConnection = {
@@ -107,6 +110,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const managedRef = useRef(new Map<string, ManagedConnection>())
 	const recordsRef = useRef<ConnectionStateRecord[]>([])
 	const activePeerIdRef = useRef<string | null>(null)
+	const nativePeerBulkRef = useRef(new LanNativePeerBulkAdapter())
 	const [records, dispatch] = useReducer(connectionReducer, [])
 	const [activePeerId, setActivePeerId] = useState<string | null>(null)
 
@@ -134,7 +138,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		const connectionId = connectionIdForPeer(peer)
 		let entry = managedRef.current.get(connectionId)
 		if (!entry) {
-			const runtime = new LanConnectionRuntime()
+			const runtime = new LanConnectionRuntime(nativePeerBulkRef.current)
 			const unsubscribe = runtime.subscribe(event => {
 				const current = managedRef.current.get(connectionId)
 				if (event.type === 'message-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-message', message: event.message } })
@@ -184,6 +188,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			localCapability: optionsRef.current.localCapabilityRef.current,
 			getHistory: () => recordsRef.current.find(item => item.peerId === connectionId)?.chat.messages || [],
 			issueNativeAgentTicket: optionsRef.current.issueNativeAgentTicket,
+			getNativeLocalAgentPort: optionsRef.current.getNativeLocalAgentPort,
 			remoteDeviceId: remotePeer.deviceId,
 		})
 		setActivePeerId(current => current || connectionId)
@@ -268,6 +273,12 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		await runtime.sendFiles(files, { kind: forcedKind, durationMs })
 	}, [getActiveRuntime])
 
+	const selectNativeFiles = useCallback(async () => {
+		const runtime = getActiveRuntime()
+		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
+		await runtime.selectNativeFiles()
+	}, [getActiveRuntime])
+
 	const startReceivingAttachment = useCallback((id: string) => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择设备')
@@ -302,6 +313,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,
+		selectNativeFiles,
 		startReceivingAttachment,
 		downloadAttachment: (name: string, url: string) => downloadUrl(name, url),
 	}

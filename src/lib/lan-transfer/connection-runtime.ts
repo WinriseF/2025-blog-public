@@ -8,6 +8,8 @@ import {
 	prepareLanAttachment,
 } from './file-transfer'
 import { LanAttachmentSendScheduler } from './attachment-send-scheduler'
+import { LanNativeFileRuntime } from './native-file-runtime'
+import type { LanNativeLocalAgentPort, LanNativePeerBulkPort } from './native-agent/ports'
 import type { LanConnectionTransport } from './transport-types'
 import { createStorageEngine, chooseStorageKind } from './storage/storage-manager'
 import type { TransferFileMeta, LanStorageEngine } from './storage/types'
@@ -43,6 +45,7 @@ type RuntimeContext = {
 	localCapability?: LanCapability | null
 	getHistory?: () => LanChatMessage[]
 	issueNativeAgentTicket?: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
+	getNativeLocalAgentPort?: () => LanNativeLocalAgentPort | null
 	remoteDeviceId: string
 }
 
@@ -191,6 +194,7 @@ export class LanConnectionRuntime {
 	private outgoingObjectUrls: string[] = []
 	private pendingNativeTickets = new Map<string, { resolve: (ticket: LanNativeAgentTicket) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
 	private destroyed = false
+	private native: LanNativeFileRuntime
 	private sender = new LanAttachmentSendScheduler({
 		createCompleteMessage: file => ({ ...this.controlBase('attachment-complete'), id: file.id, messageId: file.messageId, sent: file.size, chunkCount: file.chunkCount }),
 		onTaskStarted: file => {
@@ -208,13 +212,42 @@ export class LanConnectionRuntime {
 		onTransportStalled: reason => this.setStatus(reason),
 	})
 
+	constructor(nativePeerBulk: LanNativePeerBulkPort) {
+		this.native = new LanNativeFileRuntime({
+			context: () => this.context ? {
+				localDeviceId: this.context.session.localPeer.deviceId,
+				peerDeviceId: this.context.remoteDeviceId,
+				localCapability: this.context.localCapability || null,
+				remoteCapability: this.context.remoteCapability || null,
+				localPort: this.context.getNativeLocalAgentPort?.() || null,
+			} : null,
+			peerBulk: nativePeerBulk,
+			controlBase: (type, createdAt) => this.controlBase(type, createdAt),
+			sendControl: message => this.sendControl(message),
+			prepareStorage: async offer => {
+				const capability = this.context?.localCapability || await this.detectLocalCapability(offer.attachment.size)
+				assertCanReceiveFile(offer.attachment.size, capability)
+				const prepared = await this.prepareIncoming(offer, capability, true)
+				return { engine: prepared.engine, meta: prepared.meta }
+			},
+			createAttachment: (messageIdValue, createdAt, direction, attachment) => {
+				this.emit({ type: 'attachment-upsert', message: messageBase(messageIdValue, direction, createdAt, this.context?.session.instanceId), attachment })
+				this.emit({ type: 'file-record-upsert', record: fileRecord(messageIdValue, attachment, this.context?.remotePeerName) })
+			},
+			patchAttachment: (id, messageIdValue, patch) => this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, ...patch } }),
+			patchFile: (id, patch) => this.emit({ type: 'file-record-patch', id, patch }),
+			downloadReady: (name, url) => this.emit({ type: 'download-ready', name, url }),
+			status: message => this.setStatus(message),
+		})
+	}
+
 	subscribe(listener: RuntimeListener) {
 		this.listeners.add(listener)
 		return () => this.listeners.delete(listener)
 	}
 
 	hasActiveTransfer() {
-		return this.incoming.size > 0 || this.sender.hasPendingTransfer()
+		return this.incoming.size > 0 || this.sender.hasPendingTransfer() || this.native.hasActiveTransfer()
 	}
 
 	attachTransport(transport: LanConnectionTransport, context: RuntimeContext) {
@@ -223,6 +256,7 @@ export class LanConnectionRuntime {
 		this.transport = transport
 		this.context = context
 		this.sender.attach(transport, isMobileCapability(context.localCapability) || isMobileCapability(context.remoteCapability))
+		this.native.attach()
 		if (context.localCapability) this.emit({ type: 'local-capability', capability: context.localCapability })
 		if (context.remoteCapability) this.emit({ type: 'remote-capability', capability: context.remoteCapability })
 		this.resumeAfterConnect()
@@ -286,6 +320,7 @@ export class LanConnectionRuntime {
 			pending.reject(new Error('连接已关闭'))
 		})
 		this.pendingNativeTickets.clear()
+		this.native.reset()
 	}
 
 	handleFrame(data: unknown) {
@@ -356,6 +391,8 @@ export class LanConnectionRuntime {
 		if (!files.length) return
 		if (!context || !this.isOpen()) return this.setStatus('请先连接设备')
 		const remote = context.remoteCapability || null
+		const webFiles = options.kind === 'image' || options.kind === 'voice' ? files : await this.native.trySendBrowserFiles(files)
+		if (!webFiles.length) return
 		const transport = this.transport
 		const createdAt = Date.now()
 		const id = messageId()
@@ -363,7 +400,7 @@ export class LanConnectionRuntime {
 			if (!transport) throw new Error('请先连接设备')
 			const chunkSize = await transport.negotiateChunkSize(remote?.limits.recommendedChunkSize)
 			if (this.transport !== transport || !transport.isOpen()) throw new Error('连接已断开，请重新发送')
-			const prepared = files.map(file => prepareLanAttachment(file, {
+			const prepared = webFiles.map(file => prepareLanAttachment(file, {
 				messageId: id,
 				kind: options.kind,
 				chunkSize,
@@ -391,7 +428,12 @@ export class LanConnectionRuntime {
 	}
 
 	async acceptAttachment(id: string) {
+		if (await this.native.accept(id)) return
 		await this.receivePendingAttachment(id, false)
+	}
+
+	selectNativeFiles() {
+		return this.native.selectAgentFiles()
 	}
 
 	private async receivePendingAttachment(id: string, autoInlineMedia: boolean) {
@@ -551,6 +593,7 @@ export class LanConnectionRuntime {
 					chunkSize: entry.file.chunkSize,
 					chunkCount: entry.file.chunkCount,
 					suggestedStorage: entry.file.suggestedStorage,
+					dataPlane: entry.file.dataPlane,
 				},
 			})
 			if (offered) {
@@ -630,6 +673,7 @@ export class LanConnectionRuntime {
 
 	private async handleOffer(message: LanAttachmentOffer) {
 		if (this.destroyed) return
+		if (this.native.handleOffer(message)) return
 		const context = this.context
 		if (!context) return
 		let capability = context.localCapability || null
@@ -809,6 +853,8 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'attachment-offer') return void (await this.handleOffer(message))
+		if (message.type === 'native-transfer-request') return void (await this.native.handleRequest(message))
+		if (message.type === 'native-transfer-ready') return void (await this.native.handleReady(message))
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)
 			if (!entry || message.messageId !== entry.file.messageId) return
@@ -820,6 +866,7 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'attachment-progress') {
+			if (this.native.handleProgress(message.id, message.received)) return
 			const entry = this.prepared.get(message.id)
 			if (entry && message.messageId === entry.file.messageId) {
 				entry.acked = Math.max(entry.acked, message.received)
@@ -829,8 +876,12 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'attachment-complete') return void (await this.finishIncoming(message.id, message.messageId, message.sent, message.chunkCount))
-		if (message.type === 'attachment-received') return this.completeOutgoing(message)
+		if (message.type === 'attachment-received') {
+			if (await this.native.handleReceived(message.id, message.messageId, message.received, message.expected)) return
+			return this.completeOutgoing(message)
+		}
 		if (message.type === 'attachment-cancel') {
+			if (this.native.handleCancel(message.id, message.reason || '已取消')) return
 			this.failAttachment(message.id, message.messageId, message.reason || '已取消', false)
 			return
 		}
