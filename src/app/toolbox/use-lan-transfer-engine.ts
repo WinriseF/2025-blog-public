@@ -276,7 +276,11 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const selectNativeFiles = useCallback(async () => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
-		await runtime.selectNativeFiles()
+		try {
+			await runtime.selectNativeFiles()
+		} catch (error) {
+			optionsRef.current.setStatus(error instanceof Error ? error.message : '无法打开本机文件选择器')
+		}
 	}, [getActiveRuntime])
 
 	const startReceivingAttachment = useCallback((id: string) => {

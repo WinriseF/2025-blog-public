@@ -18,7 +18,6 @@ import type {
 } from './types'
 
 export const LAN_NATIVE_FILE_MIN_BYTES = 64 * 1024 * 1024
-export const LAN_NATIVE_FILE_ENABLED = process.env.NEXT_PUBLIC_LAN_NATIVE_FILE_V1 === 'true'
 
 type NativeContext = {
 	localDeviceId: string
@@ -107,7 +106,6 @@ export class LanNativeFileRuntime {
 	}
 
 	async trySendBrowserFiles(files: File[]) {
-		if (!LAN_NATIVE_FILE_ENABLED) return files
 		const context = this.host.context()
 		const advertisement = context?.remoteCapability?.nativeAgent
 		if (!context || !advertisement || advertisement.fileVersion !== 1) return files
@@ -139,7 +137,6 @@ export class LanNativeFileRuntime {
 	}
 
 	async selectAgentFiles() {
-		if (!LAN_NATIVE_FILE_ENABLED) throw new Error('正式极速文件功能尚未开启')
 		const context = this.host.context()
 		const port = context?.localPort
 		if (!context || !port) throw new Error('本机加速组件未连接')
