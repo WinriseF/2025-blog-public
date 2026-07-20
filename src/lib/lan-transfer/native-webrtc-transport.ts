@@ -1,4 +1,5 @@
 import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
+import { logLanConnection, shortConnectionId, summarizeIceCandidate } from './connection-diagnostics'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportHealthStats, LanTransportState } from './transport-types'
 
 const transportControlPrefix = '__winrisef_lan_v10__:'
@@ -103,9 +104,27 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	constructor(private readonly options: LanTransportCreateOptions) {
 		this.generation = options.generation
 		this.currentNegotiationId = options.negotiationId
-		this.pc.onicecandidate = event => options.onCandidate(event.candidate?.toJSON() || null)
-		this.pc.onconnectionstatechange = () => this.emitConnectionState()
-		this.pc.oniceconnectionstatechange = () => this.emitConnectionState()
+		this.log('transport-created')
+		this.pc.onicecandidate = event => {
+			const candidate = event.candidate?.toJSON() || null
+			if (candidate) this.log('local-candidate', summarizeIceCandidate(candidate))
+			else this.log('candidate-gathering-complete')
+			options.onCandidate(candidate)
+		}
+		this.pc.onicecandidateerror = event => {
+			const error = event as Event & { url?: string; errorCode?: number; errorText?: string }
+			this.log('candidate-gathering-error', { url: error.url || 'unknown', errorCode: error.errorCode, errorText: error.errorText }, 'warn')
+		}
+		this.pc.onicegatheringstatechange = () => this.log('ice-gathering-state', { state: this.pc.iceGatheringState })
+		this.pc.onsignalingstatechange = () => this.log('signaling-state', { state: this.pc.signalingState })
+		this.pc.onconnectionstatechange = () => {
+			this.log('peer-connection-state', this.connectionStates())
+			this.emitConnectionState()
+		}
+		this.pc.oniceconnectionstatechange = () => {
+			this.log('ice-connection-state', this.connectionStates())
+			this.emitConnectionState()
+		}
 		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v10', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
@@ -160,11 +179,15 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	}
 
 	async start() {
-		if (this.options.role === 'host') await this.createOffer(false)
+		if (this.options.role === 'host') {
+			this.log('start-offer')
+			await this.createOffer(false)
+		}
 	}
 
 	setNegotiationId(negotiationId: string) {
 		if (this.currentNegotiationId === negotiationId) return
+		this.log('negotiation-changed', { nextNegotiation: shortConnectionId(negotiationId) })
 		this.currentNegotiationId = negotiationId
 		this.pendingCandidates = []
 		this.remoteDescriptionNegotiationId = ''
@@ -173,24 +196,29 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	async restartIce(negotiationId: string) {
 		if (this.options.role !== 'host' || this.closed) return
 		this.setNegotiationId(negotiationId)
+		this.log('ice-restart-requested')
 		this.pc.restartIce()
 		await this.createOffer(false)
 	}
 
 	async acceptDescription(description: RTCSessionDescriptionInit) {
 		if (this.closed) return
+		this.log('remote-description-received', { type: description.type })
 		await this.pc.setRemoteDescription(description)
 		this.remoteDescriptionNegotiationId = this.currentNegotiationId
 		await this.flushCandidates()
 		if (description.type !== 'offer') return
 		const answer = await this.pc.createAnswer()
 		await this.pc.setLocalDescription(answer)
+		this.log('local-description-created', { type: answer.type })
 		if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON())
 	}
 
 	async addRemoteCandidate(candidate: RTCIceCandidateInit | null) {
 		if (this.closed || !candidate) return
-		if (!this.pc.remoteDescription || this.remoteDescriptionNegotiationId !== this.currentNegotiationId) {
+		const queued = !this.pc.remoteDescription || this.remoteDescriptionNegotiationId !== this.currentNegotiationId
+		this.log('remote-candidate-received', { ...summarizeIceCandidate(candidate), queued })
+		if (queued) {
 			this.pendingCandidates.push(candidate)
 			return
 		}
@@ -214,11 +242,14 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	async inspectRoute(): Promise<LanConnectionRoute> {
 		const stats = await this.pc.getStats()
 		const pair = selectedCandidatePair(stats)
-		return pair ? routeFromPair(stats, pair) : { family: 'unknown', kind: 'unknown' }
+		const route = pair ? routeFromPair(stats, pair) : { family: 'unknown', kind: 'unknown' } as const
+		this.log('selected-route', route)
+		return route
 	}
 
 	close() {
 		if (this.closed) return
+		this.log('transport-closing', this.connectionStates())
 		this.closed = true
 		this.pendingProbes.forEach(probe => {
 			clearTimeout(probe.timer)
@@ -236,6 +267,9 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			channel.close()
 		}
 		this.pc.onicecandidate = null
+		this.pc.onicecandidateerror = null
+		this.pc.onicegatheringstatechange = null
+		this.pc.onsignalingstatechange = null
 		this.pc.onconnectionstatechange = null
 		this.pc.oniceconnectionstatechange = null
 		this.pc.ondatachannel = null
@@ -249,7 +283,11 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		try {
 			const offer = await this.pc.createOffer({ iceRestart })
 			await this.pc.setLocalDescription(offer)
+			this.log('local-description-created', { type: offer.type, iceRestart })
 			if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON())
+		} catch (error) {
+			this.log('offer-creation-failed', { error: error instanceof Error ? error.message : String(error) }, 'error')
+			throw error
 		} finally {
 			this.makingOffer = false
 		}
@@ -270,11 +308,16 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.chunkNegotiation = null
 		this.reportedChunkSize = null
 		channel.binaryType = 'arraybuffer'
-		channel.onopen = () => this.sendControl({ type: 'hello', generation: this.generation })
+		channel.onopen = () => {
+			this.log('data-channel-open')
+			this.sendControl({ type: 'hello', generation: this.generation })
+		}
 		channel.onclose = () => {
+			this.log('data-channel-closed', {}, 'warn')
 			if (!this.closed && this.channel === channel) this.emitState('channel-closed')
 		}
 		channel.onerror = () => {
+			this.log('data-channel-error', {}, 'warn')
 			if (!this.closed && this.channel === channel) this.emitState('channel-closed')
 		}
 		channel.onmessage = event => {
@@ -307,6 +350,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		if (message.type === 'hello') {
 			if (!this.ready) {
 				this.ready = true
+				this.log('peer-hello-received')
 				this.options.onReady()
 			}
 			return
@@ -383,6 +427,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		try {
 			await this.pc.addIceCandidate(candidate)
 		} catch (error) {
+			this.log('remote-candidate-rejected', { ...summarizeIceCandidate(candidate), error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 			if (error instanceof DOMException && error.name === 'OperationError') return
 			throw error
 		}
@@ -402,7 +447,28 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private emitState(state: LanTransportState) {
 		if (this.lastState === state) return
 		this.lastState = state
+		this.log('transport-state', { state })
 		this.options.onState(state)
+	}
+
+	private connectionStates() {
+		return {
+			connectionState: this.pc.connectionState,
+			iceConnectionState: this.pc.iceConnectionState,
+			iceGatheringState: this.pc.iceGatheringState,
+			signalingState: this.pc.signalingState,
+			dataChannelState: this.channel?.readyState || 'none',
+		}
+	}
+
+	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
+		logLanConnection('RTC', event, {
+			transport: shortConnectionId(this.id),
+			role: this.options.role,
+			generation: this.generation,
+			negotiation: shortConnectionId(this.currentNegotiationId),
+			...details,
+		}, level)
 	}
 
 	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {

@@ -67,12 +67,12 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		const current = sessionRef.current
 		if (!current || peer.deviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(peer.deviceId)) return null
 		if (current.role === peer.role || !rememberPeer(peer)) return null
-		engineRef.current.ensureConnection(peer, { connectionState: 'discovered', status: '找到设备，正在连接' })
 		const existing = coordinatorRef.current.get(peer.deviceId)
 		if (existing) {
 			existing.updatePeer(peer)
 			return existing
 		}
+		engineRef.current.ensureConnection(peer, { connectionState: 'discovered', status: '找到设备，正在连接' })
 		const coordinator = new ReconnectCoordinator({
 			role: current.role,
 			remotePeer: peer,

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { adjectives, uniqueNamesGenerator } from 'unique-names-generator'
+import { logLanConnection, shortConnectionId, summarizeIceCandidate } from './connection-diagnostics'
 import { LAN_PROTOCOL_VERSION, type LanDeviceType, type LanPeer, type LanPresencePayload, type LanRole, type LanSession, type LanSignalMessage, type LanSignalSendDetails, type LanSignalState, type LanSignalTarget, type LanSignalType } from './types'
 
 const pairTtlMs = 10 * 60 * 1000
@@ -162,6 +163,7 @@ export class LanSignalingClient {
 
 	private createChannel() {
 		if (this.closed) return
+		this.log('channel-creating')
 		this.onStatus?.('connecting')
 		const channel = getSupabase().channel(`lan-transfer:${this.session.roomId}`, {
 			config: { broadcast: { ack: true, self: false }, presence: { key: this.session.instanceId } }
@@ -172,6 +174,7 @@ export class LanSignalingClient {
 		channel.on('presence', { event: 'join' }, () => this.emitPresencePeers())
 		channel.subscribe((status, error) => {
 			if (this.closed || this.channel !== channel) return
+			this.log('channel-status', { status, error: error?.message }, status === 'SUBSCRIBED' ? 'info' : 'warn')
 			if (status === 'SUBSCRIBED') {
 				this.subscribed = true
 				this.onStatus?.('online')
@@ -187,6 +190,7 @@ export class LanSignalingClient {
 	}
 
 	private handleChannelLoss(status: string, error?: Error) {
+		this.log('channel-lost', { status, error: error?.message }, 'warn')
 		this.subscribed = false
 		this.onStatus?.(status === 'CLOSED' ? 'offline' : 'retrying')
 		if (!this.readySettled) {
@@ -201,6 +205,7 @@ export class LanSignalingClient {
 			const result = await channel.track(this.presencePayload())
 			if (result !== 'ok') throw new Error('连接服务恢复失败')
 			if (this.closed || this.channel !== channel) return
+			this.log('presence-ready')
 			this.restartAnnouncing()
 			this.emitPresencePeers()
 			this.flushPending()
@@ -250,6 +255,8 @@ export class LanSignalingClient {
 		if (payload.fromInstanceId === this.session.instanceId) return
 		if (payload.toDeviceId !== '*' && payload.toDeviceId !== this.session.localPeer.deviceId) return
 		if (payload.toInstanceId !== '*' && payload.toInstanceId !== this.session.instanceId) return
+		if (payload.type === 'candidate') this.log('candidate-received', summarizeIceCandidate(payload.candidate || null))
+		else if (payload.type !== 'announce' && payload.type !== 'signal-ack') this.log('signal-received', { type: payload.type, generation: payload.generation, negotiation: shortConnectionId(payload.negotiationId) })
 		if (payload.type === 'signal-ack') {
 			if (payload.ackFor) this.clearPending(payload.ackFor)
 			return
@@ -318,6 +325,8 @@ export class LanSignalingClient {
 
 	async sendSignal(type: LanSignalType, target: LanSignalTarget | null, details: LanSignalSendDetails = {}) {
 		if (this.closed) return
+		if (type === 'candidate') this.log('candidate-sending', summarizeIceCandidate(details.candidate || null))
+		else if (type !== 'announce' && type !== 'signal-ack') this.log('signal-sending', { type, generation: details.generation || 0, negotiation: shortConnectionId(details.negotiationId || '') })
 		this.prunePending()
 		const message = this.makeMessage(type, target, details)
 		const critical = criticalSignalTypes.has(type)
@@ -339,6 +348,7 @@ export class LanSignalingClient {
 		const channel = this.channel
 		if (!this.subscribed || !channel) return false
 		const result = await channel.send({ type: 'broadcast', event: 'lan', payload: message })
+		if (result !== 'ok' && message.type !== 'announce') this.log('signal-delivery-failed', { type: message.type, result }, 'warn')
 		return result === 'ok'
 	}
 
@@ -447,5 +457,13 @@ export class LanSignalingClient {
 			this.rejectReady(new Error('连接已关闭'))
 		}
 		this.onStatus?.('closed')
+	}
+
+	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
+		logLanConnection('SIGNAL', event, {
+			role: this.session.role,
+			instance: shortConnectionId(this.session.instanceId),
+			...details,
+		}, level)
 	}
 }

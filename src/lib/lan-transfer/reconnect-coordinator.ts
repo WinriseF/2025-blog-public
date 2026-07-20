@@ -1,4 +1,5 @@
 import { ConnectionHealthMonitor } from './connection-health-monitor'
+import { logLanConnection, shortConnectionId } from './connection-diagnostics'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportFactory, LanTransportState } from './transport-types'
 import type { LanConnectionState, LanPeer, LanRole, LanSignalMessage, LanSignalSendDetails, LanSignalTarget, LanSignalType } from './types'
 
@@ -65,6 +66,7 @@ export class ReconnectCoordinator {
 			},
 			onSuspect: (status, immediate) => this.enterSuspect(status, immediate),
 		})
+		this.log('coordinator-created')
 		this.setState('discovered', '找到设备，正在连接')
 	}
 
@@ -95,6 +97,7 @@ export class ReconnectCoordinator {
 	setSignalingOnline(online: boolean) {
 		if (this.closed) return
 		this.signalOnline = online
+		this.log('signaling-state', { online })
 		if (!online) return
 		const transport = this.transport
 		if (transport?.isOpen()) {
@@ -106,6 +109,7 @@ export class ReconnectCoordinator {
 
 	handleSignal(message: LanSignalMessage) {
 		if (this.closed || message.fromDeviceId !== this.peer.deviceId) return
+		if (message.type !== 'announce' && message.type !== 'candidate') this.log('signal-received', { type: message.type, generation: message.generation, negotiation: shortConnectionId(message.negotiationId) })
 		if (message.peer) this.updatePeerWithoutRecovery(message.peer)
 		if (message.fromInstanceId !== this.peer.instanceId) return
 		if (this.remoteClosedInstanceId === message.fromInstanceId && message.type !== 'peer-left') return
@@ -422,6 +426,7 @@ export class ReconnectCoordinator {
 
 	private handleAttemptFailure() {
 		if (this.closed) return
+		this.log('connection-attempt-failed', { state: this.state }, 'warn')
 		if (this.state === 'ice-restarting') {
 			this.hardRecoveryRequested = true
 			if (this.options.role === 'host') return void this.startRebuild('网络路径恢复失败')
@@ -441,6 +446,7 @@ export class ReconnectCoordinator {
 		if (!visible()) return
 		const delay = backoffDelays[Math.min(this.backoffIndex, backoffDelays.length - 1)]
 		this.backoffIndex += 1
+		this.log('retry-scheduled', { delayMs: delay, attempt: this.backoffIndex }, 'warn')
 		this.clearBackoff()
 		this.backoffTimer = setTimeout(() => {
 			this.backoffTimer = null
@@ -486,17 +492,34 @@ export class ReconnectCoordinator {
 	}
 
 	private setState(state: LanConnectionState, status: string, connected = false) {
+		const previous = this.state
 		this.state = state
+		this.log('connection-state', { previous, state, status, connected })
 		this.options.onState(this.peer, state, status, connected)
 	}
 
 	private armAttempt(timeoutMs: number, callback: () => void) {
 		this.clearAttempt()
+		this.log('attempt-timeout-armed', { timeoutMs, state: this.state })
 		this.attemptTimer = setTimeout(() => {
 			this.attemptTimer = null
-			if (visible()) callback()
+			if (visible()) {
+				this.log('attempt-timeout-fired', { timeoutMs, state: this.state }, 'warn')
+				callback()
+			}
 			else this.setState('backoff', '页面恢复后将继续连接')
 		}, timeoutMs)
+	}
+
+	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
+		logLanConnection('CONNECT', event, {
+			role: this.options.role,
+			peer: shortConnectionId(this.peer.deviceId),
+			instance: shortConnectionId(this.peer.instanceId),
+			generation: this.generation,
+			negotiation: shortConnectionId(this.negotiationId),
+			...details,
+		}, level)
 	}
 
 	private clearAttempt() {
