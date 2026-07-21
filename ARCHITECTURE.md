@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-07-20.
+Last updated: 2026-07-21.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -102,7 +102,7 @@ Main route groups and pages:
 - `/calendar`, `/world-clock`, `/music`, `/game`, `/svgs`: utility or experimental pages.
 - `/toolbox`: toolbox directory page with links to `/toolbox/compress`, `/toolbox/markdown`, `/toolbox/face-mask`, `/toolbox/password`, and `/t`.
 - `/toolbox/compress`: image compression tool.
-- `/toolbox/markdown`: local Markdown preview tool.
+- `/toolbox/markdown`: local Markdown preview tool with a desktop expanded preview mode and independent preview reading progress.
 - `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
 - `/toolbox/password`: browser-only random password, passphrase, and PIN generator.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
@@ -334,7 +334,7 @@ Frontend:
 - `src/lib/transfer-crypto.ts`
 - `src/lib/transfer-relay.ts`
 
-Toolbox UI uses short `motion/react` entry, upload-state, and button-press feedback with reduced-motion opt-outs. Transfer progress and connection state keep their existing lightweight CSS transitions to avoid animation work on high-frequency events.
+Toolbox UI uses short `motion/react` entry, upload-state, and button-press feedback with reduced-motion opt-outs. Markdown preview can hide the editor and fill the toolbox card on desktop; its embedded progress bar tracks and scrubs only the preview scroll area. Transfer progress and connection state keep their existing lightweight CSS transitions to avoid animation work on high-frequency events.
 
 Backend:
 
