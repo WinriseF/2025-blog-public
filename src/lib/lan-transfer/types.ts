@@ -1,7 +1,7 @@
 import type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 export type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 
-export const LAN_PROTOCOL_VERSION = 11
+export const LAN_PROTOCOL_VERSION = 12
 export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
 export const LAN_CHUNK_TIERS = [
@@ -266,6 +266,17 @@ export type LanNativeTransferReady = {
 	grant: LanNativeTransferGrant
 }
 
+export type LanNativeTransferFallback = {
+	type: 'native-transfer-fallback'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	id: string
+	messageId: string
+	peerId: string
+	seq: number
+	createdAt: number
+	reason: string
+}
+
 export type LanAttachmentAccept = {
 	type: 'attachment-accept'
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
@@ -383,6 +394,7 @@ export type LanControlMessage =
 	| LanAttachmentOffer
 	| LanNativeTransferRequest
 	| LanNativeTransferReady
+	| LanNativeTransferFallback
 	| LanAttachmentAccept
 	| LanAttachmentProgress
 	| LanAttachmentComplete

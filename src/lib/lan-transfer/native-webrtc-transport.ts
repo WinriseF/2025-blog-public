@@ -1,14 +1,15 @@
 import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
 import { logLanConnection, shortConnectionId, summarizeIceCandidate } from './connection-diagnostics'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportHealthStats, LanTransportState } from './transport-types'
+import { ipAddressKind } from './native-agent/endpoint-validation'
 
-const transportControlPrefix = '__winrisef_lan_v10__:'
+const transportControlPrefix = '__winrisef_lan_v12__:'
 const TRANSPORT_FRAME_PROBE = 0xff
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
 export const lanRtcConfig: RTCConfiguration = {
-	iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+	iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }, { urls: 'stun:stun.l.google.com:19302' }],
 	iceCandidatePoolSize: 2,
 }
 
@@ -68,6 +69,10 @@ function addressFamily(candidate?: CandidateStats): LanConnectionRoute['family']
 	return 'unknown'
 }
 
+function candidateAddress(candidate?: CandidateStats) {
+	return candidate?.address || candidate?.ip || candidate?.ipAddress || ''
+}
+
 function routeFromPair(stats: RTCStatsReport, pair: CandidatePairStats): LanConnectionRoute {
 	const local = candidateStats(stats, pair.localCandidateId)
 	const remote = candidateStats(stats, pair.remoteCandidateId)
@@ -77,7 +82,11 @@ function routeFromPair(stats: RTCStatsReport, pair: CandidatePairStats): LanConn
 	const localFamily = addressFamily(local)
 	const remoteFamily = addressFamily(remote)
 	const family = localFamily === remoteFamily ? localFamily : localFamily === 'unknown' ? remoteFamily : remoteFamily === 'unknown' ? localFamily : 'unknown'
-	if (family === 'ipv6') return { family, kind: 'direct' }
+	if (family === 'ipv6') {
+		const localAddressKind = ipAddressKind(candidateAddress(local))
+		const remoteAddressKind = ipAddressKind(candidateAddress(remote))
+		return { family, kind: localAddressKind === 'ula-ipv6' || remoteAddressKind === 'ula-ipv6' || (localType === 'host' && remoteType === 'host') ? 'lan' : 'direct' }
+	}
 	if (family !== 'ipv4') return { family: 'unknown', kind: 'unknown' }
 	if (localType === 'host' && remoteType === 'host') return { family, kind: 'lan' }
 	if (['srflx', 'prflx'].includes(localType) || ['srflx', 'prflx'].includes(remoteType)) return { family, kind: 'nat' }
@@ -125,7 +134,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			this.log('ice-connection-state', this.connectionStates())
 			this.emitConnectionState()
 		}
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v10', { ordered: true }))
+		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v12', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}

@@ -1,6 +1,7 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
 import { NATIVE_AGENT_BENCHMARK_VERSION, NATIVE_AGENT_SESSION_COUNT } from './types'
-import { createPinnedWebTransport, ExactStreamReader, hexBytes, readU64, withTimeout, writeU64, type WebTransportLike } from './webtransport'
+import { validLanWebTransportEndpoint } from './endpoint-validation'
+import { createPinnedWebTransport, ExactStreamReader, hexBytes, invalidatePinnedWebTransportEndpoint, readU64, selectPinnedWebTransportEndpoint, withTimeout, writeU64, type WebTransportLike } from './webtransport'
 
 const LANE_COUNT = 4
 const BLOCK_SIZE = 4 * 1024 * 1024
@@ -21,13 +22,24 @@ export async function runLanNativeBenchmark(options: {
 	if (!Number.isSafeInteger(options.totalBytes) || options.totalBytes <= 0) throw new Error('测速大小无效')
 	const sessionCount = NATIVE_AGENT_SESSION_COUNT
 	if (options.tickets.length !== sessionCount) throw new Error('极速通道并行凭据数量不完整')
+	const firstTicket = options.tickets[0]!
+	if (options.tickets.some(ticket => ticket.networkEpoch !== firstTicket.networkEpoch || ticket.certificateSha256 !== firstTicket.certificateSha256))
+		throw new Error('签发凭据期间网络地址已经变化，请立即重试')
+	const endpoints = firstTicket.endpoints.filter(endpoint => options.tickets.every(ticket => ticket.endpoints.includes(endpoint)))
+	const endpoint = await selectPinnedWebTransportEndpoint({
+		endpoints,
+		certificateSha256: firstTicket.certificateSha256,
+		networkEpoch: firstTicket.networkEpoch,
+		validate: validLanWebTransportEndpoint,
+	})
 	const shardSizes = splitBytes(options.totalBytes, options.tickets.length)
 	const preparedResults = await Promise.allSettled(
-		options.tickets.map((ticket, index) => prepareBenchmarkSession(ticket, options.direction, shardSizes[index]!))
+		options.tickets.map((ticket, index) => prepareBenchmarkSession(ticket, endpoint, options.direction, shardSizes[index]!))
 	)
 	const sessions = preparedResults.flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
 	const rejected = preparedResults.find(result => result.status === 'rejected')
 	if (rejected?.status === 'rejected') {
+		invalidatePinnedWebTransportEndpoint(firstTicket.certificateSha256, firstTicket.networkEpoch)
 		for (const session of sessions) session.transport.close({ closeCode: 1, reason: 'parallel setup failed' })
 		throw rejected.reason
 	}
@@ -84,20 +96,19 @@ type PreparedBenchmarkSession = {
 
 async function prepareBenchmarkSession(
 	ticket: LanNativeAgentTicket,
+	endpoint: string,
 	direction: LanNativeBenchmarkDirection,
 	totalBytes: number
 ): Promise<PreparedBenchmarkSession> {
 	if (ticket.expiresAt <= Date.now()) throw new Error('极速通道凭据已过期，请重试')
-	const endpoint = ticket.endpoints[0]
-	if (!endpoint) throw new Error('加速电脑没有可用的局域网地址')
 	const transport = createPinnedWebTransport(endpoint, ticket.certificateSha256)
 	try {
-		await withTimeout(transport.ready, 10_000, '连接加速电脑超时，请检查防火墙和局域网')
+		await withTimeout(transport.ready, 4_000, '连接加速电脑 WebTransport 地址超时')
 		const control = await transport.createBidirectionalStream()
 		const controlWriter = control.writable.getWriter()
 		const controlReader = new ExactStreamReader(control.readable)
 		await controlWriter.write(encodeHello(direction, totalBytes, ticket.token))
-		const ack = await withTimeout(controlReader.readExact(32), 10_000, '加速电脑握手超时')
+		const ack = await withTimeout(controlReader.readExact(32), 5_000, '加速电脑授权握手超时')
 		validateAck(ack, totalBytes)
 		await controlWriter.close()
 		controlWriter.releaseLock()

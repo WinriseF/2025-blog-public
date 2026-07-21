@@ -3,7 +3,8 @@ import type { LanNativeFileDirection, LanNativeTransferGrant } from './types'
 import { NATIVE_AGENT_FILE_VERSION } from './types'
 import { selectLocalNetworkAccessFileEndpoint } from './peer-lna-http'
 import { NativeFileStorageWriter, NATIVE_FILE_IO_BLOCK_BYTES } from './native-storage-writer'
-import { createPinnedWebTransport, ExactStreamReader, readU64, withTimeout, writeU64, type WebTransportLike } from './webtransport'
+import { validLanFileWebTransportEndpoint } from './endpoint-validation'
+import { createPinnedWebTransport, ExactStreamReader, invalidatePinnedWebTransportEndpoint, readU64, selectPinnedWebTransportEndpoint, withTimeout, writeU64, type WebTransportLike } from './webtransport'
 
 const LNA_SEGMENT_BYTES = 30 * 1024 * 1024
 const LNA_WORKERS = 6
@@ -216,13 +217,18 @@ async function uploadWebTransport(options: UploadOptions) {
 async function openWtConnections(options: NativeFileOptions, direction: LanNativeFileDirection, totalBytes: number) {
 	const grant = options.grant
 	if (grant.authorization.kind !== 'web-transport' || grant.authorization.tokens.length !== WT_CONNECTIONS) throw new Error('极速 QUIC 文件授权不完整')
-	const endpoint = grant.fileWebTransportEndpoints[0]
-	if (!endpoint) throw new Error('加速电脑没有发布极速 QUIC 文件地址')
+	const endpoint = await selectPinnedWebTransportEndpoint({
+		endpoints: grant.fileWebTransportEndpoints,
+		certificateSha256: grant.certificateSha256,
+		networkEpoch: grant.networkEpoch,
+		validate: validLanFileWebTransportEndpoint,
+		signal: options.signal,
+	})
 	const attempts = await Promise.allSettled(grant.authorization.tokens.map(async (token, index): Promise<FileWtConnection> => {
 		if (options.signal.aborted) throw new Error('极速文件传输已取消')
 		const transport = createPinnedWebTransport(endpoint, grant.certificateSha256)
 		try {
-			await withTimeout(transport.ready, 12_000, '连接极速 QUIC 文件通道超时')
+			await withTimeout(transport.ready, 4_000, '连接极速 QUIC 文件通道超时')
 			const control = await transport.createBidirectionalStream()
 			const controlWriter = control.writable.getWriter()
 			const controlReader = new ExactStreamReader(control.readable)
@@ -239,7 +245,7 @@ async function openWtConnections(options: NativeFileOptions, direction: LanNativ
 				extentBytes: WT_EXTENT_BYTES,
 				totalBytes,
 			})
-			const ack = await readControl(controlReader) as { type?: string; accepted?: boolean; error?: string; connectionIndex?: number }
+			const ack = await withTimeout(readControl(controlReader), 5_000, '极速 QUIC 文件授权握手超时') as { type?: string; accepted?: boolean; error?: string; connectionIndex?: number }
 			if (ack.type !== 'hello-ack' || !ack.accepted || ack.connectionIndex !== index) throw new Error(ack.error || 'Agent 拒绝了极速 QUIC 文件连接')
 			return { transport, controlWriter, controlReader, index }
 		} catch (error) {
@@ -250,6 +256,7 @@ async function openWtConnections(options: NativeFileOptions, direction: LanNativ
 	const connections = attempts.flatMap(result => result.status === 'fulfilled' ? [result.value] : [])
 	const failed = attempts.find(result => result.status === 'rejected')
 	if (failed?.status === 'rejected') {
+		invalidatePinnedWebTransportEndpoint(grant.certificateSha256, grant.networkEpoch)
 		connections.forEach(connection => connection.transport.close({ closeCode: 1, reason: 'file connection group failed' }))
 		throw failed.reason
 	}

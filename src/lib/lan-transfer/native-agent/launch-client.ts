@@ -1,5 +1,5 @@
 import type { LanNativeAgentCallback } from './types'
-import { validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
+import { filterNativeEndpoints, validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
 
 const CALLBACK_CHANNEL = 'winrisef-native-agent-callback-v1'
 const CALLBACK_STORAGE_KEY = 'winrisef-native-agent-callback-handoff'
@@ -30,12 +30,13 @@ export function consumeLanAgentCallback(): LanNativeAgentCallback | null {
 	const certificateSha256 = params.get('certificate') || ''
 	const launchToken = params.get('token') || ''
 	const expiresAt = Number(params.get('expires'))
+	const networkEpoch = params.get('network-epoch') || 'legacy'
 	const benchmarkEndpoints = params.getAll('lan')
 	const lnaHttpEndpoints = params.getAll('lan-http')
 	const fileHttpEndpoints = params.getAll('file-http')
 	const fileWebTransportEndpoints = params.getAll('file-wt')
 	window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
-	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt })
+	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: bridgeVersion(bridgeEndpoint), networkEpoch })
 }
 
 export function deliverLanAgentCallback(callback: LanNativeAgentCallback) {
@@ -96,25 +97,28 @@ function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallb
 	if (!/^[0-9a-f]{32}$/i.test(callback.nonce) || !/^[0-9a-f]{64}$/i.test(callback.certificateSha256) || !/^[0-9a-f]{32}$/i.test(callback.launchToken))
 		return null
 	if (!Number.isSafeInteger(callback.expiresAt) || callback.expiresAt <= Date.now()) return null
-	if (
-		!validBridgeEndpoint(callback.bridgeEndpoint) ||
-		callback.benchmarkEndpoints.length === 0 ||
-		callback.benchmarkEndpoints.some(endpoint => typeof endpoint !== 'string' || !validLanWebTransportEndpoint(endpoint)) ||
-		callback.lnaHttpEndpoints.some(endpoint => typeof endpoint !== 'string' || !validLanHttpBaseEndpoint(endpoint))
-		|| callback.fileHttpEndpoints.length === 0
-		|| callback.fileHttpEndpoints.some(endpoint => typeof endpoint !== 'string' || !validLanFileHttpEndpoint(endpoint))
-		|| callback.fileWebTransportEndpoints.length === 0
-		|| callback.fileWebTransportEndpoints.some(endpoint => typeof endpoint !== 'string' || !validLanFileWebTransportEndpoint(endpoint))
-	)
-		return null
-	return callback
+	if (!validBridgeEndpoint(callback.bridgeEndpoint) || !/^(legacy|[0-9a-f]{16})$/i.test(callback.networkEpoch)) return null
+	const benchmarkEndpoints = filterNativeEndpoints(callback.benchmarkEndpoints, validLanWebTransportEndpoint)
+	const lnaHttpEndpoints = filterNativeEndpoints(callback.lnaHttpEndpoints, validLanHttpBaseEndpoint)
+	const fileHttpEndpoints = filterNativeEndpoints(callback.fileHttpEndpoints, validLanFileHttpEndpoint)
+	const fileWebTransportEndpoints = filterNativeEndpoints(callback.fileWebTransportEndpoints, validLanFileWebTransportEndpoint)
+	if (!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) return null
+	return { ...callback, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, bridgeVersion: bridgeVersion(callback.bridgeEndpoint) }
 }
 
 function validBridgeEndpoint(value: string) {
 	try {
 		const url = new URL(value)
-		return url.protocol === 'https:' && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) && url.pathname === '/winrisef/bridge/v2'
+		return url.protocol === 'https:' && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) && ['/winrisef/bridge/v2', '/winrisef/bridge/v3'].includes(url.pathname) && Boolean(url.port) && !url.search && !url.hash && !url.username && !url.password
 	} catch {
 		return false
+	}
+}
+
+function bridgeVersion(value: string): 2 | 3 {
+	try {
+		return new URL(value).pathname.endsWith('/v3') ? 3 : 2
+	} catch {
+		return 2
 	}
 }

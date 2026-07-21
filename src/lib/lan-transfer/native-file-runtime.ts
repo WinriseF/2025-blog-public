@@ -3,6 +3,7 @@ import { messageId } from './file-transfer'
 import type { LanStorageEngine, TransferFileMeta } from './storage/types'
 import type { LanNativeLocalAgentPort, LanNativePeerBulkPort } from './native-agent/ports'
 import { selectLocalNetworkAccessFileEndpoint } from './native-agent/peer-lna-http'
+import { endpointAddressKind, validLanFileWebTransportEndpoint } from './native-agent/endpoint-validation'
 import { NATIVE_FILE_IO_BLOCK_BYTES } from './native-agent/native-storage-writer'
 import type { LanNativeSelectedFile, LanNativeTransferEvent, LanNativeTransferGrant } from './native-agent/types'
 import type {
@@ -13,6 +14,7 @@ import type {
 	LanCapability,
 	LanControlMessage,
 	LanNativeTransferReady,
+	LanNativeTransferFallback,
 	LanNativeTransferRequest,
 	LanStorageKind,
 } from './types'
@@ -32,7 +34,7 @@ type PreparedStorage = { engine: LanStorageEngine; meta: TransferFileMeta }
 type NativeRuntimeHost = {
 	context: () => NativeContext | null
 	peerBulk: LanNativePeerBulkPort
-	controlBase: <T extends LanControlMessage['type']>(type: T, createdAt?: number) => { type: T; protocolVersion: 11; peerId: string; seq: number; createdAt: number }
+	controlBase: <T extends LanControlMessage['type']>(type: T, createdAt?: number) => { type: T; protocolVersion: 12; peerId: string; seq: number; createdAt: number }
 	sendControl: (message: LanControlMessage) => boolean
 	prepareStorage: (offer: LanAttachmentOffer) => Promise<PreparedStorage>
 	createAttachment: (messageId: string, createdAt: number, direction: 'in' | 'out', attachment: LanAttachment) => void
@@ -40,6 +42,7 @@ type NativeRuntimeHost = {
 	patchFile: (id: string, patch: { status?: LanAttachment['status']; storage?: LanStorageKind; url?: string }) => void
 	downloadReady: (name: string, url: string) => void
 	status: (message: string) => void
+	fallbackBrowserFile: (options: { file: File; attachmentId: string; messageId: string; createdAt: number }) => Promise<void>
 }
 
 type NativeOutgoingBase = {
@@ -112,7 +115,7 @@ export class LanNativeFileRuntime {
 				continue
 			}
 			try {
-				const dataPlane = await selectNativeDataPlane(advertisement.fileHttpEndpoints, Boolean(context.localCapability?.webTransport))
+				const dataPlane = await selectNativeDataPlane(advertisement.fileHttpEndpoints, advertisement.fileWebTransportEndpoints, Boolean(context.localCapability?.webTransport))
 				this.addOutgoing(this.browserOutgoing(file, dataPlane, Date.now()))
 			} catch {
 				remaining.push(file)
@@ -178,7 +181,7 @@ export class LanNativeFileRuntime {
 			incoming.storage = storage
 			const advertisement = context.remoteCapability?.nativeAgent
 			if (!advertisement || advertisement.ownerDeviceId !== offer.agentOwnerDeviceId) throw new Error('加速电脑信息已经变化，请重新发送')
-			const dataPlane = await selectNativeDataPlane(advertisement.fileHttpEndpoints, Boolean(context.localCapability?.webTransport))
+			const dataPlane = await selectNativeDataPlane(advertisement.fileHttpEndpoints, advertisement.fileWebTransportEndpoints, Boolean(context.localCapability?.webTransport))
 			offer.attachment.dataPlane = dataPlane
 			this.host.patchAttachment(id, offer.messageId, { dataPlane, storage: storage.engine.kind, status: 'receiving' })
 			this.host.patchFile(id, { storage: storage.engine.kind, status: 'receiving' })
@@ -217,17 +220,30 @@ export class LanNativeFileRuntime {
 		if (!context) return
 		const outgoing = this.outgoing.get(message.id)
 		if (outgoing?.source === 'browser') {
+			let transferred = 0
 			try {
 				validateGrant(message.grant, outgoing.manifest, context.peerDeviceId)
 				outgoing.transferId = message.grant.transferId
 				outgoing.abort = new AbortController()
 				this.host.patchAttachment(message.id, message.messageId, { status: 'sending', phase: 'transferring' })
-				await this.host.peerBulk.upload({ grant: message.grant, peerDeviceId: context.localDeviceId, file: outgoing.file, signal: outgoing.abort.signal, onProgress: bytes => this.patchOutgoingProgress(outgoing, bytes) })
+				await this.host.peerBulk.upload({
+					grant: message.grant,
+					peerDeviceId: context.localDeviceId,
+					file: outgoing.file,
+					signal: outgoing.abort.signal,
+					onProgress: bytes => {
+						transferred = Math.max(transferred, bytes)
+						this.patchOutgoingProgress(outgoing, bytes)
+					}
+				})
 				if (!this.outgoing.has(message.id)) return
 				this.host.patchAttachment(message.id, message.messageId, { status: 'sending', phase: 'confirming', transferredBytes: outgoing.manifest.size, progress: 1, speedBps: undefined, etaSeconds: undefined })
 				this.host.status(`已发送 ${outgoing.manifest.name}，等待 Agent 保存确认`)
 			} catch (error) {
-				this.failOutgoing(outgoing, error instanceof Error ? error.message : '极速文件上传失败')
+				const reason = error instanceof Error ? error.message : '极速文件上传失败'
+				const fallbackReason = transferred > 0 ? `${reason}；将从 0 重新传输` : reason
+				if (!isUserCancel(error)) await this.fallbackBrowserOutgoing(outgoing, fallbackReason)
+				else this.failOutgoing(outgoing, reason)
 			}
 			return
 		}
@@ -256,6 +272,18 @@ export class LanNativeFileRuntime {
 		} catch (error) {
 			await this.failIncoming(incoming, error)
 		}
+	}
+
+	async handleFallback(message: LanNativeTransferFallback) {
+		const incoming = this.incoming.get(message.id)
+		if (!incoming || incoming.offer.messageId !== message.messageId) return
+		this.incoming.delete(message.id)
+		incoming.abort?.abort()
+		if (incoming.transferId) await this.host.context()?.localPort?.cancelTransfer(incoming.transferId).catch(() => {})
+		if (incoming.storage) await incoming.storage.engine.cleanup(incoming.storage.meta.id).catch(() => {})
+		this.host.patchAttachment(message.id, message.messageId, { dataPlane: 'webrtc', status: 'queued', progress: 0, transferredBytes: 0, phase: undefined, error: undefined })
+		this.host.patchFile(message.id, { status: 'queued' })
+		this.host.status(`${incoming.offer.attachment.name} 极速直连失败，自动切换 WebRTC`)
 	}
 
 	async handleReceived(id: string, messageIdValue: string, received: number, expected: number) {
@@ -392,6 +420,36 @@ export class LanNativeFileRuntime {
 		this.host.status(reason)
 	}
 
+	private async fallbackBrowserOutgoing(outgoing: Extract<NativeOutgoing, { source: 'browser' }>, reason: string) {
+		outgoing.abort?.abort()
+		const port = this.host.context()?.localPort
+		if (outgoing.transferId) await port?.cancelTransfer(outgoing.transferId).catch(() => {})
+		const announced = this.host.sendControl({
+			...this.host.controlBase('native-transfer-fallback'),
+			id: outgoing.manifest.id,
+			messageId: outgoing.messageId,
+			reason,
+		})
+		this.outgoing.delete(outgoing.manifest.id)
+		if (this.activeOutgoingId === outgoing.manifest.id) this.activeOutgoingId = ''
+		try {
+			if (!announced) throw new Error('无法通知对方切换普通直连')
+			await this.host.fallbackBrowserFile({
+				file: outgoing.file,
+				attachmentId: outgoing.manifest.id,
+				messageId: outgoing.messageId,
+				createdAt: outgoing.createdAt,
+			})
+			this.host.status(`${outgoing.manifest.name} 极速直连失败，已自动切换 WebRTC`)
+		} catch (error) {
+			const fallbackReason = error instanceof Error ? error.message : 'WebRTC 回退失败'
+			this.host.patchAttachment(outgoing.manifest.id, outgoing.messageId, { status: 'failed', error: fallbackReason, phase: undefined })
+			this.host.patchFile(outgoing.manifest.id, { status: 'failed' })
+			this.host.status(fallbackReason)
+		}
+		this.flushNextOffer()
+	}
+
 	private removeOutgoing(id: string) {
 		this.outgoing.delete(id)
 		if (this.activeOutgoingId === id) this.activeOutgoingId = ''
@@ -433,11 +491,13 @@ function validateGrant(grant: LanNativeTransferGrant, manifest: LanAttachmentMan
 	if (grant.attachmentId !== manifest.id || grant.ownerDeviceId !== ownerDeviceId || dataPlane !== manifest.dataPlane) throw new Error('极速文件授权与附件不匹配')
 }
 
-async function selectNativeDataPlane(fileHttpEndpoints: string[], webTransport: boolean): Promise<Exclude<LanBulkDataPlane, 'webrtc'>> {
+async function selectNativeDataPlane(fileHttpEndpoints: string[], fileWebTransportEndpoints: string[], webTransport: boolean): Promise<Exclude<LanBulkDataPlane, 'webrtc'>> {
 	const lna = await selectLocalNetworkAccessFileEndpoint(fileHttpEndpoints)
 	if (lna.state === 'available') return 'native-lna-http'
-	if (lna.state === 'unsupported' && webTransport) return 'native-webtransport'
-	throw new Error(lna.state === 'denied' ? '你已拒绝本地网络访问权限，无法使用极速模式' : '当前浏览器不支持极速文件通道')
+	const endpoints = fileWebTransportEndpoints.filter(validLanFileWebTransportEndpoint)
+	const publicIpv6Available = endpoints.some(endpoint => endpointAddressKind(endpoint) === 'gua-ipv6')
+	if (webTransport && endpoints.length && (lna.state !== 'denied' || publicIpv6Available)) return 'native-webtransport'
+	throw new Error(lna.state === 'denied' ? '本地网络权限已拒绝，且没有可用的公网 IPv6 极速地址' : lna.state === 'unavailable' ? lna.reason : '当前浏览器不支持极速文件通道')
 }
 
 function isUserCancel(error: unknown) {

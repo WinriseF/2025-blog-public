@@ -6,15 +6,13 @@ const HTTP_REQUEST_BYTES = 30 * 1024 * 1024
 const PAYLOAD_BLOCK_BYTES = 4 * 1024 * 1024
 const REQUEST_TIMEOUT_MS = 120_000
 
-export type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'available'; endpoint: string }
+export type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'unavailable'; reason: string } | { state: 'available'; endpoint: string }
 type PermissionNameWithLna = PermissionName | 'local-network-access'
 
 export async function selectLocalNetworkAccessEndpoint(endpoints: string[]): Promise<LocalNetworkAccessDecision> {
 	return selectLocalNetworkEndpoint(
 		endpoints,
 		validLanHttpBaseEndpoint,
-		'加速电脑版本过旧，不支持 HTTP/TCP 极速通道，请重新打包 Agent',
-		'加速电脑发布了无效的 HTTP/TCP 局域网地址',
 		'本地网络权限可用，但无法连接加速电脑的 HTTP/TCP 端口，请检查 Agent 版本和防火墙'
 	)
 }
@@ -23,8 +21,6 @@ export async function selectLocalNetworkAccessFileEndpoint(endpoints: string[]):
 	return selectLocalNetworkEndpoint(
 		endpoints,
 		validLanFileHttpEndpoint,
-		'加速电脑版本过旧，不支持正式文件极速通道',
-		'加速电脑发布了无效的文件极速通道地址',
 		'本地网络权限可用，但无法连接加速电脑的正式文件端口，请检查 Agent 和防火墙'
 	)
 }
@@ -32,24 +28,27 @@ export async function selectLocalNetworkAccessFileEndpoint(endpoints: string[]):
 async function selectLocalNetworkEndpoint(
 	endpoints: string[],
 	validate: (endpoint: string) => boolean,
-	emptyMessage: string,
-	invalidMessage: string,
 	unreachableMessage: string
 ): Promise<LocalNetworkAccessDecision> {
 	const initialPermission = await queryLocalNetworkAccessPermission()
 	if (initialPermission === 'unsupported') return { state: 'unsupported' }
 	if (initialPermission === 'denied') return { state: 'denied' }
-	if (!endpoints.length) throw new Error(emptyMessage)
-	if (endpoints.some(endpoint => !validate(endpoint))) throw new Error(invalidMessage)
-	for (const endpoint of endpoints) {
+	const candidates = [...new Set(endpoints.filter(validate))]
+	if (!candidates.length) return { state: 'unavailable', reason: '加速电脑没有发布可用的私网 HTTP 地址' }
+	for (const endpoint of candidates) {
+		const controller = new AbortController()
+		const timer = setTimeout(() => controller.abort(), 3_000)
 		try {
-			const response = await fetch(endpointUrl(endpoint, 'probe'), { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' })
+			const response = await fetch(endpointUrl(endpoint, 'probe'), { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', signal: controller.signal })
 			if (response.status === 204) return { state: 'available', endpoint }
-		} catch {}
+		} catch {
+		} finally {
+			clearTimeout(timer)
+		}
 	}
 	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
 	if (permissionAfterProbe === 'denied') return { state: 'denied' }
-	throw new Error(unreachableMessage)
+	return { state: 'unavailable', reason: unreachableMessage }
 }
 
 export function nativeAgentLnaTicketCount(totalBytes: number) {

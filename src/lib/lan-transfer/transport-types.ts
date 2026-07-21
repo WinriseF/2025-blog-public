@@ -7,7 +7,8 @@ export type LanConnectionRoute = {
 
 export function formatLanConnectionRoute(route: LanConnectionRoute | null) {
 	if (!route) return '在线'
-	if (route.family === 'ipv6') return 'IPv6 直连'
+	if (route.family === 'ipv6' && route.kind === 'lan') return 'IPv6 内网直连'
+	if (route.family === 'ipv6') return 'IPv6 公网直连'
 	if (route.family === 'ipv4' && route.kind === 'lan') return 'IPv4 局域网直连'
 	if (route.family === 'ipv4' && route.kind === 'nat') return 'IPv4 NAT 直连'
 	if (route.family === 'ipv4') return 'IPv4 直连'

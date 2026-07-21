@@ -1,4 +1,4 @@
-export const NATIVE_AGENT_BRIDGE_VERSION = 2
+export const NATIVE_AGENT_BRIDGE_VERSION = 3
 export const NATIVE_AGENT_BENCHMARK_VERSION = 3
 export const NATIVE_AGENT_LNA_HTTP_VERSION = 1
 export const NATIVE_AGENT_FILE_VERSION = 1
@@ -8,7 +8,7 @@ export type LanNativeBenchmarkDirection = 'browser-to-agent' | 'agent-to-browser
 export const NATIVE_AGENT_SESSION_COUNT = 6
 
 export type LanNativeAgentAdvertisement = {
-	bridgeVersion: typeof NATIVE_AGENT_BRIDGE_VERSION
+	bridgeVersion: 2 | typeof NATIVE_AGENT_BRIDGE_VERSION
 	benchmarkVersion: typeof NATIVE_AGENT_BENCHMARK_VERSION
 	ownerDeviceId: string
 	endpoints: string[]
@@ -18,6 +18,7 @@ export type LanNativeAgentAdvertisement = {
 	fileHttpEndpoints: string[]
 	fileWebTransportEndpoints: string[]
 	certificateSha256: string
+	networkEpoch: string
 }
 
 export type LanNativeAgentTicket = LanNativeAgentAdvertisement & {
@@ -35,6 +36,16 @@ export type LanNativeAgentCallback = {
 	certificateSha256: string
 	launchToken: string
 	expiresAt: number
+	bridgeVersion: 2 | typeof NATIVE_AGENT_BRIDGE_VERSION
+	networkEpoch: string
+}
+
+export type LanNativeNetworkEndpointSnapshot = {
+	networkEpoch: string
+	benchmarkEndpoints: string[]
+	lnaHttpEndpoints: string[]
+	fileHttpEndpoints: string[]
+	fileWebTransportEndpoints: string[]
 }
 
 export type LanNativeFileDirection = 'agent-to-browser' | 'browser-to-agent'
@@ -60,6 +71,7 @@ export type LanNativeTransferGrant = {
 	fileHttpEndpoints: string[]
 	fileWebTransportEndpoints: string[]
 	certificateSha256: string
+	networkEpoch: string
 }
 
 export type LanNativeTransferEvent =

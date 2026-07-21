@@ -3,6 +3,7 @@ import type {
 	LanNativeAgentCallback,
 	LanNativeAgentTicket,
 	LanNativeFileDataPlane,
+	LanNativeNetworkEndpointSnapshot,
 	LanNativeSelectedFile,
 	LanNativeTransferEvent,
 	LanNativeTransferGrant,
@@ -14,6 +15,7 @@ import {
 	NATIVE_AGENT_LNA_HTTP_VERSION,
 } from './types'
 import { createPinnedWebTransport, ExactStreamReader, withTimeout, type WebTransportLike } from './webtransport'
+import { validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
 
 const MAX_BRIDGE_FRAME_BYTES = 64 * 1024
 const encoder = new TextEncoder()
@@ -21,6 +23,7 @@ const decoder = new TextDecoder()
 
 type BridgeResponse = { type: 'response'; requestId: number; ok: boolean; result?: unknown; error?: string }
 type BridgeHelloAck = { type: 'hello-ack'; version: number; accepted: boolean; error?: string }
+type BridgeNetworkEndpointsChanged = { type: 'network-endpoints-changed'; snapshot: unknown }
 
 export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 	private requestId = 0
@@ -28,6 +31,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 	private closed = false
 	private pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>()
 	private listeners = new Set<(event: LanNativeTransferEvent) => void>()
+	private endpointListeners = new Set<(snapshot: LanNativeNetworkEndpointSnapshot) => void>()
 	private transferQueue = Promise.resolve()
 	private transferReleases = new Map<string, () => void>()
 
@@ -44,29 +48,33 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 		const control = await transport.createBidirectionalStream()
 		const writer = control.writable.getWriter()
 		const reader = new ExactStreamReader(control.readable)
-		await writeJsonFrame(writer, { type: 'hello', version: NATIVE_AGENT_BRIDGE_VERSION, launchToken: callback.launchToken })
+		await writeJsonFrame(writer, { type: 'hello', version: callback.bridgeVersion, launchToken: callback.launchToken })
 		const ack = await readJsonFrame(reader) as BridgeHelloAck
-		if (ack.type !== 'hello-ack' || ack.version !== NATIVE_AGENT_BRIDGE_VERSION) throw new Error('本机加速组件版本不兼容')
+		if (ack.type !== 'hello-ack' || ack.version !== callback.bridgeVersion) throw new Error('本机加速组件版本不兼容')
 		if (!ack.accepted) throw new Error(ack.error || '本机加速组件拒绝了启动凭据，请重新开启极速模式')
 		const bridge = new LanNativeLocalBridge(transport, writer, reader, callback)
 		void bridge.readLoop()
+		await bridge.refreshNetworkEndpoints()
 		return bridge
 	}
 
 	async issueTicket(ownerDeviceId: string): Promise<LanNativeAgentTicket> {
-		const result = await this.request<{ token: string; expiresAt: number }>('issue-benchmark-ticket')
+		const snapshot = await this.refreshNetworkEndpoints()
+		const result = await this.request<{ token: string; expiresAt: number; endpoints?: string[]; networkEpoch?: string }>('issue-benchmark-ticket')
 		if (!/^[0-9a-f]{32}$/i.test(result.token) || result.expiresAt <= Date.now()) throw new Error('本机组件返回了无效的测试凭据')
+		const resultEndpoints = Array.isArray(result.endpoints) ? result.endpoints.filter(validLanWebTransportEndpoint) : []
 		return {
-			bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION,
+			bridgeVersion: this.callback.bridgeVersion,
 			benchmarkVersion: NATIVE_AGENT_BENCHMARK_VERSION,
 			ownerDeviceId,
-			endpoints: this.callback.benchmarkEndpoints,
+			endpoints: resultEndpoints.length ? resultEndpoints : snapshot.benchmarkEndpoints,
 			lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
 			lnaHttpEndpoints: this.callback.lnaHttpEndpoints,
 			fileVersion: NATIVE_AGENT_FILE_VERSION,
 			fileHttpEndpoints: this.callback.fileHttpEndpoints,
 			fileWebTransportEndpoints: this.callback.fileWebTransportEndpoints,
 			certificateSha256: this.callback.certificateSha256,
+			networkEpoch: typeof result.networkEpoch === 'string' ? result.networkEpoch : snapshot.networkEpoch,
 			token: result.token,
 			expiresAt: result.expiresAt,
 		}
@@ -77,13 +85,13 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 	}
 
 	async createSendTransfer(options: { sourceId: string; attachmentId: string; ownerDeviceId: string; peerDeviceId: string; dataPlane: LanNativeFileDataPlane }) {
-		const grant = await this.createSerializedTransfer(() => this.request<Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'>>('create-send-transfer', options))
-		return this.decorateGrant(grant)
+		const grant = await this.createSerializedTransfer(() => this.request<Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256' | 'networkEpoch'>>('create-send-transfer', options))
+		return this.decorateGrant(grant, await this.refreshNetworkEndpoints())
 	}
 
 	async prepareReceiveTransfer(options: { attachmentId: string; ownerDeviceId: string; peerDeviceId: string; name: string; totalBytes: number; dataPlane: LanNativeFileDataPlane }) {
-		const grant = await this.createSerializedTransfer(() => this.request<Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'> | null>('prepare-receive-transfer', options))
-		return grant ? this.decorateGrant(grant) : null
+		const grant = await this.createSerializedTransfer(() => this.request<Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256' | 'networkEpoch'> | null>('prepare-receive-transfer', options))
+		return grant ? this.decorateGrant(grant, await this.refreshNetworkEndpoints()) : null
 	}
 
 	async cancelTransfer(transferId: string) {
@@ -111,17 +119,40 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 		return () => this.listeners.delete(listener)
 	}
 
+	subscribeNetworkEndpoints(listener: (snapshot: LanNativeNetworkEndpointSnapshot) => void) {
+		this.endpointListeners.add(listener)
+		return () => this.endpointListeners.delete(listener)
+	}
+
 	close() {
 		this.shutdown(new Error('本机加速组件连接已关闭'), 0, 'speed mode disabled')
 	}
 
-	private decorateGrant(grant: Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256'>): LanNativeTransferGrant {
+	private decorateGrant(grant: Omit<LanNativeTransferGrant, 'fileHttpEndpoints' | 'fileWebTransportEndpoints' | 'certificateSha256' | 'networkEpoch'>, snapshot: LanNativeNetworkEndpointSnapshot): LanNativeTransferGrant {
 		return {
 			...grant,
-			fileHttpEndpoints: this.callback.fileHttpEndpoints,
-			fileWebTransportEndpoints: this.callback.fileWebTransportEndpoints,
+			fileHttpEndpoints: snapshot.fileHttpEndpoints,
+			fileWebTransportEndpoints: snapshot.fileWebTransportEndpoints,
 			certificateSha256: this.callback.certificateSha256,
+			networkEpoch: snapshot.networkEpoch,
 		}
+	}
+
+	private async refreshNetworkEndpoints() {
+		if (this.callback.bridgeVersion === 2) return snapshotFromCallback(this.callback)
+		const snapshot = parseNetworkEndpointSnapshot(await this.request('get-network-endpoints'))
+		if (!snapshot) throw new Error('本机组件返回了无效的网络地址快照')
+		this.applyNetworkEndpointSnapshot(snapshot)
+		return snapshot
+	}
+
+	private applyNetworkEndpointSnapshot(snapshot: LanNativeNetworkEndpointSnapshot) {
+		this.callback.networkEpoch = snapshot.networkEpoch
+		this.callback.benchmarkEndpoints = snapshot.benchmarkEndpoints
+		this.callback.lnaHttpEndpoints = snapshot.lnaHttpEndpoints
+		this.callback.fileHttpEndpoints = snapshot.fileHttpEndpoints
+		this.callback.fileWebTransportEndpoints = snapshot.fileWebTransportEndpoints
+		this.endpointListeners.forEach(listener => listener(snapshot))
 	}
 
 	private request<T = unknown>(type: string, body: Record<string, unknown> = {}) {
@@ -169,6 +200,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 		this.pending.forEach(pending => pending.reject(error))
 		this.pending.clear()
 		this.listeners.clear()
+		this.endpointListeners.clear()
 		this.transferReleases.forEach(release => release())
 		this.transferReleases.clear()
 		void this.writer.close().catch(() => {})
@@ -188,6 +220,11 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 					else pending.reject(new Error(frame.error || '本机组件命令执行失败'))
 					continue
 				}
+				if (isNetworkEndpointsChanged(frame)) {
+					const snapshot = parseNetworkEndpointSnapshot(frame.snapshot)
+					if (snapshot) this.applyNetworkEndpointSnapshot(snapshot)
+					continue
+				}
 				if (isTransferEvent(frame)) {
 					if (frame.type === 'transfer-complete' || frame.type === 'transfer-failed' || frame.type === 'transfer-cancelled') this.releaseTransfer(frame.transferId)
 					this.listeners.forEach(listener => listener(frame))
@@ -197,6 +234,32 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 			this.shutdown(error instanceof Error ? error : new Error('本机组件控制连接中断'), 1, 'bridge control failed')
 		}
 	}
+}
+
+function snapshotFromCallback(callback: LanNativeAgentCallback): LanNativeNetworkEndpointSnapshot {
+	return {
+		networkEpoch: callback.networkEpoch,
+		benchmarkEndpoints: callback.benchmarkEndpoints,
+		lnaHttpEndpoints: callback.lnaHttpEndpoints,
+		fileHttpEndpoints: callback.fileHttpEndpoints,
+		fileWebTransportEndpoints: callback.fileWebTransportEndpoints,
+	}
+}
+
+function parseNetworkEndpointSnapshot(value: unknown): LanNativeNetworkEndpointSnapshot | null {
+	if (!value || typeof value !== 'object') return null
+	const snapshot = value as Partial<LanNativeNetworkEndpointSnapshot>
+	if (typeof snapshot.networkEpoch !== 'string' || !/^[0-9a-f]{16}$/i.test(snapshot.networkEpoch)) return null
+	const benchmarkEndpoints = filterEndpointList(snapshot.benchmarkEndpoints, validLanWebTransportEndpoint)
+	const lnaHttpEndpoints = filterEndpointList(snapshot.lnaHttpEndpoints, validLanHttpBaseEndpoint)
+	const fileHttpEndpoints = filterEndpointList(snapshot.fileHttpEndpoints, validLanFileHttpEndpoint)
+	const fileWebTransportEndpoints = filterEndpointList(snapshot.fileWebTransportEndpoints, validLanFileWebTransportEndpoint)
+	if (!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) return null
+	return { networkEpoch: snapshot.networkEpoch, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints }
+}
+
+function filterEndpointList(value: unknown, validate: (endpoint: string) => boolean) {
+	return Array.isArray(value) ? [...new Set(value.filter((endpoint): endpoint is string => typeof endpoint === 'string' && validate(endpoint)))] : []
 }
 
 async function writeJsonFrame(writer: WritableStreamDefaultWriter<Uint8Array>, value: unknown) {
@@ -219,6 +282,10 @@ function isBridgeResponse(value: unknown): value is BridgeResponse {
 	if (!value || typeof value !== 'object') return false
 	const response = value as Partial<BridgeResponse>
 	return response.type === 'response' && Number.isSafeInteger(response.requestId) && typeof response.ok === 'boolean'
+}
+
+function isNetworkEndpointsChanged(value: unknown): value is BridgeNetworkEndpointsChanged {
+	return Boolean(value && typeof value === 'object' && (value as { type?: unknown }).type === 'network-endpoints-changed')
 }
 
 function isTransferEvent(value: unknown): value is LanNativeTransferEvent {

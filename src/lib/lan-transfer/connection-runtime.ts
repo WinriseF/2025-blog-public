@@ -193,6 +193,7 @@ export class LanConnectionRuntime {
 	private finalizingIncoming = new Map<string, Promise<void>>()
 	private outgoingObjectUrls: string[] = []
 	private pendingNativeTickets = new Map<string, { resolve: (ticket: LanNativeAgentTicket) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
+	private nativeFallbackIncoming = new Set<string>()
 	private destroyed = false
 	private native: LanNativeFileRuntime
 	private sender = new LanAttachmentSendScheduler({
@@ -238,6 +239,7 @@ export class LanConnectionRuntime {
 			patchFile: (id, patch) => this.emit({ type: 'file-record-patch', id, patch }),
 			downloadReady: (name, url) => this.emit({ type: 'download-ready', name, url }),
 			status: message => this.setStatus(message),
+			fallbackBrowserFile: options => this.fallbackNativeBrowserFile(options),
 		})
 	}
 
@@ -430,6 +432,38 @@ export class LanConnectionRuntime {
 	async acceptAttachment(id: string) {
 		if (await this.native.accept(id)) return
 		await this.receivePendingAttachment(id, false)
+	}
+
+	private async fallbackNativeBrowserFile(options: { file: File; attachmentId: string; messageId: string; createdAt: number }) {
+		const context = this.context
+		const transport = this.transport
+		if (!context || !transport?.isOpen()) throw new Error('双方没有可互通的直连路径')
+		const chunkSize = await transport.negotiateChunkSize(context.remoteCapability?.limits.recommendedChunkSize)
+		if (this.transport !== transport || !transport.isOpen()) throw new Error('双方没有可互通的直连路径')
+		const prepared = prepareLanAttachment(options.file, {
+			messageId: options.messageId,
+			chunkSize,
+			suggestedStorage: selectStorageForFile(options.file.size, context.remoteCapability || null),
+			maxBytes: context.remoteCapability?.limits.maxExperimentalFileSize,
+		})
+		prepared.id = options.attachmentId
+		this.prepared.set(prepared.id, { file: prepared, createdAt: options.createdAt, acked: 0, ranges: [], offered: false })
+		this.emit({
+			type: 'attachment-patch',
+			patch: {
+				id: prepared.id,
+				messageId: prepared.messageId,
+				dataPlane: 'webrtc',
+				chunkSize: prepared.chunkSize,
+				chunkCount: prepared.chunkCount,
+				suggestedStorage: prepared.suggestedStorage,
+				status: 'queued',
+				progress: 0,
+				transferredBytes: 0,
+				error: undefined,
+			}
+		})
+		this.flushOffersAndQueue()
 	}
 
 	selectNativeFiles() {
@@ -703,13 +737,14 @@ export class LanConnectionRuntime {
 				return
 			}
 			this.pendingOffers.set(message.attachment.id, message)
+			const autoAcceptFallback = this.nativeFallbackIncoming.delete(message.attachment.id)
 			const inlineMedia = isInlineMediaKind(message.attachment.kind)
 			const storage = chooseReceiveStorage(message.attachment.size, message.attachment.suggestedStorage, capability, !inlineMedia)
 			const attachment = { ...attachmentFromOffer(message, storage, 0), status: 'offered' as const }
 			this.emit({ type: 'attachment-upsert', message: messageBase(message.messageId, 'in', message.createdAt, message.peerId), attachment })
 			this.emit({ type: 'file-record-upsert', record: fileRecord(message.messageId, attachment, context.remotePeerName) })
-			if (inlineMedia) {
-				this.setStatus(`正在缓存 ${message.attachment.kind === 'image' ? '图片' : '语音'}`)
+			if (inlineMedia || autoAcceptFallback) {
+				this.setStatus(inlineMedia ? `正在缓存 ${message.attachment.kind === 'image' ? '图片' : '语音'}` : `${message.attachment.name} 正在通过 WebRTC 重新接收`)
 				void this.receivePendingAttachment(message.attachment.id, true)
 				return
 			}
@@ -855,6 +890,11 @@ export class LanConnectionRuntime {
 		if (message.type === 'attachment-offer') return void (await this.handleOffer(message))
 		if (message.type === 'native-transfer-request') return void (await this.native.handleRequest(message))
 		if (message.type === 'native-transfer-ready') return void (await this.native.handleReady(message))
+		if (message.type === 'native-transfer-fallback') {
+			this.nativeFallbackIncoming.add(message.id)
+			await this.native.handleFallback(message)
+			return
+		}
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)
 			if (!entry || message.messageId !== entry.file.messageId) return

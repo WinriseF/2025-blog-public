@@ -7,9 +7,9 @@ import { LanNativeLocalBridge } from '@/lib/lan-transfer/native-agent/local-brid
 import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 import { nativeAgentLnaTicketCount, runLanNativeHttpBenchmark, selectLocalNetworkAccessEndpoint } from '@/lib/lan-transfer/native-agent/peer-lna-http'
 import { runLanNativeBenchmark } from '@/lib/lan-transfer/native-agent/peer-webtransport'
+import { endpointAddressKind, validLanWebTransportEndpoint } from '@/lib/lan-transfer/native-agent/endpoint-validation'
 import {
 	NATIVE_AGENT_BENCHMARK_VERSION,
-	NATIVE_AGENT_BRIDGE_VERSION,
 	NATIVE_AGENT_LNA_HTTP_VERSION,
 	NATIVE_AGENT_FILE_VERSION,
 	NATIVE_AGENT_SESSION_COUNT,
@@ -49,6 +49,7 @@ export type LanNativeSpeedModeState = LanNativeAgentCapability & {
 
 export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanNativeAgentAdvertisement | null = null): LanNativeSpeedModeState {
 	const bridgeRef = useRef<LanNativeLocalBridge | null>(null)
+	const endpointSubscriptionRef = useRef<(() => void) | null>(null)
 	const launchNonceRef = useRef('')
 	const handledNonceRef = useRef('')
 	const connectionAttemptRef = useRef(0)
@@ -65,6 +66,8 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	const closeBridge = useCallback(() => {
 		connectionAttemptRef.current += 1
 		bridgeRef.current?.close()
+		endpointSubscriptionRef.current?.()
+		endpointSubscriptionRef.current = null
 		bridgeRef.current = null
 		setCallback(null)
 	}, [])
@@ -85,7 +88,16 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			}
 			bridgeRef.current?.close()
 			bridgeRef.current = bridge
-			setCallback(next)
+			endpointSubscriptionRef.current?.()
+			endpointSubscriptionRef.current = bridge.subscribeNetworkEndpoints(snapshot => setCallback(current => current ? {
+				...current,
+				networkEpoch: snapshot.networkEpoch,
+				benchmarkEndpoints: snapshot.benchmarkEndpoints,
+				lnaHttpEndpoints: snapshot.lnaHttpEndpoints,
+				fileHttpEndpoints: snapshot.fileHttpEndpoints,
+				fileWebTransportEndpoints: snapshot.fileWebTransportEndpoints,
+			} : current))
+			setCallback({ ...bridge.callback })
 			setAgentState('connected')
 		} catch (error) {
 			if (attempt !== connectionAttemptRef.current) return
@@ -115,6 +127,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			connectionAttemptRef.current += 1
 			if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 			bridgeRef.current?.close()
+			endpointSubscriptionRef.current?.()
 		},
 		[]
 	)
@@ -163,7 +176,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	const localAdvertisement = useMemo<LanNativeAgentAdvertisement | null>(() => {
 		if (!callback || !ownerDeviceId || agentState !== 'connected') return null
 		return {
-			bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION,
+			bridgeVersion: callback.bridgeVersion,
 			benchmarkVersion: NATIVE_AGENT_BENCHMARK_VERSION,
 			lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
 			ownerDeviceId,
@@ -172,7 +185,8 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			fileVersion: NATIVE_AGENT_FILE_VERSION,
 			fileHttpEndpoints: callback.fileHttpEndpoints,
 			fileWebTransportEndpoints: callback.fileWebTransportEndpoints,
-			certificateSha256: callback.certificateSha256
+			certificateSha256: callback.certificateSha256,
+			networkEpoch: callback.networkEpoch
 		}
 	}, [agentState, callback, ownerDeviceId])
 
@@ -204,9 +218,12 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			setBenchmark({ state: 'running', progress: { direction, transport: 'lna-http', sessionCount, bytes: 0, totalBytes, startedAt: performance.now() } })
 			try {
 				const lna = await selectLocalNetworkAccessEndpoint(remoteAdvertisement.lnaHttpEndpoints)
-				if (lna.state === 'denied') throw new Error('你已拒绝本地网络访问权限，极速模式不可用；请在浏览器网站权限中重新允许后再试')
+				const webTransportEndpoints = remoteAdvertisement.endpoints.filter(validLanWebTransportEndpoint)
+				const publicIpv6Available = webTransportEndpoints.some(endpoint => endpointAddressKind(endpoint) === 'gua-ipv6')
+				const canUseWebTransport = capability.webTransport && webTransportEndpoints.length > 0 && (lna.state !== 'denied' || publicIpv6Available)
 				const ticketCount = lna.state === 'available' ? nativeAgentLnaTicketCount(totalBytes) : sessionCount
-				if (lna.state === 'unsupported' && !capability.webTransport) throw new Error('当前浏览器既不支持本地网络访问，也不支持 WebTransport，无法使用极速模式')
+				if (lna.state !== 'available' && !canUseWebTransport)
+					throw new Error(lna.state === 'denied' ? '你已拒绝本地网络访问权限，且加速电脑没有可用的公网 IPv6 WebTransport 地址' : lna.state === 'unavailable' ? lna.reason : '当前浏览器既不支持本地网络访问，也不支持 WebTransport')
 				const tickets = await Promise.all(Array.from({ length: ticketCount }, () => requestTicket()))
 				if (tickets.some(ticket => ticket.ownerDeviceId !== remoteAdvertisement.ownerDeviceId)) throw new Error('极速通道凭据来自错误的设备')
 				const result =
