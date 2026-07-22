@@ -63,6 +63,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			role: current.role,
 			remotePeer: peer,
 			createTransport: createNativeWebRtcTransport,
+			isTransferActive: () => engineRef.current.isTransferActive(peer.deviceId),
 			sendSignal: (type, target, details) => {
 				const client = signalClientRef.current
 				if (!client) return Promise.reject(new Error('连接服务尚未就绪'))
@@ -76,6 +77,8 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				engineRef.current.attachTransport(transport, remotePeer, route)
 				setStatus('已连接，可以发送消息和文件')
 			},
+			onPause: (remotePeer, transportId) => engineRef.current.pauseTransport(remotePeer.deviceId, transportId),
+			onResume: (remotePeer, transportId) => engineRef.current.resumeTransport(remotePeer.deviceId, transportId),
 			onRoute: (remotePeer, transportId, route) => engineRef.current.updateConnectionRoute(remotePeer.deviceId, transportId, route),
 			onDetach: (remotePeer, transportId, connectionState, message) => {
 				engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || '')

@@ -54,6 +54,7 @@ function formatTransferProgress(attachment: LanAttachment, compact = false) {
 	const bytes = transferBytes(attachment)
 	const action = attachment.direction === 'out' ? '已确认' : attachment.kind === 'file' ? '已接收' : '已缓存'
 	const parts = compact ? [progressLabel(attachment.progress)] : [`${action} ${progressLabel(attachment.progress)}`, `${formatBytes(bytes)} / ${formatBytes(attachment.size)}`]
+	if (attachment.phase === 'confirming') parts.unshift(compact ? '等待保存确认' : '等待对方保存确认')
 	const speed = formatTransferSpeed(attachment.speedBps)
 	if (speed) parts.push(speed)
 	const eta = formatEta(attachment.etaSeconds)
@@ -63,6 +64,7 @@ function formatTransferProgress(attachment: LanAttachment, compact = false) {
 
 function formatTransferMeta(attachment: LanAttachment) {
 	const parts = [`${formatBytes(transferBytes(attachment))} / ${formatBytes(attachment.size)}`]
+	if (attachment.phase === 'confirming') parts.unshift('等待对方保存确认')
 	const speed = formatTransferSpeed(attachment.speedBps)
 	if (speed) parts.push(speed)
 	const eta = formatEta(attachment.etaSeconds)
@@ -142,7 +144,7 @@ function ImageAttachmentCard({ attachment, onDownload }: AttachmentCardProps) {
 				{transferring && (
 					<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
 						<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
-							<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
+							<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : attachment.phase === 'confirming' ? '等待保存确认' : '发送中'}</span>
 							<span>{formatTransferProgress(attachment, true)}</span>
 						</div>
 						<div className='h-1 overflow-hidden rounded-full bg-background/50'><div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} /></div>

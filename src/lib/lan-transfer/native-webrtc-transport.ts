@@ -1,7 +1,7 @@
 import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
-import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportState } from './transport-types'
+import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportHealthStats, LanTransportState } from './transport-types'
 
-const transportControlPrefix = '__winrisef_lan_v9__:'
+const transportControlPrefix = '__winrisef_lan_v10__:'
 const TRANSPORT_FRAME_PROBE = 0xff
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -11,8 +11,8 @@ export const lanRtcConfig: RTCConfiguration = {
 	iceCandidatePoolSize: 2,
 }
 
-type TransportControl = { type: 'hello'; generation: number } | { type: 'ping' | 'pong' | 'frame-probe-ack'; generation: number; id: string }
-type CandidatePairStats = RTCStats & { localCandidateId?: string; remoteCandidateId?: string; nominated?: boolean; selected?: boolean; state?: string }
+type TransportControl = { type: 'hello'; generation: number } | { type: 'frame-probe-ack'; generation: number; id: string }
+type CandidatePairStats = RTCStats & { localCandidateId?: string; remoteCandidateId?: string; nominated?: boolean; selected?: boolean; state?: string; bytesSent?: number; bytesReceived?: number; consentRequestsSent?: number; responsesReceived?: number }
 type CandidateStats = RTCStats & { address?: string; ip?: string; ipAddress?: string; candidateType?: string }
 type TransportStats = RTCStats & { selectedCandidatePairId?: string }
 
@@ -28,7 +28,7 @@ function parseTransportControl(value: string): TransportControl | null {
 	if (!value.startsWith(transportControlPrefix)) return null
 	try {
 		const message = JSON.parse(value.slice(transportControlPrefix.length)) as TransportControl
-		if (!message || typeof message !== 'object' || !['hello', 'ping', 'pong', 'frame-probe-ack'].includes(message.type) || typeof message.generation !== 'number') return null
+		if (!message || typeof message !== 'object' || !['hello', 'frame-probe-ack'].includes(message.type) || typeof message.generation !== 'number') return null
 		if (message.type !== 'hello' && typeof message.id !== 'string') return null
 		return message
 	} catch {
@@ -99,7 +99,6 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private ready = false
 	private closed = false
 	private lastState: LanTransportState | null = null
-	lastInboundAt = Date.now()
 
 	constructor(private readonly options: LanTransportCreateOptions) {
 		this.generation = options.generation
@@ -107,7 +106,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.pc.onicecandidate = event => options.onCandidate(event.candidate?.toJSON() || null)
 		this.pc.onconnectionstatechange = () => this.emitConnectionState()
 		this.pc.oniceconnectionstatechange = () => this.emitConnectionState()
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v9', { ordered: true }))
+		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v10', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}
@@ -156,12 +155,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		return this.chunkNegotiation
 	}
 
-	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number) {
-		return this.waitForBufferedAmount(highWatermark, lowWatermark, timeoutMs)
-	}
-
-	waitUntilDrained(lowWatermark: number, timeoutMs: number) {
-		return this.waitForBufferedAmount(lowWatermark, lowWatermark, timeoutMs)
+	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {
+		return this.waitForBufferedAmount(highWatermark, lowWatermark, timeoutMs, signal)
 	}
 
 	async start() {
@@ -179,7 +174,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		if (this.options.role !== 'host' || this.closed) return
 		this.setNegotiationId(negotiationId)
 		this.pc.restartIce()
-		await this.createOffer(true)
+		await this.createOffer(false)
 	}
 
 	async acceptDescription(description: RTCSessionDescriptionInit) {
@@ -202,21 +197,18 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		await this.addCandidate(candidate)
 	}
 
-	probe(timeoutMs = 3000) {
-		if (!this.isOpen()) return Promise.resolve(false)
-		const id = randomId()
-		return new Promise<boolean>(resolve => {
-			const timer = setTimeout(() => {
-				this.pendingProbes.delete(id)
-				resolve(false)
-			}, timeoutMs)
-			this.pendingProbes.set(id, { resolve, timer })
-			if (!this.sendControl({ type: 'ping', generation: this.generation, id })) {
-				clearTimeout(timer)
-				this.pendingProbes.delete(id)
-				resolve(false)
-			}
-		})
+	async getHealthStats(): Promise<LanTransportHealthStats> {
+		const stats = await this.pc.getStats()
+		const pair = selectedCandidatePair(stats)
+		return {
+			connectionState: this.pc.connectionState,
+			iceConnectionState: this.pc.iceConnectionState,
+			candidatePairId: pair?.id || '',
+			bytesSent: pair?.bytesSent || 0,
+			bytesReceived: pair?.bytesReceived || 0,
+			consentRequestsSent: typeof pair?.consentRequestsSent === 'number' ? pair.consentRequestsSent : null,
+			responsesReceived: typeof pair?.responsesReceived === 'number' ? pair.responsesReceived : null,
+		}
 	}
 
 	async inspectRoute(): Promise<LanConnectionRoute> {
@@ -280,10 +272,10 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		channel.binaryType = 'arraybuffer'
 		channel.onopen = () => this.sendControl({ type: 'hello', generation: this.generation })
 		channel.onclose = () => {
-			if (!this.closed && this.channel === channel) this.emitState('failed')
+			if (!this.closed && this.channel === channel) this.emitState('channel-closed')
 		}
 		channel.onerror = () => {
-			if (!this.closed && this.channel === channel) this.emitState('failed')
+			if (!this.closed && this.channel === channel) this.emitState('channel-closed')
 		}
 		channel.onmessage = event => {
 			if (this.channel === channel) void this.handleChannelMessage(event.data)
@@ -291,7 +283,6 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	}
 
 	private async handleChannelMessage(data: unknown) {
-		this.lastInboundAt = Date.now()
 		if (typeof data === 'string') {
 			const control = parseTransportControl(data)
 			if (control) return this.handleControl(control)
@@ -320,7 +311,6 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			}
 			return
 		}
-		if (message.type === 'ping') return void this.sendControl({ type: 'pong', generation: this.generation, id: message.id })
 		const probe = this.pendingProbes.get(message.id)
 		if (!probe) return
 		clearTimeout(probe.timer)
@@ -415,14 +405,16 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.options.onState(state)
 	}
 
-	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number) {
+	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {
+		const channel = this.channel
+		if (!this.isOpen() || !channel) throw new Error('连接已断开，请重新连接后再发送')
+		if (channel.bufferedAmount <= limit) return
 		const startedAt = Date.now()
-		while (true) {
-			const channel = this.channel
-			if (!this.isOpen() || !channel) throw new Error('连接已断开，请重新连接后再发送')
-			if (channel.bufferedAmount <= limit) return
+		channel.bufferedAmountLowThreshold = lowWatermark
+		while (channel.bufferedAmount > lowWatermark) {
+			if (signal?.aborted) throw new DOMException('发送已暂停', 'AbortError')
+			if (!this.isOpen() || this.channel !== channel) throw new Error('连接已断开，请重新连接后再发送')
 			if (Date.now() - startedAt > timeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
-			channel.bufferedAmountLowThreshold = lowWatermark
 			await new Promise<void>((resolve, reject) => {
 				const timer = setTimeout(done, 250)
 				function cleanup() {
@@ -430,6 +422,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 					channel.removeEventListener('bufferedamountlow', done)
 					channel.removeEventListener('close', fail)
 					channel.removeEventListener('error', fail)
+					signal?.removeEventListener('abort', abort)
 				}
 				function done() {
 					cleanup()
@@ -439,9 +432,14 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 					cleanup()
 					reject(new Error('连接已断开，请重新连接后再发送'))
 				}
+				function abort() {
+					cleanup()
+					reject(new DOMException('发送已暂停', 'AbortError'))
+				}
 				channel.addEventListener('bufferedamountlow', done, { once: true })
 				channel.addEventListener('close', fail, { once: true })
 				channel.addEventListener('error', fail, { once: true })
+				signal?.addEventListener('abort', abort, { once: true })
 			})
 		}
 	}

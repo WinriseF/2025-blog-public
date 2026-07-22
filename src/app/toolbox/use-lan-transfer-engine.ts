@@ -228,6 +228,20 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return peerId ? managedRef.current.get(peerId)?.runtime || null : null
 	}, [])
 
+	const pauseTransport = useCallback((peerId: string, transportId: string) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) entry.runtime.pauseTransport()
+	}, [])
+
+	const resumeTransport = useCallback((peerId: string, transportId: string) => {
+		const entry = managedRef.current.get(peerId)
+		if (entry?.transportId === transportId) entry.runtime.resumeTransport()
+	}, [])
+
+	const isTransferActive = useCallback((peerId: string) => {
+		return managedRef.current.get(peerId)?.runtime.hasActiveTransfer() || false
+	}, [])
+
 	const sendText = useCallback((text: string) => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
@@ -262,10 +276,13 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		patchConnection,
 		attachTransport,
 		updateConnectionRoute,
+		pauseTransport,
+		resumeTransport,
 		detachPeer,
 		removeConnection,
 		resetAll,
 		handlePeerData,
+		isTransferActive,
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,

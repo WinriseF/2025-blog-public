@@ -1,4 +1,4 @@
-export const LAN_PROTOCOL_VERSION = 9
+export const LAN_PROTOCOL_VERSION = 10
 export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
 export const LAN_CHUNK_TIERS = [
@@ -18,13 +18,20 @@ export const LAN_LIMITS = {
 	dataChannelMaxChunkSize: LAN_CHUNK_TIERS[0].chunkSize,
 	dataChannelFallbackChunkSize: LAN_CHUNK_TIERS[1].chunkSize,
 	defaultChunkSize: LAN_CHUNK_TIERS[1].chunkSize,
-	bufferHighWatermark: 8 * 1024 * 1024,
-	bufferLowWatermark: 2 * 1024 * 1024,
-	mobileBufferHighWatermark: 4 * 1024 * 1024,
-	mobileBufferLowWatermark: 1 * 1024 * 1024,
+	bufferHighWatermark: 2 * 1024 * 1024,
+	bufferLowWatermark: 512 * 1024,
+	mobileBufferHighWatermark: 1 * 1024 * 1024,
+	mobileBufferLowWatermark: 256 * 1024,
 	bufferDrainTimeoutMs: 60 * 1000,
 	maxSenderAheadBytes: 64 * 1024 * 1024,
 	mobileMaxSenderAheadBytes: 32 * 1024 * 1024,
+	maxAttachmentAheadBytes: 16 * 1024 * 1024,
+	mobileMaxAttachmentAheadBytes: 8 * 1024 * 1024,
+	schedulerQuantumBytes: 512 * 1024,
+	schedulerPriorityWeight: 4,
+	schedulerPriorityMaxBytes: 8 * 1024 * 1024,
+	schedulerMaxActive: 4,
+	mobileSchedulerMaxActive: 2,
 	progressAckIntervalBytes: 1024 * 1024,
 	progressAckIntervalMs: 500,
 } as const
@@ -83,6 +90,7 @@ export type LanSignalMessage = {
 	candidate?: RTCIceCandidateInit | null
 	ackFor?: string
 	reason?: string
+	hardRecovery?: boolean
 }
 
 export type LanPresencePayload = {
@@ -94,7 +102,7 @@ export type LanPresencePayload = {
 }
 
 export type LanSignalTarget = Pick<LanPeer, 'deviceId' | 'instanceId'>
-export type LanSignalSendDetails = Partial<Pick<LanSignalMessage, 'generation' | 'negotiationId' | 'description' | 'candidate' | 'ackFor' | 'reason'>>
+export type LanSignalSendDetails = Partial<Pick<LanSignalMessage, 'generation' | 'negotiationId' | 'description' | 'candidate' | 'ackFor' | 'reason' | 'hardRecovery'>>
 
 export type LanCapability = {
 	type: 'capability'
@@ -145,6 +153,7 @@ export type LanAttachment = LanAttachmentManifest & {
 	transferredBytes?: number
 	speedBps?: number
 	etaSeconds?: number
+	phase?: 'transferring' | 'confirming'
 	url?: string
 	previewUrl?: string
 	error?: string
