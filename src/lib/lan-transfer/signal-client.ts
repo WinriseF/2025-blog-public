@@ -258,11 +258,18 @@ export class LanSignalingClient {
 		if (payload.type === 'candidate') this.log('candidate-received', summarizeIceCandidate(payload.candidate || null))
 		else if (payload.type !== 'announce' && payload.type !== 'signal-ack') this.log('signal-received', { type: payload.type, generation: payload.generation, negotiation: shortConnectionId(payload.negotiationId) })
 		if (payload.type === 'signal-ack') {
-			if (payload.ackFor) this.clearPending(payload.ackFor)
+			if (payload.ackFor) {
+				const pending = this.pending.get(payload.ackFor)
+				this.log('signal-ack-received', { ackFor: shortConnectionId(payload.ackFor), pendingType: pending?.message.type, attempts: pending?.attempts, found: Boolean(pending) })
+				this.clearPending(payload.ackFor)
+			}
 			return
 		}
 		if (criticalSignalTypes.has(payload.type)) void this.sendSignal('signal-ack', { deviceId: payload.fromDeviceId, instanceId: payload.fromInstanceId }, { generation: payload.generation, negotiationId: payload.negotiationId, ackFor: payload.messageId }).catch(() => {})
-		if (!this.rememberMessage(payload.messageId)) return
+		if (!this.rememberMessage(payload.messageId)) {
+			this.log('signal-duplicate-ignored', { type: payload.type, message: shortConnectionId(payload.messageId), generation: payload.generation, negotiation: shortConnectionId(payload.negotiationId) }, 'warn')
+			return
+		}
 		this.onMessage(payload)
 	}
 
@@ -335,18 +342,29 @@ export class LanSignalingClient {
 		try {
 			delivered = await this.deliver(message)
 		} catch (error) {
+			this.log('signal-delivery-error', { type, message: shortConnectionId(message.messageId), error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 			if (!critical) throw error
 		}
+		if (type === 'candidate') this.log('candidate-delivery-result', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(message.messageId), delivered, subscribed: this.subscribed, queuedCandidates: this.queuedCandidates.size })
+		else if (type !== 'announce' && type !== 'signal-ack') this.log('signal-delivery-result', { type, message: shortConnectionId(message.messageId), delivered, critical, subscribed: this.subscribed })
 		if (critical) this.scheduleRetry(message.messageId)
 		else if (!delivered && type === 'candidate') {
-			if (this.queuedCandidates.size >= 256) this.queuedCandidates.delete(this.queuedCandidates.keys().next().value as string)
+			if (this.queuedCandidates.size >= 256) {
+				const removedId = this.queuedCandidates.keys().next().value as string
+				this.queuedCandidates.delete(removedId)
+				this.log('candidate-send-queue-evicted', { message: shortConnectionId(removedId), queuedCandidates: this.queuedCandidates.size }, 'warn')
+			}
 			this.queuedCandidates.set(message.messageId, message)
+			this.log('candidate-send-queued', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(message.messageId), queuedCandidates: this.queuedCandidates.size }, 'warn')
 		} else if (!delivered) throw new Error('连接消息发送失败')
 	}
 
 	private async deliver(message: LanSignalMessage) {
 		const channel = this.channel
-		if (!this.subscribed || !channel) return false
+		if (!this.subscribed || !channel) {
+			if (message.type !== 'announce') this.log('signal-delivery-skipped', { type: message.type, message: shortConnectionId(message.messageId), subscribed: this.subscribed, hasChannel: Boolean(channel) }, 'warn')
+			return false
+		}
 		const result = await channel.send({ type: 'broadcast', event: 'lan', payload: message })
 		if (result !== 'ok' && message.type !== 'announce') this.log('signal-delivery-failed', { type: message.type, result }, 'warn')
 		return result === 'ok'
@@ -354,17 +372,23 @@ export class LanSignalingClient {
 
 	private scheduleRetry(messageId: string) {
 		const pending = this.pending.get(messageId)
-		if (!pending || pending.timer || pending.attempts >= signalAckAttempts) return
+		if (!pending || pending.timer) return
+		if (pending.attempts >= signalAckAttempts) {
+			this.log('signal-retry-exhausted', { type: pending.message.type, message: shortConnectionId(messageId), attempts: pending.attempts }, 'warn')
+			return
+		}
 		pending.timer = setTimeout(() => {
 			pending.timer = null
 			if (!this.pending.has(messageId)) return
 			pending.attempts += 1
+			this.log('signal-retry-sending', { type: pending.message.type, message: shortConnectionId(messageId), attempt: pending.attempts })
 			void this.deliver(pending.message).catch(() => false).finally(() => this.scheduleRetry(messageId))
 		}, signalAckRetryMs)
 	}
 
 	private flushPending() {
 		this.prunePending()
+		if (this.pending.size || this.queuedCandidates.size) this.log('signal-queues-flushing', { pendingCritical: this.pending.size, queuedCandidates: this.queuedCandidates.size })
 		this.pending.forEach((pending, id) => {
 			if (pending.timer) clearTimeout(pending.timer)
 			pending.timer = null
@@ -373,6 +397,7 @@ export class LanSignalingClient {
 		})
 		this.queuedCandidates.forEach((message, id) => {
 			void this.deliver(message).then(delivered => {
+				this.log('candidate-queue-delivery-result', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(id), delivered })
 				if (delivered) this.queuedCandidates.delete(id)
 			}).catch(() => {})
 		})
@@ -386,8 +411,14 @@ export class LanSignalingClient {
 
 	private prunePending() {
 		const now = Date.now()
-		for (const [messageId, pending] of this.pending) if (now - pending.message.ts > seenMessageTtlMs) this.clearPending(messageId)
-		for (const [messageId, message] of this.queuedCandidates) if (now - message.ts > seenMessageTtlMs) this.queuedCandidates.delete(messageId)
+		for (const [messageId, pending] of this.pending) if (now - pending.message.ts > seenMessageTtlMs) {
+			this.log('signal-pending-expired', { type: pending.message.type, message: shortConnectionId(messageId), attempts: pending.attempts }, 'warn')
+			this.clearPending(messageId)
+		}
+		for (const [messageId, message] of this.queuedCandidates) if (now - message.ts > seenMessageTtlMs) {
+			this.log('candidate-send-expired', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(messageId) }, 'warn')
+			this.queuedCandidates.delete(messageId)
+		}
 	}
 
 	restartAnnouncing() {
