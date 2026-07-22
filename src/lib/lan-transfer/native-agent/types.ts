@@ -7,6 +7,8 @@ export type LanNativeBenchmarkDirection = 'browser-to-agent' | 'agent-to-browser
 
 export const NATIVE_AGENT_SESSION_COUNT = 6
 
+export type LanNativePublicIpv6State = 'not-present' | 'authorizing' | 'available' | 'unavailable'
+
 export type LanNativeAgentAdvertisement = {
 	bridgeVersion: 2 | typeof NATIVE_AGENT_BRIDGE_VERSION
 	benchmarkVersion: typeof NATIVE_AGENT_BENCHMARK_VERSION
@@ -19,6 +21,7 @@ export type LanNativeAgentAdvertisement = {
 	fileWebTransportEndpoints: string[]
 	certificateSha256: string
 	networkEpoch: string
+	publicIpv6State: LanNativePublicIpv6State
 }
 
 export type LanNativeAgentTicket = LanNativeAgentAdvertisement & {
@@ -38,6 +41,7 @@ export type LanNativeAgentCallback = {
 	expiresAt: number
 	bridgeVersion: 2 | typeof NATIVE_AGENT_BRIDGE_VERSION
 	networkEpoch: string
+	publicIpv6State: LanNativePublicIpv6State
 }
 
 export type LanNativeNetworkEndpointSnapshot = {
@@ -46,6 +50,7 @@ export type LanNativeNetworkEndpointSnapshot = {
 	lnaHttpEndpoints: string[]
 	fileHttpEndpoints: string[]
 	fileWebTransportEndpoints: string[]
+	publicIpv6State: LanNativePublicIpv6State
 }
 
 export type LanNativeFileDirection = 'agent-to-browser' | 'browser-to-agent'

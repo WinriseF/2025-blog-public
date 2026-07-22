@@ -69,12 +69,13 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 			ownerDeviceId,
 			endpoints: resultEndpoints.length ? resultEndpoints : snapshot.benchmarkEndpoints,
 			lnaHttpVersion: NATIVE_AGENT_LNA_HTTP_VERSION,
-			lnaHttpEndpoints: this.callback.lnaHttpEndpoints,
+			lnaHttpEndpoints: snapshot.lnaHttpEndpoints,
 			fileVersion: NATIVE_AGENT_FILE_VERSION,
-			fileHttpEndpoints: this.callback.fileHttpEndpoints,
-			fileWebTransportEndpoints: this.callback.fileWebTransportEndpoints,
+			fileHttpEndpoints: snapshot.fileHttpEndpoints,
+			fileWebTransportEndpoints: snapshot.fileWebTransportEndpoints,
 			certificateSha256: this.callback.certificateSha256,
 			networkEpoch: typeof result.networkEpoch === 'string' ? result.networkEpoch : snapshot.networkEpoch,
+			publicIpv6State: snapshot.publicIpv6State,
 			token: result.token,
 			expiresAt: result.expiresAt,
 		}
@@ -152,6 +153,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 		this.callback.lnaHttpEndpoints = snapshot.lnaHttpEndpoints
 		this.callback.fileHttpEndpoints = snapshot.fileHttpEndpoints
 		this.callback.fileWebTransportEndpoints = snapshot.fileWebTransportEndpoints
+		this.callback.publicIpv6State = snapshot.publicIpv6State
 		this.endpointListeners.forEach(listener => listener(snapshot))
 	}
 
@@ -243,6 +245,7 @@ function snapshotFromCallback(callback: LanNativeAgentCallback): LanNativeNetwor
 		lnaHttpEndpoints: callback.lnaHttpEndpoints,
 		fileHttpEndpoints: callback.fileHttpEndpoints,
 		fileWebTransportEndpoints: callback.fileWebTransportEndpoints,
+		publicIpv6State: callback.publicIpv6State,
 	}
 }
 
@@ -254,8 +257,13 @@ function parseNetworkEndpointSnapshot(value: unknown): LanNativeNetworkEndpointS
 	const lnaHttpEndpoints = filterEndpointList(snapshot.lnaHttpEndpoints, validLanHttpBaseEndpoint)
 	const fileHttpEndpoints = filterEndpointList(snapshot.fileHttpEndpoints, validLanFileHttpEndpoint)
 	const fileWebTransportEndpoints = filterEndpointList(snapshot.fileWebTransportEndpoints, validLanFileWebTransportEndpoint)
-	if (!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) return null
-	return { networkEpoch: snapshot.networkEpoch, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints }
+	const publicIpv6State = parsePublicIpv6State(snapshot.publicIpv6State)
+	if (!publicIpv6State) return null
+	return { networkEpoch: snapshot.networkEpoch, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, publicIpv6State }
+}
+
+function parsePublicIpv6State(value: unknown): LanNativeNetworkEndpointSnapshot['publicIpv6State'] | null {
+	return value === 'not-present' || value === 'authorizing' || value === 'available' || value === 'unavailable' ? value : null
 }
 
 function filterEndpointList(value: unknown, validate: (endpoint: string) => boolean) {

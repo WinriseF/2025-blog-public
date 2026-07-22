@@ -22,6 +22,8 @@ import {
 } from '@/lib/lan-transfer/native-agent/types'
 
 const SPEED_MODE_PREFERENCE_KEY = 'lan-native-speed-mode-enabled'
+const LAUNCH_CALLBACK_TIMEOUT_MS = 30_000
+const LAUNCH_NONCE_TTL_MS = 150_000
 const INITIAL_CAPABILITY: LanNativeAgentCapability = { device: 'desktop', webTransport: false, canHostAgent: false }
 
 export type LanNativeBenchmarkState = {
@@ -50,7 +52,8 @@ export type LanNativeSpeedModeState = LanNativeAgentCapability & {
 export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanNativeAgentAdvertisement | null = null): LanNativeSpeedModeState {
 	const bridgeRef = useRef<LanNativeLocalBridge | null>(null)
 	const endpointSubscriptionRef = useRef<(() => void) | null>(null)
-	const launchNonceRef = useRef('')
+	const pendingLaunchesRef = useRef(new Map<string, number>())
+	const launchInFlightRef = useRef(false)
 	const handledNonceRef = useRef('')
 	const connectionAttemptRef = useRef(0)
 	const launchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -73,7 +76,11 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	}, [])
 
 	const connectCallback = useCallback(async (next: LanNativeAgentCallback) => {
-		if (next.nonce !== launchNonceRef.current || next.nonce === handledNonceRef.current) return
+		const now = Date.now()
+		pendingLaunchesRef.current.forEach((expiresAt, nonce) => {
+			if (expiresAt <= now) pendingLaunchesRef.current.delete(nonce)
+		})
+		if (!pendingLaunchesRef.current.has(next.nonce) || next.nonce === handledNonceRef.current) return
 		handledNonceRef.current = next.nonce
 		const attempt = (connectionAttemptRef.current += 1)
 		if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
@@ -88,6 +95,8 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			}
 			bridgeRef.current?.close()
 			bridgeRef.current = bridge
+			pendingLaunchesRef.current.clear()
+			launchInFlightRef.current = false
 			endpointSubscriptionRef.current?.()
 			endpointSubscriptionRef.current = bridge.subscribeNetworkEndpoints(snapshot => setCallback(current => current ? {
 				...current,
@@ -96,11 +105,14 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 				lnaHttpEndpoints: snapshot.lnaHttpEndpoints,
 				fileHttpEndpoints: snapshot.fileHttpEndpoints,
 				fileWebTransportEndpoints: snapshot.fileWebTransportEndpoints,
+				publicIpv6State: snapshot.publicIpv6State,
 			} : current))
 			setCallback({ ...bridge.callback })
 			setAgentState('connected')
 		} catch (error) {
 			if (attempt !== connectionAttemptRef.current) return
+			pendingLaunchesRef.current.delete(next.nonce)
+			launchInFlightRef.current = false
 			if (bridgeRef.current) {
 				setAgentState('connected')
 				return
@@ -133,21 +145,23 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	)
 
 	const launch = useCallback(() => {
-		if (!capability.canHostAgent) return
+		if (!capability.canHostAgent || launchInFlightRef.current || bridgeRef.current) return
 		autoLaunchAttemptedRef.current = true
 		const request = createLanAgentLaunchRequest()
 		connectionAttemptRef.current += 1
 		handledNonceRef.current = ''
-		launchNonceRef.current = request.nonce
+		pendingLaunchesRef.current.set(request.nonce, Date.now() + LAUNCH_NONCE_TTL_MS)
+		launchInFlightRef.current = true
 		setAgentState('launching')
 		setAgentError('')
 		launchLanNativeAgent(request.uri)
 		if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 		launchTimerRef.current = setTimeout(() => {
 			launchTimerRef.current = null
+			launchInFlightRef.current = false
 			setAgentState(current => (current === 'launching' ? 'error' : current))
-			setAgentError('没有收到本机组件回调，请先注册或启动 WinriseF Agent')
-		}, 12_000)
+			setAgentError('暂时没有收到本机组件回调；如果系统权限窗口仍在处理，请稍候，或稍后重试')
+		}, LAUNCH_CALLBACK_TIMEOUT_MS)
 	}, [capability.canHostAgent])
 
 	useEffect(() => {
@@ -165,6 +179,8 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			else {
 				if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 				launchTimerRef.current = null
+				pendingLaunchesRef.current.clear()
+				launchInFlightRef.current = false
 				closeBridge()
 				setAgentState('idle')
 				setAgentError('')
@@ -186,7 +202,8 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			fileHttpEndpoints: callback.fileHttpEndpoints,
 			fileWebTransportEndpoints: callback.fileWebTransportEndpoints,
 			certificateSha256: callback.certificateSha256,
-			networkEpoch: callback.networkEpoch
+			networkEpoch: callback.networkEpoch,
+			publicIpv6State: callback.publicIpv6State
 		}
 	}, [agentState, callback, ownerDeviceId])
 
@@ -272,6 +289,9 @@ function nativeSpeedStatus(
 	device: LanNativeAgentCapability['device'],
 	enabled: boolean
 ) {
+	if (local?.publicIpv6State === 'authorizing') return '本机组件已连接，正在后台配置公网 IPv6；IPv4/内网通道可先使用'
+	if (local?.publicIpv6State === 'available') return '本机组件已连接，公网 IPv6 与内网通道均已就绪'
+	if (local?.publicIpv6State === 'unavailable') return '本机组件已连接，公网 IPv6 未授权；继续使用 IPv4、内网或普通直连'
 	if (local) return '本机组件已连接，等待网页设备使用'
 	if (remote) return '已发现加速电脑，大文件将自动加速'
 	if (state === 'connected') return '本机组件已连接，创建配对码后启用'

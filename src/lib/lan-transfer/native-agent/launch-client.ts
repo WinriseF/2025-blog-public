@@ -31,12 +31,13 @@ export function consumeLanAgentCallback(): LanNativeAgentCallback | null {
 	const launchToken = params.get('token') || ''
 	const expiresAt = Number(params.get('expires'))
 	const networkEpoch = params.get('network-epoch') || 'legacy'
+	const publicIpv6State = params.get('public-ipv6-state') || 'not-present'
 	const benchmarkEndpoints = params.getAll('lan')
 	const lnaHttpEndpoints = params.getAll('lan-http')
 	const fileHttpEndpoints = params.getAll('file-http')
 	const fileWebTransportEndpoints = params.getAll('file-wt')
 	window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
-	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: bridgeVersion(bridgeEndpoint), networkEpoch })
+	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: bridgeVersion(bridgeEndpoint), networkEpoch, publicIpv6State: validPublicIpv6State(publicIpv6State) ? publicIpv6State : 'not-present' })
 }
 
 export function deliverLanAgentCallback(callback: LanNativeAgentCallback) {
@@ -102,8 +103,13 @@ function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallb
 	const lnaHttpEndpoints = filterNativeEndpoints(callback.lnaHttpEndpoints, validLanHttpBaseEndpoint)
 	const fileHttpEndpoints = filterNativeEndpoints(callback.fileHttpEndpoints, validLanFileHttpEndpoint)
 	const fileWebTransportEndpoints = filterNativeEndpoints(callback.fileWebTransportEndpoints, validLanFileWebTransportEndpoint)
-	if (!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) return null
-	return { ...callback, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, bridgeVersion: bridgeVersion(callback.bridgeEndpoint) }
+	const publicIpv6State = validPublicIpv6State(callback.publicIpv6State) ? callback.publicIpv6State : 'not-present'
+	if ((!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) && publicIpv6State !== 'authorizing') return null
+	return { ...callback, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, bridgeVersion: bridgeVersion(callback.bridgeEndpoint), publicIpv6State }
+}
+
+function validPublicIpv6State(value: unknown): value is LanNativeAgentCallback['publicIpv6State'] {
+	return value === 'not-present' || value === 'authorizing' || value === 'available' || value === 'unavailable'
 }
 
 function validBridgeEndpoint(value: string) {

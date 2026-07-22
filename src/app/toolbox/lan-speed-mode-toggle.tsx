@@ -23,6 +23,7 @@ export function LanSpeedModeToggle({
 
 	const mobile = speedMode.device === 'mobile'
 	const running = speedMode.benchmark.state === 'running'
+	const agentBusy = speedMode.agentState === 'launching' || speedMode.agentState === 'connecting'
 	const progress = speedMode.benchmark.progress
 	const transferredPercent = progress ? Math.min(100, (progress.bytes / progress.totalBytes) * 100) : 0
 	const confirmingResult = running && transferredPercent >= 100
@@ -61,7 +62,7 @@ export function LanSpeedModeToggle({
 							role='switch'
 							aria-checked={speedMode.enabled}
 							aria-label='极速模式'
-							disabled={!speedMode.canHostAgent}
+							disabled={!speedMode.canHostAgent || agentBusy}
 							onClick={() => speedMode.setEnabled(!speedMode.enabled)}
 							className={`relative h-6 w-11 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${speedMode.enabled ? 'bg-brand' : 'bg-border'}`}>
 							<span
