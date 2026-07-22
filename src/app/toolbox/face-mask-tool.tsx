@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { FaceMaskControls } from './face-mask-controls'
 import { FaceMaskEditor } from './face-mask-editor'
@@ -14,8 +15,7 @@ import type { EditorMode, LoadedImage, MaskItem, MaskMode, Rect } from '@/lib/fa
 const SUPPORTED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])
 
 function createMaskId() {
-	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
-	return `mask-${Date.now()}-${Math.random().toString(16).slice(2)}`
+	return crypto.randomUUID()
 }
 
 function disposeImage(image: LoadedImage | null) {
@@ -35,6 +35,7 @@ function makeMask(rect: Rect, mode: MaskMode, emoji: string, source: MaskItem['s
 }
 
 export function FaceMaskTool() {
+	const shouldReduceMotion = useReducedMotion()
 	const [image, setImage] = useState<LoadedImage | null>(null)
 	const [masks, setMasks] = useState<MaskItem[]>([])
 	const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null)
@@ -61,6 +62,7 @@ export function FaceMaskTool() {
 
 	const selectedMask = useMemo(() => masks.find(mask => mask.id === selectedMaskId) ?? null, [masks, selectedMaskId])
 	const creating = editorMode === 'creating'
+	const contentTransition = shouldReduceMotion ? { duration: 0 } : { duration: 0.18 }
 
 	const handleFiles = useCallback(async (fileList: FileList | null) => {
 		const file = Array.from(fileList ?? []).find(item => item.type.startsWith('image/'))
@@ -170,16 +172,12 @@ export function FaceMaskTool() {
 	const handleModeChange = useCallback(
 		(mode: MaskMode) => {
 			if (selectedMaskId) {
-				updateMask(selectedMaskId, mask => ({
-					...mask,
-					mode,
-					emoji: mode === 'emoji' ? mask.emoji || defaultEmoji : mask.emoji
-				}))
+				updateMask(selectedMaskId, mask => ({ ...mask, mode }))
 			} else {
 				setDefaultMode(mode)
 			}
 		},
-		[defaultEmoji, selectedMaskId, updateMask]
+		[selectedMaskId, updateMask]
 	)
 
 	const handleStickerChange = useCallback(
@@ -235,7 +233,10 @@ export function FaceMaskTool() {
 	}, [])
 
 	return (
-		<div className='mx-auto flex max-w-6xl flex-col gap-6'>
+		<motion.div
+			initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+			animate={{ opacity: 1, y: 0 }}
+			className='mx-auto flex max-w-6xl flex-col gap-6'>
 			<input
 				ref={fileInputRef}
 				type='file'
@@ -252,45 +253,55 @@ export function FaceMaskTool() {
 				<p className='text-secondary mt-3 text-sm'>自动检测人脸，也可以手动调整遮挡区域</p>
 			</header>
 
-			{image ? (
-				<>
-					<FaceMaskEditor
-						image={image}
-						masks={masks}
-						selectedMaskId={selectedMaskId}
-						creating={creating}
-						zoom={zoom}
-						onCreateMask={handleCreateMask}
-						onCreateEnd={() => setEditorMode('idle')}
-						onSelectMask={setSelectedMaskId}
-						onMoveMask={handleMoveMask}
-						onResizeMask={handleResizeMask}
-						onDeleteMask={handleDeleteMask}
-						onInteractionStart={handleInteractionStart}
-						onInteractionEnd={handleInteractionEnd}
-					/>
-					<FaceMaskControls
-						masks={masks}
-						selectedMask={selectedMask}
-						defaultMode={defaultMode}
-						defaultEmoji={defaultEmoji}
-						detecting={detecting}
-						creating={creating}
-						zoom={zoom}
-						onModeChange={handleModeChange}
-						onStickerChange={handleStickerChange}
-						onCustomSticker={handleCustomSticker}
-						onDetect={handleDetect}
-						onCreate={handleToggleCreateMode}
-						onClear={handleClearMasks}
-						onExport={handleExport}
-						onReplaceImage={() => fileInputRef.current?.click()}
-						onZoomChange={value => setZoom(Math.min(1.8, Math.max(0.5, Number(value.toFixed(2)))))}
-					/>
-				</>
-			) : (
-				<FaceMaskUpload onFiles={files => void handleFiles(files)} />
-			)}
-		</div>
+			<AnimatePresence mode='wait' initial={false}>
+				{image ? (
+					<motion.div
+						key='editor'
+						initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0 }}
+						transition={contentTransition}
+						className='flex flex-col gap-6'>
+						<FaceMaskEditor
+							image={image}
+							masks={masks}
+							selectedMaskId={selectedMaskId}
+							creating={creating}
+							zoom={zoom}
+							onCreateMask={handleCreateMask}
+							onCreateEnd={() => setEditorMode('idle')}
+							onSelectMask={setSelectedMaskId}
+							onMoveMask={handleMoveMask}
+							onResizeMask={handleResizeMask}
+							onDeleteMask={handleDeleteMask}
+							onInteractionStart={handleInteractionStart}
+							onInteractionEnd={handleInteractionEnd}
+						/>
+						<FaceMaskControls
+							masks={masks}
+							selectedMask={selectedMask}
+							defaultMode={defaultMode}
+							defaultEmoji={defaultEmoji}
+							detecting={detecting}
+							creating={creating}
+							zoom={zoom}
+							onModeChange={handleModeChange}
+							onStickerChange={handleStickerChange}
+							onCustomSticker={handleCustomSticker}
+							onDetect={handleDetect}
+							onCreate={handleToggleCreateMode}
+							onClear={handleClearMasks}
+							onExport={handleExport}
+							onReplaceImage={() => fileInputRef.current?.click()}
+							onZoomChange={setZoom}
+						/>
+					</motion.div>
+				) : (
+					<motion.div key='upload' initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={contentTransition}>
+						<FaceMaskUpload onFiles={files => void handleFiles(files)} />
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</motion.div>
 	)
 }

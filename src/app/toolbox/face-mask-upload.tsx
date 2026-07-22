@@ -2,12 +2,14 @@
 
 import { useCallback, useRef, useState, type DragEvent } from 'react'
 import { ImageIcon } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 
 type FaceMaskUploadProps = {
 	onFiles: (files: FileList | null) => void
 }
 
 export function FaceMaskUpload({ onFiles }: FaceMaskUploadProps) {
+	const shouldReduceMotion = useReducedMotion()
 	const [dragging, setDragging] = useState(false)
 	const dragCounterRef = useRef(0)
 
@@ -34,11 +36,14 @@ export function FaceMaskUpload({ onFiles }: FaceMaskUploadProps) {
 	)
 
 	return (
-		<label
+		<motion.label
 			onDragEnter={handleDragEnter}
 			onDragOver={event => event.preventDefault()}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
+			animate={{ scale: dragging && !shouldReduceMotion ? 1.01 : 1 }}
+			whileHover={shouldReduceMotion || dragging ? undefined : { y: -2 }}
+			whileTap={shouldReduceMotion ? undefined : { scale: 0.995 }}
 			className={`group flex min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-8 text-center transition max-sm:min-h-[220px] max-sm:p-6 ${
 				dragging ? 'border-brand bg-brand/10' : 'border-brand/30 bg-background/25 hover:border-brand/50 hover:bg-brand/5'
 			}`}>
@@ -51,13 +56,15 @@ export function FaceMaskUpload({ onFiles }: FaceMaskUploadProps) {
 					event.currentTarget.value = ''
 				}}
 			/>
-			<div className='text-brand bg-brand/10 group-hover:bg-brand/15 flex h-20 w-20 items-center justify-center rounded-2xl transition max-sm:h-16 max-sm:w-16'>
+			<motion.div
+				animate={{ y: dragging && !shouldReduceMotion ? -3 : 0, scale: dragging && !shouldReduceMotion ? 1.06 : 1 }}
+				className='text-brand bg-brand/10 group-hover:bg-brand/15 flex h-20 w-20 items-center justify-center rounded-2xl transition max-sm:h-16 max-sm:w-16'>
 				<ImageIcon size={36} strokeWidth={1.7} />
-			</div>
+			</motion.div>
 			<div className='mt-5'>
 				<p className='text-lg font-semibold text-primary max-sm:text-base'>点击或拖拽图片</p>
 				<p className='text-secondary mt-2 text-sm'>支持 PNG / JPG / JPEG / WEBP</p>
 			</div>
-		</label>
+		</motion.label>
 	)
 }

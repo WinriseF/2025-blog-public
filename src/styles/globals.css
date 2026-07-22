@@ -93,6 +93,13 @@
 		--reading-progress-scale: 0;
 	}
 
+	.reading-progress-embedded {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: var(--color-article);
+	}
+
 	.reading-progress-visual {
 		pointer-events: none;
 		position: absolute;

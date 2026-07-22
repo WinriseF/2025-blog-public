@@ -1,4 +1,5 @@
 import { ConnectionHealthMonitor } from './connection-health-monitor'
+import { logLanConnection, shortConnectionId, summarizeIceCandidate } from './connection-diagnostics'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportFactory, LanTransportState } from './transport-types'
 import type { LanConnectionState, LanPeer, LanRole, LanSignalMessage, LanSignalSendDetails, LanSignalTarget, LanSignalType } from './types'
 
@@ -65,6 +66,7 @@ export class ReconnectCoordinator {
 			},
 			onSuspect: (status, immediate) => this.enterSuspect(status, immediate),
 		})
+		this.log('coordinator-created')
 		this.setState('discovered', '找到设备，正在连接')
 	}
 
@@ -95,6 +97,7 @@ export class ReconnectCoordinator {
 	setSignalingOnline(online: boolean) {
 		if (this.closed) return
 		this.signalOnline = online
+		this.log('signaling-state', { online })
 		if (!online) return
 		const transport = this.transport
 		if (transport?.isOpen()) {
@@ -106,9 +109,16 @@ export class ReconnectCoordinator {
 
 	handleSignal(message: LanSignalMessage) {
 		if (this.closed || message.fromDeviceId !== this.peer.deviceId) return
+		if (message.type !== 'announce' && message.type !== 'candidate') this.log('signal-received', { type: message.type, generation: message.generation, negotiation: shortConnectionId(message.negotiationId) })
 		if (message.peer) this.updatePeerWithoutRecovery(message.peer)
-		if (message.fromInstanceId !== this.peer.instanceId) return
-		if (this.remoteClosedInstanceId === message.fromInstanceId && message.type !== 'peer-left') return
+		if (message.fromInstanceId !== this.peer.instanceId) {
+			if (message.type !== 'announce') this.log('signal-ignored', { type: message.type, reason: 'remote-instance-mismatch', remoteInstance: shortConnectionId(message.fromInstanceId) }, 'warn')
+			return
+		}
+		if (this.remoteClosedInstanceId === message.fromInstanceId && message.type !== 'peer-left') {
+			if (message.type !== 'announce') this.log('signal-ignored', { type: message.type, reason: 'remote-instance-closed' }, 'warn')
+			return
+		}
 		if (this.options.role === 'guest' && (message.type === 'rebuild' || message.type === 'ice-restart' || message.type === 'offer') && !this.acceptNegotiationMessage(message)) return
 		if (message.type === 'announce') return this.recover('设备在线')
 		if (message.type === 'peer-left') return this.handleRemoteLeft()
@@ -136,6 +146,8 @@ export class ReconnectCoordinator {
 			if (this.options.role === 'host' && this.matchesCurrent(message) && message.description) {
 				this.remoteNegotiationSeq = Math.max(this.remoteNegotiationSeq, message.seq)
 				void this.transport?.acceptDescription(message.description).catch(() => this.handleAttemptFailure())
+			} else {
+				this.log('signal-ignored', { type: message.type, reason: 'answer-not-current', messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId), hasDescription: Boolean(message.description) }, 'warn')
 			}
 			return
 		}
@@ -325,29 +337,55 @@ export class ReconnectCoordinator {
 	}
 
 	private acceptCandidate(message: LanSignalMessage) {
-		if (!message.candidate || message.generation < this.generation || message.generation > this.generation + 1) return
-		if (message.negotiationId !== this.negotiationId && message.seq < this.remoteNegotiationSeq) return
+		const candidate = summarizeIceCandidate(message.candidate || null)
+		if (!message.candidate) {
+			this.log('candidate-ignored', { ...candidate, reason: 'missing-candidate', messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId) }, 'warn')
+			return
+		}
+		if (message.generation < this.generation || message.generation > this.generation + 1) {
+			this.log('candidate-ignored', { ...candidate, reason: 'generation-out-of-window', messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId) }, 'warn')
+			return
+		}
+		if (message.negotiationId !== this.negotiationId && message.seq < this.remoteNegotiationSeq) {
+			this.log('candidate-ignored', { ...candidate, reason: 'stale-negotiation-sequence', messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId), messageSeq: message.seq, remoteNegotiationSeq: this.remoteNegotiationSeq }, 'warn')
+			return
+		}
 		if (this.matchesCurrent(message) && this.transport) {
+			this.log('candidate-dispatched', { ...candidate, messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId) })
 			void this.transport.addRemoteCandidate(message.candidate).catch(() => {})
 			return
 		}
 		const key = `${message.generation}:${message.negotiationId}`
-		if (!this.pendingCandidates.has(key) && this.pendingCandidates.size >= 8) this.pendingCandidates.delete(this.pendingCandidates.keys().next().value as string)
+		if (!this.pendingCandidates.has(key) && this.pendingCandidates.size >= 8) {
+			const removedKey = this.pendingCandidates.keys().next().value as string
+			this.pendingCandidates.delete(removedKey)
+			this.log('candidate-queue-evicted', { removedKey: shortConnectionId(removedKey), queueKeys: this.pendingCandidates.size }, 'warn')
+		}
 		const candidates = this.pendingCandidates.get(key) || []
-		if (candidates.length >= 128) return
+		if (candidates.length >= 128) {
+			this.log('candidate-ignored', { ...candidate, reason: 'candidate-queue-full', messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId), queuedCount: candidates.length }, 'warn')
+			return
+		}
 		candidates.push(message.candidate)
 		this.pendingCandidates.set(key, candidates)
+		this.log('candidate-queued', { ...candidate, messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId), queuedCount: candidates.length, queueKeys: this.pendingCandidates.size })
 	}
 
 	private drainCandidates(transport: LanReconnectTransport, generation: number, negotiationId: string) {
 		const key = `${generation}:${negotiationId}`
 		const candidates = this.pendingCandidates.get(key) || []
 		this.pendingCandidates.delete(key)
+		this.log('candidate-queue-draining', { generation, negotiation: shortConnectionId(negotiationId), count: candidates.length, remainingQueueKeys: this.pendingCandidates.size })
 		for (const candidate of candidates) void transport.addRemoteCandidate(candidate).catch(() => {})
+		let removedStaleKeys = 0
 		for (const pendingKey of this.pendingCandidates.keys()) {
 			const pendingGeneration = Number(pendingKey.slice(0, pendingKey.indexOf(':')))
-			if (pendingGeneration < generation) this.pendingCandidates.delete(pendingKey)
+			if (pendingGeneration < generation) {
+				this.pendingCandidates.delete(pendingKey)
+				removedStaleKeys += 1
+			}
 		}
+		if (removedStaleKeys) this.log('candidate-stale-queues-removed', { generation, removedStaleKeys, remainingQueueKeys: this.pendingCandidates.size }, 'warn')
 	}
 
 	private handleTransportState(transport: LanReconnectTransport, state: LanTransportState) {
@@ -422,6 +460,7 @@ export class ReconnectCoordinator {
 
 	private handleAttemptFailure() {
 		if (this.closed) return
+		this.log('connection-attempt-failed', { state: this.state }, 'warn')
 		if (this.state === 'ice-restarting') {
 			this.hardRecoveryRequested = true
 			if (this.options.role === 'host') return void this.startRebuild('网络路径恢复失败')
@@ -441,6 +480,7 @@ export class ReconnectCoordinator {
 		if (!visible()) return
 		const delay = backoffDelays[Math.min(this.backoffIndex, backoffDelays.length - 1)]
 		this.backoffIndex += 1
+		this.log('retry-scheduled', { delayMs: delay, attempt: this.backoffIndex }, 'warn')
 		this.clearBackoff()
 		this.backoffTimer = setTimeout(() => {
 			this.backoffTimer = null
@@ -486,17 +526,34 @@ export class ReconnectCoordinator {
 	}
 
 	private setState(state: LanConnectionState, status: string, connected = false) {
+		const previous = this.state
 		this.state = state
+		this.log('connection-state', { previous, state, status, connected })
 		this.options.onState(this.peer, state, status, connected)
 	}
 
 	private armAttempt(timeoutMs: number, callback: () => void) {
 		this.clearAttempt()
+		this.log('attempt-timeout-armed', { timeoutMs, state: this.state })
 		this.attemptTimer = setTimeout(() => {
 			this.attemptTimer = null
-			if (visible()) callback()
+			if (visible()) {
+				this.log('attempt-timeout-fired', { timeoutMs, state: this.state }, 'warn')
+				callback()
+			}
 			else this.setState('backoff', '页面恢复后将继续连接')
 		}, timeoutMs)
+	}
+
+	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
+		logLanConnection('CONNECT', event, {
+			role: this.options.role,
+			peer: shortConnectionId(this.peer.deviceId),
+			instance: shortConnectionId(this.peer.instanceId),
+			generation: this.generation,
+			negotiation: shortConnectionId(this.negotiationId),
+			...details,
+		}, level)
 	}
 
 	private clearAttempt() {

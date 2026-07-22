@@ -6,12 +6,17 @@ import { downloadUrl } from '@/lib/lan-transfer/file-transfer'
 import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
 import type { LanConnectionRoute, LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
 import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
+import type { LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
+import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
+import { LanNativePeerBulkAdapter } from '@/lib/lan-transfer/native-agent/peer-native-file'
 
 type UseLanTransferEngineOptions = {
 	sessionRef: MutableRefObject<LanSession | null>
 	localCapabilityRef: MutableRefObject<LanCapability | null>
 	setLocalCapability: (capability: LanCapability | null) => void
 	setStatus: (status: string) => void
+	issueNativeAgentTicket: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
+	getNativeLocalAgentPort: () => LanNativeLocalAgentPort | null
 }
 
 type ManagedConnection = {
@@ -105,6 +110,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const managedRef = useRef(new Map<string, ManagedConnection>())
 	const recordsRef = useRef<ConnectionStateRecord[]>([])
 	const activePeerIdRef = useRef<string | null>(null)
+	const nativePeerBulkRef = useRef(new LanNativePeerBulkAdapter())
 	const [records, dispatch] = useReducer(connectionReducer, [])
 	const [activePeerId, setActivePeerId] = useState<string | null>(null)
 
@@ -132,7 +138,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		const connectionId = connectionIdForPeer(peer)
 		let entry = managedRef.current.get(connectionId)
 		if (!entry) {
-			const runtime = new LanConnectionRuntime()
+			const runtime = new LanConnectionRuntime(nativePeerBulkRef.current)
 			const unsubscribe = runtime.subscribe(event => {
 				const current = managedRef.current.get(connectionId)
 				if (event.type === 'message-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-message', message: event.message } })
@@ -181,6 +187,9 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 			remoteCapability: entry.remoteCapability,
 			localCapability: optionsRef.current.localCapabilityRef.current,
 			getHistory: () => recordsRef.current.find(item => item.peerId === connectionId)?.chat.messages || [],
+			issueNativeAgentTicket: optionsRef.current.issueNativeAgentTicket,
+			getNativeLocalAgentPort: optionsRef.current.getNativeLocalAgentPort,
+			remoteDeviceId: remotePeer.deviceId,
 		})
 		setActivePeerId(current => current || connectionId)
 	}, [ensureConnection])
@@ -242,6 +251,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return managedRef.current.get(peerId)?.runtime.hasActiveTransfer() || false
 	}, [])
 
+	const updateLocalCapability = useCallback((capability: LanCapability) => {
+		managedRef.current.forEach(entry => entry.runtime.updateLocalCapability(capability))
+	}, [])
+
+	const requestNativeAgentTicket = useCallback((peerId: string) => {
+		const runtime = managedRef.current.get(peerId)?.runtime
+		if (!runtime) return Promise.reject(new Error('请先选择加速电脑'))
+		return runtime.requestNativeAgentTicket()
+	}, [])
+
 	const sendText = useCallback((text: string) => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
@@ -252,6 +271,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
 		await runtime.sendFiles(files, { kind: forcedKind, durationMs })
+	}, [getActiveRuntime])
+
+	const selectNativeFiles = useCallback(async () => {
+		const runtime = getActiveRuntime()
+		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
+		try {
+			await runtime.selectNativeFiles()
+		} catch (error) {
+			optionsRef.current.setStatus(error instanceof Error ? error.message : '无法打开本机文件选择器')
+		}
 	}, [getActiveRuntime])
 
 	const startReceivingAttachment = useCallback((id: string) => {
@@ -283,9 +312,12 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		resetAll,
 		handlePeerData,
 		isTransferActive,
+		updateLocalCapability,
+		requestNativeAgentTicket,
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,
+		selectNativeFiles,
 		startReceivingAttachment,
 		downloadAttachment: (name: string, url: string) => downloadUrl(name, url),
 	}

@@ -1,8 +1,11 @@
 import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
+import { logLanConnection, shortConnectionId, summarizeIceCandidate, summarizeNetworkAddress } from './connection-diagnostics'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportHealthStats, LanTransportState } from './transport-types'
+import { ipAddressKind } from './native-agent/endpoint-validation'
 
-const transportControlPrefix = '__winrisef_lan_v10__:'
+const transportControlPrefix = '__winrisef_lan_v12__:'
 const TRANSPORT_FRAME_PROBE = 0xff
+const ICE_DIAGNOSTIC_SAMPLE_DELAYS = [0, 100, 250, 500, 1000, 2000, 3500, 5000, 7000, 9000] as const
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
@@ -12,9 +15,73 @@ export const lanRtcConfig: RTCConfiguration = {
 }
 
 type TransportControl = { type: 'hello'; generation: number } | { type: 'frame-probe-ack'; generation: number; id: string }
-type CandidatePairStats = RTCStats & { localCandidateId?: string; remoteCandidateId?: string; nominated?: boolean; selected?: boolean; state?: string; bytesSent?: number; bytesReceived?: number; consentRequestsSent?: number; responsesReceived?: number }
-type CandidateStats = RTCStats & { address?: string; ip?: string; ipAddress?: string; candidateType?: string }
-type TransportStats = RTCStats & { selectedCandidatePairId?: string }
+type CandidatePairStats = RTCStats & {
+	localCandidateId?: string
+	remoteCandidateId?: string
+	nominated?: boolean
+	selected?: boolean
+	state?: string
+	writable?: boolean
+	readable?: boolean
+	priority?: number
+	bytesSent?: number
+	bytesReceived?: number
+	packetsSent?: number
+	packetsReceived?: number
+	packetsDiscardedOnSend?: number
+	bytesDiscardedOnSend?: number
+	requestsSent?: number
+	requestsReceived?: number
+	responsesSent?: number
+	responsesReceived?: number
+	consentRequestsSent?: number
+	currentRoundTripTime?: number
+	totalRoundTripTime?: number
+	availableOutgoingBitrate?: number
+	availableIncomingBitrate?: number
+	firstRequestTimestamp?: number
+	lastRequestTimestamp?: number
+	firstResponseTimestamp?: number
+	lastResponseTimestamp?: number
+	lastPacketSentTimestamp?: number
+	lastPacketReceivedTimestamp?: number
+	consentExpiredTimestamp?: number
+}
+type CandidateStats = RTCStats & {
+	address?: string
+	ip?: string
+	ipAddress?: string
+	relatedAddress?: string
+	port?: number
+	relatedPort?: number
+	candidateType?: string
+	protocol?: string
+	relayProtocol?: string
+	tcpType?: string
+	networkType?: string
+	foundation?: string
+	component?: string
+	priority?: number
+	url?: string
+	usernameFragment?: string
+}
+type TransportStats = RTCStats & {
+	selectedCandidatePairId?: string
+	iceRole?: string
+	iceLocalUsernameFragment?: string
+	dtlsState?: string
+	packetsSent?: number
+	packetsReceived?: number
+	bytesSent?: number
+	bytesReceived?: number
+}
+type SctpTransportStats = RTCStats & {
+	state?: string
+	bytesSent?: number
+	bytesReceived?: number
+	maxMessageSize?: number
+	maxChannels?: number
+}
 
 function randomId() {
 	return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -67,6 +134,142 @@ function addressFamily(candidate?: CandidateStats): LanConnectionRoute['family']
 	return 'unknown'
 }
 
+function candidateAddress(candidate?: CandidateStats) {
+	return candidate?.address || candidate?.ip || candidate?.ipAddress || ''
+}
+
+function statsId(value: string | undefined) {
+	return value ? value.slice(0, 12) : '-'
+}
+
+function finite(value: number | undefined) {
+	return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function summarizeCandidateStats(candidate: CandidateStats) {
+	const address = summarizeNetworkAddress(candidateAddress(candidate))
+	const relatedAddress = summarizeNetworkAddress(candidate.relatedAddress || '')
+	return {
+		id: statsId(candidate.id),
+		candidateType: candidate.candidateType || 'unknown',
+		protocol: candidate.protocol || 'unknown',
+		relayProtocol: candidate.relayProtocol,
+		tcpType: candidate.tcpType,
+		networkType: candidate.networkType,
+		foundation: candidate.foundation,
+		component: candidate.component,
+		priority: finite(candidate.priority),
+		usernameFragment: candidate.usernameFragment,
+		address: candidateAddress(candidate),
+		port: finite(candidate.port),
+		family: address.family,
+		addressKind: address.addressKind,
+		relatedAddress: candidate.relatedAddress,
+		relatedPort: finite(candidate.relatedPort),
+		relatedAddressKind: relatedAddress.addressKind === 'unknown' ? undefined : relatedAddress.addressKind,
+		url: candidate.url,
+	}
+}
+
+function summarizePairCandidate(candidate: CandidateStats | undefined) {
+	if (!candidate) return undefined
+	const address = summarizeNetworkAddress(candidateAddress(candidate))
+	return {
+		id: statsId(candidate.id),
+		candidateType: candidate.candidateType || 'unknown',
+		protocol: candidate.protocol || 'unknown',
+		networkType: candidate.networkType,
+		address: candidateAddress(candidate),
+		port: finite(candidate.port),
+		family: address.family,
+		addressKind: address.addressKind,
+		relatedAddress: candidate.relatedAddress,
+		relatedPort: finite(candidate.relatedPort),
+	}
+}
+
+function summarizeCandidatePair(stats: RTCStatsReport, pair: CandidatePairStats) {
+	const local = candidateStats(stats, pair.localCandidateId)
+	const remote = candidateStats(stats, pair.remoteCandidateId)
+	return {
+		id: statsId(pair.id),
+		state: pair.state || 'unknown',
+		nominated: Boolean(pair.nominated),
+		selected: Boolean(pair.selected),
+		writable: pair.writable,
+		readable: pair.readable,
+		priority: finite(pair.priority),
+		localCandidateId: statsId(pair.localCandidateId),
+		remoteCandidateId: statsId(pair.remoteCandidateId),
+		local: summarizePairCandidate(local),
+		remote: summarizePairCandidate(remote),
+		requestsSent: finite(pair.requestsSent),
+		requestsReceived: finite(pair.requestsReceived),
+		responsesSent: finite(pair.responsesSent),
+		responsesReceived: finite(pair.responsesReceived),
+		consentRequestsSent: finite(pair.consentRequestsSent),
+		bytesSent: finite(pair.bytesSent),
+		bytesReceived: finite(pair.bytesReceived),
+		packetsSent: finite(pair.packetsSent),
+		packetsReceived: finite(pair.packetsReceived),
+		packetsDiscardedOnSend: finite(pair.packetsDiscardedOnSend),
+		bytesDiscardedOnSend: finite(pair.bytesDiscardedOnSend),
+		currentRoundTripTime: finite(pair.currentRoundTripTime),
+		totalRoundTripTime: finite(pair.totalRoundTripTime),
+		availableOutgoingBitrate: finite(pair.availableOutgoingBitrate),
+		availableIncomingBitrate: finite(pair.availableIncomingBitrate),
+		firstRequestTimestamp: finite(pair.firstRequestTimestamp),
+		lastRequestTimestamp: finite(pair.lastRequestTimestamp),
+		firstResponseTimestamp: finite(pair.firstResponseTimestamp),
+		lastResponseTimestamp: finite(pair.lastResponseTimestamp),
+		lastPacketSentTimestamp: finite(pair.lastPacketSentTimestamp),
+		lastPacketReceivedTimestamp: finite(pair.lastPacketReceivedTimestamp),
+		consentExpiredTimestamp: finite(pair.consentExpiredTimestamp),
+	}
+}
+
+function summarizeTransportStats(transport: TransportStats) {
+	return {
+		id: statsId(transport.id),
+		selectedCandidatePairId: statsId(transport.selectedCandidatePairId),
+		iceRole: transport.iceRole,
+		dtlsState: transport.dtlsState,
+		packetsSent: finite(transport.packetsSent),
+		packetsReceived: finite(transport.packetsReceived),
+		bytesSent: finite(transport.bytesSent),
+		bytesReceived: finite(transport.bytesReceived),
+	}
+}
+
+function summarizeSctpStats(transport: SctpTransportStats) {
+	return {
+		id: statsId(transport.id),
+		state: transport.state,
+		bytesSent: finite(transport.bytesSent),
+		bytesReceived: finite(transport.bytesReceived),
+		maxMessageSize: finite(transport.maxMessageSize),
+		maxChannels: finite(transport.maxChannels),
+	}
+}
+
+function summarizeDescription(description: RTCSessionDescriptionInit | null) {
+	const sdp = description?.sdp || ''
+	const lines = sdp.split(/\r?\n/)
+	const iceUfrags = [...new Set(lines.filter(line => line.startsWith('a=ice-ufrag:')).map(line => line.slice('a=ice-ufrag:'.length)))]
+	const icePwdLengths = [...new Set(lines.filter(line => line.startsWith('a=ice-pwd:')).map(line => line.slice('a=ice-pwd:'.length).length))]
+	return {
+		type: description?.type || 'none',
+		mediaSections: lines.filter(line => line.startsWith('m=')).length,
+		candidateLines: lines.filter(line => line.startsWith('a=candidate:')).length,
+		hasTrickle: lines.some(line => line === 'a=ice-options:trickle'),
+		hasIceLite: lines.some(line => line === 'a=ice-lite'),
+		iceUfrags,
+		icePwdLengths,
+		fingerprints: lines.filter(line => line.startsWith('a=fingerprint:')).length,
+		setupRoles: [...new Set(lines.filter(line => line.startsWith('a=setup:')).map(line => line.slice('a=setup:'.length)))],
+	}
+}
+
 function routeFromPair(stats: RTCStatsReport, pair: CandidatePairStats): LanConnectionRoute {
 	const local = candidateStats(stats, pair.localCandidateId)
 	const remote = candidateStats(stats, pair.remoteCandidateId)
@@ -76,7 +279,11 @@ function routeFromPair(stats: RTCStatsReport, pair: CandidatePairStats): LanConn
 	const localFamily = addressFamily(local)
 	const remoteFamily = addressFamily(remote)
 	const family = localFamily === remoteFamily ? localFamily : localFamily === 'unknown' ? remoteFamily : remoteFamily === 'unknown' ? localFamily : 'unknown'
-	if (family === 'ipv6') return { family, kind: 'direct' }
+	if (family === 'ipv6') {
+		const localAddressKind = ipAddressKind(candidateAddress(local))
+		const remoteAddressKind = ipAddressKind(candidateAddress(remote))
+		return { family, kind: localAddressKind === 'ula-ipv6' || remoteAddressKind === 'ula-ipv6' || (localType === 'host' && remoteType === 'host') ? 'lan' : 'direct' }
+	}
 	if (family !== 'ipv4') return { family: 'unknown', kind: 'unknown' }
 	if (localType === 'host' && remoteType === 'host') return { family, kind: 'lan' }
 	if (['srflx', 'prflx'].includes(localType) || ['srflx', 'prflx'].includes(remoteType)) return { family, kind: 'nat' }
@@ -99,14 +306,42 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private ready = false
 	private closed = false
 	private lastState: LanTransportState | null = null
+	private iceDiagnosticEpoch = 0
+	private iceDiagnosticStartedAt = 0
+	private iceDiagnosticTimers = new Set<ReturnType<typeof setTimeout>>()
 
 	constructor(private readonly options: LanTransportCreateOptions) {
 		this.generation = options.generation
 		this.currentNegotiationId = options.negotiationId
-		this.pc.onicecandidate = event => options.onCandidate(event.candidate?.toJSON() || null)
-		this.pc.onconnectionstatechange = () => this.emitConnectionState()
-		this.pc.oniceconnectionstatechange = () => this.emitConnectionState()
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v10', { ordered: true }))
+		this.log('transport-created', {
+			iceServers: lanRtcConfig.iceServers?.map(server => ({ urls: server.urls })),
+			iceCandidatePoolSize: lanRtcConfig.iceCandidatePoolSize,
+			iceTransportPolicy: lanRtcConfig.iceTransportPolicy || 'all',
+			bundlePolicy: lanRtcConfig.bundlePolicy || 'balanced',
+			rtcpMuxPolicy: lanRtcConfig.rtcpMuxPolicy || 'require',
+		})
+		this.pc.onicecandidate = event => {
+			const candidate = event.candidate?.toJSON() || null
+			if (candidate) this.log('local-candidate', summarizeIceCandidate(event.candidate))
+			else this.log('candidate-gathering-complete', { localDescription: summarizeDescription(this.pc.localDescription) })
+			options.onCandidate(candidate)
+		}
+		this.pc.onicecandidateerror = event => {
+			const error = event as Event & { url?: string; errorCode?: number; errorText?: string }
+			this.log('candidate-gathering-error', { url: error.url || 'unknown', errorCode: error.errorCode, errorText: error.errorText }, 'warn')
+		}
+		this.pc.onicegatheringstatechange = () => this.log('ice-gathering-state', { state: this.pc.iceGatheringState })
+		this.pc.onsignalingstatechange = () => this.log('signaling-state', { state: this.pc.signalingState })
+		this.pc.onconnectionstatechange = () => {
+			this.log('peer-connection-state', this.connectionStates())
+			this.emitConnectionState()
+		}
+		this.pc.oniceconnectionstatechange = () => {
+			this.log('ice-connection-state', this.connectionStates())
+			this.updateIceDiagnostics(`ice-${this.pc.iceConnectionState}`)
+			this.emitConnectionState()
+		}
+		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v12', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}
@@ -160,11 +395,15 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	}
 
 	async start() {
-		if (this.options.role === 'host') await this.createOffer(false)
+		if (this.options.role === 'host') {
+			this.log('start-offer')
+			await this.createOffer(false)
+		}
 	}
 
 	setNegotiationId(negotiationId: string) {
 		if (this.currentNegotiationId === negotiationId) return
+		this.log('negotiation-changed', { nextNegotiation: shortConnectionId(negotiationId) })
 		this.currentNegotiationId = negotiationId
 		this.pendingCandidates = []
 		this.remoteDescriptionNegotiationId = ''
@@ -173,24 +412,35 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	async restartIce(negotiationId: string) {
 		if (this.options.role !== 'host' || this.closed) return
 		this.setNegotiationId(negotiationId)
+		this.log('ice-restart-requested')
+		this.cancelIceDiagnostics()
 		this.pc.restartIce()
 		await this.createOffer(false)
 	}
 
 	async acceptDescription(description: RTCSessionDescriptionInit) {
 		if (this.closed) return
+		this.log('remote-description-received', summarizeDescription(description))
 		await this.pc.setRemoteDescription(description)
+		this.log('remote-description-applied', {
+			...summarizeDescription(this.pc.remoteDescription),
+			canTrickleIceCandidates: this.pc.canTrickleIceCandidates,
+		})
 		this.remoteDescriptionNegotiationId = this.currentNegotiationId
 		await this.flushCandidates()
+		if (this.pc.iceConnectionState === 'checking' && !this.iceDiagnosticTimers.size) this.startIceDiagnostics('remote-description-applied')
 		if (description.type !== 'offer') return
 		const answer = await this.pc.createAnswer()
 		await this.pc.setLocalDescription(answer)
+		this.log('local-description-created', summarizeDescription(this.pc.localDescription))
 		if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON())
 	}
 
 	async addRemoteCandidate(candidate: RTCIceCandidateInit | null) {
 		if (this.closed || !candidate) return
-		if (!this.pc.remoteDescription || this.remoteDescriptionNegotiationId !== this.currentNegotiationId) {
+		const queued = !this.pc.remoteDescription || this.remoteDescriptionNegotiationId !== this.currentNegotiationId
+		this.log('remote-candidate-received', { ...summarizeIceCandidate(candidate), queued, pendingCandidateCount: this.pendingCandidates.length + (queued ? 1 : 0) })
+		if (queued) {
 			this.pendingCandidates.push(candidate)
 			return
 		}
@@ -214,12 +464,16 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	async inspectRoute(): Promise<LanConnectionRoute> {
 		const stats = await this.pc.getStats()
 		const pair = selectedCandidatePair(stats)
-		return pair ? routeFromPair(stats, pair) : { family: 'unknown', kind: 'unknown' }
+		const route = pair ? routeFromPair(stats, pair) : { family: 'unknown', kind: 'unknown' } as const
+		this.log('selected-route', route)
+		return route
 	}
 
 	close() {
 		if (this.closed) return
+		this.log('transport-closing', this.connectionStates())
 		this.closed = true
+		this.cancelIceDiagnostics()
 		this.pendingProbes.forEach(probe => {
 			clearTimeout(probe.timer)
 			probe.resolve(false)
@@ -236,6 +490,9 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			channel.close()
 		}
 		this.pc.onicecandidate = null
+		this.pc.onicecandidateerror = null
+		this.pc.onicegatheringstatechange = null
+		this.pc.onsignalingstatechange = null
 		this.pc.onconnectionstatechange = null
 		this.pc.oniceconnectionstatechange = null
 		this.pc.ondatachannel = null
@@ -249,7 +506,11 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		try {
 			const offer = await this.pc.createOffer({ iceRestart })
 			await this.pc.setLocalDescription(offer)
+			this.log('local-description-created', { ...summarizeDescription(this.pc.localDescription), iceRestart })
 			if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON())
+		} catch (error) {
+			this.log('offer-creation-failed', { error: error instanceof Error ? error.message : String(error) }, 'error')
+			throw error
 		} finally {
 			this.makingOffer = false
 		}
@@ -270,11 +531,16 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.chunkNegotiation = null
 		this.reportedChunkSize = null
 		channel.binaryType = 'arraybuffer'
-		channel.onopen = () => this.sendControl({ type: 'hello', generation: this.generation })
+		channel.onopen = () => {
+			this.log('data-channel-open')
+			this.sendControl({ type: 'hello', generation: this.generation })
+		}
 		channel.onclose = () => {
+			this.log('data-channel-closed', {}, 'warn')
 			if (!this.closed && this.channel === channel) this.emitState('channel-closed')
 		}
 		channel.onerror = () => {
+			this.log('data-channel-error', {}, 'warn')
 			if (!this.closed && this.channel === channel) this.emitState('channel-closed')
 		}
 		channel.onmessage = event => {
@@ -307,6 +573,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		if (message.type === 'hello') {
 			if (!this.ready) {
 				this.ready = true
+				this.log('peer-hello-received')
 				this.options.onReady()
 			}
 			return
@@ -376,13 +643,18 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private async flushCandidates() {
 		const candidates = this.pendingCandidates
 		this.pendingCandidates = []
+		if (candidates.length) this.log('remote-candidate-flush-started', { count: candidates.length })
 		for (const candidate of candidates) await this.addCandidate(candidate)
+		if (candidates.length) this.log('remote-candidate-flush-completed', { count: candidates.length })
 	}
 
 	private async addCandidate(candidate: RTCIceCandidateInit) {
 		try {
 			await this.pc.addIceCandidate(candidate)
+			this.log('remote-candidate-added', summarizeIceCandidate(candidate))
+			if (this.pc.iceConnectionState === 'checking') void this.logIceDiagnosticSnapshot('remote-candidate-added', this.iceDiagnosticStartedAt ? Date.now() - this.iceDiagnosticStartedAt : 0)
 		} catch (error) {
+			this.log('remote-candidate-rejected', { ...summarizeIceCandidate(candidate), error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 			if (error instanceof DOMException && error.name === 'OperationError') return
 			throw error
 		}
@@ -402,26 +674,129 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private emitState(state: LanTransportState) {
 		if (this.lastState === state) return
 		this.lastState = state
+		this.log('transport-state', { state })
 		this.options.onState(state)
+	}
+
+	private connectionStates() {
+		return {
+			connectionState: this.pc.connectionState,
+			iceConnectionState: this.pc.iceConnectionState,
+			iceGatheringState: this.pc.iceGatheringState,
+			signalingState: this.pc.signalingState,
+			dataChannelState: this.channel?.readyState || 'none',
+		}
+	}
+
+	private updateIceDiagnostics(trigger: string) {
+		const state = this.pc.iceConnectionState
+		if (state === 'checking') return this.startIceDiagnostics(trigger)
+		const elapsedMs = this.iceDiagnosticStartedAt ? Date.now() - this.iceDiagnosticStartedAt : 0
+		this.cancelIceDiagnostics()
+		if (state !== 'new' && state !== 'closed') void this.logIceDiagnosticSnapshot(trigger, elapsedMs)
+	}
+
+	private startIceDiagnostics(trigger: string) {
+		if (this.closed || this.iceDiagnosticTimers.size) return
+		const epoch = ++this.iceDiagnosticEpoch
+		this.iceDiagnosticStartedAt = Date.now()
+		this.log('ice-diagnostics-started', { trigger, sampleDelaysMs: ICE_DIAGNOSTIC_SAMPLE_DELAYS })
+		for (const delayMs of ICE_DIAGNOSTIC_SAMPLE_DELAYS) {
+			const timer = setTimeout(() => {
+				this.iceDiagnosticTimers.delete(timer)
+				if (this.closed || epoch !== this.iceDiagnosticEpoch) return
+				void this.logIceDiagnosticSnapshot(trigger, Date.now() - this.iceDiagnosticStartedAt)
+			}, delayMs)
+			this.iceDiagnosticTimers.add(timer)
+		}
+	}
+
+	private cancelIceDiagnostics() {
+		this.iceDiagnosticEpoch += 1
+		this.iceDiagnosticTimers.forEach(timer => clearTimeout(timer))
+		this.iceDiagnosticTimers.clear()
+	}
+
+	private async logIceDiagnosticSnapshot(trigger: string, elapsedMs: number) {
+		if (this.closed) return
+		try {
+			const stats = await this.pc.getStats()
+			if (this.closed) return
+			const localCandidates: ReturnType<typeof summarizeCandidateStats>[] = []
+			const remoteCandidates: ReturnType<typeof summarizeCandidateStats>[] = []
+			const pairs: ReturnType<typeof summarizeCandidatePair>[] = []
+			const transports: ReturnType<typeof summarizeTransportStats>[] = []
+			const sctpTransports: ReturnType<typeof summarizeSctpStats>[] = []
+			const pairStates: Record<string, number> = {}
+			stats.forEach(report => {
+				if (report.type === 'local-candidate') localCandidates.push(summarizeCandidateStats(report as CandidateStats))
+				else if (report.type === 'remote-candidate') remoteCandidates.push(summarizeCandidateStats(report as CandidateStats))
+				else if (report.type === 'candidate-pair') {
+					const pair = report as CandidatePairStats
+					pairs.push(summarizeCandidatePair(stats, pair))
+					const state = pair.state || 'unknown'
+					pairStates[state] = (pairStates[state] || 0) + 1
+				} else if (report.type === 'transport') transports.push(summarizeTransportStats(report as TransportStats))
+				else if (report.type === 'sctp-transport') sctpTransports.push(summarizeSctpStats(report as SctpTransportStats))
+			})
+			localCandidates.sort((left, right) => left.id.localeCompare(right.id))
+			remoteCandidates.sort((left, right) => left.id.localeCompare(right.id))
+			pairs.sort((left, right) => left.id.localeCompare(right.id))
+			this.log('ice-candidate-pair-snapshot', {
+				trigger,
+				elapsedMs,
+				...this.connectionStates(),
+				canTrickleIceCandidates: this.pc.canTrickleIceCandidates,
+				localDescription: summarizeDescription(this.pc.localDescription),
+				remoteDescription: summarizeDescription(this.pc.remoteDescription),
+				localCandidateCount: localCandidates.length,
+				remoteCandidateCount: remoteCandidates.length,
+				pairCount: pairs.length,
+				pairStates,
+				localCandidates,
+				remoteCandidates,
+				pairs,
+				transports,
+				sctpTransports,
+			})
+		} catch (error) {
+			if (!this.closed) this.log('ice-candidate-pair-snapshot-failed', {
+				trigger,
+				elapsedMs,
+				error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+			}, 'warn')
+		}
+	}
+
+	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
+		logLanConnection('RTC', event, {
+			transport: shortConnectionId(this.id),
+			role: this.options.role,
+			generation: this.generation,
+			negotiation: shortConnectionId(this.currentNegotiationId),
+			...details,
+		}, level)
 	}
 
 	private async waitForBufferedAmount(limit: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal) {
 		const channel = this.channel
-		if (!this.isOpen() || !channel) throw new Error('连接已断开，请重新连接后再发送')
-		if (channel.bufferedAmount <= limit) return
+		if (!channel) throw new Error('连接已断开，请重新连接后再发送')
+		if (!this.isOpen()) throw new Error('连接已断开，请重新连接后再发送')
+		const activeChannel: RTCDataChannel = channel
+		if (activeChannel.bufferedAmount <= limit) return
 		const startedAt = Date.now()
-		channel.bufferedAmountLowThreshold = lowWatermark
-		while (channel.bufferedAmount > lowWatermark) {
+		activeChannel.bufferedAmountLowThreshold = lowWatermark
+		while (activeChannel.bufferedAmount > lowWatermark) {
 			if (signal?.aborted) throw new DOMException('发送已暂停', 'AbortError')
-			if (!this.isOpen() || this.channel !== channel) throw new Error('连接已断开，请重新连接后再发送')
+			if (!this.isOpen() || this.channel !== activeChannel) throw new Error('连接已断开，请重新连接后再发送')
 			if (Date.now() - startedAt > timeoutMs) throw new Error('发送暂停，请保持两台设备页面打开')
 			await new Promise<void>((resolve, reject) => {
 				const timer = setTimeout(done, 250)
 				function cleanup() {
 					clearTimeout(timer)
-					channel.removeEventListener('bufferedamountlow', done)
-					channel.removeEventListener('close', fail)
-					channel.removeEventListener('error', fail)
+					activeChannel.removeEventListener('bufferedamountlow', done)
+					activeChannel.removeEventListener('close', fail)
+					activeChannel.removeEventListener('error', fail)
 					signal?.removeEventListener('abort', abort)
 				}
 				function done() {
@@ -436,8 +811,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 					cleanup()
 					reject(new DOMException('发送已暂停', 'AbortError'))
 				}
-				channel.addEventListener('bufferedamountlow', done, { once: true })
-				channel.addEventListener('close', fail, { once: true })
+				activeChannel.addEventListener('bufferedamountlow', done, { once: true })
+				activeChannel.addEventListener('close', fail, { once: true })
 				channel.addEventListener('error', fail, { once: true })
 				signal?.addEventListener('abort', abort, { once: true })
 			})
