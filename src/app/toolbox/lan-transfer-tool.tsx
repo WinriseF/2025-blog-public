@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, Copy, MessageCircle, PanelLeftClose, QrCode, Sun, X, Zap } from 'lucide-react'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
+import { installLanDiagnosticCapture } from '@/lib/lan-transfer/connection-diagnostics'
 import { useLanScreenWakeLock, type LanScreenWakeLockState } from '@/hooks/use-lan-screen-wake-lock'
 import { useLanNativeSpeedMode, type LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
 import type { LanNativeBenchmarkDirection } from '@/lib/lan-transfer/native-agent/types'
@@ -462,6 +463,7 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 	const [qrOpen, setQrOpen] = useState(false)
 	const [expandedPanel, setExpandedPanel] = useState<LanControlPanel | null>(null)
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+	useEffect(() => installLanDiagnosticCapture(), [])
 	useEffect(() => {
 		const previousOverflow = document.body.style.overflow
 		document.body.classList.add('lan-session-active')

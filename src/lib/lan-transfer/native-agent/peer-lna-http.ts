@@ -1,6 +1,7 @@
 import type { LanNativeAgentTicket, LanNativeBenchmarkDirection, LanNativeBenchmarkProgress, LanNativeBenchmarkResult } from './types'
 import { NATIVE_AGENT_SESSION_COUNT } from './types'
-import { validLanFileHttpEndpoint, validLanHttpBaseEndpoint } from './endpoint-validation'
+import { endpointAddressKind, summarizeNativeEndpoints, validLanFileHttpEndpoint, validLanHttpBaseEndpoint } from './endpoint-validation'
+import { logLanConnection } from '../connection-diagnostics'
 
 const HTTP_REQUEST_BYTES = 30 * 1024 * 1024
 const PAYLOAD_BLOCK_BYTES = 4 * 1024 * 1024
@@ -31,22 +32,34 @@ async function selectLocalNetworkEndpoint(
 	unreachableMessage: string
 ): Promise<LocalNetworkAccessDecision> {
 	const initialPermission = await queryLocalNetworkAccessPermission()
+	logLanConnection('NATIVE-LNA', 'permission-checked', { state: initialPermission })
 	if (initialPermission === 'unsupported') return { state: 'unsupported' }
 	if (initialPermission === 'denied') return { state: 'denied' }
 	const candidates = [...new Set(endpoints.filter(validate))]
+	logLanConnection('NATIVE-LNA', 'probe-candidates-ready', { endpoints: summarizeNativeEndpoints(candidates) })
 	if (!candidates.length) return { state: 'unavailable', reason: '加速电脑没有发布可用的私网 HTTP 地址' }
-	for (const endpoint of candidates) {
+	for (const [index, endpoint] of candidates.entries()) {
 		const controller = new AbortController()
 		const timer = setTimeout(() => controller.abort(), 3_000)
+		const startedAt = performance.now()
+		const addressKind = endpointAddressKind(endpoint)
+		logLanConnection('NATIVE-LNA', 'probe-started', { index, addressKind })
 		try {
 			const response = await fetch(endpointUrl(endpoint, 'probe'), { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', signal: controller.signal })
-			if (response.status === 204) return { state: 'available', endpoint }
-		} catch {
+			const elapsedMs = Math.round(performance.now() - startedAt)
+			if (response.status === 204) {
+				logLanConnection('NATIVE-LNA', 'probe-succeeded', { index, addressKind, status: response.status, elapsedMs })
+				return { state: 'available', endpoint }
+			}
+			logLanConnection('NATIVE-LNA', 'probe-rejected', { index, addressKind, status: response.status, elapsedMs }, 'warn')
+		} catch (error) {
+			logLanConnection('NATIVE-LNA', 'probe-failed', { index, addressKind, elapsedMs: Math.round(performance.now() - startedAt), error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 		} finally {
 			clearTimeout(timer)
 		}
 	}
 	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
+	logLanConnection('NATIVE-LNA', 'permission-after-probe', { state: permissionAfterProbe })
 	if (permissionAfterProbe === 'denied') return { state: 'denied' }
 	return { state: 'unavailable', reason: unreachableMessage }
 }

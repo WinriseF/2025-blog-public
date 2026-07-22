@@ -8,6 +8,7 @@ import {
 	prepareLanAttachment,
 } from './file-transfer'
 import { LanAttachmentSendScheduler } from './attachment-send-scheduler'
+import { logLanConnection, shortConnectionId } from './connection-diagnostics'
 import { LanNativeFileRuntime } from './native-file-runtime'
 import type { LanNativeLocalAgentPort, LanNativePeerBulkPort } from './native-agent/ports'
 import type { LanConnectionTransport } from './transport-types'
@@ -640,18 +641,28 @@ export class LanConnectionRuntime {
 	}
 
 	requestNativeAgentTicket() {
-		if (!this.context || !this.isOpen()) return Promise.reject(new Error('请先连接加速电脑'))
+		if (!this.context || !this.isOpen()) {
+			logLanConnection('NATIVE-TICKET', 'request-unavailable', { hasContext: Boolean(this.context), transportOpen: this.isOpen() }, 'warn')
+			return Promise.reject(new Error('请先连接加速电脑'))
+		}
 		const requestId = messageId()
+		const request = shortConnectionId(requestId)
+		const peer = shortConnectionId(this.context.remoteDeviceId)
+		logLanConnection('NATIVE-TICKET', 'request-started', { request, peer, timeoutMs: 10_000 })
 		return new Promise<LanNativeAgentTicket>((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this.pendingNativeTickets.delete(requestId)
+				logLanConnection('NATIVE-TICKET', 'request-timeout', { request, peer }, 'error')
 				reject(new Error('获取极速通道凭据超时'))
 			}, 10_000)
 			this.pendingNativeTickets.set(requestId, { resolve, reject, timer })
 			if (!this.sendControl({ ...this.controlBase('native-agent-ticket-request'), requestId })) {
 				clearTimeout(timer)
 				this.pendingNativeTickets.delete(requestId)
+				logLanConnection('NATIVE-TICKET', 'request-send-failed', { request, peer }, 'error')
 				reject(new Error('无法向加速电脑请求凭据'))
+			} else {
+				logLanConnection('NATIVE-TICKET', 'request-sent', { request, peer })
 			}
 		})
 	}
@@ -849,25 +860,43 @@ export class LanConnectionRuntime {
 		}
 		if (message.type === 'native-agent-ticket-request') {
 			const context = this.context
+			const request = shortConnectionId(message.requestId)
+			const peer = shortConnectionId(context?.remoteDeviceId || '')
+			logLanConnection('NATIVE-TICKET', 'incoming-request', { request, peer, canIssue: Boolean(context?.issueNativeAgentTicket) })
 			if (!context?.issueNativeAgentTicket) {
-				this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: '本机加速组件未连接' })
+				const sent = this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: '本机加速组件未连接' })
+				logLanConnection('NATIVE-TICKET', 'response-error-sent', { request, peer, sent, error: '本机加速组件未连接' }, sent ? 'warn' : 'error')
 				return
 			}
 			try {
 				const ticket = await context.issueNativeAgentTicket(context.remoteDeviceId)
-				this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, ticket })
+				const sent = this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, ticket })
+				logLanConnection('NATIVE-TICKET', 'response-ticket-sent', { request, peer, sent }, sent ? 'info' : 'error')
 			} catch (error) {
-				this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: error instanceof Error ? error.message : '无法签发极速通道凭据' })
+				const errorMessage = error instanceof Error ? error.message : '无法签发极速通道凭据'
+				const sent = this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: errorMessage })
+				logLanConnection('NATIVE-TICKET', 'response-error-sent', { request, peer, sent, error: errorMessage }, 'error')
 			}
 			return
 		}
 		if (message.type === 'native-agent-ticket-response') {
 			const pending = this.pendingNativeTickets.get(message.requestId)
-			if (!pending) return
+			const request = shortConnectionId(message.requestId)
+			const peer = shortConnectionId(this.context?.remoteDeviceId || '')
+			if (!pending) {
+				logLanConnection('NATIVE-TICKET', 'response-unmatched', { request, peer, hasTicket: Boolean(message.ticket), hasError: Boolean(message.error) }, 'warn')
+				return
+			}
 			clearTimeout(pending.timer)
 			this.pendingNativeTickets.delete(message.requestId)
-			if (message.ticket) pending.resolve(message.ticket)
-			else pending.reject(new Error(message.error || '加速电脑没有返回有效凭据'))
+			if (message.ticket) {
+				logLanConnection('NATIVE-TICKET', 'response-ticket-received', { request, peer })
+				pending.resolve(message.ticket)
+			} else {
+				const errorMessage = message.error || '加速电脑没有返回有效凭据'
+				logLanConnection('NATIVE-TICKET', 'response-error-received', { request, peer, error: errorMessage }, 'error')
+				pending.reject(new Error(errorMessage))
+			}
 			return
 		}
 		if (message.type === 'chat-message') {

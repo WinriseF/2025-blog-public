@@ -7,7 +7,8 @@ import { LanNativeLocalBridge } from '@/lib/lan-transfer/native-agent/local-brid
 import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 import { nativeAgentLnaTicketCount, runLanNativeHttpBenchmark, selectLocalNetworkAccessEndpoint } from '@/lib/lan-transfer/native-agent/peer-lna-http'
 import { runLanNativeBenchmark } from '@/lib/lan-transfer/native-agent/peer-webtransport'
-import { endpointAddressKind, validLanWebTransportEndpoint } from '@/lib/lan-transfer/native-agent/endpoint-validation'
+import { endpointAddressKind, summarizeNativeEndpoints, validLanWebTransportEndpoint } from '@/lib/lan-transfer/native-agent/endpoint-validation'
+import { logLanConnection, shortConnectionId } from '@/lib/lan-transfer/connection-diagnostics'
 import {
 	NATIVE_AGENT_BENCHMARK_VERSION,
 	NATIVE_AGENT_LNA_HTTP_VERSION,
@@ -80,13 +81,24 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		pendingLaunchesRef.current.forEach((expiresAt, nonce) => {
 			if (expiresAt <= now) pendingLaunchesRef.current.delete(nonce)
 		})
-		if (!pendingLaunchesRef.current.has(next.nonce) || next.nonce === handledNonceRef.current) return
+		if (!pendingLaunchesRef.current.has(next.nonce) || next.nonce === handledNonceRef.current) {
+			logLanConnection('NATIVE', 'callback-ignored', { reason: next.nonce === handledNonceRef.current ? 'already-handled' : 'nonce-not-pending', pendingLaunchCount: pendingLaunchesRef.current.size }, 'warn')
+			return
+		}
+		logLanConnection('NATIVE', 'callback-accepted', {
+			bridgeVersion: next.bridgeVersion,
+			publicIpv6State: next.publicIpv6State,
+			networkEpoch: next.networkEpoch,
+			benchmarkEndpoints: summarizeNativeEndpoints(next.benchmarkEndpoints),
+			lnaHttpEndpoints: summarizeNativeEndpoints(next.lnaHttpEndpoints),
+		})
 		handledNonceRef.current = next.nonce
 		const attempt = (connectionAttemptRef.current += 1)
 		if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 		launchTimerRef.current = null
 		setAgentState('connecting')
 		setAgentError('')
+		logLanConnection('NATIVE', 'bridge-connecting', { bridgeVersion: next.bridgeVersion })
 		try {
 			const bridge = await LanNativeLocalBridge.connect(next)
 			if (attempt !== connectionAttemptRef.current) {
@@ -98,17 +110,33 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			pendingLaunchesRef.current.clear()
 			launchInFlightRef.current = false
 			endpointSubscriptionRef.current?.()
-			endpointSubscriptionRef.current = bridge.subscribeNetworkEndpoints(snapshot => setCallback(current => current ? {
-				...current,
-				networkEpoch: snapshot.networkEpoch,
-				benchmarkEndpoints: snapshot.benchmarkEndpoints,
-				lnaHttpEndpoints: snapshot.lnaHttpEndpoints,
-				fileHttpEndpoints: snapshot.fileHttpEndpoints,
-				fileWebTransportEndpoints: snapshot.fileWebTransportEndpoints,
-				publicIpv6State: snapshot.publicIpv6State,
-			} : current))
+			endpointSubscriptionRef.current = bridge.subscribeNetworkEndpoints(snapshot => {
+				logLanConnection('NATIVE', 'endpoint-snapshot-changed', {
+					publicIpv6State: snapshot.publicIpv6State,
+					networkEpoch: snapshot.networkEpoch,
+					benchmarkEndpoints: summarizeNativeEndpoints(snapshot.benchmarkEndpoints),
+					lnaHttpEndpoints: summarizeNativeEndpoints(snapshot.lnaHttpEndpoints),
+					fileHttpEndpoints: summarizeNativeEndpoints(snapshot.fileHttpEndpoints),
+					fileWebTransportEndpoints: summarizeNativeEndpoints(snapshot.fileWebTransportEndpoints),
+				})
+				setCallback(current => current ? {
+					...current,
+					networkEpoch: snapshot.networkEpoch,
+					benchmarkEndpoints: snapshot.benchmarkEndpoints,
+					lnaHttpEndpoints: snapshot.lnaHttpEndpoints,
+					fileHttpEndpoints: snapshot.fileHttpEndpoints,
+					fileWebTransportEndpoints: snapshot.fileWebTransportEndpoints,
+					publicIpv6State: snapshot.publicIpv6State,
+				} : current)
+			})
 			setCallback({ ...bridge.callback })
 			setAgentState('connected')
+			logLanConnection('NATIVE', 'bridge-connected', {
+				publicIpv6State: bridge.callback.publicIpv6State,
+				networkEpoch: bridge.callback.networkEpoch,
+				benchmarkEndpoints: summarizeNativeEndpoints(bridge.callback.benchmarkEndpoints),
+				lnaHttpEndpoints: summarizeNativeEndpoints(bridge.callback.lnaHttpEndpoints),
+			})
 		} catch (error) {
 			if (attempt !== connectionAttemptRef.current) return
 			pendingLaunchesRef.current.delete(next.nonce)
@@ -118,7 +146,9 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 				return
 			}
 			setAgentState('error')
-			setAgentError(error instanceof Error ? error.message : '无法连接本机加速组件')
+			const message = error instanceof Error ? error.message : '无法连接本机加速组件'
+			setAgentError(message)
+			logLanConnection('NATIVE', 'bridge-connection-failed', { error: message }, 'error')
 		}
 	}, [])
 
@@ -131,6 +161,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		setCapability(nextCapability)
 		setPreferenceEnabled(storedPreference)
 		setReady(true)
+		logLanConnection('NATIVE', 'capability-detected', { ...nextCapability, preferenceEnabled: storedPreference })
 		return subscribeLanAgentCallbacks(callback => void connectCallback(callback))
 	}, [connectCallback])
 
@@ -154,6 +185,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		launchInFlightRef.current = true
 		setAgentState('launching')
 		setAgentError('')
+		logLanConnection('NATIVE', 'launch-requested', { callbackTimeoutMs: LAUNCH_CALLBACK_TIMEOUT_MS, nonceTtlMs: LAUNCH_NONCE_TTL_MS, pendingLaunchCount: pendingLaunchesRef.current.size })
 		launchLanNativeAgent(request.uri)
 		if (launchTimerRef.current) clearTimeout(launchTimerRef.current)
 		launchTimerRef.current = setTimeout(() => {
@@ -161,6 +193,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 			launchInFlightRef.current = false
 			setAgentState(current => (current === 'launching' ? 'error' : current))
 			setAgentError('暂时没有收到本机组件回调；如果系统权限窗口仍在处理，请稍候，或稍后重试')
+			logLanConnection('NATIVE', 'launch-callback-timeout', { pendingLaunchCount: pendingLaunchesRef.current.size }, 'warn')
 		}, LAUNCH_CALLBACK_TIMEOUT_MS)
 	}, [capability.canHostAgent])
 
@@ -171,6 +204,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 
 	const setEnabled = useCallback(
 		(value: boolean) => {
+			logLanConnection('NATIVE', 'preference-changed', { enabled: value })
 			setPreferenceEnabled(value)
 			try {
 				localStorage.setItem(SPEED_MODE_PREFERENCE_KEY, String(value))
@@ -211,6 +245,20 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	const remoteAdvertisement = localAdvertisement && localWins ? null : advertisedByPeer
 
 	useEffect(() => {
+		if (!advertisedByPeer) {
+			logLanConnection('NATIVE', 'remote-advertisement-cleared')
+			return
+		}
+		logLanConnection('NATIVE', 'remote-advertisement-updated', {
+			owner: shortConnectionId(advertisedByPeer.ownerDeviceId),
+			publicIpv6State: advertisedByPeer.publicIpv6State,
+			networkEpoch: advertisedByPeer.networkEpoch,
+			benchmarkEndpoints: summarizeNativeEndpoints(advertisedByPeer.endpoints),
+			lnaHttpEndpoints: summarizeNativeEndpoints(advertisedByPeer.lnaHttpEndpoints),
+		})
+	}, [advertisedByPeer?.networkEpoch, advertisedByPeer?.ownerDeviceId, advertisedByPeer?.publicIpv6State])
+
+	useEffect(() => {
 		if (!localAdvertisement || !advertisedByPeer || localWins) return
 		closeBridge()
 		setAgentState('error')
@@ -220,10 +268,23 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	useEffect(() => setBenchmark({ state: 'idle' }), [remoteAdvertisement?.ownerDeviceId])
 
 	const issuePeerTicket = useCallback(
-		(peerDeviceId: string) => {
+		async (peerDeviceId: string) => {
 			const bridge = bridgeRef.current
 			if (!bridge || !ownerDeviceId || peerDeviceId === ownerDeviceId) return Promise.reject(new Error('本机加速组件未连接'))
-			return bridge.issueTicket(ownerDeviceId)
+			logLanConnection('NATIVE', 'ticket-issue-requested', { owner: shortConnectionId(ownerDeviceId), peer: shortConnectionId(peerDeviceId) })
+			try {
+				const ticket = await bridge.issueTicket(ownerDeviceId)
+				logLanConnection('NATIVE', 'ticket-issued', {
+					publicIpv6State: ticket.publicIpv6State,
+					networkEpoch: ticket.networkEpoch,
+					benchmarkEndpoints: summarizeNativeEndpoints(ticket.endpoints),
+					lnaHttpEndpoints: summarizeNativeEndpoints(ticket.lnaHttpEndpoints),
+				})
+				return ticket
+			} catch (error) {
+				logLanConnection('NATIVE', 'ticket-issue-failed', { error: error instanceof Error ? error.message : String(error) }, 'error')
+				throw error
+			}
 		},
 		[ownerDeviceId]
 	)
@@ -232,6 +293,7 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		async (direction: LanNativeBenchmarkDirection, totalBytes: number, requestTicket: () => Promise<LanNativeAgentTicket>) => {
 			if (!remoteAdvertisement) return void setBenchmark({ state: 'error', error: '当前连接没有可用的加速电脑' })
 			const sessionCount = NATIVE_AGENT_SESSION_COUNT
+			logLanConnection('NATIVE', 'benchmark-started', { direction, totalBytes, remoteOwner: shortConnectionId(remoteAdvertisement.ownerDeviceId), publicIpv6State: remoteAdvertisement.publicIpv6State })
 			setBenchmark({ state: 'running', progress: { direction, transport: 'lna-http', sessionCount, bytes: 0, totalBytes, startedAt: performance.now() } })
 			try {
 				const lna = await selectLocalNetworkAccessEndpoint(remoteAdvertisement.lnaHttpEndpoints)
@@ -239,9 +301,12 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 				const publicIpv6Available = webTransportEndpoints.some(endpoint => endpointAddressKind(endpoint) === 'gua-ipv6')
 				const canUseWebTransport = capability.webTransport && webTransportEndpoints.length > 0 && (lna.state !== 'denied' || publicIpv6Available)
 				const ticketCount = lna.state === 'available' ? nativeAgentLnaTicketCount(totalBytes) : sessionCount
+				logLanConnection('NATIVE', 'benchmark-route-evaluated', { lnaState: lna.state, webTransportSupported: capability.webTransport, publicIpv6Available, canUseWebTransport, selectedTransport: lna.state === 'available' ? 'lna-http' : canUseWebTransport ? 'webtransport' : 'none', ticketCount })
 				if (lna.state !== 'available' && !canUseWebTransport)
 					throw new Error(lna.state === 'denied' ? '你已拒绝本地网络访问权限，且加速电脑没有可用的公网 IPv6 WebTransport 地址' : lna.state === 'unavailable' ? lna.reason : '当前浏览器既不支持本地网络访问，也不支持 WebTransport')
+				logLanConnection('NATIVE', 'benchmark-tickets-requested', { ticketCount })
 				const tickets = await Promise.all(Array.from({ length: ticketCount }, () => requestTicket()))
+				logLanConnection('NATIVE', 'benchmark-tickets-received', { ticketCount: tickets.length })
 				if (tickets.some(ticket => ticket.ownerDeviceId !== remoteAdvertisement.ownerDeviceId)) throw new Error('极速通道凭据来自错误的设备')
 				const result =
 					lna.state === 'available'
@@ -254,8 +319,11 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 							})
 						: await runLanNativeBenchmark({ tickets, direction, totalBytes, onProgress: progress => setBenchmark({ state: 'running', progress }) })
 				setBenchmark({ state: 'complete', result })
+				logLanConnection('NATIVE', 'benchmark-completed', { direction, transport: result.transport, sessionCount: result.sessionCount, totalBytes, clientMbps: Math.round(result.clientMbps), agentMbps: Math.round(result.agentMbps) })
 			} catch (error) {
-				setBenchmark({ state: 'error', error: error instanceof Error ? error.message : '极速模式测速失败' })
+				const message = error instanceof Error ? error.message : '极速模式测速失败'
+				setBenchmark({ state: 'error', error: message })
+				logLanConnection('NATIVE', 'benchmark-failed', { direction, totalBytes, error: message }, 'error')
 			}
 		},
 		[capability.webTransport, remoteAdvertisement]

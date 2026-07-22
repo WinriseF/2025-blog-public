@@ -16,6 +16,7 @@ import {
 } from './types'
 import { createPinnedWebTransport, ExactStreamReader, withTimeout, type WebTransportLike } from './webtransport'
 import { validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
+import { logLanConnection } from '../connection-diagnostics'
 
 const MAX_BRIDGE_FRAME_BYTES = 64 * 1024
 const encoder = new TextEncoder()
@@ -198,6 +199,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 
 	private shutdown(error: Error, closeCode: number, reason: string) {
 		if (this.closed) return
+		logLanConnection('NATIVE', 'bridge-shutdown', { closeCode, reason, error: error.message }, closeCode === 0 ? 'info' : 'error')
 		this.closed = true
 		this.pending.forEach(pending => pending.reject(error))
 		this.pending.clear()
@@ -225,6 +227,7 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 				if (isNetworkEndpointsChanged(frame)) {
 					const snapshot = parseNetworkEndpointSnapshot(frame.snapshot)
 					if (snapshot) this.applyNetworkEndpointSnapshot(snapshot)
+					else logLanConnection('NATIVE', 'endpoint-snapshot-rejected', {}, 'warn')
 					continue
 				}
 				if (isTransferEvent(frame)) {

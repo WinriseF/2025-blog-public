@@ -24,6 +24,18 @@ export function endpointAddressKind(endpoint: string): NativeEndpointAddressKind
 	}
 }
 
+export function summarizeNativeEndpoints(values: string[]) {
+	const summary = { count: values.length, privateIpv4: 0, ulaIpv6: 0, guaIpv6: 0, invalid: 0 }
+	for (const value of values) {
+		const kind = endpointAddressKind(value)
+		if (kind === 'private-ipv4') summary.privateIpv4 += 1
+		else if (kind === 'ula-ipv6') summary.ulaIpv6 += 1
+		else if (kind === 'gua-ipv6') summary.guaIpv6 += 1
+		else summary.invalid += 1
+	}
+	return summary
+}
+
 export function filterNativeEndpoints(values: unknown[], validate: (value: string) => boolean) {
 	return [...new Set(values.filter((value): value is string => typeof value === 'string' && validate(value)))]
 }

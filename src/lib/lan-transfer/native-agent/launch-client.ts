@@ -1,5 +1,6 @@
 import type { LanNativeAgentCallback } from './types'
-import { filterNativeEndpoints, validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
+import { filterNativeEndpoints, summarizeNativeEndpoints, validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
+import { logLanConnection } from '../connection-diagnostics'
 
 const CALLBACK_CHANNEL = 'winrisef-native-agent-callback-v1'
 const CALLBACK_STORAGE_KEY = 'winrisef-native-agent-callback-handoff'
@@ -37,10 +38,18 @@ export function consumeLanAgentCallback(): LanNativeAgentCallback | null {
 	const fileHttpEndpoints = params.getAll('file-http')
 	const fileWebTransportEndpoints = params.getAll('file-wt')
 	window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
-	return validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: bridgeVersion(bridgeEndpoint), networkEpoch, publicIpv6State: validPublicIpv6State(publicIpv6State) ? publicIpv6State : 'not-present' })
+	const callback = validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: bridgeVersion(bridgeEndpoint), networkEpoch, publicIpv6State: validPublicIpv6State(publicIpv6State) ? publicIpv6State : 'not-present' })
+	logLanConnection('NATIVE', 'fragment-callback-consumed', {
+		accepted: Boolean(callback),
+		publicIpv6State,
+		benchmarkEndpoints: summarizeNativeEndpoints(benchmarkEndpoints),
+		lnaHttpEndpoints: summarizeNativeEndpoints(lnaHttpEndpoints),
+	}, callback ? 'info' : 'warn')
+	return callback
 }
 
 export function deliverLanAgentCallback(callback: LanNativeAgentCallback) {
+	logLanConnection('NATIVE', 'callback-handoff-sending', { bridgeVersion: callback.bridgeVersion, publicIpv6State: callback.publicIpv6State })
 	if ('BroadcastChannel' in window) {
 		const channel = new BroadcastChannel(CALLBACK_CHANNEL)
 		channel.postMessage(callback)
@@ -57,13 +66,19 @@ export function subscribeLanAgentCallbacks(listener: (callback: LanNativeAgentCa
 	const channel = 'BroadcastChannel' in window ? new BroadcastChannel(CALLBACK_CHANNEL) : null
 	const onMessage = (event: MessageEvent<unknown>) => {
 		const callback = parseCallback(event.data)
-		if (callback) listener(callback)
+		if (callback) {
+			logLanConnection('NATIVE', 'callback-handoff-received', { transport: 'broadcast-channel', bridgeVersion: callback.bridgeVersion, publicIpv6State: callback.publicIpv6State })
+			listener(callback)
+		}
 	}
 	const onStorage = (event: StorageEvent) => {
 		if (event.key !== CALLBACK_STORAGE_KEY || !event.newValue) return
 		try {
 			const callback = parseCallback(JSON.parse(event.newValue))
-			if (callback) listener(callback)
+			if (callback) {
+				logLanConnection('NATIVE', 'callback-handoff-received', { transport: 'storage-event', bridgeVersion: callback.bridgeVersion, publicIpv6State: callback.publicIpv6State })
+				listener(callback)
+			}
 		} catch {}
 	}
 	if (channel) channel.addEventListener('message', onMessage)
@@ -77,7 +92,7 @@ export function subscribeLanAgentCallbacks(listener: (callback: LanNativeAgentCa
 }
 
 function parseCallback(value: unknown): LanNativeAgentCallback | null {
-	if (!value || typeof value !== 'object') return null
+	if (!value || typeof value !== 'object') return rejectCallback('payload-not-object')
 	const callback = value as Partial<LanNativeAgentCallback>
 	if (
 		typeof callback.nonce !== 'string' ||
@@ -90,22 +105,28 @@ function parseCallback(value: unknown): LanNativeAgentCallback | null {
 		!Array.isArray(callback.fileHttpEndpoints) ||
 		!Array.isArray(callback.fileWebTransportEndpoints)
 	)
-		return null
+		return rejectCallback('payload-shape')
 	return validateCallback(callback as LanNativeAgentCallback)
 }
 
 function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallback | null {
 	if (!/^[0-9a-f]{32}$/i.test(callback.nonce) || !/^[0-9a-f]{64}$/i.test(callback.certificateSha256) || !/^[0-9a-f]{32}$/i.test(callback.launchToken))
-		return null
-	if (!Number.isSafeInteger(callback.expiresAt) || callback.expiresAt <= Date.now()) return null
-	if (!validBridgeEndpoint(callback.bridgeEndpoint) || !/^(legacy|[0-9a-f]{16})$/i.test(callback.networkEpoch)) return null
+		return rejectCallback('credential-format')
+	if (!Number.isSafeInteger(callback.expiresAt) || callback.expiresAt <= Date.now()) return rejectCallback('expired')
+	if (!validBridgeEndpoint(callback.bridgeEndpoint)) return rejectCallback('bridge-endpoint')
+	if (!/^(legacy|[0-9a-f]{16})$/i.test(callback.networkEpoch)) return rejectCallback('network-epoch')
 	const benchmarkEndpoints = filterNativeEndpoints(callback.benchmarkEndpoints, validLanWebTransportEndpoint)
 	const lnaHttpEndpoints = filterNativeEndpoints(callback.lnaHttpEndpoints, validLanHttpBaseEndpoint)
 	const fileHttpEndpoints = filterNativeEndpoints(callback.fileHttpEndpoints, validLanFileHttpEndpoint)
 	const fileWebTransportEndpoints = filterNativeEndpoints(callback.fileWebTransportEndpoints, validLanFileWebTransportEndpoint)
 	const publicIpv6State = validPublicIpv6State(callback.publicIpv6State) ? callback.publicIpv6State : 'not-present'
-	if ((!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) && publicIpv6State !== 'authorizing') return null
+	if ((!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) && publicIpv6State !== 'authorizing') return rejectCallback('missing-endpoints')
 	return { ...callback, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, bridgeVersion: bridgeVersion(callback.bridgeEndpoint), publicIpv6State }
+}
+
+function rejectCallback(reason: string) {
+	logLanConnection('NATIVE', 'callback-rejected', { reason }, 'warn')
+	return null
 }
 
 function validPublicIpv6State(value: unknown): value is LanNativeAgentCallback['publicIpv6State'] {

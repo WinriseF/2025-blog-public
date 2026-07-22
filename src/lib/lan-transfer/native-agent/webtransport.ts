@@ -1,4 +1,5 @@
-import { endpointAddressKind } from './endpoint-validation'
+import { endpointAddressKind, summarizeNativeEndpoints } from './endpoint-validation'
+import { logLanConnection } from '../connection-diagnostics'
 
 export type WebTransportLike = {
 	ready: Promise<void>
@@ -44,18 +45,22 @@ export async function selectPinnedWebTransportEndpoint(options: {
 	const cacheKey = `${options.certificateSha256}:${options.networkEpoch}`
 	const cached = endpointWinners.get(cacheKey)
 	const ordered = candidates.sort((left, right) => endpointPriority(left, cached) - endpointPriority(right, cached))
+	logLanConnection('NATIVE-WT', 'endpoint-race-started', { networkEpoch: options.networkEpoch, endpoints: summarizeNativeEndpoints(ordered), cachedEndpointAvailable: Boolean(cached) })
 	const transports = new Set<WebTransportLike>()
 	return new Promise<string>((resolve, reject) => {
 		let settled = false
 		let finished = 0
 		let lastError: unknown = null
 		for (const endpoint of ordered) {
-			const delayMs = endpointPriority(endpoint, cached) <= 1 ? 0 : 200
+			const priority = endpointPriority(endpoint, cached)
+			const delayMs = priority <= 1 ? 0 : 200
+			const addressKind = endpointAddressKind(endpoint)
 			void (async () => {
 				let transport: WebTransportLike | null = null
 				try {
 					await abortableDelay(delayMs, options.signal)
 					if (settled) return
+					logLanConnection('NATIVE-WT', 'endpoint-attempt-started', { addressKind, priority, delayMs })
 					transport = createPinnedWebTransport(endpoint, options.certificateSha256)
 					transports.add(transport)
 					await abortable(withTimeout(transport.ready, 4_000, 'WebTransport 连接在 4 秒内未就绪'), options.signal)
@@ -63,13 +68,19 @@ export async function selectPinnedWebTransportEndpoint(options: {
 					settled = true
 					endpointWinners.set(cacheKey, endpoint)
 					for (const candidate of transports) candidate.close({ closeCode: 0, reason: candidate === transport ? 'endpoint selected' : 'endpoint race lost' })
+					logLanConnection('NATIVE-WT', 'endpoint-selected', { addressKind, priority })
 					resolve(endpoint)
 				} catch (error) {
 					lastError = error
+					logLanConnection('NATIVE-WT', 'endpoint-attempt-failed', { addressKind, priority, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 					transport?.close({ closeCode: 1, reason: 'endpoint connection failed' })
 				} finally {
 					finished += 1
-					if (!settled && finished === ordered.length) reject(classifyWebTransportError(lastError, ordered.some(endpoint => endpointAddressKind(endpoint) === 'gua-ipv6')))
+					if (!settled && finished === ordered.length) {
+						const classified = classifyWebTransportError(lastError, ordered.some(endpoint => endpointAddressKind(endpoint) === 'gua-ipv6'))
+						logLanConnection('NATIVE-WT', 'endpoint-race-failed', { attempts: finished, error: classified.message }, 'error')
+						reject(classified)
+					}
 				}
 			})()
 		}

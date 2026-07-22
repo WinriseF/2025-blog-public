@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowDownToLine, ArrowUpFromLine, RotateCw, Zap } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, Download, RotateCw, Zap } from 'lucide-react'
 import type { LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
 import type { LanNativeBenchmarkDirection } from '@/lib/lan-transfer/native-agent/types'
+import { downloadLanDiagnostics } from '@/lib/lan-transfer/connection-diagnostics'
 
 const BENCHMARK_SIZES = [
 	{ label: '64MB 快速', bytes: 64 * 1024 * 1024 },
@@ -132,6 +133,17 @@ export function LanSpeedModeToggle({
 					{speedMode.benchmark.state === 'error' && <p className='mt-2 text-xs text-red-400'>{speedMode.benchmark.error}</p>}
 				</div>
 			)}
+
+			<div className='border-border mt-3 flex items-center justify-between gap-3 border-t pt-3'>
+				<p className='text-secondary text-[10px]'>连接日志仅保存在当前浏览器，并自动脱敏。</p>
+				<button
+					type='button'
+					onClick={downloadLanDiagnostics}
+					className='text-secondary hover:text-brand flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background/40 px-2.5 py-1.5 text-[11px] font-medium transition hover:border-brand/40'
+					aria-label='导出网页诊断日志'>
+					<Download size={13} /> 导出日志
+				</button>
+			</div>
 		</div>
 	)
 }
