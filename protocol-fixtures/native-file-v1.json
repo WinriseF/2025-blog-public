@@ -1,6 +1,6 @@
 {
-  "lanSessionVersion": 11,
-  "bridgeVersion": 2,
+  "lanSessionVersion": 12,
+  "bridgeVersion": 3,
   "fileVersion": 1,
   "bridgeFrameMaxBytes": 65536,
   "lnaHttp": {

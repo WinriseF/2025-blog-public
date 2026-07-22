@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const scriptsDirectory = dirname(fileURLToPath(import.meta.url))
 const frontendFixture = resolve(scriptsDirectory, '..', 'protocol-fixtures', 'native-file-v1.json')
-const rustFixture = resolve(scriptsDirectory, '..', '..', '2026-Rust_Native_Transfer', 'protocol-fixtures', 'native-file-v1.json')
+const rustFixture = resolve(scriptsDirectory, '..', '..', '2025-blog-tools', 'protocol-fixtures', 'native-file-v1.json')
 const [frontend, rust] = await Promise.all([readFile(frontendFixture, 'utf8'), readFile(rustFixture, 'utf8')])
 
 if (JSON.stringify(JSON.parse(frontend)) !== JSON.stringify(JSON.parse(rust))) {
