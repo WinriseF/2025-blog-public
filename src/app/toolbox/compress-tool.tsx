@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react'
 import { Download, Eye, Image as ImageIcon, RefreshCw, Trash2 } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import { DialogModal } from '@/components/dialog-modal'
 import { OptimizedImage } from '@/components/optimized-image'
@@ -84,7 +84,6 @@ async function fileToWebp(file: File, quality: number, maxWidth?: number) {
 }
 
 export function CompressTool() {
-	const shouldReduceMotion = useReducedMotion()
 	const [images, setImages] = useState<SelectedImage[]>([])
 	const [quality, setQuality] = useState(0.8)
 	const [limitMaxWidth, setLimitMaxWidth] = useState(false)
@@ -310,8 +309,6 @@ export function CompressTool() {
 	const uploadClassName = `group relative flex min-h-[280px] cursor-pointer flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-brand/25 bg-background/25 p-8 text-center transition-colors hover:border-brand/45 hover:bg-brand/5 max-sm:min-h-[220px] max-sm:p-6 ${isDragging ? 'border-brand bg-brand/10' : ''}`
 	const compareImage = compareIndex !== null ? images[compareIndex] : undefined
 	const rangeProgress = `${Math.round(((quality - 0.3) / 0.7) * 100)}%`
-	const buttonHover = shouldReduceMotion ? undefined : { y: -1 }
-	const buttonTap = shouldReduceMotion ? undefined : { scale: 0.96 }
 
 	return (
 		<div className='relative text-sm'>
@@ -322,11 +319,9 @@ export function CompressTool() {
 				</div>
 
 				<motion.label
-					initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
+					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + ANIMATION_DELAY }}
-					whileHover={shouldReduceMotion || isDragging ? undefined : { y: -2 }}
-					whileTap={shouldReduceMotion ? undefined : { scale: 0.995 }}
 					onDragEnter={handleDragEnter}
 					onDragOver={handleDragOver}
 					onDragLeave={handleDragLeave}
@@ -343,7 +338,7 @@ export function CompressTool() {
 				</motion.label>
 
 				<motion.div
-					initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
+					initial={{ opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + 2 * ANIMATION_DELAY }}
 					className='relative'>
@@ -366,33 +361,27 @@ export function CompressTool() {
 						</div>
 
 						<div className='flex flex-wrap gap-3 text-sm'>
-							<motion.button
-								type='button'
+							<button
 								onClick={handleConvertAll}
 								disabled={!hasConvertible || batchConverting}
-								whileHover={!hasConvertible || batchConverting ? undefined : buttonHover}
-								whileTap={!hasConvertible || batchConverting ? undefined : buttonTap}
 								className='bg-brand text-background flex min-w-28 items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45 max-sm:flex-1'>
 								<RefreshCw size={15} className={batchConverting ? 'animate-spin' : ''} />
 								{batchConverting ? '全部转换中…' : '全部转换'}
-							</motion.button>
-							<motion.button
-								type='button'
+							</button>
+							<button
 								onClick={handleDownloadAll}
 								disabled={!hasConverted}
-								whileHover={!hasConverted ? undefined : buttonHover}
-								whileTap={!hasConverted ? undefined : buttonTap}
 								className='flex min-w-28 items-center justify-center gap-2 rounded-xl border border-border bg-background/40 px-5 py-3 font-semibold text-primary shadow-sm transition hover:border-brand/45 disabled:cursor-not-allowed disabled:text-secondary/45 max-sm:flex-1'>
 								<Download size={15} />
 								全部下载
-							</motion.button>
+							</button>
 						</div>
 					</div>
 				</motion.div>
 
 				<section className='border-t border-border pt-6'>
 					{hasImages ? (
-						<motion.div initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className='relative'>
+						<motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className='relative'>
 							<div className='mb-2 flex items-center justify-between gap-3'>
 								<h2 className='text-sm font-semibold text-primary'>压缩结果（{images.length}）</h2>
 								<span className='text-secondary text-xs'>原图总计 {totalSize}</span>

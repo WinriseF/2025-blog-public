@@ -2,7 +2,6 @@
 
 import { Download, Droplet, Plus, ScanFace, ShieldCheck, Smile, Trash2, Upload } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { motion, useReducedMotion } from 'motion/react'
 import { STICKERS } from '@/lib/face-mask/stickers'
 import type { MaskItem, MaskMode } from '@/lib/face-mask/types'
 
@@ -55,41 +54,35 @@ export function FaceMaskControls({
 	onReplaceImage,
 	onZoomChange
 }: FaceMaskControlsProps) {
-	const shouldReduceMotion = useReducedMotion()
 	const activeMode = selectedMask?.mode ?? defaultMode
 	const activeEmoji = selectedMask?.emoji ?? defaultEmoji
 	const selectedIndex = selectedMask ? masks.findIndex(mask => mask.id === selectedMask.id) + 1 : 0
-	const buttonHover = shouldReduceMotion ? undefined : { y: -1 }
-	const buttonTap = shouldReduceMotion ? undefined : { scale: 0.95 }
 
 	return (
 		<div className='space-y-4'>
 			<div className='flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4'>
 				<div className='flex flex-wrap gap-2 text-sm'>
-					<motion.button type='button' onClick={onReplaceImage} whileHover={buttonHover} whileTap={buttonTap} className='flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 font-medium text-primary transition hover:border-brand/45'>
+					<button onClick={onReplaceImage} className='flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2 font-medium text-primary transition hover:border-brand/45'>
 						<Upload size={15} />
 						更换图片
-					</motion.button>
-					<motion.button
-						type='button'
+					</button>
+					<button
 						onClick={onDetect}
 						disabled={detecting}
-						whileHover={detecting ? undefined : buttonHover}
-						whileTap={detecting ? undefined : buttonTap}
 						className='text-brand flex items-center gap-2 rounded-lg border border-rose-300/60 bg-rose-50/50 px-3 py-2 font-semibold transition hover:border-rose-400 disabled:cursor-not-allowed disabled:opacity-55'>
 						<ScanFace size={15} className={detecting ? 'animate-pulse' : ''} />
 						{detecting ? '检测中' : '自动检测'}
-					</motion.button>
+					</button>
 				</div>
 			</div>
 
 			<div className='grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center'>
 				<div className='flex flex-wrap gap-2'>
 					{modeOptions.map(({ mode, label, icon: Icon }) => (
-						<motion.button type='button' key={mode} onClick={() => onModeChange(mode)} whileHover={buttonHover} whileTap={buttonTap} className={modeButtonClass(activeMode === mode)}>
+						<button key={mode} onClick={() => onModeChange(mode)} className={modeButtonClass(activeMode === mode)}>
 							<Icon size={15} />
 							{label}
-						</motion.button>
+						</button>
 					))}
 				</div>
 
@@ -100,13 +93,13 @@ export function FaceMaskControls({
 							key={sticker.id}
 							onClick={() => onStickerChange(sticker.emoji)}
 							title={sticker.label}
-							className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-xl transition active:scale-95 ${
+							className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-xl transition ${
 								activeMode === 'emoji' && activeEmoji === sticker.emoji ? 'border-rose-400 bg-rose-50 shadow-sm' : 'border-border bg-card hover:border-brand/45'
 							}`}>
 							{sticker.emoji}
 						</button>
 					))}
-					<button type='button' onClick={onCustomSticker} className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary transition hover:border-brand/45 active:scale-95'>
+					<button onClick={onCustomSticker} className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary transition hover:border-brand/45'>
 						<Plus size={17} />
 					</button>
 				</div>
@@ -137,32 +130,26 @@ export function FaceMaskControls({
 						<p className='text-secondary mt-1 text-xs'>区域 {selectedIndex || '-'} / {masks.length}</p>
 					</div>
 					<div className='flex flex-wrap gap-2'>
-						<motion.button
-							type='button'
+						<button
 							onClick={onCreate}
 							aria-pressed={creating}
-							whileHover={buttonHover}
-							whileTap={buttonTap}
 							className={`flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition ${
 								creating ? 'border-rose-400 bg-rose-400 text-white' : 'border-border bg-background/50 text-primary hover:border-brand/45'
 							}`}>
 							<Plus size={15} />
 							新增
-						</motion.button>
-						<motion.button
-							type='button'
+						</button>
+						<button
 							onClick={onClear}
 							disabled={!masks.length}
-							whileHover={!masks.length ? undefined : buttonHover}
-							whileTap={!masks.length ? undefined : buttonTap}
 							className='flex items-center gap-2 rounded-lg border border-border bg-background/50 px-4 py-2 font-medium text-primary transition hover:border-rose-300 disabled:cursor-not-allowed disabled:text-secondary/45'>
 							<Trash2 size={15} />
 							清空
-						</motion.button>
-						<motion.button type='button' onClick={onExport} whileHover={buttonHover} whileTap={buttonTap} className='flex items-center gap-2 rounded-lg bg-rose-400 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-rose-500'>
+						</button>
+						<button onClick={onExport} className='flex items-center gap-2 rounded-lg bg-rose-400 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-rose-500'>
 							<Download size={15} />
 							导出
-						</motion.button>
+						</button>
 					</div>
 				</div>
 			</div>

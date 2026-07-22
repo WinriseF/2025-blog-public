@@ -1,6 +1,5 @@
 import type { LanStorageEngine, TransferFileMeta, TransferManifest } from './types'
 import { addRange, type ChunkRange } from './ranges'
-import { LAN_FILE_IO_BATCH_BYTES } from '../types'
 
 type DirectoryHandle = FileSystemDirectoryHandle
 
@@ -13,6 +12,7 @@ type WritableFileStream = {
 
 const MANIFEST_FLUSH_CHUNKS = 64
 const MANIFEST_FLUSH_BYTES = 32 * 1024 * 1024
+const OPFS_BATCH_BYTES = 1024 * 1024
 export const LAN_OPFS_DIRECTORY_NAME = 'winrisef-lan-transfer-v3'
 
 type PendingWrite = {
@@ -208,7 +208,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		active.writeBuffer.push({ chunkIndex, data })
 		active.writeBufferBytes += data.byteLength
 		const isFinalChunk = chunkIndex + 1 >= meta.chunkCount
-		if (active.writeBufferBytes >= LAN_FILE_IO_BATCH_BYTES || isFinalChunk) manifest = await this.flushBufferedData(active, meta)
+		if (active.writeBufferBytes >= OPFS_BATCH_BYTES || isFinalChunk) manifest = await this.flushBufferedData(active, meta)
 		return manifest
 	}
 

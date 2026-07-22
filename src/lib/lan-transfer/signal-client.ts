@@ -1,6 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { adjectives, uniqueNamesGenerator } from 'unique-names-generator'
-import { logLanConnection, shortConnectionId, summarizeIceCandidate } from './connection-diagnostics'
 import { LAN_PROTOCOL_VERSION, type LanDeviceType, type LanPeer, type LanPresencePayload, type LanRole, type LanSession, type LanSignalMessage, type LanSignalSendDetails, type LanSignalState, type LanSignalTarget, type LanSignalType } from './types'
 
 const pairTtlMs = 10 * 60 * 1000
@@ -8,6 +7,7 @@ const sessionTtlMs = 30 * 60 * 1000
 const announceFastIntervalMs = 1000
 const announceSlowIntervalMs = 5000
 const announceFastWindowMs = 30 * 1000
+const channelWatchdogMs = 15 * 1000
 const signalAckRetryMs = 1200
 const signalAckAttempts = 4
 const seenMessageTtlMs = 60 * 1000
@@ -27,8 +27,7 @@ type PendingSignal = { message: LanSignalMessage; attempts: number; timer: Retur
 function getSupabase() {
 	if (!supabaseUrl || !supabaseKey) throw new Error('连接服务未配置，暂不能使用')
 	supabaseClient ||= createClient(supabaseUrl, supabaseKey, {
-		auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
-		realtime: { heartbeatIntervalMs: 15_000, worker: typeof Worker !== 'undefined' },
+		auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false }
 	})
 	return supabaseClient
 }
@@ -99,8 +98,7 @@ function isPresencePayload(value: unknown): value is LanPresencePayload {
 function isSignalPayload(value: unknown): value is LanSignalMessage {
 	if (!isRecord(value) || !signalTypes.has(value.type as LanSignalType)) return false
 	const peerValid = !('peer' in value) || value.peer === undefined || isLanPeer(value.peer) && value.peer.deviceId === value.fromDeviceId && value.peer.instanceId === value.fromInstanceId
-	const recoveryValid = !('hardRecovery' in value) || value.hardRecovery === undefined || typeof value.hardRecovery === 'boolean'
-	return value.protocolVersion === LAN_PROTOCOL_VERSION && typeof value.roomId === 'string' && typeof value.tokenHash === 'string' && typeof value.fromDeviceId === 'string' && typeof value.fromInstanceId === 'string' && typeof value.toDeviceId === 'string' && typeof value.toInstanceId === 'string' && typeof value.messageId === 'string' && typeof value.seq === 'number' && typeof value.ts === 'number' && typeof value.generation === 'number' && typeof value.negotiationId === 'string' && peerValid && recoveryValid
+	return value.protocolVersion === LAN_PROTOCOL_VERSION && typeof value.roomId === 'string' && typeof value.tokenHash === 'string' && typeof value.fromDeviceId === 'string' && typeof value.fromInstanceId === 'string' && typeof value.toDeviceId === 'string' && typeof value.toInstanceId === 'string' && typeof value.messageId === 'string' && typeof value.seq === 'number' && typeof value.ts === 'number' && typeof value.generation === 'number' && typeof value.negotiationId === 'string' && peerValid
 }
 
 export function getLocalDevice() {
@@ -134,12 +132,14 @@ export class LanSignalingClient {
 	private channel: LanChannel | null = null
 	private closed = false
 	private subscribed = false
+	private rebuildingChannel = false
 	private seq = 0
 	private announceStartedAt = 0
+	private offlineSince = 0
 	private announceTimer: ReturnType<typeof setTimeout> | null = null
+	private watchdogTimer: ReturnType<typeof setTimeout> | null = null
 	private removeResumeListeners: (() => void) | null = null
 	private pending = new Map<string, PendingSignal>()
-	private queuedCandidates = new Map<string, LanSignalMessage>()
 	private seen = new Map<string, number>()
 	private readySettled = false
 	private resolveReady!: () => void
@@ -163,7 +163,6 @@ export class LanSignalingClient {
 
 	private createChannel() {
 		if (this.closed) return
-		this.log('channel-creating')
 		this.onStatus?.('connecting')
 		const channel = getSupabase().channel(`lan-transfer:${this.session.roomId}`, {
 			config: { broadcast: { ack: true, self: false }, presence: { key: this.session.instanceId } }
@@ -174,9 +173,10 @@ export class LanSignalingClient {
 		channel.on('presence', { event: 'join' }, () => this.emitPresencePeers())
 		channel.subscribe((status, error) => {
 			if (this.closed || this.channel !== channel) return
-			this.log('channel-status', { status, error: error?.message }, status === 'SUBSCRIBED' ? 'info' : 'warn')
 			if (status === 'SUBSCRIBED') {
 				this.subscribed = true
+				this.offlineSince = 0
+				this.clearWatchdog()
 				this.onStatus?.('online')
 				if (!this.readySettled) {
 					this.readySettled = true
@@ -190,14 +190,15 @@ export class LanSignalingClient {
 	}
 
 	private handleChannelLoss(status: string, error?: Error) {
-		this.log('channel-lost', { status, error: error?.message }, 'warn')
 		this.subscribed = false
+		this.offlineSince ||= Date.now()
 		this.onStatus?.(status === 'CLOSED' ? 'offline' : 'retrying')
 		if (!this.readySettled) {
 			this.readySettled = true
 			this.rejectReady(error || new Error(status === 'TIMED_OUT' ? '连接服务响应超时' : '连接服务暂时不可用'))
 		}
 		if (error) this.onError?.(error)
+		this.scheduleWatchdog()
 	}
 
 	private async afterSubscribe(channel: LanChannel) {
@@ -205,7 +206,6 @@ export class LanSignalingClient {
 			const result = await channel.track(this.presencePayload())
 			if (result !== 'ok') throw new Error('连接服务恢复失败')
 			if (this.closed || this.channel !== channel) return
-			this.log('presence-ready')
 			this.restartAnnouncing()
 			this.emitPresencePeers()
 			this.flushPending()
@@ -224,6 +224,7 @@ export class LanSignalingClient {
 		network?.addEventListener('change', wake)
 		const onVisibility = () => {
 			if (document.visibilityState === 'visible') wake()
+			else this.clearWatchdog()
 		}
 		document.addEventListener('visibilitychange', onVisibility)
 		return () => {
@@ -237,13 +238,39 @@ export class LanSignalingClient {
 
 	private wake() {
 		if (this.closed) return
-		const realtime = getSupabase().realtime
-		if (!this.subscribed && !realtime.isConnected()) realtime.connect()
+		if (!this.subscribed && this.offlineSince && Date.now() - this.offlineSince >= channelWatchdogMs) void this.rebuildChannel()
+		else if (!this.subscribed) this.scheduleWatchdog()
 		if (this.subscribed) void this.channel?.track(this.presencePayload()).catch(() => {})
 		this.restartAnnouncing()
 		this.emitPresencePeers()
 		this.flushPending()
 		this.onWake?.()
+	}
+
+	private scheduleWatchdog() {
+		this.clearWatchdog()
+		if (this.closed || typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+		this.watchdogTimer = setTimeout(() => void this.rebuildChannel(), channelWatchdogMs)
+	}
+
+	private clearWatchdog() {
+		if (!this.watchdogTimer) return
+		clearTimeout(this.watchdogTimer)
+		this.watchdogTimer = null
+	}
+
+	private async rebuildChannel() {
+		if (this.closed || this.subscribed || this.rebuildingChannel) return
+		this.rebuildingChannel = true
+		this.clearWatchdog()
+		const old = this.channel
+		this.channel = null
+		try {
+			if (old) await getSupabase().removeChannel(old).catch(() => {})
+		} finally {
+			this.rebuildingChannel = false
+			this.createChannel()
+		}
 	}
 
 	private presencePayload(): LanPresencePayload {
@@ -255,21 +282,12 @@ export class LanSignalingClient {
 		if (payload.fromInstanceId === this.session.instanceId) return
 		if (payload.toDeviceId !== '*' && payload.toDeviceId !== this.session.localPeer.deviceId) return
 		if (payload.toInstanceId !== '*' && payload.toInstanceId !== this.session.instanceId) return
-		if (payload.type === 'candidate') this.log('candidate-received', summarizeIceCandidate(payload.candidate || null))
-		else if (payload.type !== 'announce' && payload.type !== 'signal-ack') this.log('signal-received', { type: payload.type, generation: payload.generation, negotiation: shortConnectionId(payload.negotiationId) })
 		if (payload.type === 'signal-ack') {
-			if (payload.ackFor) {
-				const pending = this.pending.get(payload.ackFor)
-				this.log('signal-ack-received', { ackFor: shortConnectionId(payload.ackFor), pendingType: pending?.message.type, attempts: pending?.attempts, found: Boolean(pending) })
-				this.clearPending(payload.ackFor)
-			}
+			if (payload.ackFor) this.clearPending(payload.ackFor)
 			return
 		}
 		if (criticalSignalTypes.has(payload.type)) void this.sendSignal('signal-ack', { deviceId: payload.fromDeviceId, instanceId: payload.fromInstanceId }, { generation: payload.generation, negotiationId: payload.negotiationId, ackFor: payload.messageId }).catch(() => {})
-		if (!this.rememberMessage(payload.messageId)) {
-			this.log('signal-duplicate-ignored', { type: payload.type, message: shortConnectionId(payload.messageId), generation: payload.generation, negotiation: shortConnectionId(payload.negotiationId) }, 'warn')
-			return
-		}
+		if (!this.rememberMessage(payload.messageId)) return
 		this.onMessage(payload)
 	}
 
@@ -326,14 +344,11 @@ export class LanSignalingClient {
 			candidate: details.candidate,
 			ackFor: details.ackFor,
 			reason: details.reason,
-			hardRecovery: details.hardRecovery,
 		}
 	}
 
 	async sendSignal(type: LanSignalType, target: LanSignalTarget | null, details: LanSignalSendDetails = {}) {
 		if (this.closed) return
-		if (type === 'candidate') this.log('candidate-sending', summarizeIceCandidate(details.candidate || null))
-		else if (type !== 'announce' && type !== 'signal-ack') this.log('signal-sending', { type, generation: details.generation || 0, negotiation: shortConnectionId(details.negotiationId || '') })
 		this.prunePending()
 		const message = this.makeMessage(type, target, details)
 		const critical = criticalSignalTypes.has(type)
@@ -342,64 +357,37 @@ export class LanSignalingClient {
 		try {
 			delivered = await this.deliver(message)
 		} catch (error) {
-			this.log('signal-delivery-error', { type, message: shortConnectionId(message.messageId), error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 			if (!critical) throw error
 		}
-		if (type === 'candidate') this.log('candidate-delivery-result', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(message.messageId), delivered, subscribed: this.subscribed, queuedCandidates: this.queuedCandidates.size })
-		else if (type !== 'announce' && type !== 'signal-ack') this.log('signal-delivery-result', { type, message: shortConnectionId(message.messageId), delivered, critical, subscribed: this.subscribed })
 		if (critical) this.scheduleRetry(message.messageId)
-		else if (!delivered && type === 'candidate') {
-			if (this.queuedCandidates.size >= 256) {
-				const removedId = this.queuedCandidates.keys().next().value as string
-				this.queuedCandidates.delete(removedId)
-				this.log('candidate-send-queue-evicted', { message: shortConnectionId(removedId), queuedCandidates: this.queuedCandidates.size }, 'warn')
-			}
-			this.queuedCandidates.set(message.messageId, message)
-			this.log('candidate-send-queued', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(message.messageId), queuedCandidates: this.queuedCandidates.size }, 'warn')
-		} else if (!delivered) throw new Error('连接消息发送失败')
+		else if (!delivered) throw new Error('连接消息发送失败')
 	}
 
 	private async deliver(message: LanSignalMessage) {
 		const channel = this.channel
-		if (!this.subscribed || !channel) {
-			if (message.type !== 'announce') this.log('signal-delivery-skipped', { type: message.type, message: shortConnectionId(message.messageId), subscribed: this.subscribed, hasChannel: Boolean(channel) }, 'warn')
-			return false
-		}
+		if (!this.subscribed || !channel) return false
 		const result = await channel.send({ type: 'broadcast', event: 'lan', payload: message })
-		if (result !== 'ok' && message.type !== 'announce') this.log('signal-delivery-failed', { type: message.type, result }, 'warn')
 		return result === 'ok'
 	}
 
 	private scheduleRetry(messageId: string) {
 		const pending = this.pending.get(messageId)
-		if (!pending || pending.timer) return
-		if (pending.attempts >= signalAckAttempts) {
-			this.log('signal-retry-exhausted', { type: pending.message.type, message: shortConnectionId(messageId), attempts: pending.attempts }, 'warn')
-			return
-		}
+		if (!pending || pending.timer || pending.attempts >= signalAckAttempts) return
 		pending.timer = setTimeout(() => {
 			pending.timer = null
 			if (!this.pending.has(messageId)) return
 			pending.attempts += 1
-			this.log('signal-retry-sending', { type: pending.message.type, message: shortConnectionId(messageId), attempt: pending.attempts })
 			void this.deliver(pending.message).catch(() => false).finally(() => this.scheduleRetry(messageId))
 		}, signalAckRetryMs)
 	}
 
 	private flushPending() {
 		this.prunePending()
-		if (this.pending.size || this.queuedCandidates.size) this.log('signal-queues-flushing', { pendingCritical: this.pending.size, queuedCandidates: this.queuedCandidates.size })
 		this.pending.forEach((pending, id) => {
 			if (pending.timer) clearTimeout(pending.timer)
 			pending.timer = null
 			pending.attempts = 0
 			void this.deliver(pending.message).catch(() => false).finally(() => this.scheduleRetry(id))
-		})
-		this.queuedCandidates.forEach((message, id) => {
-			void this.deliver(message).then(delivered => {
-				this.log('candidate-queue-delivery-result', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(id), delivered })
-				if (delivered) this.queuedCandidates.delete(id)
-			}).catch(() => {})
 		})
 	}
 
@@ -411,14 +399,7 @@ export class LanSignalingClient {
 
 	private prunePending() {
 		const now = Date.now()
-		for (const [messageId, pending] of this.pending) if (now - pending.message.ts > seenMessageTtlMs) {
-			this.log('signal-pending-expired', { type: pending.message.type, message: shortConnectionId(messageId), attempts: pending.attempts }, 'warn')
-			this.clearPending(messageId)
-		}
-		for (const [messageId, message] of this.queuedCandidates) if (now - message.ts > seenMessageTtlMs) {
-			this.log('candidate-send-expired', { ...summarizeIceCandidate(message.candidate || null), message: shortConnectionId(messageId) }, 'warn')
-			this.queuedCandidates.delete(messageId)
-		}
+		for (const [messageId, pending] of this.pending) if (now - pending.message.ts > seenMessageTtlMs) this.clearPending(messageId)
 	}
 
 	restartAnnouncing() {
@@ -447,14 +428,10 @@ export class LanSignalingClient {
 		for (const [messageId, pending] of this.pending) {
 			if (pending.message.toDeviceId === deviceId && pending.message.toInstanceId !== instanceId) this.clearPending(messageId)
 		}
-		for (const [messageId, message] of this.queuedCandidates) {
-			if (message.toDeviceId === deviceId && message.toInstanceId !== instanceId) this.queuedCandidates.delete(messageId)
-		}
 	}
 
 	discardPendingForDevice(deviceId: string) {
 		for (const [messageId, pending] of this.pending) if (pending.message.toDeviceId === deviceId) this.clearPending(messageId)
-		for (const [messageId, message] of this.queuedCandidates) if (message.toDeviceId === deviceId) this.queuedCandidates.delete(messageId)
 	}
 
 	sendAnnounce(target: LanSignalTarget | null = null) {
@@ -471,11 +448,11 @@ export class LanSignalingClient {
 		this.closed = true
 		this.subscribed = false
 		this.stopAnnouncing()
+		this.clearWatchdog()
 		this.removeResumeListeners?.()
 		this.removeResumeListeners = null
 		this.pending.forEach(item => item.timer && clearTimeout(item.timer))
 		this.pending.clear()
-		this.queuedCandidates.clear()
 		const channel = this.channel
 		this.channel = null
 		if (channel) {
@@ -488,13 +465,5 @@ export class LanSignalingClient {
 			this.rejectReady(new Error('连接已关闭'))
 		}
 		this.onStatus?.('closed')
-	}
-
-	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
-		logLanConnection('SIGNAL', event, {
-			role: this.session.role,
-			instance: shortConnectionId(this.session.instanceId),
-			...details,
-		}, level)
 	}
 }

@@ -5,10 +5,6 @@ import { useCallback, useEffect, useRef } from 'react'
 export const SCROLL_PROGRESS_MAX = 1000
 const PROGRESS_SCALE_VAR = '--reading-progress-scale'
 
-type ScrollContainerRef = {
-	current: HTMLElement | null
-}
-
 function clampProgress(progress: number) {
 	if (!Number.isFinite(progress)) return 0
 	return Math.min(1, Math.max(0, progress))
@@ -23,12 +19,11 @@ function getProgressValue(progress: number) {
 	return Math.round(clampProgress(progress) * SCROLL_PROGRESS_MAX)
 }
 
-function getMaxScroll(scrollContainer?: HTMLElement | null) {
-	if (scrollContainer) return Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight)
+function getMaxScroll() {
 	return Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
 }
 
-export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
+export function useScrollProgress() {
 	const rootRef = useRef<HTMLDivElement | null>(null)
 	const inputRef = useRef<HTMLInputElement | null>(null)
 	const frameRef = useRef<number | null>(null)
@@ -57,13 +52,11 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 	}, [])
 
 	const updateProgress = useCallback(() => {
-		const scrollContainer = scrollContainerRef?.current
-		const maxScroll = getMaxScroll(scrollContainer)
-		const scrollPosition = scrollContainer ? scrollContainer.scrollTop : window.scrollY
-		const nextProgress = maxScroll > 0 ? scrollPosition / maxScroll : 0
+		const maxScroll = getMaxScroll()
+		const nextProgress = maxScroll > 0 ? window.scrollY / maxScroll : 0
 
 		updateProgressValue(getProgressValue(nextProgress))
-	}, [scrollContainerRef, updateProgressValue])
+	}, [updateProgressValue])
 
 	useEffect(() => {
 		const scheduleProgressUpdate = () => {
@@ -75,22 +68,20 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 			})
 		}
 
-		const scrollContainer = scrollContainerRef?.current
-		const scrollTarget = scrollContainer ?? window
 		let resizeObserver: ResizeObserver | null = null
 
 		if (typeof ResizeObserver !== 'undefined') {
 			resizeObserver = new ResizeObserver(scheduleProgressUpdate)
-			resizeObserver.observe(scrollContainer ?? document.documentElement)
-			if (!scrollContainer && document.body) resizeObserver.observe(document.body)
+			resizeObserver.observe(document.documentElement)
+			if (document.body) resizeObserver.observe(document.body)
 		}
 
-		scrollTarget.addEventListener('scroll', scheduleProgressUpdate, { passive: true })
+		window.addEventListener('scroll', scheduleProgressUpdate, { passive: true })
 		window.addEventListener('resize', scheduleProgressUpdate)
 		updateProgress()
 
 		return () => {
-			scrollTarget.removeEventListener('scroll', scheduleProgressUpdate)
+			window.removeEventListener('scroll', scheduleProgressUpdate)
 			window.removeEventListener('resize', scheduleProgressUpdate)
 			resizeObserver?.disconnect()
 
@@ -99,29 +90,18 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 				frameRef.current = null
 			}
 		}
-	}, [scrollContainerRef, updateProgress])
+	}, [updateProgress])
 
 	const scrollToProgress = useCallback((nextProgress: number) => {
 		const targetProgress = clampProgress(nextProgress)
-		const scrollContainer = scrollContainerRef?.current
-		const maxScroll = getMaxScroll(scrollContainer)
-		const targetScroll = maxScroll * targetProgress
+		const maxScroll = getMaxScroll()
 
 		updateProgressValue(maxScroll > 0 ? getProgressValue(targetProgress) : 0)
-		if (scrollContainer) {
-			scrollContainer.scrollTop = targetScroll
-			return
-		}
-
-		const root = document.documentElement
-		const previousScrollBehavior = root.style.scrollBehavior
-		root.style.scrollBehavior = 'auto'
 		window.scrollTo({
-			top: targetScroll,
+			top: maxScroll * targetProgress,
 			behavior: 'auto'
 		})
-		root.style.scrollBehavior = previousScrollBehavior
-	}, [scrollContainerRef, updateProgressValue])
+	}, [updateProgressValue])
 
 	return {
 		rootRef,

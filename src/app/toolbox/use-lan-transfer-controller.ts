@@ -10,8 +10,6 @@ import { createNativeWebRtcTransport } from '@/lib/lan-transfer/native-webrtc-tr
 import { ReconnectCoordinator } from '@/lib/lan-transfer/reconnect-coordinator'
 import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
 import { LAN_PROTOCOL_VERSION, type LanAttachmentKind, type LanCapability, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
-import type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
-import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 
 type LanTransferControllerOptions = { initialInvite?: { roomId: string; token: string } | null; onLeaveSession?: () => void }
 
@@ -29,8 +27,6 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const sessionRef = useRef<LanSession | null>(null)
 	const localCapabilityRef = useRef<LanCapability | null>(null)
 	const handledInviteRef = useRef<typeof initialInvite>(null)
-	const nativeTicketIssuerRef = useRef<((peerDeviceId: string) => Promise<LanNativeAgentTicket>) | null>(null)
-	const nativeLocalAgentPortRef = useRef<LanNativeLocalAgentPort | null>(null)
 
 	useEffect(() => void (sessionRef.current = session), [session])
 	useEffect(() => void (localCapabilityRef.current = localCapability), [localCapability])
@@ -41,17 +37,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	}, [session])
 	const qrDataUrl = useLanInviteQrCode(inviteLink)
 
-	const engine = useLanTransferEngine({
-		sessionRef,
-		localCapabilityRef,
-		setLocalCapability,
-		setStatus,
-		issueNativeAgentTicket: peerDeviceId => {
-			const issuer = nativeTicketIssuerRef.current
-			return issuer ? issuer(peerDeviceId) : Promise.reject(new Error('本机加速组件未连接'))
-		},
-		getNativeLocalAgentPort: () => nativeLocalAgentPortRef.current,
-	})
+	const engine = useLanTransferEngine({ sessionRef, localCapabilityRef, setLocalCapability, setStatus })
 	const engineRef = useRef(engine)
 	useEffect(() => void (engineRef.current = engine), [engine])
 
@@ -67,17 +53,16 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		const current = sessionRef.current
 		if (!current || peer.deviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(peer.deviceId)) return null
 		if (current.role === peer.role || !rememberPeer(peer)) return null
+		engineRef.current.ensureConnection(peer, { connectionState: 'discovered', status: '找到设备，正在连接' })
 		const existing = coordinatorRef.current.get(peer.deviceId)
 		if (existing) {
 			existing.updatePeer(peer)
 			return existing
 		}
-		engineRef.current.ensureConnection(peer, { connectionState: 'discovered', status: '找到设备，正在连接' })
 		const coordinator = new ReconnectCoordinator({
 			role: current.role,
 			remotePeer: peer,
 			createTransport: createNativeWebRtcTransport,
-			isTransferActive: () => engineRef.current.isTransferActive(peer.deviceId),
 			sendSignal: (type, target, details) => {
 				const client = signalClientRef.current
 				if (!client) return Promise.reject(new Error('连接服务尚未就绪'))
@@ -91,8 +76,6 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 				engineRef.current.attachTransport(transport, remotePeer, route)
 				setStatus('已连接，可以发送消息和文件')
 			},
-			onPause: (remotePeer, transportId) => engineRef.current.pauseTransport(remotePeer.deviceId, transportId),
-			onResume: (remotePeer, transportId) => engineRef.current.resumeTransport(remotePeer.deviceId, transportId),
 			onRoute: (remotePeer, transportId, route) => engineRef.current.updateConnectionRoute(remotePeer.deviceId, transportId, route),
 			onDetach: (remotePeer, transportId, connectionState, message) => {
 				engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || '')
@@ -239,24 +222,6 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		setStatus(engine.connections.length > 1 ? '已关闭当前会话' : '已关闭会话，等待设备连接')
 	}
 
-	const setNativeAgentAdvertisement = useCallback((advertisement: LanNativeAgentAdvertisement | null) => {
-		const current = localCapabilityRef.current
-		if (!current) return
-		if (current.nativeAgent === (advertisement || undefined)) return
-		const next = { ...current, nativeAgent: advertisement || undefined }
-		localCapabilityRef.current = next
-		setLocalCapability(next)
-		engineRef.current.updateLocalCapability(next)
-	}, [])
-
-	const setNativeTicketIssuer = useCallback((issuer: ((peerDeviceId: string) => Promise<LanNativeAgentTicket>) | null) => {
-		nativeTicketIssuerRef.current = issuer
-	}, [])
-
-	const setNativeLocalAgentPort = useCallback((port: LanNativeLocalAgentPort | null) => {
-		nativeLocalAgentPortRef.current = port
-	}, [])
-
 	useEffect(() => () => {
 		void stopSignaling()
 		coordinatorRef.current.forEach(coordinator => coordinator.close())
@@ -273,20 +238,14 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		inviteLink,
 		roomStatus: status,
 		busy,
-		localCapability,
 		recorder,
 		handleCreateRoom,
 		selectConnection: engine.selectConnection,
 		sendText: engine.sendText,
 		sendFiles: (files: File[], kind?: LanAttachmentKind) => engine.sendFiles(files, kind),
-		selectNativeFiles: engine.selectNativeFiles,
 		startReceivingAttachment: engine.startReceivingAttachment,
 		stopRecordingAndSend,
 		copyInvite,
-		setNativeAgentAdvertisement,
-		setNativeTicketIssuer,
-		setNativeLocalAgentPort,
-		requestNativeAgentTicket: engine.requestNativeAgentTicket,
 		closeConnection,
 		leaveSession,
 		downloadAttachment: engine.downloadAttachment,

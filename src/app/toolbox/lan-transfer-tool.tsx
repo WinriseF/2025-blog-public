@@ -1,16 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type CSSProperties, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, Copy, MessageCircle, PanelLeftClose, QrCode, Sun, X, Zap } from 'lucide-react'
+import WaveformPlayer from '@arraypress/waveform-player'
+import { Check, CheckCheck, ChevronLeft, Clock3, Copy, Download, FileArchive, Image as ImageIcon, Laptop, MessageCircle, Mic, Monitor, PanelLeftClose, Paperclip, QrCode, Send, Smartphone, X } from 'lucide-react'
+import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
-import { installLanDiagnosticCapture } from '@/lib/lan-transfer/connection-diagnostics'
-import { useLanScreenWakeLock, type LanScreenWakeLockState } from '@/hooks/use-lan-screen-wake-lock'
-import { useLanNativeSpeedMode, type LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
-import type { LanNativeBenchmarkDirection } from '@/lib/lan-transfer/native-agent/types'
-import { ChatComposer, DeviceAvatar, MessageList } from './lan-chat-ui'
-import { LanSpeedModeToggle } from './lan-speed-mode-toggle'
-import { LanWakeLockToggle } from './lan-wake-lock-toggle'
+import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
+import { ImagePreviewDialog } from './image-preview-dialog'
 import { useLanTransferController } from './use-lan-transfer-controller'
 
 type LanTransferToolProps = {
@@ -22,9 +19,10 @@ type LanTransferToolProps = {
 	onLeaveSession?: () => void
 	onSwitchRelay?: () => void
 }
+
+type AttachmentAction = 'file' | 'image'
 type LanController = ReturnType<typeof useLanTransferController>
 type LanConnectionItem = LanController['connections'][number]
-type LanControlPanel = 'qr' | 'wake' | 'speed'
 
 function cn(...classes: Array<string | false | null | undefined>) {
 	return classes.filter(Boolean).join(' ')
@@ -42,9 +40,369 @@ const connectionLabel = {
 	closed: '已关闭',
 }
 
+function dicebearAvatarUrl(seed: string) {
+	return `https://api.dicebear.com/10.x/bottts-neutral/svg?seed=${encodeURIComponent(seed)}`
+}
+
+function DeviceAvatar({ type = 'desktop', avatarSeed, active = false }: { type?: string; avatarSeed?: string; active?: boolean }) {
+	const [failed, setFailed] = useState(false)
+	const Icon = type === 'phone' ? Smartphone : type === 'tablet' ? Monitor : Laptop
+	useEffect(() => setFailed(false), [avatarSeed])
+	return (
+		<div className={cn('flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border', active ? 'border-brand/35 bg-brand/10 text-brand' : 'border-border bg-background/40 text-primary')}>
+			{avatarSeed && !failed ? <img src={dicebearAvatarUrl(avatarSeed)} alt='' className='size-full object-cover' referrerPolicy='no-referrer' onError={() => setFailed(true)} /> : <Icon size={22} />}
+		</div>
+	)
+}
+
 function connectionStatusText(connection: LanConnectionItem) {
 	if (connection.connected) return formatLanConnectionRoute(connection.connectionRoute)
 	return connection.status || connectionLabel[connection.connectionState] || '等待'
+}
+
+function progressLabel(value: number) {
+	return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`
+}
+
+function formatTransferSpeed(value?: number) {
+	return value && Number.isFinite(value) && value > 0 ? `${formatBytes(value)}/s` : ''
+}
+
+function formatEta(value?: number) {
+	if (!value || !Number.isFinite(value) || value <= 0) return ''
+	const seconds = Math.ceil(value)
+	if (seconds < 60) return `${seconds}秒`
+	const minutes = Math.ceil(seconds / 60)
+	if (minutes < 60) return `${minutes}分钟`
+	return `${Math.ceil(minutes / 60)}小时`
+}
+
+function transferBytes(attachment: LanAttachment) {
+	const progress = Math.max(0, Math.min(1, attachment.progress))
+	return Math.min(attachment.size, attachment.transferredBytes ?? Math.round(attachment.size * progress))
+}
+
+function formatTransferProgress(attachment: LanAttachment, compact = false) {
+	const bytes = transferBytes(attachment)
+	const action = attachment.direction === 'out' ? '已确认' : attachment.kind === 'file' ? '已接收' : '已缓存'
+	const parts = compact ? [progressLabel(attachment.progress)] : [`${action} ${progressLabel(attachment.progress)}`, `${formatBytes(bytes)} / ${formatBytes(attachment.size)}`]
+	const speed = formatTransferSpeed(attachment.speedBps)
+	if (speed) parts.push(speed)
+	const eta = formatEta(attachment.etaSeconds)
+	if (!compact && eta) parts.push(`剩余 ${eta}`)
+	return parts.join(' · ')
+}
+
+function formatTransferMeta(attachment: LanAttachment) {
+	const parts = [`${formatBytes(transferBytes(attachment))} / ${formatBytes(attachment.size)}`]
+	const speed = formatTransferSpeed(attachment.speedBps)
+	if (speed) parts.push(speed)
+	const eta = formatEta(attachment.etaSeconds)
+	if (eta) parts.push(`剩余 ${eta}`)
+	return parts.join(' · ')
+}
+
+function formatVoiceTime(secondsValue = 0) {
+	const totalSeconds = Math.max(0, Math.round(secondsValue))
+	const minutes = Math.floor(totalSeconds / 60)
+	const seconds = totalSeconds % 60
+	return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+function compactFileName(name: string, maxLength = 28) {
+	const normalized = name.trim() || '未命名文件'
+	const chars = Array.from(normalized)
+	if (chars.length <= maxLength) return normalized
+	const dotIndex = normalized.lastIndexOf('.')
+	const suffix = dotIndex > 0 && normalized.length - dotIndex <= 10 ? normalized.slice(dotIndex) : Array.from(normalized).slice(-6).join('')
+	const suffixLength = Array.from(suffix).length
+	const headLength = Math.max(8, maxLength - suffixLength - 3)
+	return `${chars.slice(0, headLength).join('')}...${suffix}`
+}
+
+function formatMessageTime(value: number) {
+	const date = new Date(value)
+	const now = new Date()
+	const sameDay = date.toDateString() === now.toDateString()
+	const yesterday = new Date(now)
+	yesterday.setDate(now.getDate() - 1)
+	const time = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+	if (sameDay) return time
+	if (date.toDateString() === yesterday.toDateString()) return `昨天 ${time}`
+	return `${date.getMonth() + 1}月${date.getDate()}日 ${time}`
+}
+
+function shouldShowTimeDivider(previous: LanChatMessage | undefined, current: LanChatMessage) {
+	if (!previous) return true
+	return current.createdAt - previous.createdAt > 5 * 60 * 1000
+}
+
+type AttachmentCardProps = {
+	attachment: LanAttachment
+	onDownload: (name: string, url: string) => void
+	onStartReceive: (id: string) => void
+}
+
+function ImageAttachmentCard({
+	attachment,
+	onDownload,
+}: AttachmentCardProps) {
+	const [previewOpen, setPreviewOpen] = useState(false)
+	const source = attachment.previewUrl || attachment.url
+	const downloadableUrl = attachment.url || attachment.previewUrl
+	const complete = attachment.status === 'complete'
+	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
+	const transferring = !complete && !failed
+	const hasFooter = transferring || Boolean(attachment.error)
+	if (!source) {
+		return (
+			<div className={cn('w-[260px] max-w-[68vw] rounded-2xl border px-4 py-3 shadow-sm', failed ? 'border-red-300 bg-red-500/10' : 'border-border bg-article')}>
+				<div className='flex items-center gap-3'>
+					<div className='bg-brand/10 text-brand flex size-11 shrink-0 items-center justify-center rounded-xl'>
+						<ImageIcon size={20} />
+					</div>
+					<div className='min-w-0 flex-1'>
+						<p className='truncate text-sm font-semibold'>{compactFileName(attachment.name, 22)}</p>
+						<p className='text-secondary mt-1 text-xs'>{failed ? attachment.error || '接收失败' : attachment.status === 'offered' ? '准备缓存' : formatTransferProgress(attachment, true)}</p>
+					</div>
+				</div>
+				{transferring && (
+					<div className='mt-3 h-1 overflow-hidden rounded-full bg-background/40'>
+						<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				)}
+			</div>
+		)
+	}
+	return (
+		<>
+			<div className='relative inline-block max-w-[360px] overflow-hidden rounded-2xl border border-border bg-article shadow-sm max-sm:max-w-[68vw]'>
+				<button type='button' onClick={() => setPreviewOpen(true)} className='block cursor-zoom-in' aria-label={`查看图片：${attachment.name}`}>
+					<img src={source} alt={attachment.name} className='block max-h-[420px] w-auto max-w-full object-contain max-sm:max-h-[48vh]' />
+				</button>
+				{transferring && (
+					<div className='absolute inset-x-0 bottom-0 bg-background/75 px-3 py-2 backdrop-blur'>
+						<div className='mb-1 flex items-center justify-between text-[11px] font-medium text-primary'>
+							<span>{attachment.status === 'offered' ? '等待缓存' : attachment.status === 'receiving' ? '接收中' : '发送中'}</span>
+							<span>{formatTransferProgress(attachment, true)}</span>
+						</div>
+						<div className='h-1 overflow-hidden rounded-full bg-background/50'>
+							<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
+						</div>
+					</div>
+				)}
+				{downloadableUrl && (
+					<button onClick={() => onDownload(attachment.name, downloadableUrl)} className={cn('absolute right-2 flex size-9 items-center justify-center rounded-full border border-border bg-background/80 text-primary shadow-sm backdrop-blur transition hover:border-brand/45', hasFooter ? 'bottom-12' : 'bottom-2')} aria-label='下载图片'>
+						<Download size={16} />
+					</button>
+				)}
+				{attachment.error && <p className='absolute inset-x-2 bottom-2 rounded-xl bg-red-500/90 px-2 py-1 text-xs text-white'>{attachment.error}</p>}
+			</div>
+			{previewOpen && <ImagePreviewDialog src={source} alt={attachment.name} onClose={() => setPreviewOpen(false)} />}
+		</>
+	)
+}
+
+function VoiceAttachmentBubble({ attachment }: AttachmentCardProps) {
+	const playerRef = useRef<HTMLDivElement>(null)
+	const source = attachment.url || attachment.previewUrl
+	const outgoing = attachment.direction === 'out'
+	const complete = attachment.status === 'complete'
+	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
+	const transferring = !complete && !failed
+	const playable = Boolean(source && !failed)
+	const statusText = failed ? attachment.error || '播放失败' : transferring ? formatTransferProgress(attachment, true) : formatVoiceTime(attachment.durationMs ? attachment.durationMs / 1000 : 0)
+
+	useEffect(() => {
+		if (!source || failed || !playerRef.current) return
+		const player = new WaveformPlayer(playerRef.current, {
+			url: source,
+			height: 36,
+			colorPreset: outgoing ? 'dark' : 'light',
+			showInfo: false,
+			enableMediaSession: false,
+			playPauseLabel: '播放或暂停语音',
+			seekLabel: '调整语音播放位置',
+			errorText: '语音加载失败',
+		})
+		return () => player.destroy()
+	}, [failed, outgoing, source])
+
+	return (
+		<div className={cn('w-[72vw] min-w-[215px] max-w-[300px] rounded-[24px] px-3 py-1.5 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary', failed && 'border border-red-300 bg-red-500/10 text-primary')}>
+			<div className='flex items-center gap-3'>
+				<div className='min-w-0 flex-1'>
+					{playable ? <div ref={playerRef} className='[&_.waveform-container]:min-h-9' /> : <div className='h-9 rounded-full bg-background/25' />}
+				</div>
+				<span className={cn('shrink-0 text-sm font-semibold tabular-nums', outgoing ? 'text-background/90' : 'text-primary')}>{statusText}</span>
+			</div>
+			{transferring && (
+				<div className='mt-1 px-1'>
+					<div className={cn('mt-1 h-1 overflow-hidden rounded-full', outgoing ? 'bg-background/25' : 'bg-background/50')}>
+						<div className={cn('h-full rounded-full [transition:width_160ms_linear]', outgoing ? 'bg-background' : 'bg-brand')} style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				</div>
+			)}
+		</div>
+	)
+}
+
+function FileAttachmentCard({
+	attachment,
+	onDownload,
+	onStartReceive,
+}: AttachmentCardProps) {
+	const complete = attachment.status === 'complete'
+	const failed = attachment.status === 'failed' || attachment.status === 'cancelled'
+	const waitingReceive = attachment.direction === 'in' && attachment.status === 'offered'
+	const transferring = !complete && !failed && !waitingReceive
+	const canDownload = Boolean(attachment.url)
+	const canAct = waitingReceive || canDownload
+	const displayName = compactFileName(attachment.name, 42)
+	const detailText = transferring ? formatTransferMeta(attachment) : waitingReceive ? `${formatBytes(attachment.size)} · 点击接收` : formatBytes(attachment.size)
+	const handleAction = () => {
+		if (waitingReceive) return onStartReceive(attachment.id)
+		if (attachment.url) onDownload(attachment.name, attachment.url)
+	}
+	const cardClassName = cn(
+		'w-[320px] max-w-[72vw] rounded-xl px-3 py-3 text-left shadow-sm transition sm:w-[390px]',
+		failed ? 'border border-red-300 bg-red-500/10' : 'bg-article',
+		canAct && 'cursor-pointer hover:bg-article/90 active:scale-[0.99]'
+	)
+	const content = (
+		<>
+			<div className='flex min-w-0 items-center gap-2.5'>
+				<div className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand'>
+					<FileArchive size={18} />
+				</div>
+				<div className='min-w-0 flex-1'>
+					<p title={attachment.name} className='truncate text-sm font-semibold leading-5 text-primary'>
+						{displayName}
+					</p>
+				</div>
+			</div>
+			{transferring && (
+				<div className='mt-2 flex items-center gap-2'>
+					<span className='border-brand/25 bg-brand/10 text-brand shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums'>{progressLabel(attachment.progress)}</span>
+					<div className='h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-background/45' title={formatTransferProgress(attachment)}>
+						<div className='h-full rounded-full bg-brand [transition:width_160ms_linear]' style={{ width: progressLabel(attachment.progress) }} />
+					</div>
+				</div>
+			)}
+			<p className='text-secondary mt-1.5 break-words text-xs leading-4 tabular-nums'>
+				{detailText}
+			</p>
+			{attachment.error && <p className='mt-2 text-xs text-red-500'>{attachment.error}</p>}
+		</>
+	)
+	if (canAct) {
+		return (
+			<button type='button' onClick={handleAction} className={cardClassName} aria-label={waitingReceive ? '接收文件' : '下载文件'}>
+				{content}
+			</button>
+		)
+	}
+	return (
+		<div className={cardClassName}>
+			{content}
+		</div>
+	)
+}
+
+function AttachmentCard(props: AttachmentCardProps) {
+	if (props.attachment.kind === 'image') return <ImageAttachmentCard {...props} />
+	if (props.attachment.kind === 'voice') return <VoiceAttachmentBubble {...props} />
+	return <FileAttachmentCard {...props} />
+}
+
+function MessageBubble({
+	message,
+	peerName,
+	peerAvatarSeed,
+	peerDeviceType,
+	localAvatarSeed,
+	localDeviceType,
+	onDownload,
+	onStartReceive,
+}: {
+	message: LanChatMessage
+	peerName: string
+	peerAvatarSeed?: string
+	peerDeviceType?: string
+	localAvatarSeed?: string
+	localDeviceType?: string
+	onDownload: (name: string, url: string) => void
+	onStartReceive: (id: string) => void
+}) {
+	if (message.direction === 'system') return <div className='mx-auto w-fit rounded-full border border-border bg-article px-3 py-1 text-xs text-secondary'>{message.text}</div>
+	const outgoing = message.direction === 'out'
+	const deliveryLabel = message.status === 'delivered' ? '已送达' : message.status === 'failed' ? '发送失败' : message.status === 'queued' ? '等待发送' : '已发送'
+	const deliveryIcon = message.status === 'delivered'
+		? <CheckCheck size={13} aria-hidden='true' className='text-brand' />
+		: message.status === 'failed'
+			? <X size={13} aria-hidden='true' className='text-red-400' />
+			: message.status === 'queued'
+				? <Clock3 size={13} aria-hidden='true' className='text-secondary' />
+				: <Check size={13} aria-hidden='true' className='text-secondary' />
+	return (
+		<div className={cn('flex gap-3 max-sm:gap-2', outgoing ? 'justify-end' : 'justify-start')}>
+			{!outgoing && <DeviceAvatar type={peerDeviceType} avatarSeed={peerAvatarSeed} active />}
+			<div className={cn('flex max-w-[calc(100%-58px)] flex-col space-y-2 sm:max-w-[72%]', outgoing ? 'items-end' : 'items-start')}>
+				{!outgoing && <p className='text-secondary max-w-full truncate px-1 text-xs'>{peerName}</p>}
+				{message.text && (
+					<div className={cn('max-w-full break-words rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm', outgoing ? 'bg-brand text-background' : 'bg-article text-primary')}>
+						{message.text}
+					</div>
+				)}
+				{message.attachments.length > 0 && (
+					<div className={cn('max-w-full space-y-2', outgoing ? 'flex flex-col items-end' : 'flex flex-col items-start')}>
+						{message.attachments.map(attachment => <AttachmentCard key={attachment.id} attachment={attachment} onDownload={onDownload} onStartReceive={onStartReceive} />)}
+					</div>
+				)}
+				{outgoing && <span role='img' aria-label={deliveryLabel} title={deliveryLabel}>{deliveryIcon}</span>}
+			</div>
+			{outgoing && <DeviceAvatar type={localDeviceType} avatarSeed={localAvatarSeed} active />}
+		</div>
+	)
+}
+
+function TimeDivider({ value }: { value: number }) {
+	return (
+		<div className='flex justify-center py-2'>
+			<span className='rounded-full bg-background/55 px-3 py-1 text-xs text-secondary'>{formatMessageTime(value)}</span>
+		</div>
+	)
+}
+
+function MessageList({
+	messages,
+	peerName,
+	peerAvatarSeed,
+	peerDeviceType,
+	localAvatarSeed,
+	localDeviceType,
+	onDownload,
+	onStartReceive,
+}: {
+	messages: LanChatMessage[]
+	peerName: string
+	peerAvatarSeed?: string
+	peerDeviceType?: string
+	localAvatarSeed?: string
+	localDeviceType?: string
+	onDownload: (name: string, url: string) => void
+	onStartReceive: (id: string) => void
+}) {
+	return (
+		<>
+			{messages.map((message, index) => (
+				<div key={message.id} className='space-y-3'>
+					{shouldShowTimeDivider(messages[index - 1], message) && <TimeDivider value={message.createdAt} />}
+					<MessageBubble message={message} peerName={peerName} peerAvatarSeed={peerAvatarSeed} peerDeviceType={peerDeviceType} localAvatarSeed={localAvatarSeed} localDeviceType={localDeviceType} onDownload={onDownload} onStartReceive={onStartReceive} />
+				</div>
+			))}
+		</>
+	)
 }
 
 function InvitePanel({ controller }: { controller: LanController }) {
@@ -116,75 +474,71 @@ function QrControlCard({
 	)
 }
 
-function LanQuickControls({
-	controller,
-	connectedCount,
-	wakeLock,
-	speedMode,
-	onRunBenchmark,
-	qrOpen,
-	onToggleQr,
-	expandedPanel,
-	onTogglePanel,
-}: {
-	controller: LanController
-	connectedCount: number
-	wakeLock: LanScreenWakeLockState
-	speedMode: LanNativeSpeedModeState
-	onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void
-	qrOpen: boolean
-	onToggleQr: () => void
-	expandedPanel: LanControlPanel | null
-	onTogglePanel: (panel: LanControlPanel) => void
+function ChatComposer({ connected, recorderState, onSendText, onSendFiles, onRecordStart, onRecordStop }: {
+	connected: boolean
+	recorderState: string
+	onSendText: (text: string) => void
+	onSendFiles: (files: File[], mode?: AttachmentAction) => void
+	onRecordStart: () => void
+	onRecordStop: () => void
 }) {
-	const hostInvite = controller.session?.role === 'host'
-	const qrStatus = hostInvite ? (connectedCount ? `${connectedCount}台` : '已创建') : controller.session ? '已加入' : '未创建'
-	const wakeAvailable = wakeLock.ready && wakeLock.supported
-	const wakeStatus = !wakeAvailable ? '不支持' : wakeLock.enabled ? '已开启' : '已关闭'
-	const speedStatus = speedMode.remoteAdvertisement ? '远端' : speedMode.localAdvertisement || speedMode.agentState === 'connected' ? '已就绪' : speedMode.enabled ? '启动中' : '未开启'
-	const needsQrPrompt = !controller.session
-	const buttonClass = (panel: LanControlPanel) =>
-		cn(
-			'flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-center shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45',
-			expandedPanel === panel ? 'border-brand/45 bg-brand/15 text-brand' : 'border-border bg-article text-secondary hover:border-brand/35 hover:text-primary',
-		)
-
+	const [text, setText] = useState('')
+	const fileInputRef = useRef<HTMLInputElement | null>(null)
+	const imageInputRef = useRef<HTMLInputElement | null>(null)
+	const submitText = () => {
+		if (!connected || !text.trim()) return
+		onSendText(text)
+		setText('')
+	}
+	const handleFiles = (event: ChangeEvent<HTMLInputElement>, mode?: AttachmentAction) => {
+		const files = Array.from(event.target.files || [])
+		if (files.length) onSendFiles(files, mode)
+		event.target.value = ''
+	}
+	const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
+		const files = Array.from(event.clipboardData.files).filter(file => file.type.startsWith('image/'))
+		if (files.length) {
+			event.preventDefault()
+			onSendFiles(files, 'image')
+		}
+	}
+	const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+		event.preventDefault()
+		const files = Array.from(event.dataTransfer.files)
+		if (files.length) onSendFiles(files)
+	}
 	return (
-		<div className='space-y-3'>
-			<div className='grid grid-cols-3 gap-2'>
-				<button type='button' aria-expanded={expandedPanel === 'qr'} aria-controls='lan-qr-control-panel' onClick={() => onTogglePanel('qr')} className={buttonClass('qr')}>
-					<QrCode size={20} className={cn('shrink-0', needsQrPrompt && 'motion-safe:animate-pulse')} />
-					<span className='truncate text-xs font-semibold'>二维码</span>
-					<span className='truncate text-[10px] opacity-75'>{qrStatus}</span>
+		<div onDragOver={event => event.preventDefault()} onDrop={handleDrop} className='rounded-2xl border border-border bg-article p-3 shadow-sm backdrop-blur sm:rounded-3xl'>
+			<input ref={fileInputRef} type='file' multiple className='hidden' onChange={event => handleFiles(event, 'file')} />
+			<input ref={imageInputRef} type='file' multiple accept='image/*' className='hidden' onChange={event => handleFiles(event, 'image')} />
+			<div className='flex items-center gap-2'>
+				<button onClick={() => fileInputRef.current?.click()} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'>
+					<Paperclip size={19} />
 				</button>
-				<button type='button' aria-expanded={expandedPanel === 'wake'} aria-controls='lan-wake-control-panel' onClick={() => onTogglePanel('wake')} disabled={!wakeAvailable} className={buttonClass('wake')}>
-					<Sun size={20} className='shrink-0' />
-					<span className='truncate text-xs font-semibold'>保持常亮</span>
-					<span className='truncate text-[10px] opacity-75'>{wakeStatus}</span>
+				<button onClick={() => imageInputRef.current?.click()} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary'>
+					<ImageIcon size={19} />
 				</button>
-				<button type='button' aria-expanded={expandedPanel === 'speed'} aria-controls='lan-speed-control-panel' onClick={() => onTogglePanel('speed')} disabled={!speedMode.ready} className={buttonClass('speed')}>
-					<Zap size={20} className='shrink-0' />
-					<span className='truncate text-xs font-semibold'>极速模式</span>
-					<span className='truncate text-[10px] opacity-75'>{speedStatus}</span>
+				<button onClick={recorderState === 'recording' ? onRecordStop : onRecordStart} className={cn('flex size-9 shrink-0 items-center justify-center rounded-full border transition', recorderState === 'recording' ? 'border-red-500 bg-red-500 text-white' : 'border-border bg-background/40 text-secondary hover:border-brand/45 hover:text-primary')}>
+					<Mic size={18} />
+				</button>
+				<input
+					value={text}
+					onPaste={handlePaste}
+					onChange={event => setText(event.target.value)}
+					onKeyDown={event => {
+						if (event.key === 'Enter' && !event.shiftKey) {
+							event.preventDefault()
+							submitText()
+						}
+					}}
+					placeholder={connected ? '输入消息' : '连接后可发送'}
+					className='min-w-0 flex-1 bg-transparent px-2 text-sm text-primary placeholder:text-secondary'
+				/>
+				<button onClick={submitText} disabled={!connected || !text.trim()} className='bg-brand text-background flex shrink-0 items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold disabled:opacity-50 sm:px-5'>
+					<Send size={15} />
+					发送
 				</button>
 			</div>
-
-			{expandedPanel === 'qr' && (
-				<div id='lan-qr-control-panel' className='space-y-3'>
-					<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
-					{qrOpen && <InvitePanel controller={controller} />}
-				</div>
-			)}
-			{expandedPanel === 'wake' && (
-				<div id='lan-wake-control-panel'>
-					<LanWakeLockToggle wakeLock={wakeLock} />
-				</div>
-			)}
-			{expandedPanel === 'speed' && (
-				<div id='lan-speed-control-panel'>
-					<LanSpeedModeToggle speedMode={speedMode} onRunBenchmark={onRunBenchmark} />
-				</div>
-			)}
 		</div>
 	)
 }
@@ -228,10 +582,10 @@ function WaitingConnectionCard({ controller, onToggleQr }: { controller: LanCont
 	)
 }
 
-function DesktopSidebar({ controller, wakeLock, speedMode, onRunBenchmark, onSwitchRelay, qrOpen, onToggleQr, expandedPanel, onTogglePanel, collapsed, onToggleCollapse }: { controller: LanController; wakeLock: LanScreenWakeLockState; speedMode: LanNativeSpeedModeState; onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; expandedPanel: LanControlPanel | null; onTogglePanel: (panel: LanControlPanel) => void; collapsed: boolean; onToggleCollapse: () => void }) {
+function DesktopSidebar({ controller, onSwitchRelay, qrOpen, onToggleQr, collapsed, onToggleCollapse }: { controller: LanController; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; collapsed: boolean; onToggleCollapse: () => void }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
-		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-transparent lg:block'>
+		<aside className='relative hidden min-h-0 w-full overflow-hidden border-r border-border bg-background/30 lg:block'>
 			<button
 				onClick={onToggleCollapse}
 				className={cn('text-secondary absolute top-7 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-background/70 transition-[right,color,border-color] duration-300 ease-in-out hover:border-brand/45 hover:text-primary', collapsed ? 'right-4' : 'right-5')}
@@ -241,8 +595,8 @@ function DesktopSidebar({ controller, wakeLock, speedMode, onRunBenchmark, onSwi
 				<PanelLeftClose size={18} className={cn('transition-transform duration-300 ease-in-out', collapsed && 'rotate-180')} />
 			</button>
 
-			<div aria-hidden={collapsed} className={cn('flex h-full min-h-0 w-[360px] flex-col transition-[opacity,transform] duration-200 ease-out', collapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100 delay-100')}>
-				<div className='flex h-24 shrink-0 items-center gap-2 px-5 pr-16'>
+			<div aria-hidden={collapsed} className={cn('flex h-full w-[360px] flex-col gap-4 overflow-y-auto p-5 pr-5 transition-[opacity,transform] duration-200 ease-out', collapsed ? 'pointer-events-none -translate-x-2 opacity-0' : 'translate-x-0 opacity-100 delay-100')}>
+				<div className='flex h-14 shrink-0 items-center gap-2 pr-12'>
 					{onSwitchRelay && (
 						<button onClick={onSwitchRelay} className='text-secondary flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具' title='返回'>
 							<ChevronLeft size={21} />
@@ -258,22 +612,21 @@ function DesktopSidebar({ controller, wakeLock, speedMode, onRunBenchmark, onSwi
 						</button>
 					)}
 				</div>
-				<div className='min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5'>
-					<LanQuickControls controller={controller} connectedCount={connectedCount} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={onRunBenchmark} qrOpen={qrOpen} onToggleQr={onToggleQr} expandedPanel={expandedPanel} onTogglePanel={onTogglePanel} />
-					<div className='space-y-3'>
-						<div className='flex items-center justify-between'>
-							<p className='text-secondary text-xs font-medium'>当前连接</p>
-							<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
-						</div>
-						<div className='space-y-2'>
-							{controller.connections.length ? (
-								controller.connections.map(connection => (
-									<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
-								))
-							) : (
-								<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
-							)}
-						</div>
+				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
+				{qrOpen && <InvitePanel controller={controller} />}
+				<div className='min-h-0 flex-1 space-y-3'>
+					<div className='flex items-center justify-between'>
+						<p className='text-secondary text-xs font-medium'>当前连接</p>
+						<span className='text-secondary text-xs'>{controller.connections.length} 台</span>
+					</div>
+					<div className='space-y-2'>
+						{controller.connections.length ? (
+							controller.connections.map(connection => (
+								<ConnectionCard key={connection.peerId} connection={connection} active={controller.activePeerId === connection.peerId} onSelect={() => controller.selectConnection(connection.peerId)} />
+							))
+						) : (
+							<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
+						)}
 					</div>
 				</div>
 			</div>
@@ -315,7 +668,7 @@ function ChatPane({
 	}, [controller.activePeerId, lastMessageKey])
 
 	return (
-		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-transparent'>
+		<section className='flex h-full min-h-0 min-w-0 flex-1 flex-col bg-background/30'>
 			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-3 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)] sm:px-5'>
 				<div className='flex min-w-0 items-center gap-3'>
 					{onBack ? (
@@ -354,7 +707,6 @@ function ChatPane({
 					recorderState={controller.recorder.state}
 					onSendText={controller.sendText}
 					onSendFiles={(files, mode) => void controller.sendFiles(files, mode === 'image' ? 'image' : undefined)}
-					onSelectNativeFiles={controller.localCapability?.nativeAgent ? () => void controller.selectNativeFiles() : undefined}
 					onRecordStart={() => void controller.recorder.start().catch(error => alert(error instanceof Error ? error.message : '无法录音'))}
 					onRecordStop={() => void controller.stopRecordingAndSend()}
 				/>
@@ -367,35 +719,22 @@ function DevicePage({
 	controller,
 	onOpenChat,
 	onSwitchRelay,
-	wakeLock,
-	speedMode,
-	onRunBenchmark,
 	qrOpen,
 	onToggleQr,
-	expandedPanel,
-	onTogglePanel,
 }: {
 	controller: LanController
 	onOpenChat: (peerId?: string) => void
 	onSwitchRelay?: () => void
-	wakeLock: LanScreenWakeLockState
-	speedMode: LanNativeSpeedModeState
-	onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void
 	qrOpen: boolean
 	onToggleQr: () => void
-	expandedPanel: LanControlPanel | null
-	onTogglePanel: (panel: LanControlPanel) => void
 }) {
 	const connectedCount = controller.connections.filter(item => item.connected).length
 	return (
-		<div className='flex h-full min-h-0 flex-col overflow-hidden bg-transparent'>
-			<header className='flex h-20 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(5rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
+		<div className='flex h-full min-h-0 flex-col bg-background/30'>
+			<header className='flex h-16 shrink-0 items-center justify-between border-b border-border bg-article px-4 max-lg:h-[calc(3.75rem+env(safe-area-inset-top))] max-lg:pt-[env(safe-area-inset-top)]'>
 				<div className='flex items-center gap-2'>
 					{onSwitchRelay && <button onClick={onSwitchRelay} className='text-secondary -ml-2 flex size-10 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='返回传输工具'><ChevronLeft size={24} /></button>}
-					<div className='min-w-0'>
-						<p className='text-brand text-[10px] font-semibold tracking-[0.16em] uppercase'>局域网互传</p>
-						<h2 className='mt-0.5 text-lg font-semibold'>连接设备</h2>
-					</div>
+					<h2 className='text-lg font-semibold'>设备</h2>
 				</div>
 				<div className='flex items-center gap-2'>
 					{controller.session && (
@@ -406,7 +745,8 @@ function DevicePage({
 				</div>
 			</header>
 			<div className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
-				<LanQuickControls controller={controller} connectedCount={connectedCount} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={onRunBenchmark} qrOpen={qrOpen} onToggleQr={onToggleQr} expandedPanel={expandedPanel} onTogglePanel={onTogglePanel} />
+				<QrControlCard controller={controller} connectedCount={connectedCount} qrOpen={qrOpen} onToggleQr={onToggleQr} />
+				{qrOpen && <InvitePanel controller={controller} />}
 				<div className='space-y-2'>
 					<p className='text-secondary text-xs font-medium'>当前连接</p>
 					{controller.connections.length ? (
@@ -424,15 +764,18 @@ function DevicePage({
 						<WaitingConnectionCard controller={controller} onToggleQr={onToggleQr} />
 					)}
 				</div>
+				<button onClick={onToggleQr} disabled={controller.busy} className='bg-brand text-background w-full rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-50'>
+					{controller.session?.role === 'host' ? (qrOpen ? '隐藏二维码' : '显示二维码') : '创建配对码'}
+				</button>
 			</div>
 		</div>
 	)
 }
 
-function MobileShell({ controller, wakeLock, speedMode, onRunBenchmark, onSwitchRelay, qrOpen, onToggleQr, expandedPanel, onTogglePanel }: { controller: LanController; wakeLock: LanScreenWakeLockState; speedMode: LanNativeSpeedModeState; onRunBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number) => void; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void; expandedPanel: LanControlPanel | null; onTogglePanel: (panel: LanControlPanel) => void }) {
+function MobileShell({ controller, onSwitchRelay, qrOpen, onToggleQr }: { controller: LanController; onSwitchRelay?: () => void; qrOpen: boolean; onToggleQr: () => void }) {
 	const [page, setPage] = useState<'devices' | 'chat'>('devices')
 	return (
-		<div className='h-full min-h-0 overflow-hidden lg:hidden'>
+		<div className='h-full lg:hidden'>
 			{page === 'chat' ? (
 				<ChatPane controller={controller} onBack={() => setPage('devices')} />
 			) : (
@@ -443,13 +786,8 @@ function MobileShell({ controller, wakeLock, speedMode, onRunBenchmark, onSwitch
 						setPage('chat')
 					}}
 					onSwitchRelay={onSwitchRelay}
-					wakeLock={wakeLock}
-					speedMode={speedMode}
-					onRunBenchmark={onRunBenchmark}
 					qrOpen={qrOpen}
 					onToggleQr={onToggleQr}
-					expandedPanel={expandedPanel}
-					onTogglePanel={onTogglePanel}
 				/>
 			)}
 		</div>
@@ -458,12 +796,8 @@ function MobileShell({ controller, wakeLock, speedMode, onRunBenchmark, onSwitch
 
 export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
-	const wakeLock = useLanScreenWakeLock()
-	const speedMode = useLanNativeSpeedMode(controller.session?.localPeer.deviceId || '', controller.activeConnection?.remoteCapability?.nativeAgent || null)
 	const [qrOpen, setQrOpen] = useState(false)
-	const [expandedPanel, setExpandedPanel] = useState<LanControlPanel | null>(null)
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-	useEffect(() => installLanDiagnosticCapture(), [])
 	useEffect(() => {
 		const previousOverflow = document.body.style.overflow
 		document.body.classList.add('lan-session-active')
@@ -478,28 +812,7 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 		if (!controller.session || controller.session.role !== 'host') setQrOpen(false)
 	}, [controller.session])
 
-	useEffect(() => {
-		controller.setNativeTicketIssuer(speedMode.issuePeerTicket)
-		return () => controller.setNativeTicketIssuer(null)
-	}, [controller.setNativeTicketIssuer, speedMode.issuePeerTicket])
-
-	useEffect(() => {
-		controller.setNativeLocalAgentPort(speedMode.localAgentPort)
-		return () => controller.setNativeLocalAgentPort(null)
-	}, [controller.setNativeLocalAgentPort, speedMode.localAgentPort])
-
-	useEffect(() => {
-		controller.setNativeAgentAdvertisement(speedMode.localAdvertisement)
-	}, [controller.localCapability, controller.setNativeAgentAdvertisement, speedMode.localAdvertisement])
-
-	const handleRunBenchmark = (direction: LanNativeBenchmarkDirection, totalBytes: number) => {
-		const peerId = controller.activePeerId
-		if (!peerId) return
-		void speedMode.runBenchmark(direction, totalBytes, () => controller.requestNativeAgentTicket(peerId))
-	}
-
 	const handleToggleQr = () => {
-		setExpandedPanel('qr')
 		if (controller.session?.role === 'host') {
 			setQrOpen(value => !value)
 			return
@@ -509,20 +822,16 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 		})
 	}
 
-	const handleTogglePanel = (panel: LanControlPanel) => {
-		setExpandedPanel(current => (current === panel ? null : panel))
-	}
-
 	const app = (
 		<div
-			className='lan-session-v11 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
+			className='lan-session-v8 fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
 			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
 		>
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
-				<DesktopSidebar controller={controller} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={handleRunBenchmark} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} expandedPanel={expandedPanel} onTogglePanel={handleTogglePanel} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
+				<DesktopSidebar controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				<ChatPane controller={controller} />
 			</div>
-			<MobileShell controller={controller} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={handleRunBenchmark} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} expandedPanel={expandedPanel} onTogglePanel={handleTogglePanel} />
+			<MobileShell controller={controller} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} />
 		</div>
 	)
 

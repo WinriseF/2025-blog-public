@@ -1,10 +1,8 @@
-import type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
-export type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
-
-export const LAN_PROTOCOL_VERSION = 12
-export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
+export const LAN_PROTOCOL_VERSION = 8
 
 export const LAN_CHUNK_TIERS = [
+	{ frameSize: 512 * 1024, chunkSize: 508 * 1024 },
+	{ frameSize: 256 * 1024, chunkSize: 252 * 1024 },
 	{ frameSize: 128 * 1024, chunkSize: 124 * 1024 },
 	{ frameSize: 64 * 1024, chunkSize: 60 * 1024 },
 ] as const
@@ -19,22 +17,15 @@ export const LAN_LIMITS = {
 	dataChannelFrameHeaderReserve: 4 * 1024,
 	dataChannelMaxFrameSize: LAN_CHUNK_TIERS[0].frameSize,
 	dataChannelMaxChunkSize: LAN_CHUNK_TIERS[0].chunkSize,
-	dataChannelFallbackChunkSize: LAN_CHUNK_TIERS[1].chunkSize,
-	defaultChunkSize: LAN_CHUNK_TIERS[1].chunkSize,
-	bufferHighWatermark: 2 * 1024 * 1024,
-	bufferLowWatermark: 512 * 1024,
-	mobileBufferHighWatermark: 1 * 1024 * 1024,
-	mobileBufferLowWatermark: 256 * 1024,
+	dataChannelFallbackChunkSize: LAN_CHUNK_TIERS[3].chunkSize,
+	defaultChunkSize: LAN_CHUNK_TIERS[3].chunkSize,
+	bufferHighWatermark: 8 * 1024 * 1024,
+	bufferLowWatermark: 2 * 1024 * 1024,
+	mobileBufferHighWatermark: 4 * 1024 * 1024,
+	mobileBufferLowWatermark: 1 * 1024 * 1024,
 	bufferDrainTimeoutMs: 60 * 1000,
 	maxSenderAheadBytes: 64 * 1024 * 1024,
 	mobileMaxSenderAheadBytes: 32 * 1024 * 1024,
-	maxAttachmentAheadBytes: 16 * 1024 * 1024,
-	mobileMaxAttachmentAheadBytes: 8 * 1024 * 1024,
-	schedulerQuantumBytes: 512 * 1024,
-	schedulerPriorityWeight: 4,
-	schedulerPriorityMaxBytes: 8 * 1024 * 1024,
-	schedulerMaxActive: 4,
-	mobileSchedulerMaxActive: 2,
 	progressAckIntervalBytes: 1024 * 1024,
 	progressAckIntervalMs: 500,
 } as const
@@ -52,7 +43,6 @@ export type LanMessageKind = 'text' | 'attachments' | 'system'
 export type LanMessageStatus = 'queued' | 'sending' | 'sent' | 'delivered' | 'failed' | 'received'
 export type LanAttachmentKind = 'image' | 'voice' | 'file'
 export type LanAttachmentStatus = 'queued' | 'offered' | 'receiving' | 'sending' | 'complete' | 'failed' | 'cancelled'
-export type LanBulkDataPlane = 'webrtc' | 'native-lna-http' | 'native-webtransport'
 
 export type LanPeer = {
 	instanceId: string
@@ -94,7 +84,6 @@ export type LanSignalMessage = {
 	candidate?: RTCIceCandidateInit | null
 	ackFor?: string
 	reason?: string
-	hardRecovery?: boolean
 }
 
 export type LanPresencePayload = {
@@ -106,7 +95,7 @@ export type LanPresencePayload = {
 }
 
 export type LanSignalTarget = Pick<LanPeer, 'deviceId' | 'instanceId'>
-export type LanSignalSendDetails = Partial<Pick<LanSignalMessage, 'generation' | 'negotiationId' | 'description' | 'candidate' | 'ackFor' | 'reason' | 'hardRecovery'>>
+export type LanSignalSendDetails = Partial<Pick<LanSignalMessage, 'generation' | 'negotiationId' | 'description' | 'candidate' | 'ackFor' | 'reason'>>
 
 export type LanCapability = {
 	type: 'capability'
@@ -117,8 +106,6 @@ export type LanCapability = {
 	platform: LanPlatformKind
 	browser: LanBrowserKind
 	isEmbeddedBrowser: boolean
-	webTransport: boolean
-	nativeAgent?: LanNativeAgentAdvertisement
 	storage: {
 		memory: true
 		opfs: boolean
@@ -138,26 +125,6 @@ export type LanCapability = {
 	notes: string[]
 }
 
-export type LanNativeAgentTicketRequest = {
-	type: 'native-agent-ticket-request'
-	protocolVersion: typeof LAN_PROTOCOL_VERSION
-	peerId: string
-	seq: number
-	createdAt: number
-	requestId: string
-}
-
-export type LanNativeAgentTicketResponse = {
-	type: 'native-agent-ticket-response'
-	protocolVersion: typeof LAN_PROTOCOL_VERSION
-	peerId: string
-	seq: number
-	createdAt: number
-	requestId: string
-	ticket?: LanNativeAgentTicket
-	error?: string
-}
-
 export type LanAttachmentManifest = {
 	id: string
 	kind: LanAttachmentKind
@@ -169,7 +136,6 @@ export type LanAttachmentManifest = {
 	chunkSize: number
 	chunkCount: number
 	suggestedStorage: LanStorageKind
-	dataPlane: LanBulkDataPlane
 }
 
 export type LanAttachment = LanAttachmentManifest & {
@@ -180,7 +146,6 @@ export type LanAttachment = LanAttachmentManifest & {
 	transferredBytes?: number
 	speedBps?: number
 	etaSeconds?: number
-	phase?: 'transferring' | 'confirming'
 	url?: string
 	previewUrl?: string
 	error?: string
@@ -240,41 +205,6 @@ export type LanAttachmentOffer = {
 	peerId: string
 	seq: number
 	attachment: LanAttachmentManifest
-	nativeSource?: 'agent' | 'browser'
-	agentOwnerDeviceId?: string
-}
-
-export type LanNativeTransferRequest = {
-	type: 'native-transfer-request'
-	protocolVersion: typeof LAN_PROTOCOL_VERSION
-	id: string
-	messageId: string
-	peerId: string
-	seq: number
-	createdAt: number
-	dataPlane: Exclude<LanBulkDataPlane, 'webrtc'>
-}
-
-export type LanNativeTransferReady = {
-	type: 'native-transfer-ready'
-	protocolVersion: typeof LAN_PROTOCOL_VERSION
-	id: string
-	messageId: string
-	peerId: string
-	seq: number
-	createdAt: number
-	grant: LanNativeTransferGrant
-}
-
-export type LanNativeTransferFallback = {
-	type: 'native-transfer-fallback'
-	protocolVersion: typeof LAN_PROTOCOL_VERSION
-	id: string
-	messageId: string
-	peerId: string
-	seq: number
-	createdAt: number
-	reason: string
 }
 
 export type LanAttachmentAccept = {
@@ -387,14 +317,9 @@ export type LanChatHistorySync = {
 
 export type LanControlMessage =
 	| LanCapability
-	| LanNativeAgentTicketRequest
-	| LanNativeAgentTicketResponse
 	| LanChatMessageControl
 	| LanChatReceipt
 	| LanAttachmentOffer
-	| LanNativeTransferRequest
-	| LanNativeTransferReady
-	| LanNativeTransferFallback
 	| LanAttachmentAccept
 	| LanAttachmentProgress
 	| LanAttachmentComplete

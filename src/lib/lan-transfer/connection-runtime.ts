@@ -6,11 +6,8 @@ import {
 	imagePreviewUrl,
 	messageId,
 	prepareLanAttachment,
+	sendPreparedAttachment,
 } from './file-transfer'
-import { LanAttachmentSendScheduler } from './attachment-send-scheduler'
-import { logLanConnection, shortConnectionId } from './connection-diagnostics'
-import { LanNativeFileRuntime } from './native-file-runtime'
-import type { LanNativeLocalAgentPort, LanNativePeerBulkPort } from './native-agent/ports'
 import type { LanConnectionTransport } from './transport-types'
 import { createStorageEngine, chooseStorageKind } from './storage/storage-manager'
 import type { TransferFileMeta, LanStorageEngine } from './storage/types'
@@ -27,7 +24,6 @@ import {
 	type LanChatMessage,
 	type LanControlMessage,
 	type LanFileRecord,
-	type LanNativeAgentTicket,
 	type LanSession,
 	type PreparedLanAttachment,
 } from './types'
@@ -45,9 +41,6 @@ type RuntimeContext = {
 	remoteCapability?: LanCapability | null
 	localCapability?: LanCapability | null
 	getHistory?: () => LanChatMessage[]
-	issueNativeAgentTicket?: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
-	getNativeLocalAgentPort: () => LanNativeLocalAgentPort | null
-	remoteDeviceId: string
 }
 
 type SendFilesOptions = {
@@ -92,7 +85,7 @@ function attachmentFromOffer(offer: LanAttachmentOffer, storage: TransferFileMet
 function historyMessageForSync(message: LanChatMessage): LanChatHistoryMessage {
 	return {
 		...message,
-		attachments: message.attachments.map(({ url, previewUrl, speedBps, etaSeconds, phase, ...attachment }) => attachment),
+		attachments: message.attachments.map(({ url, previewUrl, speedBps, etaSeconds, ...attachment }) => attachment),
 	}
 }
 
@@ -166,10 +159,6 @@ function isInlineMediaKind(kind: LanAttachmentKind) {
 	return kind === 'image' || kind === 'voice'
 }
 
-function isMobileCapability(capability?: LanCapability | null) {
-	return capability?.platform === 'android' || capability?.platform === 'ios'
-}
-
 function clampBytes(bytes: number, total: number) {
 	return Math.max(0, Math.min(total, bytes))
 }
@@ -189,68 +178,19 @@ export class LanConnectionRuntime {
 	private transferSamples = new Map<string, TransferSample>()
 	private outgoingTextIds = new Set<string>()
 	private deliveredTextIds = new Set<string>()
+	private queue: string[] = []
+	private activeSending: string | null = null
+	private activeSendController: AbortController | null = null
+	private activeSendTask: Promise<void> | null = null
+	private sendBarrier: Promise<void> = Promise.resolve()
 	private resumeSync: ResumeSync | null = null
 	private chunkWriteQueue: Promise<void> = Promise.resolve()
-	private finalizingIncoming = new Map<string, Promise<void>>()
 	private outgoingObjectUrls: string[] = []
-	private pendingNativeTickets = new Map<string, { resolve: (ticket: LanNativeAgentTicket) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
-	private nativeFallbackIncoming = new Set<string>()
 	private destroyed = false
-	private native: LanNativeFileRuntime
-	private sender = new LanAttachmentSendScheduler({
-		createCompleteMessage: file => ({ ...this.controlBase('attachment-complete'), id: file.id, messageId: file.messageId, sent: file.size, chunkCount: file.chunkCount }),
-		onTaskStarted: file => {
-			const entry = this.prepared.get(file.id)
-			if (!entry) return
-			this.resetTransferSample(file.id, entry.acked)
-			this.emit({ type: 'attachment-patch', patch: { ...this.transferPatch(file.id, file.messageId, 'sending', entry.acked, file.size), phase: 'transferring' } })
-			this.setStatus(`正在发送 ${file.name}`)
-		},
-		onTaskConfirming: file => {
-			this.emit({ type: 'attachment-patch', patch: { id: file.id, messageId: file.messageId, status: 'sending', phase: 'confirming', speedBps: undefined, etaSeconds: undefined } })
-			this.setStatus(`已发送 ${file.name}，等待对方保存确认`)
-		},
-		onTaskError: (file, reason) => this.failAttachment(file.id, file.messageId, reason),
-		onTransportStalled: reason => this.setStatus(reason),
-	})
-
-	constructor(nativePeerBulk: LanNativePeerBulkPort) {
-		this.native = new LanNativeFileRuntime({
-			context: () => this.context ? {
-				localDeviceId: this.context.session.localPeer.deviceId,
-				peerDeviceId: this.context.remoteDeviceId,
-				localCapability: this.context.localCapability || null,
-				remoteCapability: this.context.remoteCapability || null,
-				localPort: this.context.getNativeLocalAgentPort(),
-			} : null,
-			peerBulk: nativePeerBulk,
-			controlBase: (type, createdAt) => this.controlBase(type, createdAt),
-			sendControl: message => this.sendControl(message),
-			prepareStorage: async offer => {
-				const capability = this.context?.localCapability || await this.detectLocalCapability(offer.attachment.size)
-				assertCanReceiveFile(offer.attachment.size, capability)
-				const prepared = await this.prepareIncoming(offer, capability, true)
-				return { engine: prepared.engine, meta: prepared.meta }
-			},
-			createAttachment: (messageIdValue, createdAt, direction, attachment) => {
-				this.emit({ type: 'attachment-upsert', message: messageBase(messageIdValue, direction, createdAt, this.context?.session.instanceId), attachment })
-				this.emit({ type: 'file-record-upsert', record: fileRecord(messageIdValue, attachment, this.context?.remotePeerName) })
-			},
-			patchAttachment: (id, messageIdValue, patch) => this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, ...patch } }),
-			patchFile: (id, patch) => this.emit({ type: 'file-record-patch', id, patch }),
-			downloadReady: (name, url) => this.emit({ type: 'download-ready', name, url }),
-			status: message => this.setStatus(message),
-			fallbackBrowserFile: options => this.fallbackNativeBrowserFile(options),
-		})
-	}
 
 	subscribe(listener: RuntimeListener) {
 		this.listeners.add(listener)
 		return () => this.listeners.delete(listener)
-	}
-
-	hasActiveTransfer() {
-		return this.incoming.size > 0 || this.sender.hasPendingTransfer() || this.native.hasActiveTransfer()
 	}
 
 	attachTransport(transport: LanConnectionTransport, context: RuntimeContext) {
@@ -258,32 +198,19 @@ export class LanConnectionRuntime {
 		this.transportEpoch += 1
 		this.transport = transport
 		this.context = context
-		this.sender.attach(transport, isMobileCapability(context.localCapability) || isMobileCapability(context.remoteCapability))
-		this.native.attach()
 		if (context.localCapability) this.emit({ type: 'local-capability', capability: context.localCapability })
 		if (context.remoteCapability) this.emit({ type: 'remote-capability', capability: context.remoteCapability })
 		this.resumeAfterConnect()
 	}
 
 	detachTransport() {
-		this.sender.detach()
+		const activeId = this.activeSending
+		if (activeId && this.prepared.get(activeId)?.accepted && !this.queue.includes(activeId)) this.queue.unshift(activeId)
+		this.abortActiveSend()
+		this.activeSending = null
 		this.clearResumeSync()
 		this.transportEpoch += 1
 		this.transport = null
-	}
-
-	updateLocalCapability(capability: LanCapability) {
-		if (!this.context) return
-		this.context.localCapability = capability
-		if (this.isOpen()) this.sendControl({ ...capability, ...this.controlBase('capability') })
-	}
-
-	pauseTransport() {
-		this.sender.pause()
-	}
-
-	resumeTransport() {
-		if (this.isOpen()) this.sender.resume()
 	}
 
 	destroy() {
@@ -311,25 +238,27 @@ export class LanConnectionRuntime {
 		this.deliveredTextIds.clear()
 		this.pendingOffers.clear()
 		this.prepared.clear()
-		this.sender.clear()
+		this.queue = []
+		this.activeSending = null
+		this.activeSendController = null
+		this.activeSendTask = null
+		this.sendBarrier = Promise.resolve()
 		this.clearResumeSync()
 		this.chunkWriteQueue = Promise.resolve()
-		this.finalizingIncoming.clear()
 		this.context = null
 		this.outgoingObjectUrls.forEach(url => URL.revokeObjectURL(url))
 		this.outgoingObjectUrls = []
-		this.pendingNativeTickets.forEach(pending => {
-			clearTimeout(pending.timer)
-			pending.reject(new Error('连接已关闭'))
-		})
-		this.pendingNativeTickets.clear()
-		this.native.reset()
 	}
 
 	handleFrame(data: unknown) {
 		const frame = decodeFrame(data)
 		if (!frame) return
 		if (frame.kind === 'control') return void this.handleControl(frame.message).catch(error => this.setStatus(error instanceof Error ? error.message : '发送失败'))
+		if (frame.kind === 'corrupt') {
+			const current = this.incoming.get(frame.id)
+			if (current) this.failAttachment(frame.id, current.offer.messageId, '接收失败，请重新发送')
+			return
+		}
 		this.queueIncomingChunk(frame.id, frame.index, frame.bytes)
 	}
 
@@ -338,7 +267,8 @@ export class LanConnectionRuntime {
 		const epoch = this.transportEpoch
 		const transport = this.transport
 		if (!transport) return
-		this.sender.pause()
+		this.abortActiveSend()
+		this.activeSending = null
 		this.clearResumeSync()
 		this.prepared.forEach(entry => {
 			entry.offered = false
@@ -349,26 +279,16 @@ export class LanConnectionRuntime {
 			this.resumeSync = { id: resumeId, epoch, generation: transport.generation, ids }
 			this.setStatus('正在同步文件断点')
 		}
-		void this.sendLocalCapability(epoch).then(() => {
+		void this.sendBarrier.then(() => this.sendLocalCapability(epoch)).then(() => {
 			if (epoch !== this.transportEpoch || this.transport !== transport) return
 			this.sendChatHistory()
 			if (!ids.size) return this.flushOffersAndQueue()
 			const sent = this.sendControl({ ...this.controlBase('resume-query'), resumeId, transportGeneration: transport.generation, transportEpoch: epoch, ids: Array.from(ids) })
+			if (!sent) return this.setStatus('断点同步失败，正在等待连接恢复')
 			const sync = this.resumeSync
 			if (!sync || sync.id !== resumeId) return
-			if (!sent) this.setStatus('断点同步失败，正在等待重试')
 			sync.timer = setTimeout(() => {
-				if (this.resumeSync?.id !== resumeId) return
-				this.prepared.forEach(entry => {
-					this.sender.remove(entry.file.id)
-					entry.accepted = undefined
-					entry.ranges = []
-					entry.acked = 0
-					entry.offered = false
-				})
-				this.clearResumeSync()
-				this.setStatus('断点同步超时，正在重新确认文件进度')
-				this.flushOffersAndQueue()
+				if (this.resumeSync?.id === resumeId) this.setStatus('断点同步超时，请等待连接自动恢复')
 			}, 15_000)
 		}).catch(() => {
 			if (epoch === this.transportEpoch) this.setStatus('断点同步失败，正在等待连接恢复')
@@ -394,8 +314,6 @@ export class LanConnectionRuntime {
 		if (!files.length) return
 		if (!context || !this.isOpen()) return this.setStatus('请先连接设备')
 		const remote = context.remoteCapability || null
-		const webFiles = options.kind === 'image' || options.kind === 'voice' ? files : await this.native.trySendBrowserFiles(files)
-		if (!webFiles.length) return
 		const transport = this.transport
 		const createdAt = Date.now()
 		const id = messageId()
@@ -403,7 +321,7 @@ export class LanConnectionRuntime {
 			if (!transport) throw new Error('请先连接设备')
 			const chunkSize = await transport.negotiateChunkSize(remote?.limits.recommendedChunkSize)
 			if (this.transport !== transport || !transport.isOpen()) throw new Error('连接已断开，请重新发送')
-			const prepared = webFiles.map(file => prepareLanAttachment(file, {
+			const prepared = files.map(file => prepareLanAttachment(file, {
 				messageId: id,
 				kind: options.kind,
 				chunkSize,
@@ -431,44 +349,7 @@ export class LanConnectionRuntime {
 	}
 
 	async acceptAttachment(id: string) {
-		if (await this.native.accept(id)) return
 		await this.receivePendingAttachment(id, false)
-	}
-
-	private async fallbackNativeBrowserFile(options: { file: File; attachmentId: string; messageId: string; createdAt: number }) {
-		const context = this.context
-		const transport = this.transport
-		if (!context || !transport?.isOpen()) throw new Error('双方没有可互通的直连路径')
-		const chunkSize = await transport.negotiateChunkSize(context.remoteCapability?.limits.recommendedChunkSize)
-		if (this.transport !== transport || !transport.isOpen()) throw new Error('双方没有可互通的直连路径')
-		const prepared = prepareLanAttachment(options.file, {
-			messageId: options.messageId,
-			chunkSize,
-			suggestedStorage: selectStorageForFile(options.file.size, context.remoteCapability || null),
-			maxBytes: context.remoteCapability?.limits.maxExperimentalFileSize,
-		})
-		prepared.id = options.attachmentId
-		this.prepared.set(prepared.id, { file: prepared, createdAt: options.createdAt, acked: 0, ranges: [], offered: false })
-		this.emit({
-			type: 'attachment-patch',
-			patch: {
-				id: prepared.id,
-				messageId: prepared.messageId,
-				dataPlane: 'webrtc',
-				chunkSize: prepared.chunkSize,
-				chunkCount: prepared.chunkCount,
-				suggestedStorage: prepared.suggestedStorage,
-				status: 'queued',
-				progress: 0,
-				transferredBytes: 0,
-				error: undefined,
-			}
-		})
-		this.flushOffersAndQueue()
-	}
-
-	selectNativeFiles() {
-		return this.native.selectAgentFiles()
 	}
 
 	private async receivePendingAttachment(id: string, autoInlineMedia: boolean) {
@@ -518,6 +399,14 @@ export class LanConnectionRuntime {
 
 	private setStatus(message: string) {
 		this.emit({ type: 'status', message })
+	}
+
+	private abortActiveSend() {
+		const controller = this.activeSendController
+		if (!controller || controller.signal.aborted) return
+		controller.abort()
+		const task = this.activeSendTask
+		if (task) this.sendBarrier = Promise.all([this.sendBarrier, task.catch(() => {})]).then(() => {})
 	}
 
 	private clearResumeSync() {
@@ -599,7 +488,6 @@ export class LanConnectionRuntime {
 		if (!context) throw new Error('请先连接设备')
 		const capability = await detectLanCapability(context.session.instanceId, fileSize)
 		context.localCapability = capability
-		this.sender.setMobile(isMobileCapability(capability) || isMobileCapability(context.remoteCapability))
 		this.emit({ type: 'local-capability', capability })
 		return capability
 	}
@@ -628,7 +516,6 @@ export class LanConnectionRuntime {
 					chunkSize: entry.file.chunkSize,
 					chunkCount: entry.file.chunkCount,
 					suggestedStorage: entry.file.suggestedStorage,
-					dataPlane: entry.file.dataPlane,
 				},
 			})
 			if (offered) {
@@ -637,49 +524,69 @@ export class LanConnectionRuntime {
 				this.setStatus(`等待对方下载 ${entry.file.name}`)
 			}
 		})
-		this.sender.resume()
+		this.pumpQueue()
 	}
 
-	requestNativeAgentTicket() {
-		if (!this.context || !this.isOpen()) {
-			logLanConnection('NATIVE-TICKET', 'request-unavailable', { hasContext: Boolean(this.context), transportOpen: this.isOpen() }, 'warn')
-			return Promise.reject(new Error('请先连接加速电脑'))
-		}
-		const requestId = messageId()
-		const request = shortConnectionId(requestId)
-		const peer = shortConnectionId(this.context.remoteDeviceId)
-		logLanConnection('NATIVE-TICKET', 'request-started', { request, peer, timeoutMs: 10_000 })
-		return new Promise<LanNativeAgentTicket>((resolve, reject) => {
-			const timer = setTimeout(() => {
-				this.pendingNativeTickets.delete(requestId)
-				logLanConnection('NATIVE-TICKET', 'request-timeout', { request, peer }, 'error')
-				reject(new Error('获取极速通道凭据超时'))
-			}, 10_000)
-			this.pendingNativeTickets.set(requestId, { resolve, reject, timer })
-			if (!this.sendControl({ ...this.controlBase('native-agent-ticket-request'), requestId })) {
-				clearTimeout(timer)
-				this.pendingNativeTickets.delete(requestId)
-				logLanConnection('NATIVE-TICKET', 'request-send-failed', { request, peer }, 'error')
-				reject(new Error('无法向加速电脑请求凭据'))
-			} else {
-				logLanConnection('NATIVE-TICKET', 'request-sent', { request, peer })
+	private pumpQueue() {
+		if (!this.transport?.isOpen() || this.resumeSync || this.activeSending || this.activeSendTask) return
+		const nextId = this.queue.find(id => this.prepared.get(id)?.accepted)
+		if (!nextId) return
+		const entry = this.prepared.get(nextId)
+		const message = entry?.accepted
+		if (!entry || !message) return
+		this.queue = this.queue.filter(id => id !== nextId)
+		this.activeSending = nextId
+		const transport = this.transport
+		const epoch = this.transportEpoch
+		if (!transport) return
+		const controller = new AbortController()
+		this.activeSendController = controller
+		this.resetTransferSample(message.id, entry.acked)
+		this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', entry.acked, entry.file.size) })
+		this.setStatus(`正在发送 ${entry.file.name}`)
+		let task!: Promise<void>
+		task = sendPreparedAttachment(transport, entry.file, () => {}, {
+			mobile: this.context?.remoteCapability?.platform === 'android' || this.context?.remoteCapability?.platform === 'ios',
+			getAckedBytes: () => entry.acked,
+			receivedRanges: entry.ranges.map(range => [...range] as [number, number]),
+			signal: controller.signal,
+			completeMessage: { ...this.controlBase('attachment-complete'), id: entry.file.id, messageId: entry.file.messageId, sent: entry.file.size, chunkCount: entry.file.chunkCount },
+		}).then(() => {
+			if (epoch !== this.transportEpoch || this.transport !== transport) return
+			this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'sending' } })
+			this.setStatus(`已发送 ${entry.file.name}，等待对方接收`)
+		}).catch(error => {
+			if (controller.signal.aborted) return
+			if (epoch !== this.transportEpoch || this.transport !== transport) return
+			this.activeSending = null
+			if (!this.transport?.isOpen()) {
+				if (entry.accepted && !this.queue.includes(message.id)) this.queue.unshift(message.id)
+				this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'queued' } })
+				this.setStatus('连接断了，恢复后会继续')
+				return
 			}
+			this.failAttachment(message.id, message.messageId, error instanceof Error ? error.message : '发送失败')
+			this.pumpQueue()
+		}).finally(() => {
+			if (this.activeSendTask === task) this.activeSendTask = null
+			if (this.activeSendController === controller) this.activeSendController = null
+			this.pumpQueue()
 		})
+		this.activeSendTask = task
 	}
 
 	private completeOutgoing(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
-		if (message.received !== entry.file.size || message.expected !== entry.file.size || message.chunkCount !== entry.file.chunkCount) {
-			this.failAttachment(message.id, message.messageId, '接收结果不一致，请重新发送')
-			return
-		}
-		this.sender.remove(message.id)
+		if (this.activeSending === message.id) this.abortActiveSend()
 		this.prepared.delete(message.id)
-		this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'complete', progress: 1, transferredBytes: entry?.file.size || message.received || message.expected, speedBps: undefined, etaSeconds: undefined, phase: undefined } })
+		this.queue = this.queue.filter(id => id !== message.id)
+		this.activeSending = null
+		this.emit({ type: 'attachment-patch', patch: { id: message.id, messageId: message.messageId, status: 'complete', progress: 1, transferredBytes: entry?.file.size || message.received || message.expected, speedBps: undefined, etaSeconds: undefined } })
 		this.emit({ type: 'file-record-patch', id: message.id, patch: { status: 'complete' } })
 		this.transferSamples.delete(message.id)
 		this.setStatus('对方已收到')
+		this.pumpQueue()
 	}
 
 	private async checkpointIncoming(current: IncomingAttachment) {
@@ -718,7 +625,6 @@ export class LanConnectionRuntime {
 
 	private async handleOffer(message: LanAttachmentOffer) {
 		if (this.destroyed) return
-		if (this.native.handleOffer(message)) return
 		const context = this.context
 		if (!context) return
 		let capability = context.localCapability || null
@@ -730,7 +636,6 @@ export class LanConnectionRuntime {
 				this.sendControl({ ...this.controlBase('attachment-cancel'), id: message.attachment.id, messageId: message.messageId, reason: cancelledReason })
 				return
 			}
-			await this.finalizingIncoming.get(message.attachment.id)?.catch(() => {})
 			const cached = this.receivedCache.get(message.attachment.id)
 			if (cached && cached.size === message.attachment.size && cached.chunkCount === message.attachment.chunkCount) {
 				const attachment = { ...attachmentFromOffer(message, cached.storage, 1), status: 'complete' as const, url: cached.url, previewUrl: message.attachment.kind === 'image' ? cached.url : undefined }
@@ -748,14 +653,13 @@ export class LanConnectionRuntime {
 				return
 			}
 			this.pendingOffers.set(message.attachment.id, message)
-			const autoAcceptFallback = this.nativeFallbackIncoming.delete(message.attachment.id)
 			const inlineMedia = isInlineMediaKind(message.attachment.kind)
 			const storage = chooseReceiveStorage(message.attachment.size, message.attachment.suggestedStorage, capability, !inlineMedia)
 			const attachment = { ...attachmentFromOffer(message, storage, 0), status: 'offered' as const }
 			this.emit({ type: 'attachment-upsert', message: messageBase(message.messageId, 'in', message.createdAt, message.peerId), attachment })
 			this.emit({ type: 'file-record-upsert', record: fileRecord(message.messageId, attachment, context.remotePeerName) })
-			if (inlineMedia || autoAcceptFallback) {
-				this.setStatus(inlineMedia ? `正在缓存 ${message.attachment.kind === 'image' ? '图片' : '语音'}` : `${message.attachment.name} 正在通过 WebRTC 重新接收`)
+			if (inlineMedia) {
+				this.setStatus(`正在缓存 ${message.attachment.kind === 'image' ? '图片' : '语音'}`)
 				void this.receivePendingAttachment(message.attachment.id, true)
 				return
 			}
@@ -769,25 +673,7 @@ export class LanConnectionRuntime {
 		}
 	}
 
-	private finishIncoming(id: string, messageIdValue: string, sent: number, chunkCount: number) {
-		const running = this.finalizingIncoming.get(id)
-		if (running) return running
-		const cached = this.receivedCache.get(id)
-		if (cached && cached.messageId === messageIdValue && cached.size === sent && cached.chunkCount === chunkCount) {
-			this.confirmReceived(id, messageIdValue, cached.size, cached.chunkCount, cached.storage)
-			return Promise.resolve()
-		}
-		let task!: Promise<void>
-		task = this.finalizeIncoming(id, messageIdValue, sent, chunkCount).catch(error => {
-			if (this.incoming.has(id)) this.failAttachment(id, messageIdValue, error instanceof Error ? error.message : '文件保存失败')
-		}).finally(() => {
-			if (this.finalizingIncoming.get(id) === task) this.finalizingIncoming.delete(id)
-		})
-		this.finalizingIncoming.set(id, task)
-		return task
-	}
-
-	private async finalizeIncoming(id: string, messageIdValue: string, sent: number, chunkCount: number) {
+	private async finishIncoming(id: string, messageIdValue: string, sent?: number, chunkCount?: number) {
 		const current = this.incoming.get(id)
 		if (!current) return
 		await this.chunkWriteQueue
@@ -795,8 +681,8 @@ export class LanConnectionRuntime {
 		const manifest = await current.engine.getManifest(current.meta.id)
 		if (this.destroyed || this.incoming.get(id) !== current) return
 		if (!manifest) return this.failAttachment(id, messageIdValue, '接收失败，请重新发送')
-		if (sent !== current.offer.attachment.size) return this.failAttachment(id, messageIdValue, '文件信息不一致，请重新发送')
-		if (chunkCount !== manifest.receivedChunks) return this.failAttachment(id, messageIdValue, '接收不完整，请重新发送')
+		if (typeof sent === 'number' && sent !== current.offer.attachment.size) return this.failAttachment(id, messageIdValue, '文件信息不一致，请重新发送')
+		if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return this.failAttachment(id, messageIdValue, '接收不完整，请重新发送')
 		if (manifest.receivedBytes !== current.offer.attachment.size || manifest.receivedChunks !== current.offer.attachment.chunkCount) return this.failAttachment(id, messageIdValue, `接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.offer.attachment.size)}`)
 		const finalized = await current.engine.finalize(current.meta)
 		if (this.destroyed || this.incoming.get(id) !== current) {
@@ -852,51 +738,9 @@ export class LanConnectionRuntime {
 		if ('protocolVersion' in message && message.protocolVersion !== LAN_PROTOCOL_VERSION) return this.setStatus('双方页面不一致，请刷新后重试')
 		if (message.type === 'capability') {
 			if (this.context) this.context.remoteCapability = message
-			this.sender.setMobile(isMobileCapability(this.context?.localCapability) || isMobileCapability(message))
 			this.emit({ type: 'remote-capability', capability: message })
 			this.setStatus(this.resumeSync ? '已连接，正在同步文件断点' : '已连接，可以发送消息和文件')
 			this.flushOffersAndQueue()
-			return
-		}
-		if (message.type === 'native-agent-ticket-request') {
-			const context = this.context
-			const request = shortConnectionId(message.requestId)
-			const peer = shortConnectionId(context?.remoteDeviceId || '')
-			logLanConnection('NATIVE-TICKET', 'incoming-request', { request, peer, canIssue: Boolean(context?.issueNativeAgentTicket) })
-			if (!context?.issueNativeAgentTicket) {
-				const sent = this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: '本机加速组件未连接' })
-				logLanConnection('NATIVE-TICKET', 'response-error-sent', { request, peer, sent, error: '本机加速组件未连接' }, sent ? 'warn' : 'error')
-				return
-			}
-			try {
-				const ticket = await context.issueNativeAgentTicket(context.remoteDeviceId)
-				const sent = this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, ticket })
-				logLanConnection('NATIVE-TICKET', 'response-ticket-sent', { request, peer, sent }, sent ? 'info' : 'error')
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : '无法签发极速通道凭据'
-				const sent = this.sendControl({ ...this.controlBase('native-agent-ticket-response'), requestId: message.requestId, error: errorMessage })
-				logLanConnection('NATIVE-TICKET', 'response-error-sent', { request, peer, sent, error: errorMessage }, 'error')
-			}
-			return
-		}
-		if (message.type === 'native-agent-ticket-response') {
-			const pending = this.pendingNativeTickets.get(message.requestId)
-			const request = shortConnectionId(message.requestId)
-			const peer = shortConnectionId(this.context?.remoteDeviceId || '')
-			if (!pending) {
-				logLanConnection('NATIVE-TICKET', 'response-unmatched', { request, peer, hasTicket: Boolean(message.ticket), hasError: Boolean(message.error) }, 'warn')
-				return
-			}
-			clearTimeout(pending.timer)
-			this.pendingNativeTickets.delete(message.requestId)
-			if (message.ticket) {
-				logLanConnection('NATIVE-TICKET', 'response-ticket-received', { request, peer })
-				pending.resolve(message.ticket)
-			} else {
-				const errorMessage = message.error || '加速电脑没有返回有效凭据'
-				logLanConnection('NATIVE-TICKET', 'response-error-received', { request, peer, error: errorMessage }, 'error')
-				pending.reject(new Error(errorMessage))
-			}
 			return
 		}
 		if (message.type === 'chat-message') {
@@ -917,13 +761,6 @@ export class LanConnectionRuntime {
 			return
 		}
 		if (message.type === 'attachment-offer') return void (await this.handleOffer(message))
-		if (message.type === 'native-transfer-request') return void (await this.native.handleRequest(message))
-		if (message.type === 'native-transfer-ready') return void (await this.native.handleReady(message))
-		if (message.type === 'native-transfer-fallback') {
-			this.nativeFallbackIncoming.add(message.id)
-			await this.native.handleFallback(message)
-			return
-		}
 		if (message.type === 'attachment-accept') {
 			const entry = this.prepared.get(message.id)
 			if (!entry || message.messageId !== entry.file.messageId) return
@@ -931,26 +768,23 @@ export class LanConnectionRuntime {
 			entry.ranges = message.receivedRanges.map(range => [...range] as [number, number])
 			entry.acked = message.receivedBytes
 			this.resetTransferSample(message.id, entry.acked)
-			this.sender.upsert(entry.file, entry.acked, entry.ranges)
+			if (!this.queue.includes(message.id) && this.activeSending !== message.id) this.queue.push(message.id)
+			this.pumpQueue()
 			return
 		}
 		if (message.type === 'attachment-progress') {
 			const entry = this.prepared.get(message.id)
 			if (entry && message.messageId === entry.file.messageId) {
 				entry.acked = Math.max(entry.acked, message.received)
-				this.sender.updateAck(message.id, entry.acked)
 				this.emit({ type: 'attachment-patch', patch: this.transferPatch(message.id, message.messageId, 'sending', entry.acked, entry.file.size) })
 			}
 			return
 		}
 		if (message.type === 'attachment-complete') return void (await this.finishIncoming(message.id, message.messageId, message.sent, message.chunkCount))
-		if (message.type === 'attachment-received') {
-			if (await this.native.handleReceived(message.id, message.messageId, message.received, message.expected)) return
-			return this.completeOutgoing(message)
-		}
+		if (message.type === 'attachment-received') return this.completeOutgoing(message)
 		if (message.type === 'attachment-cancel') {
-			if (this.native.handleCancel(message.id, message.reason || '已取消')) return
 			this.failAttachment(message.id, message.messageId, message.reason || '已取消', false)
+			this.pumpQueue()
 			return
 		}
 		if (message.type === 'resume-query') {
@@ -965,12 +799,6 @@ export class LanConnectionRuntime {
 				}
 				const current = this.incoming.get(id)
 				if (!current) return { id, state: 'unknown' as const, receivedRanges: [], receivedBytes: 0, receivedChunks: 0 }
-				if (this.finalizingIncoming.has(id)) {
-					const complete = current.received === current.offer.attachment.size && current.chunkCount === current.offer.attachment.chunkCount
-					return complete
-						? { id, messageId: current.offer.messageId, state: 'receiving' as const, receivedRanges: current.chunkCount ? [[0, current.chunkCount - 1] as [number, number]] : [], receivedBytes: current.received, receivedChunks: current.chunkCount, storage: current.engine.kind }
-						: { id, state: 'unknown' as const, receivedRanges: [], receivedBytes: 0, receivedChunks: 0 }
-				}
 				const snapshot = await this.checkpointIncoming(current).catch(() => null)
 				return snapshot
 					? { id, messageId: current.offer.messageId, state: 'receiving' as const, ...snapshot, storage: current.engine.kind }
@@ -998,11 +826,10 @@ export class LanConnectionRuntime {
 					entry.acked = item.receivedBytes
 					if (entry.accepted) entry.accepted = { ...entry.accepted, storage: item.storage, receivedRanges: entry.ranges, receivedBytes: entry.acked }
 					this.resetTransferSample(id, entry.acked)
-					this.emit({ type: 'attachment-patch', patch: { ...this.transferPatch(id, entry.file.messageId, 'queued', entry.acked, entry.file.size), phase: undefined } })
-					this.sender.sync(entry.file, entry.acked, entry.ranges, Boolean(entry.accepted))
+					this.emit({ type: 'attachment-patch', patch: this.transferPatch(id, entry.file.messageId, 'queued', entry.acked, entry.file.size) })
+					if (entry.accepted && !this.queue.includes(id)) this.queue.push(id)
 					continue
 				}
-				this.sender.remove(id)
 				entry.accepted = undefined
 				entry.ranges = []
 				entry.acked = 0
@@ -1018,11 +845,13 @@ export class LanConnectionRuntime {
 	}
 
 	private failAttachment(id: string, messageIdValue: string | undefined, reason: string, notifyPeer = true) {
-		this.sender.remove(id)
-		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'failed', error: reason, phase: undefined } })
+		if (this.activeSending === id) this.abortActiveSend()
+		this.emit({ type: 'attachment-patch', patch: { id, messageId: messageIdValue, status: 'failed', error: reason } })
 		this.emit({ type: 'file-record-patch', id, patch: { status: 'failed' } })
 		if (notifyPeer) this.sendControl({ ...this.controlBase('attachment-cancel'), id, messageId: messageIdValue, reason })
 		this.prepared.delete(id)
+		if (this.activeSending === id) this.activeSending = null
+		this.queue = this.queue.filter(item => item !== id)
 		this.progressAck.delete(id)
 		this.transferSamples.delete(id)
 		this.cleanupIncoming(id)
