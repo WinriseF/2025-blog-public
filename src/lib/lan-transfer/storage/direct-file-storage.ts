@@ -1,5 +1,6 @@
 import type { LanStorageEngine, TransferFileMeta, TransferManifest } from './types'
 import { addRange, type ChunkRange } from './ranges'
+import { LAN_FILE_IO_BATCH_BYTES } from '../types'
 
 type SaveFilePicker = (options?: { suggestedName?: string; types?: Array<{ description?: string; accept: Record<string, string[]> }> }) => Promise<FileSystemFileHandle>
 type WritableFileStream = {
@@ -20,8 +21,6 @@ type ActiveDirectFile = {
 	writeBufferBytes: number
 	writePosition: number
 }
-
-const DIRECT_FILE_BATCH_BYTES = 2 * 1024 * 1024
 
 function manifestFor(meta: TransferFileMeta): TransferManifest {
 	const now = Date.now()
@@ -109,7 +108,7 @@ export class DirectFileStorageEngine implements LanStorageEngine {
 		}
 		active.writeBuffer.push({ chunkIndex, data })
 		active.writeBufferBytes += data.byteLength
-		if (active.writeBufferBytes >= DIRECT_FILE_BATCH_BYTES || chunkIndex + 1 >= meta.chunkCount) manifest = await this.flushBufferedData(active, meta)
+		if (active.writeBufferBytes >= LAN_FILE_IO_BATCH_BYTES || chunkIndex + 1 >= meta.chunkCount) manifest = await this.flushBufferedData(active, meta)
 		return manifest
 	}
 

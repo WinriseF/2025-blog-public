@@ -1,8 +1,7 @@
-export const LAN_PROTOCOL_VERSION = 8
+export const LAN_PROTOCOL_VERSION = 9
+export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
 export const LAN_CHUNK_TIERS = [
-	{ frameSize: 512 * 1024, chunkSize: 508 * 1024 },
-	{ frameSize: 256 * 1024, chunkSize: 252 * 1024 },
 	{ frameSize: 128 * 1024, chunkSize: 124 * 1024 },
 	{ frameSize: 64 * 1024, chunkSize: 60 * 1024 },
 ] as const
@@ -17,8 +16,8 @@ export const LAN_LIMITS = {
 	dataChannelFrameHeaderReserve: 4 * 1024,
 	dataChannelMaxFrameSize: LAN_CHUNK_TIERS[0].frameSize,
 	dataChannelMaxChunkSize: LAN_CHUNK_TIERS[0].chunkSize,
-	dataChannelFallbackChunkSize: LAN_CHUNK_TIERS[3].chunkSize,
-	defaultChunkSize: LAN_CHUNK_TIERS[3].chunkSize,
+	dataChannelFallbackChunkSize: LAN_CHUNK_TIERS[1].chunkSize,
+	defaultChunkSize: LAN_CHUNK_TIERS[1].chunkSize,
 	bufferHighWatermark: 8 * 1024 * 1024,
 	bufferLowWatermark: 2 * 1024 * 1024,
 	mobileBufferHighWatermark: 4 * 1024 * 1024,

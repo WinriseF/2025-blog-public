@@ -29,7 +29,7 @@ const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 const transferApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
 const contentLimitLabel = '4MB'
 const fileLimitLabel = '200MB'
-const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v8'
+const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v9'
 
 function normalizeCode(value: string) {
 	return value.trim().toUpperCase()

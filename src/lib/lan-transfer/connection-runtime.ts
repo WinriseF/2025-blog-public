@@ -254,11 +254,6 @@ export class LanConnectionRuntime {
 		const frame = decodeFrame(data)
 		if (!frame) return
 		if (frame.kind === 'control') return void this.handleControl(frame.message).catch(error => this.setStatus(error instanceof Error ? error.message : '发送失败'))
-		if (frame.kind === 'corrupt') {
-			const current = this.incoming.get(frame.id)
-			if (current) this.failAttachment(frame.id, current.offer.messageId, '接收失败，请重新发送')
-			return
-		}
 		this.queueIncomingChunk(frame.id, frame.index, frame.bytes)
 	}
 
@@ -578,6 +573,10 @@ export class LanConnectionRuntime {
 	private completeOutgoing(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
+		if (message.received !== entry.file.size || message.expected !== entry.file.size || message.chunkCount !== entry.file.chunkCount) {
+			this.failAttachment(message.id, message.messageId, '接收结果不一致，请重新发送')
+			return
+		}
 		if (this.activeSending === message.id) this.abortActiveSend()
 		this.prepared.delete(message.id)
 		this.queue = this.queue.filter(id => id !== message.id)
@@ -673,7 +672,7 @@ export class LanConnectionRuntime {
 		}
 	}
 
-	private async finishIncoming(id: string, messageIdValue: string, sent?: number, chunkCount?: number) {
+	private async finishIncoming(id: string, messageIdValue: string, sent: number, chunkCount: number) {
 		const current = this.incoming.get(id)
 		if (!current) return
 		await this.chunkWriteQueue
@@ -681,8 +680,8 @@ export class LanConnectionRuntime {
 		const manifest = await current.engine.getManifest(current.meta.id)
 		if (this.destroyed || this.incoming.get(id) !== current) return
 		if (!manifest) return this.failAttachment(id, messageIdValue, '接收失败，请重新发送')
-		if (typeof sent === 'number' && sent !== current.offer.attachment.size) return this.failAttachment(id, messageIdValue, '文件信息不一致，请重新发送')
-		if (typeof chunkCount === 'number' && chunkCount !== manifest.receivedChunks) return this.failAttachment(id, messageIdValue, '接收不完整，请重新发送')
+		if (sent !== current.offer.attachment.size) return this.failAttachment(id, messageIdValue, '文件信息不一致，请重新发送')
+		if (chunkCount !== manifest.receivedChunks) return this.failAttachment(id, messageIdValue, '接收不完整，请重新发送')
 		if (manifest.receivedBytes !== current.offer.attachment.size || manifest.receivedChunks !== current.offer.attachment.chunkCount) return this.failAttachment(id, messageIdValue, `接收不完整：${formatBytes(manifest.receivedBytes)} / ${formatBytes(current.offer.attachment.size)}`)
 		const finalized = await current.engine.finalize(current.meta)
 		if (this.destroyed || this.incoming.get(id) !== current) {

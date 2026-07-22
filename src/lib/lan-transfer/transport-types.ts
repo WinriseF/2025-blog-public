@@ -17,6 +17,7 @@ export function formatLanConnectionRoute(route: LanConnectionRoute | null) {
 export interface LanConnectionTransport {
 	readonly id: string
 	readonly generation: number
+	readonly bufferedAmount: number
 	isOpen(): boolean
 	send(data: Uint8Array): boolean
 	negotiateChunkSize(peerMaxChunkSize?: number): Promise<number>

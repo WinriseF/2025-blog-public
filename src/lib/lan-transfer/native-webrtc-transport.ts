@@ -1,7 +1,7 @@
 import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportState } from './transport-types'
 
-const transportControlPrefix = '__winrisef_lan_v8__:'
+const transportControlPrefix = '__winrisef_lan_v9__:'
 const TRANSPORT_FRAME_PROBE = 0xff
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -107,13 +107,17 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.pc.onicecandidate = event => options.onCandidate(event.candidate?.toJSON() || null)
 		this.pc.onconnectionstatechange = () => this.emitConnectionState()
 		this.pc.oniceconnectionstatechange = () => this.emitConnectionState()
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v8', { ordered: true }))
+		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v9', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}
 
 	get negotiationId() {
 		return this.currentNegotiationId
+	}
+
+	get bufferedAmount() {
+		return this.channel?.bufferedAmount || 0
 	}
 
 	isOpen() {
