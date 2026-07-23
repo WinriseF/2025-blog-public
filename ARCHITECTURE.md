@@ -107,6 +107,7 @@ Main route groups and pages:
 - `/toolbox/password`: browser-only random password, passphrase, and PIN generator.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
 - `/rss.xml`: RSS route implemented in `src/app/rss.xml/route.ts`.
+- `/healthz`: lightweight uncached `GET`/`HEAD` health probe implemented in `src/app/healthz/route.ts` for the `e`, `n`, and `v` deployments.
 
 There are empty route directories for `src/app/sitemap.xml` and `src/app/robots.txt` at the time of this document. They do not currently implement routes.
 
@@ -466,6 +467,11 @@ EdgeOne settings:
 - `edge-functions/api/transfer/[[default]].js` exposes `/api/transfer/*` for transfer create, complete, meta, open, stats, and cleanup.
 - `edgeone.json` schedules transfer cleanup at 02:00 Asia/Shanghai.
 - The frontend must set `NEXT_PUBLIC_TRANSFER_API_BASE` to the EdgeOne Functions origin, for example `https://transfer.example.com`.
+
+Origin health check:
+
+- `GET /healthz` and `HEAD /healthz` return `204` with `Cache-Control: no-store` and do not touch external services.
+- The redirect router should probe this path on each of the `e`, `n`, and `v` origins instead of probing the rendered homepage.
 
 Cache headers are configured for:
 
