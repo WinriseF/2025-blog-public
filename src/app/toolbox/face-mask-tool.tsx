@@ -171,10 +171,9 @@ export function FaceMaskTool() {
 
 	const handleModeChange = useCallback(
 		(mode: MaskMode) => {
+			setDefaultMode(mode)
 			if (selectedMaskId) {
 				updateMask(selectedMaskId, mask => ({ ...mask, mode }))
-			} else {
-				setDefaultMode(mode)
 			}
 		},
 		[selectedMaskId, updateMask]

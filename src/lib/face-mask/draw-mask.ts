@@ -1,8 +1,12 @@
 import { DEFAULT_STICKER } from './stickers'
 import type { MaskItem } from './types'
 
+function getPixelSize(mask: MaskItem, minimum: number, cells: number) {
+	return Math.max(minimum, Math.min(mask.width, mask.height) / cells)
+}
+
 function drawMosaic(ctx: CanvasRenderingContext2D, source: CanvasImageSource, mask: MaskItem) {
-	const pixelSize = 12
+	const pixelSize = getPixelSize(mask, 12, 10)
 	const tmp = document.createElement('canvas')
 	const tmpCtx = tmp.getContext('2d')
 	if (!tmpCtx) return
@@ -19,7 +23,7 @@ function drawMosaic(ctx: CanvasRenderingContext2D, source: CanvasImageSource, ma
 }
 
 function drawBlur(ctx: CanvasRenderingContext2D, source: CanvasImageSource, mask: MaskItem) {
-	const pixelSize = 18
+	const pixelSize = getPixelSize(mask, 18, 12)
 	const tmp = document.createElement('canvas')
 	const tmpCtx = tmp.getContext('2d')
 	if (!tmpCtx) return
