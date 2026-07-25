@@ -10,7 +10,7 @@ export const NATIVE_AGENT_SESSION_COUNT = 6
 export type LanNativePublicIpv6State = 'not-present' | 'authorizing' | 'available' | 'unavailable'
 
 export type LanNativeAgentAdvertisement = {
-	bridgeVersion: 2 | typeof NATIVE_AGENT_BRIDGE_VERSION
+	bridgeVersion: typeof NATIVE_AGENT_BRIDGE_VERSION
 	benchmarkVersion: typeof NATIVE_AGENT_BENCHMARK_VERSION
 	ownerDeviceId: string
 	endpoints: string[]
@@ -39,7 +39,7 @@ export type LanNativeAgentCallback = {
 	certificateSha256: string
 	launchToken: string
 	expiresAt: number
-	bridgeVersion: 2 | typeof NATIVE_AGENT_BRIDGE_VERSION
+	bridgeVersion: typeof NATIVE_AGENT_BRIDGE_VERSION
 	networkEpoch: string
 	publicIpv6State: LanNativePublicIpv6State
 }

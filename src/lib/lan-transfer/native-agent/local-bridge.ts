@@ -141,7 +141,6 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 	}
 
 	private async refreshNetworkEndpoints() {
-		if (this.callback.bridgeVersion === 2) return snapshotFromCallback(this.callback)
 		const snapshot = parseNetworkEndpointSnapshot(await this.request('get-network-endpoints'))
 		if (!snapshot) throw new Error('本机组件返回了无效的网络地址快照')
 		this.applyNetworkEndpointSnapshot(snapshot)
@@ -238,17 +237,6 @@ export class LanNativeLocalBridge implements LanNativeLocalAgentPort {
 		} catch (error) {
 			this.shutdown(error instanceof Error ? error : new Error('本机组件控制连接中断'), 1, 'bridge control failed')
 		}
-	}
-}
-
-function snapshotFromCallback(callback: LanNativeAgentCallback): LanNativeNetworkEndpointSnapshot {
-	return {
-		networkEpoch: callback.networkEpoch,
-		benchmarkEndpoints: callback.benchmarkEndpoints,
-		lnaHttpEndpoints: callback.lnaHttpEndpoints,
-		fileHttpEndpoints: callback.fileHttpEndpoints,
-		fileWebTransportEndpoints: callback.fileWebTransportEndpoints,
-		publicIpv6State: callback.publicIpv6State,
 	}
 }
 

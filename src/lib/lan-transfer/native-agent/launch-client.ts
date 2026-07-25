@@ -1,4 +1,4 @@
-import type { LanNativeAgentCallback } from './types'
+import { NATIVE_AGENT_BRIDGE_VERSION, type LanNativeAgentCallback } from './types'
 import { filterNativeEndpoints, summarizeNativeEndpoints, validLanFileHttpEndpoint, validLanFileWebTransportEndpoint, validLanHttpBaseEndpoint, validLanWebTransportEndpoint } from './endpoint-validation'
 import { logLanConnection } from '../connection-diagnostics'
 
@@ -38,7 +38,7 @@ export function consumeLanAgentCallback(): LanNativeAgentCallback | null {
 	const fileHttpEndpoints = params.getAll('file-http')
 	const fileWebTransportEndpoints = params.getAll('file-wt')
 	window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
-	const callback = validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: bridgeVersion(bridgeEndpoint), networkEpoch, publicIpv6State: validPublicIpv6State(publicIpv6State) ? publicIpv6State : 'not-present' })
+	const callback = validateCallback({ nonce, bridgeEndpoint, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, certificateSha256, launchToken, expiresAt, bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION, networkEpoch, publicIpv6State: validPublicIpv6State(publicIpv6State) ? publicIpv6State : 'not-present' })
 	logLanConnection('NATIVE', 'fragment-callback-consumed', {
 		accepted: Boolean(callback),
 		publicIpv6State,
@@ -121,7 +121,7 @@ function validateCallback(callback: LanNativeAgentCallback): LanNativeAgentCallb
 	const fileWebTransportEndpoints = filterNativeEndpoints(callback.fileWebTransportEndpoints, validLanFileWebTransportEndpoint)
 	const publicIpv6State = validPublicIpv6State(callback.publicIpv6State) ? callback.publicIpv6State : 'not-present'
 	if ((!benchmarkEndpoints.length || (!fileHttpEndpoints.length && !fileWebTransportEndpoints.length)) && publicIpv6State !== 'authorizing') return rejectCallback('missing-endpoints')
-	return { ...callback, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, bridgeVersion: bridgeVersion(callback.bridgeEndpoint), publicIpv6State }
+	return { ...callback, benchmarkEndpoints, lnaHttpEndpoints, fileHttpEndpoints, fileWebTransportEndpoints, bridgeVersion: NATIVE_AGENT_BRIDGE_VERSION, publicIpv6State }
 }
 
 function rejectCallback(reason: string) {
@@ -136,16 +136,8 @@ function validPublicIpv6State(value: unknown): value is LanNativeAgentCallback['
 function validBridgeEndpoint(value: string) {
 	try {
 		const url = new URL(value)
-		return url.protocol === 'https:' && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) && ['/winrisef/bridge/v2', '/winrisef/bridge/v3'].includes(url.pathname) && Boolean(url.port) && !url.search && !url.hash && !url.username && !url.password
+		return url.protocol === 'https:' && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) && url.pathname === '/winrisef/bridge/v3' && Boolean(url.port) && !url.search && !url.hash && !url.username && !url.password
 	} catch {
 		return false
-	}
-}
-
-function bridgeVersion(value: string): 2 | 3 {
-	try {
-		return new URL(value).pathname.endsWith('/v3') ? 3 : 2
-	} catch {
-		return 2
 	}
 }
