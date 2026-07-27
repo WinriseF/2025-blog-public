@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, Copy, MessageCircle, PanelLeftClose, QrCode, Sun, X, Zap } from 'lucide-react'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
@@ -9,6 +9,7 @@ import { useLanScreenWakeLock, type LanScreenWakeLockState } from '@/hooks/use-l
 import { useLanNativeSpeedMode, type LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
 import type { LanNativeBenchmarkDirection } from '@/lib/lan-transfer/native-agent/types'
 import { ChatComposer, DeviceAvatar, MessageList } from './lan-chat-ui'
+import { LanSessionWaterRipple } from './lan-session-water-ripple'
 import { LanSpeedModeToggle } from './lan-speed-mode-toggle'
 import { LanWakeLockToggle } from './lan-wake-lock-toggle'
 import { useLanTransferController } from './use-lan-transfer-controller'
@@ -514,10 +515,8 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 	}
 
 	const app = (
-		<div
-			className='lan-session fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'
-			style={{ '--lan-enter-x': entryOrigin ? `${entryOrigin.x}px` : '50vw', '--lan-enter-y': entryOrigin ? `${entryOrigin.y}px` : '50vh' } as CSSProperties}
-		>
+		<div className='lan-session fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'>
+			<LanSessionWaterRipple origin={entryOrigin} />
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
 				<DesktopSidebar controller={controller} wakeLock={wakeLock} speedMode={speedMode} onRunBenchmark={handleRunBenchmark} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} expandedPanel={expandedPanel} onTogglePanel={handleTogglePanel} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				<ChatPane controller={controller} />

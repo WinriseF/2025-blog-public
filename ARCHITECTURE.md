@@ -335,7 +335,7 @@ Frontend:
 - `src/lib/transfer-crypto.ts`
 - `src/lib/transfer-relay.ts`
 
-Toolbox UI uses short `motion/react` entry, upload-state, and button-press feedback with reduced-motion opt-outs. Markdown preview can hide the editor and fill the toolbox card on desktop; its embedded progress bar tracks and scrubs only the preview scroll area. Transfer progress and connection state keep their existing lightweight CSS transitions to avoid animation work on high-frequency events.
+Toolbox UI uses short `motion/react` entry, upload-state, and button-press feedback with reduced-motion opt-outs. Markdown preview can hide the editor and fill the toolbox card on desktop; its embedded progress bar tracks and scrubs only the preview scroll area. Entering the LAN workbench runs a one-shot, pointer-free Canvas water ripple from the tab click position: a downsampled, damped height-field simulation draws cyan crests over the workbench for about 1.3 seconds, then unmounts. Reduced-motion preferences skip it. Transfer progress and connection state keep their existing lightweight CSS transitions to avoid animation work on high-frequency events.
 
 Backend:
 
