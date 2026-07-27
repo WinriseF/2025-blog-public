@@ -481,6 +481,23 @@ Cache headers are configured for:
 
 ## Architectural Risks And Constraints
 
+## Local Version Control Workbench
+
+`/toolbox/version-control` is the Windows desktop Chromium entry for the read-only Git workbench. It is a full-screen toolbox surface after a repository is selected; `/toolbox/version-control/agent-return` is the short-lived custom-protocol callback handoff page.
+
+The frontend is split into two boundaries:
+
+- `src/lib/version-control/` owns Version Control Bridge V1, callback validation, the 64KiB control-frame codec, source preview streams, graph layout, and the Zustand session store.
+- `src/app/toolbox/version-control/` owns launch/setup UI, the virtualized commit graph, working-tree groups, file tree, Monaco diff modal, conflict perspectives, and export confirmation.
+
+The page launches the existing portable EXE with `winrisef://launch?...&feature=version-control`. This mode is mutually exclusive with `/t` native acceleration and accepts only a pinned loopback WebTransport endpoint at `/winrisef/version-control/v1`. Every Agent process grants one repository through the native directory picker. The browser receives opaque repository, diff, revision, file, and export IDs; it never submits an arbitrary local path and does not persist recent repositories.
+
+Control commands and paged metadata remain below 64KiB. UTF-8 preview bodies use independent incoming WebTransport streams and are capped at 2MiB per side in Monaco. Binary, invalid UTF-8, and oversized previews remain metadata-only. Rapid history selections are debounced and serialized with a latest-generation guard, so stale comparisons cannot replace the current selection or request pages from an expired Diff session; history search and pagination use the same stale-response guard and merge identical in-flight pages. The file tree is built with one path map and stores each directory's selectable file IDs instead of rescanning the full Diff on every render. Monaco models are detached before disposal; large previews use a 30-second bounded Diff computation with wrapping and the overview ruler disabled to reduce layout work.
+
+All Git operations are read-only: history, refs, status, stash inspection, arbitrary revision comparison, and refresh are permitted; checkout/switch, network operations, index writes, commits, reset/restore, and stash mutation do not exist in the protocol. The vendored libgit2 build disables its unused SSH/HTTPS/OpenSSL features. Export is the only local write exception. The browser compresses selected file IDs into the shorter include/exclude range representation before `prepare-export`; the Agent validates and expands those ranges against the authorized Diff. The Agent obtains the target through the native save dialog, requires a second browser confirmation for a target inside the open repository, writes a same-directory temporary file, and atomically completes it. Browsing stores one bounded copy of Diff metadata plus content locators; current status is collected once only for worktree/index views and is never mixed into historical comparisons. Native GitPatch text is rebuilt once per export, indexed by path, and emitted per file without loading the two full source bodies when the native patch is available. Clipboard copy stays entirely in the browser.
+
+Git V1 supports normal repositories, linked worktrees, bare repositories, gitlinks, staged/unstaged/untracked/conflicted views, first-parent commit inspection, and stash display. SVN is intentionally deferred and has no placeholder adapter or dependency in this version.
+
 Important risks:
 
 - TypeScript build errors are ignored in `next.config.ts`.

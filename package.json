@@ -16,6 +16,7 @@
 	"dependencies": {
 		"@arraypress/waveform-player": "^1.20.0",
 		"@edgeone/pages-blob": "^0.0.12",
+		"@monaco-editor/react": "^4.7.0",
 		"@supabase/supabase-js": "^2.108.2",
 		"clsx": "^2.1.1",
 		"d3-cloud": "^1.2.9",
@@ -26,6 +27,7 @@
 		"lunar-typescript": "^1.8.6",
 		"marked": "^17.0.0",
 		"mermaid": "^11.15.0",
+		"monaco-editor": "^0.55.1",
 		"motion": "^12.23.24",
 		"next": "16.0.7",
 		"qrcode": "^1.5.4",

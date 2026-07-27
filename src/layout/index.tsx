@@ -43,6 +43,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const { maxSM, init } = useSize()
 	const { theme: timeTheme } = useTimeTheme()
 	const pathname = usePathname()
+	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 	const [mounted, setMounted] = useState(false)
@@ -98,10 +99,10 @@ function ThemedLayout({ children }: PropsWithChildren) {
 			)}
 			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
-				<NavCard />
+				{!isVersionControlRoute && <NavCard />}
 			</main>
 
-			{maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}
+			{!isVersionControlRoute && maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}
 		</MusicPlayerProvider>
 	)
 }
