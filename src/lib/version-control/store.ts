@@ -52,6 +52,7 @@ type VersionControlState = {
 	refresh: () => Promise<void>
 	toggleFile: (fileId: number) => void
 	toggleFiles: (fileIds: number[], selected: boolean) => void
+	invertFiles: (fileIds: number[]) => void
 	openFile: (file: DiffFile | null) => void
 	setPerspective: (perspective: ConflictPerspective) => void
 	prepareExport: (format: ExportFormat, layout: ExportLayout) => Promise<{ cancelled: boolean; exportTargetId?: string; insideRepository?: boolean }>
@@ -233,6 +234,13 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		set(state => {
 			const next = new Set(state.selectedFileIds)
 			for (const fileId of fileIds) selected ? next.add(fileId) : next.delete(fileId)
+			return { selectedFileIds: next }
+		}),
+
+	invertFiles: fileIds =>
+		set(state => {
+			const next = new Set(state.selectedFileIds)
+			for (const fileId of fileIds) next.has(fileId) ? next.delete(fileId) : next.add(fileId)
 			return { selectedFileIds: next }
 		}),
 

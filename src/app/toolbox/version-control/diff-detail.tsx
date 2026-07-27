@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, ArrowRight, ChevronDown, ChevronRight, FileCode, FileDown, FileImage, Folder, FolderOpen } from 'lucide-react'
+import { AlertOctagon, ArrowRight, ChevronDown, ChevronRight, FileCode, FileDown, FileImage, Folder, FolderOpen, Shuffle } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useVersionControlStore, type VersionSelection } from '@/lib/version-control/store'
 import type { DiffFile, WorkingTreeGroup } from '@/lib/version-control/types'
 import { GitRefBadges } from './git-ref-badges'
@@ -14,6 +15,9 @@ const groups: Array<{ value: WorkingTreeGroup; label: string }> = [
 	{ value: 'untracked', label: '未跟踪' },
 	{ value: 'conflicted', label: '冲突' }
 ]
+
+type StatusFilter = 'A' | 'M' | 'D' | 'R' | 'C'
+const defaultStatusFilters = new Set<StatusFilter>(['A', 'M', 'D', 'R', 'C'])
 
 export function DiffDetail() {
 	const overview = useVersionControlStore(state => state.overview)
@@ -28,9 +32,47 @@ export function DiffDetail() {
 	const loading = useVersionControlStore(state => state.loading)
 	const toggleFile = useVersionControlStore(state => state.toggleFile)
 	const toggleFiles = useVersionControlStore(state => state.toggleFiles)
+	const invertFiles = useVersionControlStore(state => state.invertFiles)
 	const openFile = useVersionControlStore(state => state.openFile)
 	const [exportOpen, setExportOpen] = useState(false)
-	const tree = useMemo(() => buildTree(files), [files])
+	const [statusFilters, setStatusFilters] = useState(defaultStatusFilters)
+	const visibleFiles = useMemo(() => files.filter(file => statusFilters.has(statusLetter(file.status))), [files, statusFilters])
+	const invertibleFileIds = useMemo(
+		() => visibleFiles.filter(file => !file.isBinary && !file.exportTooLarge).map(file => file.fileId),
+		[visibleFiles]
+	)
+	const selectedStats = useMemo(
+		() =>
+			files.reduce(
+				(totals, file) => {
+					if (selectedIds.has(file.fileId)) {
+						totals.additions += file.additions
+						totals.deletions += file.deletions
+					}
+					return totals
+				},
+				{ additions: 0, deletions: 0 }
+			),
+		[files, selectedIds]
+	)
+	const tree = useMemo(() => buildTree(visibleFiles), [visibleFiles])
+
+	useEffect(() => setStatusFilters(new Set(defaultStatusFilters)), [diff?.diffId])
+
+	const toggleStatusFilter = (status: StatusFilter) => {
+		const active = statusFilters.has(status)
+		if (active)
+			toggleFiles(
+				files.filter(file => statusLetter(file.status) === status).map(file => file.fileId),
+				false
+			)
+		setStatusFilters(current => {
+			const next = new Set(current)
+			if (active) next.delete(status)
+			else next.add(status)
+			return next
+		})
+	}
 
 	return (
 		<section className='bg-background flex h-full min-w-0 flex-col overflow-hidden'>
@@ -38,17 +80,34 @@ export function DiffDetail() {
 				<Header selection={selection} comparison={comparison} repositoryName={overview?.displayName || ''} />
 			</header>
 			<div className='border-border bg-article/45 flex flex-wrap items-center gap-1.5 border-b px-3 py-1.5'>
-				<span className='text-secondary mr-auto text-[10px]'>{loading ? '读取中…' : `${diff?.summary.filesChanged || files.length} 个文件发生变化`}</span>
+				<span className='text-secondary mr-auto text-[10px]'>
+					{loading
+						? '读取中…'
+						: visibleFiles.length === files.length
+							? `${files.length} 个文件发生变化`
+							: `显示 ${visibleFiles.length} / ${files.length} 个文件`}
+				</span>
 				{diff && !loading && (
 					<>
-						<Pill>A {diff.summary.filesAdded}</Pill>
-						<Pill>M {diff.summary.filesModified}</Pill>
-						<Pill>D {diff.summary.filesDeleted}</Pill>
-						<Pill>R {diff.summary.filesRenamed}</Pill>
-						<Pill tone='border-green-500/30 bg-green-500/10 text-green-400'>+{diff.summary.insertions}</Pill>
-						<Pill tone='border-red-500/30 bg-red-500/10 text-red-400'>−{diff.summary.deletions}</Pill>
+						<StatusFilterPill status='A' count={diff.summary.filesAdded} active={statusFilters.has('A')} onToggle={toggleStatusFilter} />
+						<StatusFilterPill status='M' count={diff.summary.filesModified} active={statusFilters.has('M')} onToggle={toggleStatusFilter} />
+						<StatusFilterPill status='D' count={diff.summary.filesDeleted} active={statusFilters.has('D')} onToggle={toggleStatusFilter} />
+						<StatusFilterPill status='R' count={diff.summary.filesRenamed} active={statusFilters.has('R')} onToggle={toggleStatusFilter} />
+						{diff.summary.filesConflicted > 0 && (
+							<StatusFilterPill status='C' count={diff.summary.filesConflicted} active={statusFilters.has('C')} onToggle={toggleStatusFilter} />
+						)}
+						<AnimatedMetric prefix='+' value={selectedStats.additions} tone='border-green-500/30 bg-green-500/10 text-green-400' />
+						<AnimatedMetric prefix='−' value={selectedStats.deletions} tone='border-red-500/30 bg-red-500/10 text-red-400' />
 					</>
 				)}
+				<button
+					onClick={() => invertFiles(invertibleFileIds)}
+					disabled={!invertibleFileIds.length}
+					title='反选当前筛选结果'
+					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
+					<Shuffle size={12} />
+					反选
+				</button>
 				<button
 					onClick={() => setExportOpen(true)}
 					disabled={!selectedIds.size}
@@ -74,6 +133,8 @@ export function DiffDetail() {
 					<Empty>正在读取差异…</Empty>
 				) : !files.length ? (
 					<Empty>这个视角没有文件变更</Empty>
+				) : !visibleFiles.length ? (
+					<Empty>当前状态筛选下没有文件</Empty>
 				) : (
 					tree.map(node => (
 						<TreeNode
@@ -145,8 +206,51 @@ function Header({
 	return <p className='text-secondary text-sm'>选择一个提交查看变化</p>
 }
 
-function Pill({ children, tone = 'border-border text-secondary' }: { children: React.ReactNode; tone?: string }) {
-	return <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${tone}`}>{children}</span>
+function AnimatedMetric({ prefix, value, tone }: { prefix: string; value: number; tone: string }) {
+	const shouldReduceMotion = useReducedMotion()
+	return (
+		<span title='已选文件变更行数' className={`flex overflow-hidden rounded-full border px-2 py-0.5 text-[10px] font-medium tabular-nums ${tone}`}>
+			{prefix}
+			<motion.span
+				key={value}
+				initial={shouldReduceMotion ? false : { opacity: 0, y: prefix === '+' ? 5 : -5 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: 'easeOut' }}>
+				{value}
+			</motion.span>
+		</span>
+	)
+}
+
+const statusTones: Record<StatusFilter, string> = {
+	A: 'border-green-500/35 bg-green-500/12 text-green-400',
+	M: 'border-blue-500/35 bg-blue-500/12 text-blue-400',
+	D: 'border-red-500/35 bg-red-500/12 text-red-400',
+	R: 'border-purple-500/35 bg-purple-500/12 text-purple-400',
+	C: 'border-orange-500/35 bg-orange-500/12 text-orange-400'
+}
+
+function StatusFilterPill({
+	status,
+	count,
+	active,
+	onToggle
+}: {
+	status: StatusFilter
+	count: number
+	active: boolean
+	onToggle: (status: StatusFilter) => void
+}) {
+	return (
+		<button
+			type='button'
+			aria-pressed={active}
+			title={`${active ? '隐藏' : '显示'} ${status} 状态文件`}
+			onClick={() => onToggle(status)}
+			className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition ${active ? statusTones[status] : 'border-border text-secondary/45 hover:text-secondary bg-transparent'}`}>
+			{status} {count}
+		</button>
+	)
 }
 
 type TreeItem = { name: string; path: string; children: TreeItem[]; selectableFileIds: number[]; file?: DiffFile }
@@ -198,7 +302,9 @@ function TreeNode({
 	const [expanded, setExpanded] = useState(true)
 	const indent = depth * 16 + 12
 	if (!node.file) {
-		const checked = node.selectableFileIds.length > 0 && node.selectableFileIds.every(fileId => selectedIds.has(fileId))
+		const selectedCount = node.selectableFileIds.reduce((count, fileId) => count + Number(selectedIds.has(fileId)), 0)
+		const checked = node.selectableFileIds.length > 0 && selectedCount === node.selectableFileIds.length
+		const indeterminate = selectedCount > 0 && !checked
 		return (
 			<>
 				<div
@@ -206,15 +312,18 @@ function TreeNode({
 					onClick={() => setExpanded(value => !value)}
 					className='hover:bg-article/75 group flex w-full cursor-pointer items-center py-1 pr-2 text-sm opacity-70 transition hover:opacity-100'
 					style={{ paddingLeft: indent }}>
-					<button
-						onClick={event => {
-							event.stopPropagation()
-							toggleFiles(node.selectableFileIds, !checked)
+					<input
+						ref={element => {
+							if (element) element.indeterminate = indeterminate
 						}}
+						type='checkbox'
+						checked={checked}
+						onChange={() => toggleFiles(node.selectableFileIds, !checked)}
+						onClick={event => event.stopPropagation()}
 						disabled={!node.selectableFileIds.length}
-						className='mr-2 flex size-4 items-center justify-center'>
-						<input readOnly type='checkbox' checked={checked} disabled={!node.selectableFileIds.length} className='accent-brand size-3.5' />
-					</button>
+						aria-label={`${node.path}：${indeterminate ? '部分选中' : checked ? '全部选中' : '未选中'}`}
+						className='accent-brand mr-2 size-3.5 shrink-0'
+					/>
 					<span className='text-secondary flex size-5 shrink-0 items-center justify-center'>
 						{node.children.length ? expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
 					</span>
@@ -286,7 +395,7 @@ function TreeNode({
 }
 
 function Status({ status }: { status: string }) {
-	const letter = status.charAt(0).toUpperCase()
+	const letter = statusLetter(status)
 	const tone =
 		letter === 'A'
 			? 'bg-green-500/20 text-green-500'
@@ -298,6 +407,10 @@ function Status({ status }: { status: string }) {
 						? 'bg-orange-500/20 text-orange-500'
 						: 'bg-blue-500/20 text-blue-500'
 	return <span className={`mr-1 flex h-5 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold ${tone}`}>{letter}</span>
+}
+function statusLetter(status: string): StatusFilter {
+	const letter = status.charAt(0).toUpperCase()
+	return letter === 'A' || letter === 'D' || letter === 'R' || letter === 'C' ? letter : 'M'
 }
 function shortLabel(selection: VersionSelection) {
 	return selection.kind === 'working-tree' ? '工作区' : selection.commit.shortHash

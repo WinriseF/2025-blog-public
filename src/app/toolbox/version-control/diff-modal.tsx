@@ -84,7 +84,9 @@ export function DiffModal() {
 	}
 
 	return (
-		<div className='fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm'>
+		<div
+			className='fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm'
+			onMouseDown={event => event.target === event.currentTarget && close(null)}>
 			<section className='border-border bg-background flex h-[min(900px,94dvh)] w-[min(1500px,96vw)] flex-col overflow-hidden rounded-xl border shadow-2xl'>
 				<header className='border-border bg-article flex min-h-14 items-center gap-3 border-b px-4'>
 					<span className='min-w-0 flex-1 truncate font-mono text-xs'>

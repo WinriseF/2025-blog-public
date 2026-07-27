@@ -44,8 +44,10 @@ export function MonacoDiffViewer({
 					maxFileSize: 3,
 					minimap: { enabled: false },
 					fontSize: 12,
-					wordWrap: 'off',
-					diffWordWrap: 'off',
+					wordWrap: 'on',
+					diffWordWrap: 'on',
+					wrappingIndent: 'same',
+					scrollbar: { horizontal: 'hidden', horizontalScrollbarSize: 0 },
 					automaticLayout: true,
 					scrollBeyondLastLine: false,
 					renderOverviewRuler: false
