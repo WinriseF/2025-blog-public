@@ -9,6 +9,7 @@ import {
 	type ExportLayout,
 	type GraphCommit,
 	type PreviewContent,
+	type RepositoryCandidate,
 	type RepositoryOverview,
 	type RevisionRef,
 	type VersionControlCallback,
@@ -62,7 +63,13 @@ export class VersionControlBridge {
 	}
 
 	selectRepository() {
-		return this.request<{ cancelled: boolean; repositoryId?: string; overview?: RepositoryOverview }>('select-repository')
+		return this.request<{ cancelled: boolean; repositoryId?: string; overview?: RepositoryOverview; candidates?: RepositoryCandidate[] }>('select-repository')
+	}
+	openRepositoryCandidate(candidateId: string) {
+		return this.request<{ cancelled: boolean; repositoryId?: string; overview?: RepositoryOverview }>('open-repository-candidate', { candidateId })
+	}
+	connectHistory(repositoryId: string) {
+		return this.request<RepositoryOverview>('connect-history', { repositoryId })
 	}
 	closeRepository(repositoryId: string) {
 		return this.request('close-repository', { repositoryId })

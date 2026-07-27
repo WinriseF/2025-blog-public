@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, FolderOpen, GitBranch, GitCommitHorizontal, Loader2, RefreshCw, Search, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, FolderOpen, GitBranch, GitCommitHorizontal, Globe2, Loader2, RefreshCw, Search, X } from 'lucide-react'
 import {
 	buildGitGraphDisplayCommits,
 	computeGitGraphLayout,
@@ -275,6 +275,7 @@ export function CommitGraph() {
 	const loadMore = useVersionControlStore(state => state.loadMoreHistory)
 	const setSearch = useVersionControlStore(state => state.setSearch)
 	const refresh = useVersionControlStore(state => state.refresh)
+	const connectHistory = useVersionControlStore(state => state.connectHistory)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const closeTimer = useRef<number | null>(null)
 	const frame = useRef<number | null>(null)
@@ -378,7 +379,7 @@ export function CommitGraph() {
 		<aside className='border-border bg-background flex h-full w-full flex-col border-r'>
 			<div className='border-border space-y-2 border-b px-3 py-2'>
 				<div className='flex min-h-6 items-center justify-between gap-3'>
-					<span className='text-secondary text-xs font-semibold'>Git 历史</span>
+					<span className='text-secondary text-xs font-semibold'>{overview?.repositoryKind === 'svn' ? 'SVN 历史' : 'Git 历史'}</span>
 					<div className='flex max-w-[72%] min-w-0 items-center gap-2'>
 						<div className='border-border bg-article/70 flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2.5 py-1'>
 							<GitBranch size={12} className='text-secondary shrink-0' />
@@ -410,7 +411,7 @@ export function CommitGraph() {
 					<input
 						value={searchInput}
 						onChange={event => setSearchInput(event.target.value)}
-						placeholder='消息、作者、hash、ref'
+											placeholder={overview?.repositoryKind === 'svn' ? '消息、作者、revision' : '消息、作者、hash、ref'}
 						className='border-border bg-article/70 placeholder:text-secondary/65 focus:ring-brand/20 h-8 w-full rounded-md border pr-9 pl-9 text-xs outline-none focus:ring-2'
 					/>
 					{searchInput && (
@@ -425,7 +426,15 @@ export function CommitGraph() {
 			</div>
 
 			<div ref={scrollRef} onScroll={handleScroll} className='relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto'>
-				{loading && commits.length === 0 ? (
+				{overview?.repositoryKind === 'svn' && !overview.svn?.historyConnected ? (
+					<PanelState>
+						<Globe2 size={18} className='text-orange-300' />
+						<div>
+							<p>SVN 历史默认不联网</p>
+							<button onClick={() => void connectHistory()} className='bg-brand text-background mt-3 rounded-md px-3 py-1.5 text-[11px] font-medium'>连接并读取历史</button>
+						</div>
+					</PanelState>
+				) : loading && commits.length === 0 ? (
 					<PanelState>
 						<Loader2 size={18} className='text-brand animate-spin' />
 						正在读取提交…
@@ -482,10 +491,15 @@ function PanelState({ children }: { children: React.ReactNode }) {
 	return <div className='text-secondary flex h-full items-center justify-center gap-2 px-4 text-center text-xs'>{children}</div>
 }
 function branchLabel(overview: RepositoryOverview | null) {
+	if (overview?.repositoryKind === 'svn') return overview.svn?.relativeUrl || overview.currentBranch || 'SVN 工作副本'
 	return overview?.currentBranch || (overview?.isDetachedHead ? 'Detached HEAD' : overview?.isBare ? 'Bare repository' : 'Branch')
 }
 function workspaceLabel(overview: RepositoryOverview | null) {
 	if (!overview) return '工作区'
+	if (overview.repositoryKind === 'svn') {
+		const revision = overview.svn?.workingRevision ? `r${overview.svn.workingRevision}` : 'BASE'
+		return `${revision}${overview.svn?.mixedRevision ? ' · 混合版本' : ''}${overview.conflictedCount ? ` · ${overview.conflictedCount} 冲突` : ''}`
+	}
 	const parts = [
 		overview.hasStagedChanges && '已暂存',
 		overview.hasUnstagedChanges && '未暂存',

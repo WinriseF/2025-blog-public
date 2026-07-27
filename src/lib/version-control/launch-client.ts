@@ -95,7 +95,7 @@ function validBridgeEndpoint(value: string) {
 		return (
 			url.protocol === 'https:' &&
 			['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) &&
-			url.pathname === '/winrisef/version-control/v1' &&
+			url.pathname === '/winrisef/version-control/v2' &&
 			Boolean(url.port) &&
 			!url.search &&
 			!url.hash &&

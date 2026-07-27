@@ -1,4 +1,4 @@
-export const VERSION_CONTROL_BRIDGE_VERSION = 1
+export const VERSION_CONTROL_BRIDGE_VERSION = 2
 
 export type VersionControlCallback = {
 	nonce: string
@@ -10,6 +10,14 @@ export type VersionControlCallback = {
 }
 
 export type RevisionRef = { kind: 'empty' } | { kind: 'commit'; oid: string } | { kind: 'stash'; oid: string } | { kind: 'working-tree' } | { kind: 'index' }
+
+export type RepositoryKind = 'git' | 'svn'
+export type RepositoryCandidate = {
+	candidateId: string
+	repositoryKind: RepositoryKind
+	displayName: string
+	relativeUrl?: string
+}
 
 export type WorkingTreeGroup = 'all' | 'staged' | 'unstaged' | 'untracked' | 'conflicted'
 export type ConflictPerspective = 'base-to-ours' | 'base-to-theirs' | 'ours-to-theirs' | 'head-to-working'
@@ -30,6 +38,7 @@ export type GraphCommit = {
 }
 
 export type RepositoryOverview = {
+	repositoryKind: RepositoryKind
 	displayName: string
 	currentBranch: string | null
 	isDetachedHead: boolean
@@ -44,6 +53,20 @@ export type RepositoryOverview = {
 	hasUntrackedFiles: boolean
 	conflictedCount: number
 	stashCount: number
+	capabilities?: {
+		canExport: boolean
+		supportsStaging: boolean
+		supportsHistory: boolean
+	}
+	svn?: {
+		relativeUrl: string
+		workingRevision: number
+		mixedRevision: boolean
+		depth?: string
+		historyConnected: boolean
+		networkRequiredForHistory: boolean
+		cliVersion: string
+	}
 }
 
 export type DiffSummary = {
@@ -70,6 +93,7 @@ export type DiffFile = {
 	previewTooLarge: boolean
 	exportTooLarge: boolean
 	hasConflictViews: boolean
+	propertiesChanged?: boolean
 }
 
 export type DiffSessionInfo = { diffId: string; summary: DiffSummary; totalFiles: number }

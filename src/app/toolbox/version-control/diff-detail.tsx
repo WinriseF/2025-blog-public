@@ -36,6 +36,7 @@ export function DiffDetail() {
 	const openFile = useVersionControlStore(state => state.openFile)
 	const [exportOpen, setExportOpen] = useState(false)
 	const [statusFilters, setStatusFilters] = useState(defaultStatusFilters)
+	const availableGroups = overview?.repositoryKind === 'svn' ? groups.filter(item => item.value === 'all' || item.value === 'untracked' || item.value === 'conflicted') : groups
 	const visibleFiles = useMemo(() => files.filter(file => statusFilters.has(statusLetter(file.status))), [files, statusFilters])
 	const invertibleFileIds = useMemo(
 		() => visibleFiles.filter(file => !file.isBinary && !file.exportTooLarge).map(file => file.fileId),
@@ -108,17 +109,19 @@ export function DiffDetail() {
 					<Shuffle size={12} />
 					反选
 				</button>
-				<button
-					onClick={() => setExportOpen(true)}
-					disabled={!selectedIds.size}
-					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
-					<FileDown size={12} />
-					导出 {selectedIds.size}
-				</button>
+				{overview?.capabilities?.canExport !== false && (
+					<button
+						onClick={() => setExportOpen(true)}
+						disabled={!selectedIds.size}
+						className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
+						<FileDown size={12} />
+						导出 {selectedIds.size}
+					</button>
+				)}
 			</div>
 			{selection?.kind === 'working-tree' && !comparison && (
 				<nav className='border-border flex gap-1 border-b px-3 py-1.5'>
-					{groups.map(item => (
+					{availableGroups.map(item => (
 						<button
 							key={item.value}
 							onClick={() => void setGroup(item.value)}
@@ -390,6 +393,7 @@ function TreeNode({
 				<span className='text-red-400'>−{file.deletions}</span>
 			</div>
 			<Status status={file.status} />
+			{file.propertiesChanged && <span className='border-border text-secondary mr-1 rounded border px-1 py-0.5 text-[9px]'>属性</span>}
 		</div>
 	)
 }

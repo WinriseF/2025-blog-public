@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, FolderSync, GitBranch, LockKeyhole, RefreshCw, X } from 'lucide-react'
+import { ArrowLeft, FolderSync, GitBranch, LockKeyhole, RefreshCw, Server, X } from 'lucide-react'
 import { motion, useMotionValue } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { useVersionControlStore } from '@/lib/version-control/store'
 import { CommitGraph } from './commit-graph'
 import { DiffDetail } from './diff-detail'
 import { DiffModal } from './diff-modal'
+import { RepositoryCandidatePicker } from './repository-candidate-picker'
 
 export function Workbench() {
 	const containerRef = useRef<HTMLDivElement>(null)
@@ -61,10 +62,10 @@ export function Workbench() {
 				</Link>
 				<div className='bg-border mx-3 h-5 w-px' />
 				<div className='flex min-w-0 items-center gap-2'>
-					<GitBranch className='text-brand' size={16} />
+					{overview?.repositoryKind === 'svn' ? <Server className='text-orange-300' size={16} /> : <GitBranch className='text-brand' size={16} />}
 					<span className='max-w-52 truncate text-sm font-semibold'>{overview?.displayName}</span>
 					<span className='border-border text-secondary hidden rounded border px-2 py-0.5 font-mono text-[9px] md:inline'>
-						{overview?.isBare ? 'BARE' : overview?.isDetachedHead ? 'DETACHED' : overview?.currentBranch || 'NO HEAD'}
+						{overview?.repositoryKind === 'svn' ? 'SVN' : overview?.isBare ? 'BARE' : overview?.isDetachedHead ? 'DETACHED' : overview?.currentBranch || 'NO HEAD'}
 					</span>
 					{overview?.ahead || overview?.behind ? (
 						<span className='text-secondary hidden text-[10px] lg:inline'>
@@ -122,6 +123,7 @@ export function Workbench() {
 				</button>
 			)}
 			<DiffModal />
+			<RepositoryCandidatePicker />
 		</main>
 	)
 }

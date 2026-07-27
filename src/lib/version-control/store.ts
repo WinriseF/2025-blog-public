@@ -10,6 +10,7 @@ import type {
 	ExportFormat,
 	ExportLayout,
 	GraphCommit,
+	RepositoryCandidate,
 	RepositoryOverview,
 	RevisionRef,
 	VersionControlCallback,
@@ -24,6 +25,7 @@ type VersionControlState = {
 	expectedNonce: string | null
 	error: string | null
 	repositoryId: string | null
+	candidates: RepositoryCandidate[]
 	overview: RepositoryOverview | null
 	commits: GraphCommit[]
 	historySkip: number
@@ -42,6 +44,8 @@ type VersionControlState = {
 	setLaunch: (nonce: string) => void
 	connect: (callback: VersionControlCallback) => Promise<void>
 	selectRepository: () => Promise<void>
+	chooseRepositoryCandidate: (candidateId: string) => Promise<void>
+	connectHistory: () => Promise<void>
 	closeRepository: () => Promise<void>
 	loadMoreHistory: () => Promise<void>
 	setSearch: (query: string) => Promise<void>
@@ -59,11 +63,13 @@ type VersionControlState = {
 	confirmExport: (targetId: string, allowInside: boolean) => Promise<void>
 	cancelExport: (targetId: string) => Promise<void>
 	clearError: () => void
+	clearCandidates: () => void
 	disconnect: () => void
 }
 
 const initialSession = {
 	repositoryId: null,
+	candidates: [],
 	overview: null,
 	commits: [],
 	historySkip: 0,
@@ -125,14 +131,43 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		return run(set, async () => {
 			const bridge = required(get().bridge, 'Agent 尚未连接')
 			const selected = await bridge.selectRepository()
-			if (selected.cancelled || !selected.repositoryId || !selected.overview) return
+			if (selected.cancelled) return
+			if (selected.candidates?.length) {
+				set({ candidates: selected.candidates, error: null })
+				return
+			}
+			if (!selected.repositoryId || !selected.overview) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ ...initialSession, repositoryId: selected.repositoryId, overview: selected.overview, loading: true })
+			set({ ...initialSession, candidates: [], repositoryId: selected.repositoryId, overview: selected.overview, loading: true })
 			await loadHistory(get, set, true, historyGeneration)
 			if (selected.overview.isBare) {
 				const first = get().commits[0]
 				if (first) await get().selectVersion({ kind: 'commit', commit: first })
 			} else await get().selectVersion({ kind: 'working-tree', label: '工作区' })
+		})
+	},
+
+	chooseRepositoryCandidate: async candidateId => {
+		invalidateDiffLoads()
+		return run(set, async () => {
+			const bridge = required(get().bridge, 'Agent 尚未连接')
+			const selected = await bridge.openRepositoryCandidate(candidateId)
+			if (selected.cancelled || !selected.repositoryId || !selected.overview) return
+			const historyGeneration = invalidateHistoryLoads()
+			set({ ...initialSession, candidates: [], repositoryId: selected.repositoryId, overview: selected.overview, loading: true })
+			await loadHistory(get, set, true, historyGeneration)
+			await get().selectVersion({ kind: 'working-tree', label: '工作区' })
+		})
+	},
+
+	connectHistory: async () => {
+		return run(set, async () => {
+			const bridge = required(get().bridge, 'Agent 尚未连接')
+			const repositoryId = required(get().repositoryId, '尚未打开项目')
+			const overview = await bridge.connectHistory(repositoryId)
+			const historyGeneration = invalidateHistoryLoads()
+			set({ overview, commits: [], historySkip: 0, historyHasMore: false })
+			await loadHistory(get, set, true, historyGeneration)
 		})
 	},
 
@@ -142,7 +177,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		return run(set, async () => {
 			const { bridge, repositoryId } = get()
 			if (bridge && repositoryId) await bridge.closeRepository(repositoryId)
-			set({ ...initialSession })
+		set({ ...initialSession, candidates: [] })
 		})
 	},
 
@@ -260,11 +295,12 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		await required(get().bridge, 'Agent 尚未连接').cancelExport(targetId)
 	},
 	clearError: () => set({ error: null }),
+	clearCandidates: () => set({ candidates: [] }),
 	disconnect: () => {
 		invalidateDiffLoads()
 		invalidateHistoryLoads()
 		get().bridge?.close()
-		set({ bridge: null, connection: 'idle', expectedNonce: null, error: null, ...initialSession })
+		set({ bridge: null, connection: 'idle', expectedNonce: null, error: null, ...initialSession, candidates: [] })
 	}
 }))
 
