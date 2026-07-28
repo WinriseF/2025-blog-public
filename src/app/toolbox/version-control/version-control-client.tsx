@@ -17,8 +17,13 @@ export function VersionControlClient() {
 		const platform = navigatorWithData.userAgentData?.platform || navigator.platform
 		setSupported(/^Win/i.test(platform) && !navigatorWithData.userAgentData?.mobile && 'WebTransport' in window)
 		const unsubscribe = subscribeVersionControlCallbacks(callback => void connect(callback))
+		const closeBridge = () => disconnect()
+		window.addEventListener('pagehide', closeBridge)
+		window.addEventListener('beforeunload', closeBridge)
 		return () => {
 			unsubscribe()
+			window.removeEventListener('pagehide', closeBridge)
+			window.removeEventListener('beforeunload', closeBridge)
 			disconnect()
 		}
 	}, [connect, disconnect])

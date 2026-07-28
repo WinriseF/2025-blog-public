@@ -16,8 +16,8 @@ const groups: Array<{ value: WorkingTreeGroup; label: string }> = [
 	{ value: 'conflicted', label: '冲突' }
 ]
 
-type StatusFilter = 'A' | 'M' | 'D' | 'R' | 'C'
-const defaultStatusFilters = new Set<StatusFilter>(['A', 'M', 'D', 'R', 'C'])
+type StatusFilter = 'A' | 'M' | 'D' | 'R' | 'C' | 'U' | '!' | '~'
+const defaultStatusFilters = new Set<StatusFilter>(['A', 'M', 'D', 'R', 'C', 'U', '!', '~'])
 
 export function DiffDetail() {
 	const overview = useVersionControlStore(state => state.overview)
@@ -30,6 +30,7 @@ export function DiffDetail() {
 	const selectedIds = useVersionControlStore(state => state.selectedFileIds)
 	const activeFile = useVersionControlStore(state => state.activeFile)
 	const loading = useVersionControlStore(state => state.loading)
+	const error = useVersionControlStore(state => state.error)
 	const toggleFile = useVersionControlStore(state => state.toggleFile)
 	const toggleFiles = useVersionControlStore(state => state.toggleFiles)
 	const invertFiles = useVersionControlStore(state => state.invertFiles)
@@ -55,6 +56,14 @@ export function DiffDetail() {
 				{ additions: 0, deletions: 0 }
 			),
 		[files, selectedIds]
+	)
+	const statusCounts = useMemo(
+		() => files.reduce<Record<StatusFilter, number>>((counts, file) => {
+			const status = statusLetter(file.status)
+			counts[status] += 1
+			return counts
+		}, { A: 0, M: 0, D: 0, R: 0, C: 0, U: 0, '!': 0, '~': 0 }),
+		[files]
 	)
 	const tree = useMemo(() => buildTree(visibleFiles), [visibleFiles])
 
@@ -97,6 +106,9 @@ export function DiffDetail() {
 						{diff.summary.filesConflicted > 0 && (
 							<StatusFilterPill status='C' count={diff.summary.filesConflicted} active={statusFilters.has('C')} onToggle={toggleStatusFilter} />
 						)}
+						{overview?.repositoryKind === 'svn' && statusCounts.U > 0 && <StatusFilterPill status='U' count={statusCounts.U} active={statusFilters.has('U')} onToggle={toggleStatusFilter} />}
+						{overview?.repositoryKind === 'svn' && statusCounts['!'] > 0 && <StatusFilterPill status='!' count={statusCounts['!']} active={statusFilters.has('!')} onToggle={toggleStatusFilter} />}
+						{overview?.repositoryKind === 'svn' && statusCounts['~'] > 0 && <StatusFilterPill status='~' count={statusCounts['~']} active={statusFilters.has('~')} onToggle={toggleStatusFilter} />}
 						<AnimatedMetric prefix='+' value={selectedStats.additions} tone='border-green-500/30 bg-green-500/10 text-green-400' />
 						<AnimatedMetric prefix='−' value={selectedStats.deletions} tone='border-red-500/30 bg-red-500/10 text-red-400' />
 					</>
@@ -132,7 +144,9 @@ export function DiffDetail() {
 				</nav>
 			)}
 			<div className='min-h-0 flex-1 overflow-y-auto'>
-				{loading && !files.length ? (
+				{error && !loading ? (
+					<Empty>读取差异失败：{error}</Empty>
+				) : loading && !files.length ? (
 					<Empty>正在读取差异…</Empty>
 				) : !files.length ? (
 					<Empty>这个视角没有文件变更</Empty>
@@ -230,7 +244,10 @@ const statusTones: Record<StatusFilter, string> = {
 	M: 'border-blue-500/35 bg-blue-500/12 text-blue-400',
 	D: 'border-red-500/35 bg-red-500/12 text-red-400',
 	R: 'border-purple-500/35 bg-purple-500/12 text-purple-400',
-	C: 'border-orange-500/35 bg-orange-500/12 text-orange-400'
+	C: 'border-orange-500/35 bg-orange-500/12 text-orange-400',
+	U: 'border-cyan-500/35 bg-cyan-500/12 text-cyan-400',
+	'!': 'border-red-500/35 bg-red-500/12 text-red-400',
+	'~': 'border-yellow-500/35 bg-yellow-500/12 text-yellow-400'
 }
 
 function StatusFilterPill({
@@ -414,7 +431,11 @@ function Status({ status }: { status: string }) {
 }
 function statusLetter(status: string): StatusFilter {
 	const letter = status.charAt(0).toUpperCase()
-	return letter === 'A' || letter === 'D' || letter === 'R' || letter === 'C' ? letter : 'M'
+	if (letter === 'A' || letter === 'D' || letter === 'R' || letter === 'C' || letter === 'M') return letter
+	if (status === 'Unversioned') return 'U'
+	if (status === 'Missing') return '!'
+	if (status === 'Obstructed') return '~'
+	return 'M'
 }
 function shortLabel(selection: VersionSelection) {
 	return selection.kind === 'working-tree' ? '工作区' : selection.commit.shortHash

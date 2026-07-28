@@ -94,6 +94,7 @@ export type DiffFile = {
 	exportTooLarge: boolean
 	hasConflictViews: boolean
 	propertiesChanged?: boolean
+	nodeKind?: 'file' | 'dir' | 'symlink' | 'unknown'
 }
 
 export type DiffSessionInfo = { diffId: string; summary: DiffSummary; totalFiles: number }
