@@ -13,6 +13,7 @@ export function MonacoDiffViewer({
 	modelKey,
 	night,
 	sideBySide,
+	reviewOnly,
 	onError
 }: {
 	original: string | null
@@ -21,6 +22,7 @@ export function MonacoDiffViewer({
 	modelKey: string
 	night: boolean
 	sideBySide: boolean
+	reviewOnly: boolean
 	onError: (message: string) => void
 }) {
 	const hostRef = useRef<HTMLDivElement>(null)
@@ -42,6 +44,7 @@ export function MonacoDiffViewer({
 					diffAlgorithm: 'advanced',
 					maxComputationTime: 30_000,
 					maxFileSize: 3,
+					hideUnchangedRegions: unchangedRegionOptions(reviewOnly),
 					minimap: { enabled: false },
 					fontSize: 12,
 					wordWrap: 'on',
@@ -90,6 +93,10 @@ export function MonacoDiffViewer({
 	}, [sideBySide])
 
 	useEffect(() => {
+		editorRef.current?.updateOptions({ hideUnchangedRegions: unchangedRegionOptions(reviewOnly) })
+	}, [ready, reviewOnly])
+
+	useEffect(() => {
 		monacoRef.current?.editor.setTheme(night ? 'vs-dark' : 'light')
 	}, [night])
 
@@ -101,4 +108,8 @@ export function MonacoDiffViewer({
 			)}
 		</div>
 	)
+}
+
+function unchangedRegionOptions(enabled: boolean) {
+	return { enabled, revealLineCount: 20, minimumLineCount: 4, contextLineCount: 3 }
 }

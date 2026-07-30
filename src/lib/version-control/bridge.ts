@@ -86,11 +86,11 @@ export class VersionControlBridge {
 	getDiffFiles(repositoryId: string, diffId: string, skip: number, limit = 96) {
 		return this.request<{ items: DiffFile[]; nextSkip: number; hasMore: boolean }>('get-diff-files-page', { repositoryId, diffId, skip, limit })
 	}
-	async openPreview(repositoryId: string, diffId: string, fileId: number, perspective: ConflictPerspective) {
+	async openPreview(repositoryId: string, diffId: string, fileId: number, perspective: ConflictPerspective, mode: 'full' | 'patch' = 'full') {
 		const requestId = this.nextRequestId()
 		const preview = new Promise<PreviewContent>((resolve, reject) => this.previews.set(requestId, { resolve, reject }))
 		try {
-			await this.requestWithId(requestId, 'open-file-preview', { repositoryId, diffId, fileId, perspective })
+			await this.requestWithId(requestId, 'open-file-preview', { repositoryId, diffId, fileId, perspective, mode })
 			return await preview
 		} catch (error) {
 			this.previews.delete(requestId)
