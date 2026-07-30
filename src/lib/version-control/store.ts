@@ -378,17 +378,29 @@ async function openDiff(
 	const repositoryId = required(get().repositoryId, '尚未打开项目')
 	const diff = await bridge.openDiff(repositoryId, oldRevision, newRevision, group)
 	if (!isLatestDiff(generation)) return
-	const files: DiffFile[] = []
-	let skip = 0
-	let hasMore = true
+	const firstPage = await bridge.getDiffFiles(repositoryId, diff.diffId, 0)
+	if (!isLatestDiff(generation)) return
+	set({
+		diff,
+		files: firstPage.items,
+		selectedFileIds: new Set(firstPage.items.filter(file => !file.isBinary && !file.exportTooLarge).map(file => file.fileId)),
+		activeFile: null
+	})
+	let skip = firstPage.nextSkip
+	let hasMore = firstPage.hasMore
 	while (hasMore) {
 		const page = await bridge.getDiffFiles(repositoryId, diff.diffId, skip)
 		if (!isLatestDiff(generation)) return
-		files.push(...page.items)
+		const state = get()
+		const files = [...state.files, ...page.items]
+		const selectedFileIds = new Set(state.selectedFileIds)
+		for (const file of page.items) {
+			if (!file.isBinary && !file.exportTooLarge) selectedFileIds.add(file.fileId)
+		}
+		set({ files, selectedFileIds })
 		skip = page.nextSkip
 		hasMore = page.hasMore
 	}
-	set({ diff, files, selectedFileIds: new Set(files.filter(file => !file.isBinary && !file.exportTooLarge).map(file => file.fileId)), activeFile: null })
 }
 
 async function scheduleDiff(
