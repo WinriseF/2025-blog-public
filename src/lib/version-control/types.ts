@@ -65,7 +65,6 @@ export type RepositoryOverview = {
 		depth?: string
 		historyConnected: boolean
 		networkRequiredForHistory: boolean
-		cliVersion: string
 	}
 }
 
