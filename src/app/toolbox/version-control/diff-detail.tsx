@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, ArrowRight, ChevronDown, ChevronRight, FileCode, FileDown, FileImage, Folder, FolderOpen, Shuffle } from 'lucide-react'
+import { AlertOctagon, ArrowRight, ChevronDown, ChevronRight, ChevronUp, FileCode, FileDown, FileImage, Folder, FolderOpen, Shuffle } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useVersionControlStore, type VersionSelection } from '@/lib/version-control/store'
 import type { DiffFile, WorkingTreeGroup } from '@/lib/version-control/types'
@@ -37,6 +37,7 @@ export function DiffDetail() {
 	const openFile = useVersionControlStore(state => state.openFile)
 	const [exportOpen, setExportOpen] = useState(false)
 	const [statusFilters, setStatusFilters] = useState(defaultStatusFilters)
+	const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set())
 	const availableGroups = overview?.repositoryKind === 'svn' ? groups.filter(item => item.value === 'all' || item.value === 'untracked' || item.value === 'conflicted') : groups
 	const visibleFiles = useMemo(() => files.filter(file => statusFilters.has(statusLetter(file.status))), [files, statusFilters])
 	const invertibleFileIds = useMemo(
@@ -66,6 +67,8 @@ export function DiffDetail() {
 		[files]
 	)
 	const tree = useMemo(() => buildTree(visibleFiles), [visibleFiles])
+	const folderPaths = useMemo(() => getFolderPaths(tree), [tree])
+	const allFoldersExpanded = folderPaths.every(path => !collapsedPaths.has(path))
 
 	useEffect(() => setStatusFilters(new Set(defaultStatusFilters)), [diff?.diffId])
 
@@ -83,6 +86,15 @@ export function DiffDetail() {
 			return next
 		})
 	}
+	const toggleFolder = (path: string) => {
+		setCollapsedPaths(current => {
+			const next = new Set(current)
+			if (next.has(path)) next.delete(path)
+			else next.add(path)
+			return next
+		})
+	}
+	const toggleAllFolders = () => setCollapsedPaths(allFoldersExpanded ? new Set(folderPaths) : new Set())
 
 	return (
 		<section className='bg-background flex h-full min-w-0 flex-col overflow-hidden'>
@@ -113,6 +125,14 @@ export function DiffDetail() {
 						<AnimatedMetric prefix='−' value={selectedStats.deletions} tone='border-red-500/30 bg-red-500/10 text-red-400' />
 					</>
 				)}
+				<button
+					onClick={toggleAllFolders}
+					disabled={!folderPaths.length}
+					title={allFoldersExpanded ? '收起全部文件夹' : '展开全部文件夹'}
+					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
+					{allFoldersExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+					{allFoldersExpanded ? '收起' : '展开'}
+				</button>
 				<button
 					onClick={() => invertFiles(invertibleFileIds)}
 					disabled={!invertibleFileIds.length}
@@ -160,6 +180,8 @@ export function DiffDetail() {
 							depth={0}
 							selectedIds={selectedIds}
 							activeFileId={activeFile?.fileId}
+							collapsedPaths={collapsedPaths}
+							toggleFolder={toggleFolder}
 							toggleFile={toggleFile}
 							toggleFiles={toggleFiles}
 							openFile={openFile}
@@ -302,11 +324,17 @@ function buildTree(files: DiffFile[]) {
 	return finish(root)
 }
 
+function getFolderPaths(items: TreeItem[]): string[] {
+	return items.flatMap(item => (item.file ? [] : [item.path, ...getFolderPaths(item.children)]))
+}
+
 function TreeNode({
 	node,
 	depth,
 	selectedIds,
 	activeFileId,
+	collapsedPaths,
+	toggleFolder,
 	toggleFile,
 	toggleFiles,
 	openFile
@@ -315,13 +343,15 @@ function TreeNode({
 	depth: number
 	selectedIds: Set<number>
 	activeFileId?: number
+	collapsedPaths: Set<string>
+	toggleFolder: (path: string) => void
 	toggleFile: (id: number) => void
 	toggleFiles: (fileIds: number[], selected: boolean) => void
 	openFile: (file: DiffFile) => void
 }) {
-	const [expanded, setExpanded] = useState(true)
 	const indent = depth * 16 + 12
 	if (!node.file) {
+		const expanded = !collapsedPaths.has(node.path)
 		const selectedCount = node.selectableFileIds.reduce((count, fileId) => count + Number(selectedIds.has(fileId)), 0)
 		const checked = node.selectableFileIds.length > 0 && selectedCount === node.selectableFileIds.length
 		const indeterminate = selectedCount > 0 && !checked
@@ -329,7 +359,7 @@ function TreeNode({
 			<>
 				<div
 					title={node.path}
-					onClick={() => setExpanded(value => !value)}
+					onClick={() => toggleFolder(node.path)}
 					className='hover:bg-article/75 group flex w-full cursor-pointer items-center py-1 pr-2 text-sm opacity-70 transition hover:opacity-100'
 					style={{ paddingLeft: indent }}>
 					<input
@@ -359,6 +389,8 @@ function TreeNode({
 							depth={depth + 1}
 							selectedIds={selectedIds}
 							activeFileId={activeFileId}
+							collapsedPaths={collapsedPaths}
+							toggleFolder={toggleFolder}
 							toggleFile={toggleFile}
 							toggleFiles={toggleFiles}
 							openFile={openFile}

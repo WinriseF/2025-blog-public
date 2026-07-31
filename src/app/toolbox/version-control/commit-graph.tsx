@@ -246,10 +246,10 @@ const CommitRowGraph = memo(function CommitRowGraph({ row, selected, compare }: 
 				key={key++}
 				cx={laneX(circleIndex)}
 				cy={middleY}
-				r={selected || compare ? CIRCLE_RADIUS + 2 : CIRCLE_RADIUS + 1}
+				r={selected || compare ? CIRCLE_RADIUS + 3 : CIRCLE_RADIUS + 1}
 				fill={fill}
-				stroke={selected ? 'var(--color-primary)' : compare ? '#ca8a04' : 'none'}
-				strokeWidth={selected || compare ? 2 : 0}
+				stroke='none'
+				strokeWidth={0}
 			/>
 		)
 	}

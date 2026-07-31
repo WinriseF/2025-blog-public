@@ -9,8 +9,8 @@ export function RepositoryCandidatePicker() {
 	const clearCandidates = useVersionControlStore(state => state.clearCandidates)
 	if (!candidates.length) return null
 	return (
-		<div className='fixed inset-0 z-[180] flex items-center justify-center bg-black/65 p-5 backdrop-blur-sm'>
-			<section className='border-border bg-background w-full max-w-lg rounded-2xl border p-5 shadow-2xl'>
+		<div className='fixed inset-0 z-[180] flex items-center justify-center bg-black/50 p-5 backdrop-blur-sm'>
+			<section className='border-primary/15 bg-bg w-full max-w-lg rounded-2xl border p-5 shadow-2xl'>
 				<header className='flex items-start gap-3'>
 					<div className='bg-brand/12 text-brand flex size-9 items-center justify-center rounded-lg'>
 						<FolderGit2 size={18} />
@@ -30,7 +30,7 @@ export function RepositoryCandidatePicker() {
 							<button
 								key={candidate.candidateId}
 								onClick={() => void choose(candidate.candidateId)}
-								className='border-border bg-article/60 hover:border-brand/60 hover:bg-brand/8 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition'>
+								className='border-primary/15 bg-article hover:border-brand/60 hover:bg-brand/8 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition'>
 								<span className={`flex size-9 items-center justify-center rounded-lg ${isSvn ? 'bg-orange-500/12 text-orange-300' : 'bg-green-500/12 text-green-300'}`}>
 									{isSvn ? <Server size={17} /> : <GitBranch size={17} />}
 								</span>
