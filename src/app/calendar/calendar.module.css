@@ -1,0 +1,978 @@
+.page {
+	--calendar-season: #d3a14f;
+	--calendar-rule: color-mix(in srgb, var(--color-border) 72%, transparent);
+	--calendar-rule-soft: color-mix(in srgb, var(--color-border) 42%, transparent);
+	--calendar-stage: color-mix(in srgb, var(--color-article) 34%, transparent);
+	--calendar-stage-strong: color-mix(in srgb, var(--color-article) 58%, transparent);
+	--calendar-hover: color-mix(in srgb, var(--color-card) 50%, transparent);
+	--calendar-weekend: color-mix(in srgb, var(--color-primary) 68%, var(--calendar-season));
+	--calendar-selected-foreground: #f7ffff;
+	--calendar-glow-a: color-mix(in srgb, var(--color-brand) 28%, transparent);
+	--calendar-glow-b: color-mix(in srgb, var(--calendar-season) 18%, transparent);
+	position: relative;
+	isolation: isolate;
+	min-height: 100vh;
+	overflow: hidden;
+	padding: 7rem 1.5rem 5rem;
+}
+
+:global(html[data-time-theme='dawn']) .page {
+	--calendar-season: #c986a7;
+	--calendar-stage: color-mix(in srgb, var(--color-article) 38%, transparent);
+	--calendar-stage-strong: color-mix(in srgb, var(--color-article) 64%, transparent);
+	--calendar-glow-a: color-mix(in srgb, var(--color-brand) 26%, transparent);
+	--calendar-glow-b: color-mix(in srgb, var(--calendar-season) 22%, transparent);
+}
+
+:global(html[data-time-theme='noon']) .page {
+	--calendar-season: #c9953f;
+	--calendar-stage: color-mix(in srgb, var(--color-article) 34%, transparent);
+	--calendar-stage-strong: color-mix(in srgb, var(--color-article) 60%, transparent);
+}
+
+:global(html[data-time-theme='sunset']) .page {
+	--calendar-season: #d79a47;
+	--calendar-stage: color-mix(in srgb, var(--color-article) 38%, transparent);
+	--calendar-stage-strong: color-mix(in srgb, var(--color-article) 64%, transparent);
+	--calendar-glow-a: color-mix(in srgb, var(--color-brand) 32%, transparent);
+	--calendar-glow-b: color-mix(in srgb, var(--color-brand-secondary) 24%, transparent);
+}
+
+:global(html[data-time-theme='night']) .page {
+	--calendar-season: #c8aa67;
+	--calendar-rule: color-mix(in srgb, var(--color-border) 82%, transparent);
+	--calendar-rule-soft: color-mix(in srgb, var(--color-border) 54%, transparent);
+	--calendar-stage: color-mix(in srgb, var(--color-article) 48%, transparent);
+	--calendar-stage-strong: color-mix(in srgb, var(--color-article) 74%, transparent);
+	--calendar-hover: color-mix(in srgb, var(--color-card) 72%, transparent);
+	--calendar-glow-a: color-mix(in srgb, var(--color-brand) 34%, transparent);
+	--calendar-glow-b: color-mix(in srgb, var(--color-brand-secondary) 24%, transparent);
+}
+
+.content {
+	position: relative;
+	z-index: 2;
+	display: grid;
+	gap: clamp(2rem, 4vw, 3.5rem);
+	width: min(100%, 1180px);
+	margin: 0 auto;
+}
+
+.themeGlow {
+	position: absolute;
+	z-index: 0;
+	width: min(50vw, 620px);
+	aspect-ratio: 1;
+	border-radius: 999px;
+	filter: blur(92px);
+	opacity: 0.52;
+	pointer-events: none;
+}
+
+.themeGlow[data-position='top'] {
+	top: -18rem;
+	right: -12rem;
+	background: var(--calendar-glow-a);
+}
+
+.themeGlow[data-position='bottom'] {
+	bottom: -22rem;
+	left: -15rem;
+	background: var(--calendar-glow-b);
+}
+
+.celestialField {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	color: color-mix(in srgb, var(--color-brand) 46%, transparent);
+	opacity: 0.27;
+	pointer-events: none;
+}
+
+.celestialField > circle,
+.celestialField > path,
+.celestialField g circle {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1;
+}
+
+.celestialField g circle {
+	fill: currentColor;
+}
+
+.header {
+	display: grid;
+	gap: 1.25rem;
+}
+
+.headerTopline,
+.titleRow,
+.toolbar,
+.sectionLabel,
+.panelTopline,
+.selectedDateHeading,
+.solarTermHeading,
+.nextTermSummary > div:first-child {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.headerTopline,
+.titleBlock > span,
+.toolbar > span,
+.sectionLabel span,
+.panelTopline,
+.solarTermHeading span,
+.solarTermNode span,
+.selectedDateMeta,
+.nextTermSummary small {
+	color: var(--color-secondary);
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+}
+
+.backLink {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	color: var(--color-secondary);
+	font-size: 0.875rem;
+	transition: color 180ms ease, transform 180ms ease;
+}
+
+.backLink:hover {
+	color: var(--color-primary);
+	transform: translateX(-2px);
+}
+
+.backLink svg {
+	width: 1rem;
+	height: 1rem;
+}
+
+.titleRow {
+	align-items: end;
+}
+
+.titleBlock {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.titleBlock h1 {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.45rem 1.4rem;
+	margin: 0;
+	font-size: clamp(2.9rem, 6.8vw, 6.2rem);
+	line-height: 0.92;
+	font-weight: 500;
+	letter-spacing: -0.055em;
+}
+
+.yearArtwork {
+	position: relative;
+	isolation: isolate;
+	display: inline-block;
+	padding-right: 0.06em;
+	background: linear-gradient(118deg, var(--color-primary) 8%, var(--color-primary) 42%, var(--calendar-season) 62%, var(--color-brand-secondary) 88%);
+	background-clip: text;
+	color: transparent;
+	font-family: 'Times New Roman', Georgia, serif;
+	font-size: 1.28em;
+	font-variant-numeric: lining-nums tabular-nums;
+	font-weight: 400;
+	letter-spacing: -0.045em;
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	filter: drop-shadow(0 0.12em 0.24em color-mix(in srgb, var(--color-brand) 16%, transparent));
+}
+
+.yearArtwork::before {
+	position: absolute;
+	right: -0.04em;
+	bottom: 0.05em;
+	left: 0.04em;
+	z-index: -1;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--calendar-season) 18%, var(--color-brand-secondary) 82%, transparent);
+	content: '';
+	opacity: 0.62;
+	transform: skewX(-18deg);
+}
+
+.yearArtwork::after {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	color: transparent;
+	content: attr(data-year);
+	font: inherit;
+	letter-spacing: inherit;
+	opacity: 0.48;
+	transform: translate(0.035em, 0.045em);
+	-webkit-text-fill-color: transparent;
+	-webkit-text-stroke: 1px color-mix(in srgb, var(--color-brand-secondary) 50%, var(--calendar-season));
+}
+
+.titleBlock h1 em {
+	color: color-mix(in srgb, var(--color-primary) 84%, var(--color-brand));
+	font-family: 'Songti SC', STSong, SimSun, serif;
+	font-style: normal;
+	font-size: 0.63em;
+	letter-spacing: -0.04em;
+}
+
+.seasonMark {
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+	padding-bottom: 0.35rem;
+}
+
+.seasonMark > span {
+	display: grid;
+	place-items: center;
+	width: 4.2rem;
+	aspect-ratio: 1;
+	border: 1px solid color-mix(in srgb, var(--calendar-season) 54%, var(--calendar-rule));
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--calendar-season) 12%, transparent);
+	box-shadow: inset 0 0 2rem color-mix(in srgb, var(--calendar-season) 9%, transparent);
+	font-family: 'Songti SC', STSong, SimSun, serif;
+	font-weight: 600;
+}
+
+.seasonMark > div {
+	display: grid;
+	gap: 0.35rem;
+}
+
+.seasonMark strong {
+	font-size: 0.9rem;
+	font-weight: 500;
+}
+
+.seasonMark small {
+	color: var(--color-secondary);
+	font-size: 0.75rem;
+}
+
+.toolbar {
+	padding-top: 0.9rem;
+	border-top: 1px solid var(--calendar-rule);
+}
+
+.monthControls {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.monthControls button {
+	display: grid;
+	place-items: center;
+	min-width: 2.45rem;
+	height: 2.45rem;
+	border: 1px solid transparent;
+	border-radius: 999px;
+	background: transparent;
+	color: var(--color-secondary);
+	font: inherit;
+	font-size: 0.82rem;
+	cursor: pointer;
+	transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+
+.monthControls button:nth-child(2) {
+	padding-inline: 1rem;
+	border-color: var(--calendar-rule);
+	background: var(--calendar-stage);
+}
+
+.monthControls button:hover {
+	border-color: color-mix(in srgb, var(--color-brand) 42%, var(--calendar-rule));
+	background: var(--calendar-hover);
+	color: var(--color-primary);
+	transform: translateY(-1px);
+}
+
+.monthControls button:focus-visible,
+.backLink:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: 3px;
+}
+
+.day:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: -3px;
+}
+
+.monthControls svg {
+	width: 1rem;
+	height: 1rem;
+}
+
+.yearProgress {
+	position: relative;
+	flex: 1;
+	height: 2px;
+	overflow: hidden;
+	background: var(--calendar-rule-soft);
+}
+
+.yearProgress span {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(90deg, var(--calendar-season), var(--color-brand), var(--color-brand-secondary));
+	transform-origin: left center;
+}
+
+.stage {
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.76fr);
+	border-block: 1px solid var(--calendar-rule);
+	background: linear-gradient(135deg, var(--calendar-stage), color-mix(in srgb, var(--calendar-stage-strong) 70%, transparent));
+	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-border) 34%, transparent);
+	backdrop-filter: blur(18px);
+}
+
+.monthSection,
+.dayPanel {
+	min-width: 0;
+	padding: clamp(1.4rem, 3vw, 2.3rem) clamp(1.25rem, 2.8vw, 2.2rem);
+}
+
+.sectionLabel h2,
+.selectedDateHeading h2,
+.solarTermHeading h2 {
+	margin: 0;
+	font-size: 1.2rem;
+	font-weight: 500;
+}
+
+.sectionLabel > span {
+	letter-spacing: 0.14em;
+}
+
+.weekdays,
+.weekRow {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.gridShell {
+	display: block;
+}
+
+.weekdays {
+	margin-top: 1.25rem;
+	border-bottom: 1px solid var(--calendar-rule);
+}
+
+.weekdays span {
+	padding-block: 0.65rem;
+	color: var(--color-secondary);
+	font-size: 0.75rem;
+	text-align: center;
+}
+
+.monthViewport {
+	position: relative;
+	min-height: 28.5rem;
+	overflow: hidden;
+}
+
+.monthGrid {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	width: 100%;
+}
+
+.day {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-width: 0;
+	min-height: 4.75rem;
+	padding: 0.4rem;
+	overflow: hidden;
+	border: 0;
+	border-bottom: 1px solid var(--calendar-rule-soft);
+	background: transparent;
+	color: var(--color-primary);
+	font: inherit;
+	cursor: pointer;
+	transition: background-color 180ms ease, opacity 180ms ease;
+}
+
+.day::before {
+	position: absolute;
+	inset: 0.25rem;
+	border-radius: 1rem;
+	background: var(--calendar-hover);
+	content: '';
+	opacity: 0;
+	transition: opacity 180ms ease;
+}
+
+.day:hover::before,
+.day:focus-visible::before {
+	opacity: 0.72;
+}
+
+.selectedDayOrbit {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	z-index: 1;
+	width: 3.7rem;
+	height: 3.7rem;
+	margin-top: -1.85rem;
+	margin-left: -1.85rem;
+	border: 1px solid color-mix(in srgb, var(--color-brand-secondary) 64%, var(--color-border));
+	border-radius: 50%;
+	background: linear-gradient(145deg, var(--color-brand), var(--color-brand-secondary));
+	box-shadow: inset 0 0 1.6rem color-mix(in srgb, var(--color-border) 18%, transparent), 0 1rem 2.2rem -1.5rem color-mix(in srgb, var(--color-brand) 78%, transparent);
+}
+
+.dayCopy {
+	position: relative;
+	z-index: 2;
+	display: grid;
+	justify-items: center;
+	gap: 0.38rem;
+}
+
+.dayNumber {
+	font-size: 1rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.daySecondary {
+	max-width: 5em;
+	overflow: hidden;
+	color: var(--color-secondary);
+	font-size: 0.64rem;
+	line-height: 1;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.day[aria-selected='true'] .dayNumber,
+.day[aria-selected='true'] .daySecondary {
+	color: var(--calendar-selected-foreground);
+}
+
+.weekendDay:not([aria-selected='true']) .dayNumber {
+	color: var(--calendar-weekend);
+}
+
+.dayEvent {
+	max-width: 4em;
+	color: var(--calendar-season);
+	font-weight: 600;
+	text-overflow: clip;
+}
+
+.day[aria-selected='true'] .dayEvent {
+	color: var(--calendar-selected-foreground);
+}
+
+.adjacentDay {
+	opacity: 0.3;
+}
+
+.holidayStatus {
+	position: absolute;
+	top: 0.48rem;
+	right: 0.52rem;
+	z-index: 3;
+	color: var(--calendar-season);
+	font-size: 0.58rem;
+	font-weight: 600;
+}
+
+.day[aria-selected='true'] .holidayStatus {
+	color: var(--calendar-selected-foreground);
+}
+
+.todayDot {
+	position: absolute;
+	right: 50%;
+	bottom: 0.45rem;
+	z-index: 3;
+	width: 0.28rem;
+	height: 0.28rem;
+	border-radius: 50%;
+	background: var(--color-brand);
+	transform: translateX(50%);
+}
+
+.dayPanel {
+	position: relative;
+	display: grid;
+	align-content: start;
+	gap: 1.25rem;
+	border-left: 1px solid var(--calendar-rule);
+	background: linear-gradient(180deg, color-mix(in srgb, var(--calendar-stage-strong) 44%, transparent), transparent 72%);
+}
+
+.panelTopline {
+	font-size: 0.68rem;
+	letter-spacing: 0.12em;
+}
+
+.dateOrbit {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: min(100%, 15rem);
+	aspect-ratio: 1;
+	margin: 0 auto;
+}
+
+.dateOrbit svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	transform: rotate(-90deg);
+}
+
+.dateOrbit circle {
+	fill: none;
+	transform-origin: center;
+}
+
+.orbitBase,
+.orbitInner {
+	stroke: var(--calendar-rule);
+	stroke-width: 1;
+}
+
+.orbitBase {
+	stroke-dasharray: 3 9;
+	animation: calendar-orbit-spin 28s linear infinite;
+}
+
+.orbitProgress {
+	stroke: var(--color-brand);
+	stroke-width: 2;
+	stroke-linecap: round;
+	filter: drop-shadow(0 0 0.5rem color-mix(in srgb, var(--color-brand) 48%, transparent));
+}
+
+.orbitMarker {
+	position: absolute;
+	inset: 8.3333%;
+	pointer-events: none;
+}
+
+.orbitMarker i {
+	position: absolute;
+	top: -0.25rem;
+	left: 50%;
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: var(--color-brand-secondary);
+	box-shadow: 0 0 1.2rem color-mix(in srgb, var(--color-brand-secondary) 72%, transparent);
+	transform: translateX(-50%);
+}
+
+.orbitDate {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	justify-items: center;
+	gap: 0.35rem;
+}
+
+.orbitDate strong {
+	font-size: clamp(3.8rem, 7vw, 6.2rem);
+	line-height: 0.85;
+	font-weight: 500;
+	letter-spacing: -0.07em;
+	font-variant-numeric: tabular-nums;
+}
+
+.orbitDate span {
+	color: var(--color-secondary);
+	font-family: 'Songti SC', STSong, SimSun, serif;
+	font-size: 0.9rem;
+}
+
+.dayPanelContent {
+	display: grid;
+	gap: 1rem;
+}
+
+.selectedDateHeading {
+	align-items: start;
+}
+
+.selectedDateHeading > div {
+	display: grid;
+	gap: 0.35rem;
+}
+
+.selectedDateHeading p,
+.selectedDateMeta,
+.yiJi p {
+	margin: 0;
+}
+
+.selectedDateHeading p {
+	color: var(--color-secondary);
+	font-size: 0.78rem;
+}
+
+.festivalMark {
+	padding: 0.26rem 0.55rem;
+	border: 1px solid color-mix(in srgb, var(--calendar-season) 52%, var(--calendar-rule));
+	border-radius: 999px;
+	color: var(--calendar-season);
+	font-size: 0.68rem;
+}
+
+.selectedDateMeta {
+	line-height: 1.6;
+	letter-spacing: 0.02em;
+}
+
+.yiJi {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+	padding-block: 1rem;
+	border-block: 1px solid var(--calendar-rule);
+}
+
+.yiJi > div {
+	display: grid;
+	align-content: start;
+	gap: 0.6rem;
+}
+
+.yiJi > div + div {
+	padding-left: 1rem;
+	border-left: 1px solid var(--calendar-rule);
+}
+
+.guidanceLabel {
+	font-family: 'Songti SC', STSong, SimSun, serif;
+	font-size: 1.05rem;
+	font-weight: 600;
+}
+
+.yiJi p {
+	color: var(--color-secondary);
+	font-size: 0.72rem;
+	line-height: 1.8;
+}
+
+.dayFacts {
+	display: grid;
+	gap: 0.65rem;
+	margin: 0;
+}
+
+.dayFacts div {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.dayFacts dt {
+	color: var(--color-secondary);
+	font-size: 0.72rem;
+}
+
+.dayFacts dd {
+	margin: 0;
+	font-size: 0.78rem;
+	font-weight: 500;
+	text-align: right;
+}
+
+.nextTermSummary {
+	display: grid;
+	gap: 0.65rem;
+	padding-top: 0.25rem;
+}
+
+.nextTermSummary > div:first-child span {
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.termMiniProgress {
+	height: 2px;
+	overflow: hidden;
+	background: var(--calendar-rule-soft);
+}
+
+.termMiniProgress span {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(90deg, var(--calendar-season), var(--color-brand));
+	transform-origin: left center;
+}
+
+.solarTerms {
+	display: grid;
+	gap: 1.75rem;
+}
+
+.solarTermHeading {
+	align-items: end;
+}
+
+.solarTermHeading > div {
+	display: grid;
+	gap: 0.4rem;
+}
+
+.solarTermHeading p {
+	margin: 0;
+	color: color-mix(in srgb, var(--color-primary) 72%, var(--calendar-season));
+	font-family: 'Songti SC', STSong, SimSun, serif;
+	font-size: 1rem;
+}
+
+.solarTermTrack {
+	position: relative;
+	min-height: 7.5rem;
+}
+
+.solarTermTrack svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 5rem;
+	overflow: visible;
+}
+
+.solarTermPathBase,
+.solarTermPathActive {
+	fill: none;
+	stroke-width: 1.5;
+}
+
+.solarTermPathBase {
+	stroke: var(--calendar-rule);
+}
+
+.solarTermPathActive {
+	stroke: var(--color-brand);
+	stroke-linecap: round;
+	filter: drop-shadow(0 0 0.35rem color-mix(in srgb, var(--color-brand) 38%, transparent));
+}
+
+.solarTermNode {
+	position: absolute;
+	display: grid;
+	justify-items: center;
+	gap: 0.3rem;
+	min-width: 4rem;
+	text-align: center;
+	translate: -50% 0;
+}
+
+.solarTermNode i {
+	width: 0.6rem;
+	height: 0.6rem;
+	border: 1px solid var(--calendar-rule);
+	border-radius: 50%;
+	background: var(--color-bg);
+}
+
+.solarTermNode[data-active='true'] i {
+	background: var(--color-brand);
+	box-shadow: 0 0 0 0.45rem color-mix(in srgb, var(--color-brand) 15%, transparent), 0 0 1.4rem color-mix(in srgb, var(--color-brand) 52%, transparent);
+}
+
+.solarTermNode strong {
+	font-size: 0.82rem;
+	font-weight: 500;
+}
+
+@keyframes calendar-orbit-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (max-width: 900px) {
+	.stage {
+		grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.8fr);
+	}
+
+	.monthViewport {
+		min-height: 25.5rem;
+	}
+
+	.day {
+		min-height: 4.25rem;
+	}
+}
+
+@media (max-width: 720px) {
+	.page {
+		padding: 6rem 1rem 3.5rem;
+	}
+
+	.content {
+		gap: 2rem;
+	}
+
+	.titleRow,
+	.solarTermHeading {
+		align-items: start;
+	}
+
+	.stage {
+		grid-template-columns: 1fr;
+	}
+
+	.monthSection {
+		padding-inline: 0;
+	}
+
+	.dayPanel {
+		padding-inline: 0;
+		border-top: 1px solid var(--calendar-rule);
+		border-left: 0;
+	}
+
+	.monthViewport {
+		min-height: 22.5rem;
+	}
+
+	.day {
+		min-height: 3.75rem;
+	}
+
+	.dateOrbit {
+		width: min(100%, 13rem);
+	}
+}
+
+@media (max-width: 480px) {
+	.headerTopline > span,
+	.solarTermHeading p {
+		display: none;
+	}
+
+	.titleRow {
+		display: grid;
+		gap: 1.1rem;
+	}
+
+	.seasonMark {
+		justify-self: end;
+	}
+
+	.toolbar {
+		gap: 0.65rem;
+	}
+
+	.monthControls button {
+		min-width: 2.2rem;
+		height: 2.2rem;
+	}
+
+	.monthControls button:nth-child(2) {
+		padding-inline: 0.7rem;
+	}
+
+	.monthViewport {
+		min-height: 19.5rem;
+	}
+
+	.day {
+		min-height: 3.25rem;
+		padding: 0.2rem;
+	}
+
+	.day::before {
+		inset: 0.18rem;
+	}
+
+	.selectedDayOrbit {
+		width: 3rem;
+		height: 3rem;
+		margin-top: -1.5rem;
+		margin-left: -1.5rem;
+	}
+
+	.dayCopy {
+		gap: 0.22rem;
+	}
+
+	.dayNumber {
+		font-size: 0.86rem;
+	}
+
+	.daySecondary {
+		max-width: 3em;
+		font-size: 0.57rem;
+	}
+
+	.dayEvent {
+		max-width: 4em;
+	}
+
+	.holidayStatus {
+		top: 0.28rem;
+		right: 0.3rem;
+	}
+
+	.yiJi {
+		grid-template-columns: 1fr;
+	}
+
+	.yiJi > div + div {
+		padding-top: 0.85rem;
+		padding-left: 0;
+		border-top: 1px solid var(--calendar-rule);
+		border-left: 0;
+	}
+
+	.solarTermNode {
+		min-width: 3rem;
+	}
+
+	.solarTermNode strong {
+		font-size: 0.72rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.orbitBase {
+		animation: none;
+	}
+
+	.page *,
+	.page *::before,
+	.page *::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}
