@@ -250,7 +250,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			const refreshedFiles = get().files
 			set({
 				selectedFileIds: new Set(
-					refreshedFiles.filter(file => selectedPaths.has(file.path) && !file.isBinary && !file.exportTooLarge).map(file => file.fileId)
+					refreshedFiles.filter(file => selectedPaths.has(file.path) && isSelectableFile(file)).map(file => file.fileId)
 				),
 				activeFile: activePath ? refreshedFiles.find(file => file.path === activePath) || null : null
 			})
@@ -383,7 +383,7 @@ async function openDiff(
 	set({
 		diff,
 		files: firstPage.items,
-		selectedFileIds: new Set(firstPage.items.filter(file => !file.isBinary && !file.exportTooLarge).map(file => file.fileId)),
+		selectedFileIds: new Set(firstPage.items.filter(isSelectableFile).map(file => file.fileId)),
 		activeFile: null
 	})
 	let skip = firstPage.nextSkip
@@ -395,12 +395,16 @@ async function openDiff(
 		const files = [...state.files, ...page.items]
 		const selectedFileIds = new Set(state.selectedFileIds)
 		for (const file of page.items) {
-			if (!file.isBinary && !file.exportTooLarge) selectedFileIds.add(file.fileId)
+			if (isSelectableFile(file)) selectedFileIds.add(file.fileId)
 		}
 		set({ files, selectedFileIds })
 		skip = page.nextSkip
 		hasMore = page.hasMore
 	}
+}
+
+function isSelectableFile(file: DiffFile) {
+	return !file.isBinary && !file.exportTooLarge && file.nodeKind !== 'dir'
 }
 
 async function scheduleDiff(

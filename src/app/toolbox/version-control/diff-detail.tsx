@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertOctagon, ArrowRight, ChevronDown, ChevronRight, ChevronUp, FileCode, FileDown, FileImage, Folder, FolderOpen, Shuffle } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useVersionControlStore, type VersionSelection } from '@/lib/version-control/store'
-import type { DiffFile, WorkingTreeGroup } from '@/lib/version-control/types'
+import type { DiffFile, RepositoryKind, WorkingTreeGroup } from '@/lib/version-control/types'
 import { GitRefBadges } from './git-ref-badges'
 import { ExportDialog } from './export-dialog'
 
@@ -41,7 +41,7 @@ export function DiffDetail() {
 	const availableGroups = overview?.repositoryKind === 'svn' ? groups.filter(item => item.value === 'all' || item.value === 'untracked' || item.value === 'conflicted') : groups
 	const visibleFiles = useMemo(() => files.filter(file => statusFilters.has(statusLetter(file.status))), [files, statusFilters])
 	const invertibleFileIds = useMemo(
-		() => visibleFiles.filter(file => !file.isBinary && !file.exportTooLarge).map(file => file.fileId),
+		() => visibleFiles.filter(isSelectableFile).map(file => file.fileId),
 		[visibleFiles]
 	)
 	const selectedStats = useMemo(
@@ -185,6 +185,7 @@ export function DiffDetail() {
 							toggleFile={toggleFile}
 							toggleFiles={toggleFiles}
 							openFile={openFile}
+							repositoryKind={overview?.repositoryKind}
 						/>
 					))
 				)}
@@ -303,7 +304,7 @@ function buildTree(files: DiffFile[]) {
 	for (const file of files) {
 		let level = root
 		let path = ''
-		const selectable = !file.isBinary && !file.exportTooLarge
+		const selectable = isSelectableFile(file)
 		file.path.split('/').forEach((name, index, parts) => {
 			path = path ? `${path}/${name}` : name
 			let node = level.get(name)
@@ -337,7 +338,8 @@ function TreeNode({
 	toggleFolder,
 	toggleFile,
 	toggleFiles,
-	openFile
+	openFile,
+	repositoryKind
 }: {
 	node: TreeItem
 	depth: number
@@ -348,6 +350,7 @@ function TreeNode({
 	toggleFile: (id: number) => void
 	toggleFiles: (fileIds: number[], selected: boolean) => void
 	openFile: (file: DiffFile) => void
+	repositoryKind?: RepositoryKind
 }) {
 	const indent = depth * 16 + 12
 	if (!node.file) {
@@ -394,18 +397,21 @@ function TreeNode({
 							toggleFile={toggleFile}
 							toggleFiles={toggleFiles}
 							openFile={openFile}
+							repositoryKind={repositoryKind}
 						/>
 					))}
 			</>
 		)
 	}
 	const file = node.file
-	const disabled = file.isBinary || file.exportTooLarge
+	const disabled = file.isBinary || file.exportTooLarge || file.nodeKind === 'dir'
+	const patchOnly = repositoryKind === 'svn' && file.previewTooLarge
+	const canOpen = !file.isBinary && file.nodeKind !== 'dir' && (!file.previewTooLarge || patchOnly)
 	return (
 		<div
 			title={file.path}
-			onClick={() => !file.isBinary && !file.previewTooLarge && openFile(file)}
-			className={`group flex w-full cursor-pointer items-start py-1 pr-2 text-sm transition ${activeFileId === file.fileId ? 'bg-brand/10' : 'hover:bg-article/75'} ${disabled ? 'opacity-35' : 'opacity-70 hover:opacity-100'}`}
+			onClick={() => canOpen && openFile(file)}
+			className={`group flex w-full items-start py-1 pr-2 text-sm transition ${canOpen ? 'cursor-pointer' : 'cursor-default'} ${activeFileId === file.fileId ? 'bg-brand/10' : 'hover:bg-article/75'} ${disabled ? 'opacity-35' : 'opacity-70 hover:opacity-100'}`}
 			style={{ paddingLeft: indent }}>
 			<span className='size-5 shrink-0' />
 			<button
@@ -429,9 +435,9 @@ function TreeNode({
 			<div className='min-w-0 flex-1'>
 				<div className='flex min-w-0 items-center gap-1.5'>
 					<span className={`min-w-0 truncate ${activeFileId === file.fileId ? 'font-medium' : ''}`}>{node.name}</span>
-					{(file.isBinary || file.previewTooLarge) && (
+					{(file.isBinary || file.previewTooLarge || file.nodeKind === 'dir') && (
 						<span className='border-border bg-article text-secondary inline-flex h-4 shrink-0 items-center rounded border px-1.5 text-[10px]'>
-							{file.isBinary ? 'Binary' : '过大'}
+							{file.isBinary ? 'Binary' : file.nodeKind === 'dir' ? '目录' : patchOnly ? '仅 Patch' : '过大'}
 						</span>
 					)}
 				</div>
@@ -468,6 +474,9 @@ function statusLetter(status: string): StatusFilter {
 	if (status === 'Missing') return '!'
 	if (status === 'Obstructed') return '~'
 	return 'M'
+}
+function isSelectableFile(file: DiffFile) {
+	return !file.isBinary && !file.exportTooLarge && file.nodeKind !== 'dir'
 }
 function shortLabel(selection: VersionSelection) {
 	return selection.kind === 'working-tree' ? '工作区' : selection.commit.shortHash

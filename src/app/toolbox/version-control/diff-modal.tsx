@@ -1,11 +1,28 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Check, Columns2, Copy, FileWarning, Rows3, X } from 'lucide-react'
+import {
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ButtonHTMLAttributes,
+	type CSSProperties,
+	type ReactNode
+} from 'react'
+import { Check, Columns2, Copy, FileWarning, Palette, Rows3, SunMoon, X } from 'lucide-react'
+import { useTimeTheme } from '@/components/time-theme-provider'
 import { useVersionControlStore } from '@/lib/version-control/store'
+import type { DiffViewerSource } from '@/lib/version-control/diff-renderer'
 import type { ConflictPerspective, PreviewContent } from '@/lib/version-control/types'
-import { MonacoDiffViewer } from './monaco-diff-viewer'
-import { PatchDiffViewer } from './patch-diff-viewer'
+import {
+	diffThemes,
+	getNextOfficialDiffTheme,
+	getNextTimeDiffTheme,
+	isOfficialDiffTheme,
+	type DiffThemeDefinition,
+	type DiffThemeId
+} from './diff-themes'
+import { PierreDiffViewer } from './pierre-diff-viewer'
 
 const perspectives: Array<{ value: ConflictPerspective; label: string }> = [
 	{ value: 'base-to-ours', label: 'Base → Ours' },
@@ -23,34 +40,57 @@ export function DiffModal() {
 	const perspective = useVersionControlStore(state => state.conflictPerspective)
 	const setPerspective = useVersionControlStore(state => state.setPerspective)
 	const close = useVersionControlStore(state => state.openFile)
+	const { theme: siteTheme } = useTimeTheme()
 	const [preview, setPreview] = useState<{ key: string; content: PreviewContent } | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const [sideBySide, setSideBySide] = useState(true)
-	const [reviewOnly, setReviewOnly] = useState(true)
+	const [changesOnly, setChangesOnly] = useState(true)
 	const [copied, setCopied] = useState(false)
+	const [themeOverride, setThemeOverride] = useState<DiffThemeId | null>(null)
 	const request = useRef(0)
-	const [night, setNight] = useState(false)
+	const defaultToPatch = repositoryKind === 'svn' && Boolean(activeFile && !activeFile.isBinary && activeFile.nodeKind !== 'dir' && activeFile.previewTooLarge)
+	const previewMode = repositoryKind === 'svn' && changesOnly ? 'patch' : 'full'
+	const themeId = themeOverride ?? siteTheme.name
+	const diffTheme = diffThemes[themeId]
+	const themeStyle = useMemo(() => createThemeStyle(diffTheme), [diffTheme])
+	const officialTheme = isOfficialDiffTheme(themeId)
+	const nextOfficialTheme = getNextOfficialDiffTheme(themeId)
+	const nextTimeTheme = isOfficialDiffTheme(themeId) ? siteTheme.name : getNextTimeDiffTheme(themeId)
+	const officialTitle = officialTheme
+		? `当前：${diffTheme.label}（${diffTheme.shiki}）；点击切换到${diffThemes[nextOfficialTheme].label}`
+		: `切换到${diffThemes[nextOfficialTheme].label}（${diffThemes[nextOfficialTheme].shiki}）`
+	const timeTitle = officialTheme
+		? `返回并跟随网站当前主题：${diffThemes[siteTheme.name].label}（${diffThemes[siteTheme.name].shiki}）`
+		: `当前：${diffTheme.label}（${diffTheme.shiki}）${themeOverride === null ? '，跟随网站' : ''}；点击切换到${diffThemes[nextTimeTheme].label}`
+
+	const cycleOfficialTheme = () => {
+		setThemeOverride(current => {
+			const activeTheme = current ?? siteTheme.name
+			return getNextOfficialDiffTheme(activeTheme)
+		})
+	}
+	const cycleTimeTheme = () => {
+		setThemeOverride(current => {
+			const activeTheme = current ?? siteTheme.name
+			if (isOfficialDiffTheme(activeTheme)) return null
+			const nextTheme = getNextTimeDiffTheme(activeTheme)
+			return nextTheme === siteTheme.name ? null : nextTheme
+		})
+	}
 
 	useEffect(() => {
-		const root = document.documentElement
-		const update = () => setNight(root.dataset.timeTheme === 'night')
-		update()
-		const observer = new MutationObserver(update)
-		observer.observe(root, { attributes: true, attributeFilter: ['data-time-theme'] })
-		return () => observer.disconnect()
-	}, [])
+		if (defaultToPatch) setChangesOnly(true)
+	}, [activeFile?.fileId, defaultToPatch])
 
 	useEffect(() => {
 		const current = ++request.current
 		setPreview(null)
 		setError(null)
-		const patchMode = repositoryKind === 'svn' && reviewOnly
-		if (!activeFile || !bridge || !repositoryId || !diff || activeFile.isBinary || (!patchMode && activeFile.previewTooLarge)) return
-		const mode = patchMode ? 'patch' : 'full'
-		const key = previewKey(diff.diffId, activeFile.fileId, perspective, mode)
+		if (!activeFile || !bridge || !repositoryId || !diff || activeFile.isBinary || activeFile.nodeKind === 'dir' || (previewMode === 'full' && activeFile.previewTooLarge)) return
+		const key = previewKey(diff.diffId, activeFile.fileId, perspective, previewMode)
 		const timer = window.setTimeout(() => {
 			void bridge
-				.openPreview(repositoryId, diff.diffId, activeFile.fileId, perspective, mode)
+				.openPreview(repositoryId, diff.diffId, activeFile.fileId, perspective, previewMode)
 				.then(value => {
 					if (request.current === current) setPreview({ key, content: value })
 				})
@@ -59,7 +99,7 @@ export function DiffModal() {
 				})
 		}, 70)
 		return () => window.clearTimeout(timer)
-	}, [activeFile, bridge, diff, perspective, repositoryId, repositoryKind, reviewOnly])
+	}, [activeFile, bridge, diff, perspective, previewMode, repositoryId])
 
 	useEffect(() => {
 		if (!activeFile) return
@@ -73,41 +113,56 @@ export function DiffModal() {
 		return () => window.removeEventListener('keydown', onKey, true)
 	}, [activeFile, close])
 
-	if (!activeFile) return null
-	const patchMode = repositoryKind === 'svn' && reviewOnly
-	const mode = patchMode ? 'patch' : 'full'
-	const modelKey = previewKey(diff?.diffId || 'none', activeFile.fileId, perspective, mode)
+	const modelKey = previewKey(diff?.diffId || 'none', activeFile?.fileId ?? -1, perspective, previewMode)
 	const currentPreview = preview?.key === modelKey ? preview.content : null
+	const source = useMemo<DiffViewerSource | null>(() => {
+		if (!currentPreview) return null
+		return previewMode === 'patch'
+			? { kind: 'patch', patch: currentPreview.original }
+			: { kind: 'files', original: currentPreview.original, modified: currentPreview.modified }
+	}, [currentPreview, previewMode])
+
+	if (!activeFile) return null
 	const unavailable = activeFile.isBinary
 		? '二进制文件仅展示元数据，不加载正文。'
-		: activeFile.previewTooLarge && !patchMode
-			? '文件超过单侧 2MiB 预览上限，可在未超过导出上限时完整导出。'
-			: null
+		: activeFile.nodeKind === 'dir'
+			? '目录变更不包含可显示的文件正文。'
+			: activeFile.previewTooLarge && previewMode === 'full'
+				? repositoryKind === 'svn'
+					? '文件超过单侧 2MiB 完整预览上限，请切换到「仅变更」查看 Patch。'
+					: '文件超过单侧 2MiB 预览上限，可在未超过导出上限时完整导出。'
+				: null
+	const copyTitle = previewMode === 'patch' ? '复制 Patch' : isDeleted(activeFile.status) ? '复制旧版本源码' : '复制新版本源码'
 	const copy = async () => {
 		if (!currentPreview) return
-		const value = patchMode
-			? currentPreview.original
-			: `--- a/${activeFile.oldPath || activeFile.path}\n+++ b/${activeFile.path}\n${currentPreview.modified}`
-		await navigator.clipboard.writeText(value)
-		setCopied(true)
-		window.setTimeout(() => setCopied(false), 1200)
+		const value = previewMode === 'patch' ? currentPreview.original : isDeleted(activeFile.status) ? currentPreview.original : currentPreview.modified
+		try {
+			await navigator.clipboard.writeText(value)
+			setCopied(true)
+			window.setTimeout(() => setCopied(false), 1200)
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : '复制失败')
+		}
 	}
 
 	return (
-		<div
-			className='fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm'
-			onMouseDown={event => event.target === event.currentTarget && close(null)}>
-			<section className='border-border bg-background flex h-[min(900px,94dvh)] w-[min(1500px,96vw)] flex-col overflow-hidden rounded-xl border shadow-2xl'>
-				<header className='border-border bg-article flex min-h-14 items-center gap-3 border-b px-4'>
-					<span className='min-w-0 flex-1 truncate font-mono text-xs'>
-						{activeFile.oldPath && activeFile.oldPath !== activeFile.path ? `${activeFile.oldPath} → ` : ''}
-						{activeFile.path}
+		<div className='fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-5' onMouseDown={event => event.target === event.currentTarget && close(null)}>
+			<section
+				role='dialog'
+				aria-modal='true'
+				aria-label='文件差异'
+				style={themeStyle}
+				className='flex h-[min(900px,94dvh)] w-[min(1500px,96vw)] flex-col overflow-hidden rounded-xl border shadow-2xl transition-colors [background-color:var(--diff-background)] [border-color:var(--diff-border)] [color:var(--diff-foreground)]'>
+				<header className='flex min-h-12 items-center gap-2 border-b px-3 transition-colors [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
+					<span className='mr-auto rounded-md border px-2 py-1 text-[10px] font-medium tracking-wide uppercase [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>
+						Read only
 					</span>
 					{activeFile.hasConflictViews && (
 						<select
 							value={perspective}
 							onChange={event => setPerspective(event.target.value as ConflictPerspective)}
-							className='border-border bg-background rounded border px-2 py-1.5 text-[11px]'>
+							aria-label='冲突比较视角'
+							className='h-8 rounded-md border px-2 text-[11px] [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-foreground)]'>
 							{perspectives.map(item => (
 								<option key={item.value} value={item.value}>
 									{item.label}
@@ -115,87 +170,130 @@ export function DiffModal() {
 							))}
 						</select>
 					)}
+					<Segment>
+						<SegmentButton
+							active={officialTheme}
+							onClick={cycleOfficialTheme}
+							title={officialTitle}
+							aria-label={officialTitle}
+							className='w-[68px] justify-center max-xl:w-7 max-xl:px-0'>
+							<SunMoon size={14} />
+							<span className='max-xl:hidden'>{officialTheme ? diffTheme.label : '官方'}</span>
+						</SegmentButton>
+						<SegmentButton
+							active={!officialTheme}
+							onClick={cycleTimeTheme}
+							title={timeTitle}
+							aria-label={timeTitle}
+							className='w-[68px] justify-center max-xl:w-7 max-xl:px-0'>
+							<Palette size={14} />
+							<span className='max-xl:hidden'>{officialTheme ? '四时' : diffTheme.label}</span>
+							{!officialTheme && themeOverride === null && (
+								<span className='size-1 rounded-full max-xl:hidden' style={{ backgroundColor: siteTheme.colors.brand }} aria-hidden='true' />
+							)}
+						</SegmentButton>
+					</Segment>
+					<Segment>
+						<SegmentButton active={changesOnly} onClick={() => setChangesOnly(true)}>
+							仅变更
+						</SegmentButton>
+						<SegmentButton active={!changesOnly} onClick={() => setChangesOnly(false)}>
+							完整文件
+						</SegmentButton>
+					</Segment>
+					<Segment>
+						<SegmentButton active={sideBySide} onClick={() => setSideBySide(true)} title='左右分栏'>
+							<Columns2 size={14} />
+							Split
+						</SegmentButton>
+						<SegmentButton active={!sideBySide} onClick={() => setSideBySide(false)} title='统一视图'>
+							<Rows3 size={14} />
+							Unified
+						</SegmentButton>
+					</Segment>
 					<button
-						onClick={() => setReviewOnly(value => !value)}
-						title={reviewOnly ? '显示完整文件' : '折叠未修改区域'}
-						className={`border-border rounded border px-2.5 py-2 text-[11px] ${reviewOnly ? 'bg-brand/10 text-brand' : 'text-secondary hover:text-primary'}`}>
-						{reviewOnly ? '仅变更' : '完整文件'}
-					</button>
-					<button
-						onClick={() => setSideBySide(value => !value)}
-						title='切换布局'
-						className='border-border text-secondary hover:text-primary rounded border p-2'>
-						{sideBySide ? <Columns2 size={15} /> : <Rows3 size={15} />}
-					</button>
-					<button
+						type='button'
 						onClick={() => void copy()}
-						disabled={!currentPreview}
-						className='border-border text-secondary hover:text-primary rounded border p-2 disabled:opacity-30'>
+						disabled={!currentPreview || Boolean(unavailable || error)}
+						title={copyTitle}
+						aria-label={copyTitle}
+						className={iconButton()}>
 						{copied ? <Check size={15} /> : <Copy size={15} />}
 					</button>
-					<button onClick={() => close(null)} className='text-secondary hover:text-primary p-2'>
-						<X size={18} />
+					<button type='button' onClick={() => close(null)} title='关闭' aria-label='关闭' className={iconButton()}>
+						<X size={17} />
 					</button>
 				</header>
 				<div className='min-h-0 flex-1'>
 					{unavailable || error ? (
-						<div className='text-secondary flex h-full flex-col items-center justify-center'>
-							<FileWarning className='mb-4 text-amber-300' size={32} />
-							<p>{unavailable || error}</p>
-							<div className='mt-4 flex gap-5 font-mono text-xs'>
-								<span>+{activeFile.additions}</span>
-								<span>−{activeFile.deletions}</span>
-								<span>{activeFile.status}</span>
-							</div>
-						</div>
-					) : patchMode ? (
-						<PatchDiffViewer patch={currentPreview?.original ?? null} sideBySide={sideBySide} />
+						<ModalState message={unavailable || error || ''} file={activeFile} />
 					) : (
-						<MonacoDiffViewer
-							original={currentPreview?.original ?? null}
-							modified={currentPreview?.modified ?? null}
-							language={language(activeFile.path)}
+						<PierreDiffViewer
+							file={activeFile}
+							source={source}
 							modelKey={modelKey}
-							night={night}
+							theme={diffTheme}
 							sideBySide={sideBySide}
-							reviewOnly={reviewOnly}
-							onError={setError}
+							changesOnly={changesOnly}
 						/>
 					)}
 				</div>
-				<footer className='border-border bg-article text-secondary flex h-8 items-center border-t px-4 font-mono text-[10px]'>
-					<span>READ ONLY</span>
-					<span className='ml-auto'>Esc 关闭 · {reviewOnly ? 'CHANGES ONLY' : 'FULL FILE'} · {sideBySide ? 'SIDE BY SIDE' : 'UNIFIED'}</span>
-				</footer>
 			</section>
 		</div>
 	)
 }
 
+function Segment({ children }: { children: ReactNode }) {
+	return <div className='flex h-8 items-center rounded-md border p-0.5 [background-color:var(--diff-subtle)] [border-color:var(--diff-border)]'>{children}</div>
+}
+
+function SegmentButton({ active, children, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean }) {
+	return (
+		<button
+			{...props}
+			type='button'
+			aria-pressed={active}
+			className={`flex h-6 items-center gap-1.5 whitespace-nowrap rounded px-2 text-[11px] transition ${active ? 'shadow-sm [background-color:var(--diff-active)] [color:var(--diff-foreground)]' : '[color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'} ${className}`}>
+			{children}
+		</button>
+	)
+}
+
+function ModalState({ message, file }: { message: string; file: { additions: number; deletions: number; status: string } }) {
+	return (
+		<div className='flex h-full flex-col items-center justify-center [background-color:var(--diff-background)] [color:var(--diff-muted)]'>
+			<FileWarning className='mb-4 text-amber-500' size={28} />
+			<p className='max-w-xl px-8 text-center text-sm'>{message}</p>
+			<div className='mt-4 flex gap-5 font-mono text-xs'>
+				<span className='text-emerald-500'>+{file.additions}</span>
+				<span className='text-red-500'>−{file.deletions}</span>
+				<span>{file.status}</span>
+			</div>
+		</div>
+	)
+}
+
+function iconButton() {
+	return 'flex size-8 items-center justify-center rounded-md border transition disabled:opacity-25 [border-color:var(--diff-border)] [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'
+}
+
+function createThemeStyle(theme: DiffThemeDefinition) {
+	return {
+		colorScheme: theme.type,
+		'--diff-background': theme.background,
+		'--diff-foreground': theme.foreground,
+		'--diff-border': 'color-mix(in srgb, var(--diff-foreground) 14%, transparent)',
+		'--diff-muted': 'color-mix(in srgb, var(--diff-foreground) 58%, transparent)',
+		'--diff-subtle': 'color-mix(in srgb, var(--diff-foreground) 4%, transparent)',
+		'--diff-hover': 'color-mix(in srgb, var(--diff-foreground) 7%, transparent)',
+		'--diff-active': 'color-mix(in srgb, var(--diff-foreground) 11%, var(--diff-background))'
+	} as CSSProperties
+}
+
 function previewKey(diffId: string, fileId: number, perspective: ConflictPerspective, mode: 'full' | 'patch') {
 	return `${diffId}:${fileId}:${perspective}:${mode}`
 }
-function language(path: string) {
-	const ext = path.split('.').pop()?.toLowerCase()
-	return (
-		(
-			{
-				ts: 'typescript',
-				tsx: 'typescript',
-				js: 'javascript',
-				jsx: 'javascript',
-				rs: 'rust',
-				py: 'python',
-				json: 'json',
-				md: 'markdown',
-				css: 'css',
-				html: 'html',
-				xml: 'xml',
-				yml: 'yaml',
-				yaml: 'yaml',
-				toml: 'ini',
-				sh: 'shell'
-			} as Record<string, string>
-		)[ext || ''] || 'plaintext'
-	)
+
+function isDeleted(status: string) {
+	return status === 'Deleted' || status === 'Missing'
 }
