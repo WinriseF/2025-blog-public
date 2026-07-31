@@ -37,20 +37,25 @@ function decodeHtmlAttribute(value: string): string {
 }
 
 function parseMarkdownHtml(html: string): ReactElement {
-	const codeBlocks: Array<{ placeholder: string; code: string; preHtml: string }> = []
+	const codeBlocks: Array<{ code: string; preHtml: string }> = []
 	const processedHtml = html.replace(/<pre\s+data-code="([^"]*)"(?:[^>]*)>([\s\S]*?)<\/pre>/g, (_match, codeAttr, content) => {
-		const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`
+		const index = codeBlocks.length
 		const code = decodeHtmlAttribute(codeAttr)
 		codeBlocks.push({
-			placeholder,
 			code,
 			preHtml: `${content}`
 		})
-		return placeholder
+		return `<div data-code-block-index="${index}"></div>`
 	})
 
 	const options: HTMLReactParserOptions = {
 		replace(domNode: DOMNode) {
+			if (domNode instanceof Element && domNode.name === 'div' && domNode.attribs['data-code-block-index']) {
+				const block = codeBlocks[Number(domNode.attribs['data-code-block-index'])]
+				if (!block) return
+				return <CodeBlock code={block.code}>{parse(block.preHtml) as ReactElement}</CodeBlock>
+			}
+
 			if (domNode instanceof Element && domNode.name === 'div' && domNode.attribs['data-mermaid-code']) {
 				return <MermaidDiagram chart={decodeHtmlAttribute(domNode.attribs['data-mermaid-code'])} />
 			}
@@ -68,23 +73,6 @@ function parseMarkdownHtml(html: string): ReactElement {
 			if (domNode instanceof Element && domNode.name === 'img') {
 				const { src, alt, title } = domNode.attribs
 				return <MarkdownImage src={src} alt={alt} title={title} />
-			}
-
-			if (domNode.type === 'text' && domNode.data) {
-				const text = domNode.data
-				for (const block of codeBlocks) {
-					if (text.includes(block.placeholder)) {
-						const parts = text.split(block.placeholder)
-						const preElement = parse(block.preHtml) as ReactElement
-						return (
-							<>
-								{parts[0] && <>{parts[0]}</>}
-								<CodeBlock code={block.code}>{preElement}</CodeBlock>
-								{parts[1] && <>{parts[1]}</>}
-							</>
-						)
-					}
-				}
 			}
 		}
 	}

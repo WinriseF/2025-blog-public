@@ -16,6 +16,7 @@ import {
 } from '@/lib/world-clock/solar'
 import { buildSolarTermPoints, formatSolarTermDate, type SolarTermPoint } from '@/lib/world-clock/solar-terms'
 import { getAssetUrl } from '@/lib/asset-url'
+import { startAnimationLoop } from '@/lib/animation-loop'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import type { TimeThemeName } from '@/lib/time-theme'
 
@@ -76,6 +77,7 @@ function getBaseMapKeyForDate(date: Date) {
 }
 
 const visibleSolarTermLabels = new Set(['立春', '春分', '立夏', '夏至', '立秋', '秋分', '立冬', '冬至'])
+const markerForward = new THREE.Vector3(0, 0, 1)
 
 function getDaysInUtcYear(year: number) {
 	return Math.round((Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / DAY_MS)
@@ -154,8 +156,12 @@ function configureTexture(texture: THREE.Texture) {
 }
 
 function toThreeVector(coordinates: Coordinates, radius = 1) {
+	return setThreeVector(new THREE.Vector3(), coordinates, radius)
+}
+
+function setThreeVector(target: THREE.Vector3, coordinates: Coordinates, radius = 1) {
 	const vector = coordinatesToVector(coordinates, radius)
-	return new THREE.Vector3(vector.x, vector.y, vector.z)
+	return target.set(vector.x, vector.y, vector.z)
 }
 
 function createGraticule() {
@@ -214,10 +220,10 @@ function createStarField() {
 	)
 }
 
-function placeSurfaceMarker(marker: THREE.Object3D, coordinates: Coordinates, radius = EARTH_RADIUS + SURFACE_MARKER_OFFSET) {
-	const normal = toThreeVector(coordinates, 1).normalize()
-	marker.position.copy(normal.clone().multiplyScalar(radius))
-	marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
+function placeSurfaceMarker(marker: THREE.Object3D, coordinates: Coordinates, radius = EARTH_RADIUS + SURFACE_MARKER_OFFSET, normal = new THREE.Vector3()) {
+	setThreeVector(normal, coordinates).normalize()
+	marker.position.copy(normal).multiplyScalar(radius)
+	marker.quaternion.setFromUnitVectors(markerForward, normal)
 }
 
 const vertexShader = `
@@ -315,12 +321,21 @@ export default function WorldClockClient() {
 		}
 
 		syncCurrentTime()
-
-		const timer = window.setInterval(() => {
+		let timer: number | null = null
+		const syncClockTimer = () => {
+			if (timer !== null) window.clearInterval(timer)
+			timer = null
+			if (document.hidden) return
 			setNow(new Date())
-		}, 1000)
+			timer = window.setInterval(() => setNow(new Date()), 1000)
+		}
+		syncClockTimer()
+		document.addEventListener('visibilitychange', syncClockTimer)
 
-		return () => window.clearInterval(timer)
+		return () => {
+			if (timer !== null) window.clearInterval(timer)
+			document.removeEventListener('visibilitychange', syncClockTimer)
+		}
 	}, [])
 
 	const reading = useMemo(() => getWorldClockReading(now, selected), [now, selected])
@@ -328,15 +343,25 @@ export default function WorldClockClient() {
 	useEffect(() => {
 		if (!trackPlaying) return
 
-		const timer = window.setInterval(() => {
+		let timer: number | null = null
+		const advanceTrack = () => {
 			setTrackCursor(value => {
 				const next = (value + 1) % annualTrack.length
 				trackCursorRef.current = next
 				return next
 			})
-		}, 70)
+		}
+		const syncTrackTimer = () => {
+			if (timer !== null) window.clearInterval(timer)
+			timer = document.hidden ? null : window.setInterval(advanceTrack, 70)
+		}
+		syncTrackTimer()
+		document.addEventListener('visibilitychange', syncTrackTimer)
 
-		return () => window.clearInterval(timer)
+		return () => {
+			if (timer !== null) window.clearInterval(timer)
+			document.removeEventListener('visibilitychange', syncTrackTimer)
+		}
 	}, [annualTrack.length, trackPlaying])
 
 	useEffect(() => {
@@ -444,6 +469,9 @@ export default function WorldClockClient() {
 			term,
 			marker: createSolarTermMarker(term)
 		}))
+		const solarTermLabelPoints = solarTerms
+			.filter(term => visibleSolarTermLabels.has(term.name))
+			.map(term => ({ term, normal: toThreeVector(term), projected: new THREE.Vector3(), opacity: '', transform: '' }))
 		const solarTermGroup = new THREE.Group()
 		solarTermMarkers.forEach(({ marker }) => solarTermGroup.add(marker))
 		scene.add(solarTermGroup)
@@ -460,18 +488,24 @@ export default function WorldClockClient() {
 		controls.autoRotateSpeed = 0.28
 		controlsRef.current = controls
 
+		let renderWidth = 0
+		let renderHeight = 0
 		const resize = () => {
-			const width = Math.max(container.clientWidth, 1)
-			const height = Math.max(container.clientHeight, 1)
-			camera.aspect = width / height
+			const nextWidth = Math.max(container.clientWidth, 1)
+			const nextHeight = Math.max(container.clientHeight, 1)
+			if (nextWidth === renderWidth && nextHeight === renderHeight) return
+			renderWidth = nextWidth
+			renderHeight = nextHeight
+			camera.aspect = renderWidth / renderHeight
 			camera.updateProjectionMatrix()
-			renderer.setSize(width, height, false)
+			renderer.setSize(renderWidth, renderHeight, false)
 		}
 		const resizeObserver = new ResizeObserver(resize)
 		resizeObserver.observe(container)
 		resize()
 
 		const pointerStart = new THREE.Vector2()
+		const pointerEnd = new THREE.Vector2()
 		const pointer = new THREE.Vector2()
 		const raycaster = new THREE.Raycaster()
 
@@ -480,7 +514,8 @@ export default function WorldClockClient() {
 		}
 
 		const handlePointerUp = (event: PointerEvent) => {
-			if (pointerStart.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 7) return
+			pointerEnd.set(event.clientX, event.clientY)
+			if (pointerStart.distanceTo(pointerEnd) > 7) return
 
 			const rect = renderer.domElement.getBoundingClientRect()
 			pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
@@ -496,10 +531,15 @@ export default function WorldClockClient() {
 		renderer.domElement.addEventListener('pointerdown', handlePointerDown)
 		renderer.domElement.addEventListener('pointerup', handlePointerUp)
 
+		let labelsHidden = false
 		const hideSolarTermLabels = () => {
-			Object.values(solarTermLabelRefs.current).forEach(label => {
-				if (label) label.style.opacity = '0'
-			})
+			if (labelsHidden) return
+			for (const point of solarTermLabelPoints) {
+				const label = solarTermLabelRefs.current[point.term.name]
+				if (label && point.opacity !== '0') label.style.opacity = '0'
+				point.opacity = '0'
+			}
+			labelsHidden = true
 		}
 
 		const updateSolarTermLabels = () => {
@@ -508,62 +548,98 @@ export default function WorldClockClient() {
 				return
 			}
 
+			labelsHidden = false
 			const activeName = activeSolarTermRef.current?.name
-			const width = renderer.domElement.clientWidth
-			const height = renderer.domElement.clientHeight
-			const cameraNormal = camera.position.clone().normalize()
+			cameraNormal.copy(camera.position).normalize()
 
-			for (const term of solarTerms) {
+			for (const point of solarTermLabelPoints) {
+				const { term, normal, projected } = point
 				const label = solarTermLabelRefs.current[term.name]
 				if (!label) continue
 
-				const surfaceNormal = toThreeVector(term, 1).normalize()
-				const visible = surfaceNormal.dot(cameraNormal) > 0.12
+				const visible = normal.dot(cameraNormal) > 0.12
 				if (!visible) {
-					label.style.opacity = '0'
+					if (point.opacity !== '0') label.style.opacity = '0'
+					point.opacity = '0'
 					continue
 				}
 
-				const projected = surfaceNormal.clone().multiplyScalar(EARTH_RADIUS + 0.2).project(camera)
-				const x = (projected.x * 0.5 + 0.5) * width
-				const y = (-projected.y * 0.5 + 0.5) * height
+				projected.copy(normal).multiplyScalar(EARTH_RADIUS + 0.2).project(camera)
+				const x = (projected.x * 0.5 + 0.5) * renderWidth
+				const y = (-projected.y * 0.5 + 0.5) * renderHeight
 				const isActive = activeName === term.name
-				label.style.opacity = isActive ? '1' : '0.78'
-				label.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${isActive ? 1.04 : 1})`
+				const opacity = isActive ? '1' : '0.78'
+				const transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${isActive ? 1.04 : 1})`
+				if (point.opacity !== opacity) label.style.opacity = opacity
+				if (point.transform !== transform) label.style.transform = transform
+				point.opacity = opacity
+				point.transform = transform
 			}
 		}
 
-		let frame = 0
-		const animate = () => {
+		const cameraNormal = new THREE.Vector3()
+		const markerNormal = new THREE.Vector3()
+		const sunDirection = new THREE.Vector3()
+		const markerByTerm = new Map(solarTermMarkers.map(item => [item.term.name, item.marker]))
+		let lastActiveTermName: string | undefined
+		let lastSelected = selectedRef.current
+		let lastTrackCursor = trackCursorRef.current
+		let lastShowSubsolar: boolean | undefined
+		let lastShowSolarTerms: boolean | undefined
+		let nextSolarUpdate = 0
+		placeSurfaceMarker(selectedMarker, lastSelected, undefined, markerNormal)
+		const initialTrackPoint = annualTrack[lastTrackCursor]
+		if (initialTrackPoint) placeSurfaceMarker(annualTrackMarker, initialTrackPoint, EARTH_RADIUS + SUBSOLAR_TRACK_OFFSET, markerNormal)
+
+		const animate = (timestamp: number) => {
 			const showSubsolarLayer = showSubsolarRef.current
 			const showSolarTermLayer = showSolarTermsRef.current
-			const subsolar = getSubsolarPoint(new Date())
-			const sunDirection = toThreeVector(subsolar, 1).normalize()
-			earthMaterial.uniforms.sunDirection.value.copy(sunDirection)
-			sunMarker.visible = showSubsolarLayer
-			annualTrackLine.visible = showSubsolarLayer
-			annualTrackMarker.visible = showSubsolarLayer
-			solarTermGroup.visible = showSolarTermLayer
-			if (showSubsolarLayer) sunMarker.position.copy(sunDirection.clone().multiplyScalar(EARTH_RADIUS + 0.045))
-			placeSurfaceMarker(selectedMarker, selectedRef.current)
-			const trackPoint = annualTrack[trackCursorRef.current]
-			if (showSubsolarLayer && trackPoint) placeSurfaceMarker(annualTrackMarker, trackPoint, EARTH_RADIUS + SUBSOLAR_TRACK_OFFSET)
-			const activeTermName = activeSolarTermRef.current?.name
-			const pulse = 1 + Math.sin(Date.now() / 160) * 0.08
-			for (const { term, marker } of solarTermMarkers) {
-				marker.scale.setScalar(activeTermName === term.name ? 1.32 * pulse : 1)
+
+			if (timestamp >= nextSolarUpdate) {
+				setThreeVector(sunDirection, getSubsolarPoint(new Date())).normalize()
+				earthMaterial.uniforms.sunDirection.value.copy(sunDirection)
+				sunMarker.position.copy(sunDirection).multiplyScalar(EARTH_RADIUS + 0.045)
+				nextSolarUpdate = timestamp + 1000
 			}
+
+			if (showSubsolarLayer !== lastShowSubsolar) {
+				sunMarker.visible = showSubsolarLayer
+				annualTrackLine.visible = showSubsolarLayer
+				annualTrackMarker.visible = showSubsolarLayer
+				lastShowSubsolar = showSubsolarLayer
+			}
+			if (showSolarTermLayer !== lastShowSolarTerms) {
+				solarTermGroup.visible = showSolarTermLayer
+				lastShowSolarTerms = showSolarTermLayer
+			}
+
+			if (selectedRef.current !== lastSelected) {
+				lastSelected = selectedRef.current
+				placeSurfaceMarker(selectedMarker, lastSelected, undefined, markerNormal)
+			}
+			if (trackCursorRef.current !== lastTrackCursor) {
+				lastTrackCursor = trackCursorRef.current
+				const trackPoint = annualTrack[lastTrackCursor]
+				if (trackPoint) placeSurfaceMarker(annualTrackMarker, trackPoint, EARTH_RADIUS + SUBSOLAR_TRACK_OFFSET, markerNormal)
+			}
+
+			const activeTermName = activeSolarTermRef.current?.name
+			if (activeTermName !== lastActiveTermName) {
+				if (lastActiveTermName) markerByTerm.get(lastActiveTermName)?.scale.setScalar(1)
+				lastActiveTermName = activeTermName
+			}
+			if (activeTermName) markerByTerm.get(activeTermName)?.scale.setScalar(1.32 * (1 + Math.sin(Date.now() / 160) * 0.08))
 			controls.update()
 			updateSolarTermLabels()
 			renderer.render(scene, camera)
-			frame = window.requestAnimationFrame(animate)
 		}
-		animate()
+		animate(performance.now())
+		const animationLoop = startAnimationLoop(({ timestamp }) => animate(timestamp), { element: container })
 
 		return () => {
 			disposed = true
 			window.clearTimeout(textureLoadTimer)
-			window.cancelAnimationFrame(frame)
+			animationLoop.destroy()
 			resizeObserver.disconnect()
 			hideSolarTermLabels()
 			renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
@@ -581,6 +657,7 @@ export default function WorldClockClient() {
 				}
 			})
 			renderer.dispose()
+			renderer.forceContextLoss()
 			renderer.domElement.remove()
 		}
 	}, [annualTrack, currentBaseMap.src, sceneReady, solarTerms])

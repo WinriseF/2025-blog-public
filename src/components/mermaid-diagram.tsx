@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { useTimeTheme } from '@/components/time-theme-provider'
 
 type MermaidDiagramProps = {
 	chart: string
@@ -10,30 +11,13 @@ type MermaidTheme = 'default' | 'dark'
 
 let renderSerial = 0
 
-function getMermaidTheme(): MermaidTheme {
-	if (typeof document === 'undefined') return 'default'
-	return document.documentElement.dataset.timeTheme === 'night' ? 'dark' : 'default'
-}
-
 export function MermaidDiagram({ chart }: MermaidDiagramProps) {
 	const reactId = useId()
 	const [svg, setSvg] = useState('')
 	const [error, setError] = useState<string | null>(null)
-	const [theme, setTheme] = useState(getMermaidTheme)
+	const { theme: timeTheme } = useTimeTheme()
+	const theme: MermaidTheme = timeTheme.name === 'night' ? 'dark' : 'default'
 	const currentRenderRef = useRef(0)
-
-	useEffect(() => {
-		const observer = new MutationObserver(() => {
-			setTheme(getMermaidTheme())
-		})
-
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-time-theme']
-		})
-
-		return () => observer.disconnect()
-	}, [])
 
 	useEffect(() => {
 		let cancelled = false

@@ -2,7 +2,7 @@
 
 import clsx from 'clsx'
 import { motion } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type TocItem = {
 	id: string
@@ -16,45 +16,38 @@ type BlogTocProps = {
 }
 
 export function BlogToc({ toc, delay = 0 }: BlogTocProps) {
-	const [activeIds, setActiveIds] = useState<Set<string>>(new Set())
-	const minActiveId = useMemo(() => {
-		return Array.from(activeIds).sort((a, b) => toc.findIndex(item => item.id === a) - toc.findIndex(item => item.id === b))[0]
-	}, [activeIds, toc])
+	const activeIdsRef = useRef(new Set<string>())
+	const [activeId, setActiveId] = useState<string>()
 
 	useEffect(() => {
 		if (toc.length === 0) return
 
-		const observers = new Map<string, IntersectionObserver>()
-
-		// Create observers for each heading
-		toc.forEach(item => {
-			const element = document.getElementById(item.id)
-			if (!element) return
-
-			const observer = new IntersectionObserver(
-				entries => {
-					entries.forEach(entry => {
-						setActiveIds(prev => {
-							const newSet = new Set(prev)
-							if (entry.isIntersecting) newSet.add(entry.target.id)
-							else newSet.delete(entry.target.id)
-
-							return newSet
-						})
-					})
-				},
-				{
-					rootMargin: '-100px 0px -100px 0px',
-					threshold: 0
+		activeIdsRef.current.clear()
+		setActiveId(undefined)
+		const observer = new IntersectionObserver(
+			entries => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) activeIdsRef.current.add(entry.target.id)
+					else activeIdsRef.current.delete(entry.target.id)
 				}
-			)
 
-			observer.observe(element)
-			observers.set(item.id, observer)
-		})
+				const nextActiveId = toc.find(item => activeIdsRef.current.has(item.id))?.id
+				setActiveId(current => (current === nextActiveId ? current : nextActiveId))
+			},
+			{
+				rootMargin: '-100px 0px -100px 0px',
+				threshold: 0
+			}
+		)
+
+		for (const item of toc) {
+			const element = document.getElementById(item.id)
+			if (element) observer.observe(element)
+		}
 
 		return () => {
-			observers.forEach(observer => observer.disconnect())
+			observer.disconnect()
+			activeIdsRef.current.clear()
 		}
 	}, [toc])
 
@@ -71,7 +64,7 @@ export function BlogToc({ toc, delay = 0 }: BlogTocProps) {
 					<a
 						key={item.id + item.level}
 						href={`#${item.id}`}
-						className={clsx('hover:text-brand relative block pl-3 transition-colors', item.id === minActiveId && 'text-brand')}
+						className={clsx('hover:text-brand relative block pl-3 transition-colors', item.id === activeId && 'text-brand')}
 						style={{ paddingLeft: (item.level - 1) * 8 }}>
 						{item.text}
 					</a>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { startAnimationLoop } from '@/lib/animation-loop'
 
 interface AnimatedCoreProps {
 	className?: string
@@ -12,9 +13,11 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 	const hoverRef = useRef(false)
 	const pointerRef = useRef({ x: 0, y: 0 })
 	const activationRef = useRef(0)
+	const pointerBoundsRef = useRef<DOMRect | null>(null)
 
 	const handlePointerMove = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-		const rect = event.currentTarget.getBoundingClientRect()
+		const rect = pointerBoundsRef.current ?? event.currentTarget.getBoundingClientRect()
+		pointerBoundsRef.current = rect
 		pointerRef.current = {
 			x: ((event.clientX - rect.left) / rect.width - 0.5) * 2,
 			y: ((event.clientY - rect.top) / rect.height - 0.5) * -2
@@ -24,6 +27,7 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 	const handlePointerLeave = useCallback(() => {
 		hoverRef.current = false
 		pointerRef.current = { x: 0, y: 0 }
+		pointerBoundsRef.current = null
 	}, [])
 
 	const handleActivate = useCallback(() => {
@@ -35,7 +39,6 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 		if (!container) return
 
 		let disposed = false
-		let frame = 0
 		let cleanupScene: (() => void) | undefined
 
 		const setup = async () => {
@@ -289,14 +292,14 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				camera.aspect = width / height
 				camera.updateProjectionMatrix()
 				renderer.setSize(width, height, false)
+				pointerBoundsRef.current = container.parentElement?.getBoundingClientRect() ?? null
 			}
 			const resizeObserver = new ResizeObserver(resize)
 			resizeObserver.observe(container)
 			resize()
 
-			const startTime = performance.now()
-			const animate = () => {
-				const time = (performance.now() - startTime) / 1000
+			const renderFrame = (elapsedMs: number) => {
+				const time = elapsedMs / 1000
 				const hover = hoverRef.current ? 1 : 0
 				const pointer = pointerRef.current
 				const activation = activationRef.current
@@ -358,12 +361,12 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				activationRef.current = Math.max(activation * 0.9 - 0.01, 0)
 
 				renderer.render(scene, camera)
-				frame = window.requestAnimationFrame(animate)
 			}
-			animate()
+			renderFrame(0)
+			const animationLoop = startAnimationLoop(({ elapsedMs }) => renderFrame(elapsedMs), { element: container })
 
 			cleanupScene = () => {
-				window.cancelAnimationFrame(frame)
+				animationLoop.destroy()
 				resizeObserver.disconnect()
 				scene.traverse(object => {
 					if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments || object instanceof THREE.Points) {
@@ -377,6 +380,7 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				})
 				glowTexture.dispose()
 				renderer.dispose()
+				renderer.forceContextLoss()
 				renderer.domElement.remove()
 			}
 		}
@@ -395,6 +399,7 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 			aria-label='激活 WinriseF Core'
 			onPointerEnter={() => {
 				hoverRef.current = true
+				pointerBoundsRef.current = containerRef.current?.parentElement?.getBoundingClientRect() ?? null
 			}}
 			onPointerMove={handlePointerMove}
 			onPointerLeave={handlePointerLeave}

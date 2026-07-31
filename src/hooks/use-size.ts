@@ -38,16 +38,39 @@ const computeSize = (): Omit<SizeState, 'recalc'> => {
 export const useSizeStore = create<SizeState>(set => ({
 	...initState,
 	recalc: () => {
-		set(computeSize())
+		set(current => {
+			const next = computeSize()
+			if (
+				current.init === next.init &&
+				current.maxXL === next.maxXL &&
+				current.maxLG === next.maxLG &&
+				current.maxMD === next.maxMD &&
+				current.maxSM === next.maxSM &&
+				current.maxXS === next.maxXS
+			) {
+				return current
+			}
+			return next
+		})
 	}
 }))
 
 export function useSizeInit() {
 	useEffect(() => {
-		const update = () => useSizeStore.getState().recalc()
-		update()
+		let frame = 0
+		const update = () => {
+			if (frame) return
+			frame = window.requestAnimationFrame(() => {
+				frame = 0
+				useSizeStore.getState().recalc()
+			})
+		}
+		useSizeStore.getState().recalc()
 		window.addEventListener('resize', update)
-		return () => window.removeEventListener('resize', update)
+		return () => {
+			if (frame) window.cancelAnimationFrame(frame)
+			window.removeEventListener('resize', update)
+		}
 	}, [])
 }
 

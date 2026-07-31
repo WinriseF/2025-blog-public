@@ -115,7 +115,10 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 		const element = rootRef.current
 		if (!element) return
 
-		const updateWidth = () => setWidth(Math.round(element.getBoundingClientRect().width))
+		const updateWidth = () => {
+			const nextWidth = Math.round(element.getBoundingClientRect().width)
+			setWidth(current => (current === nextWidth ? current : nextWidth))
+		}
 		updateWidth()
 
 		const observer = new ResizeObserver(updateWidth)
@@ -154,6 +157,7 @@ export function YearWordCloud({ words, height = 220, maxWords = 54, className }:
 			.fontSize(word => word.size)
 			.spiral('rectangular')
 			.random(random)
+			.timeInterval(12)
 			.canvas(() => document.createElement('canvas'))
 			.on('end', (tags, bounds) => {
 				if (cancelled) return

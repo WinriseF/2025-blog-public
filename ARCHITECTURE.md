@@ -86,6 +86,21 @@ Root layout:
 
 Because the global layout is strongly client-driven, many pages depend on browser runtime behavior.
 
+## Frontend Animation And Main-Thread Performance
+
+Continuous visual loops use `src/lib/animation-loop.ts`. The scheduler keeps the browser's visible `requestAnimationFrame` cadence, pauses work while the document or target is not visible, and resets frame timing on resume so a background-tab gap cannot create a large simulation jump. The global atmosphere, homepage WebGL core, world clock, and game use this lifecycle. The atmosphere keeps its CSS surface but releases animated Canvas layers while the opaque `/game` or `/world-clock` surface covers them; ambient rain selection and music behavior remain mounted.
+
+Performance-sensitive interaction rules:
+
+- The `/home` card sphere has no idle frame loop. React updates run only while dragging or inertial motion is active, and per-tile `will-change` promotion exists only during that motion.
+- World-clock rendering remains display-synchronized, while stable marker geometry, label vectors, Canvas dimensions, and DOM style values are reused. Astronomical lighting refreshes once per displayed clock second, hidden-tab timers stop, and WebGL resources/context are explicitly released on teardown.
+- Game rendering keeps its visible frame cadence and DPR, but hidden/offscreen frames stop, resize events are coalesced, and duplicate backing-store allocations are ignored. Ball trails use a fixed five-point ring and transient entity lists compact in place to avoid frame-by-frame garbage collection spikes; HUD markup lives in `src/app/game/game-surface.tsx`.
+- Pointer-heavy surfaces cache layout bounds at gesture start and coalesce updates to one per display frame; do not reintroduce layout reads inside raw pointer-move loops.
+- Blog TOC headings share one `IntersectionObserver`. Mermaid diagrams consume the existing time-theme context instead of installing one document observer per diagram.
+- Word-cloud placement uses short `d3-cloud` time slices so large year sets do not monopolize the main thread. Markdown code-block replacement uses indexed element placeholders rather than scanning every parsed text node against every code block.
+
+These optimizations intentionally do not lower visible animation frame rate, Canvas/WebGL pixel ratio, or visual density. Future performance work should preserve that invariant and target invisible, idle, duplicated, or allocation-heavy work first.
+
 ## Routing Overview
 
 Main route groups and pages:

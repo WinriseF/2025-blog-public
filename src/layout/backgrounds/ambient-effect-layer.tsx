@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { TimeThemeName } from '@/lib/time-theme'
+import { startAnimationLoop } from '@/lib/animation-loop'
 import { rand } from './utils'
 import { useMusicPlayer } from '@/components/music-player'
 import { ambientMusic } from '@/app/music/list'
@@ -10,6 +11,7 @@ export type AmbientEffectName = 'none' | 'rain' | 'meteor'
 
 type AmbientEffectLayerProps = {
 	themeName: TimeThemeName
+	visualsEnabled?: boolean
 }
 
 type RainDrop = {
@@ -215,31 +217,32 @@ function getRainBackdropStyle(active: boolean): CSSProperties {
 	}
 }
 
-export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProps) {
+export default function AmbientEffectLayer({ themeName, visualsEnabled = true }: AmbientEffectLayerProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
 	const [effect, setEffect] = useState<AmbientEffectName>('none')
 	const [effectReady, setEffectReady] = useState(false)
 	const { playMusic } = useMusicPlayer()
 	const visualEffect = reducedMotion ? 'none' : effect
-	const rainActive = visualEffect === 'rain' && effectReady
+	const rainSelected = visualEffect === 'rain'
+	const rainActive = rainSelected && effectReady
 
 	useEffect(() => {
 		setEffect(pickAmbientEffect(themeName))
 	}, [themeName])
 
 	useEffect(() => {
-		if (!rainActive) return
+		if (!rainSelected) return
 		void playMusic(ambientMusic.rain, {
 			loop: true,
 			showPlayer: true,
 			autoPlay: false
 		})
-	}, [playMusic, rainActive])
+	}, [playMusic, rainSelected])
 
 	useEffect(() => {
 		setEffectReady(false)
-		if (visualEffect === 'none') return
+		if (visualEffect === 'none' || !visualsEnabled) return
 
 		const canvas = canvasRef.current
 		if (!canvas) return
@@ -254,9 +257,6 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 		const frameInterval = 1000 / targetFps
 		let rainDrops = visualEffect === 'rain' ? createRainDrops(mobile ? 72 : 148, width, height, themeName) : []
 		const meteors: Meteor[] = []
-		let animationFrame = 0
-		let lastTime = 0
-		let accumulatedTime = 0
 		let resizeTimer: number | null = null
 
 		function prepareFrame() {
@@ -277,63 +277,48 @@ export default function AmbientEffectLayer({ themeName }: AmbientEffectLayerProp
 			return true
 		}
 
-		function draw(t: number) {
-			const deltaMs = lastTime ? Math.min(t - lastTime, 80) : frameInterval
-			lastTime = t
-			accumulatedTime += deltaMs
-
-			if (document.hidden) {
-				animationFrame = requestAnimationFrame(draw)
-				return
-			}
-
-			if (accumulatedTime < frameInterval) {
-				animationFrame = requestAnimationFrame(draw)
-				return
-			}
-
-			const deltaSeconds = accumulatedTime / 1000
-			accumulatedTime = 0
-
+		function draw(deltaMs: number) {
+			const deltaSeconds = deltaMs / 1000
 			if (visualEffect === 'rain') {
 				drawRain(ctx, rainDrops, width, height, deltaSeconds, themeName)
 			} else {
 				drawMeteors(ctx, meteors, width, height, deltaSeconds, mobile)
 			}
-
-			animationFrame = requestAnimationFrame(draw)
 		}
 
 		const resizeObserver = new ResizeObserver(() => {
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeTimer = window.setTimeout(() => {
-				if (prepareFrame() && !animationFrame) {
-					animationFrame = requestAnimationFrame(draw)
-				}
+				prepareFrame()
 				resizeTimer = null
 			}, 250)
 		})
 
 		resizeObserver.observe(canvas)
-		if (prepareFrame()) {
-			animationFrame = requestAnimationFrame(draw)
-		}
+		prepareFrame()
+		const animationLoop = startAnimationLoop(({ deltaMs }) => draw(deltaMs), {
+			element: canvas,
+			maxDeltaMs: 80,
+			targetFps
+		})
 
 		return () => {
-			if (animationFrame) cancelAnimationFrame(animationFrame)
+			animationLoop.destroy()
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeObserver.disconnect()
 			ctx.clearRect(0, 0, width, height)
+			canvas.width = 1
+			canvas.height = 1
 			setEffectReady(false)
 		}
-	}, [themeName, visualEffect])
+	}, [themeName, visualEffect, visualsEnabled])
 
-	if (visualEffect === 'none') return null
+	if (visualEffect === 'none' || !visualsEnabled) return null
 
 	return (
 		<>
 			<div className='pointer-events-none absolute inset-0' style={getRainBackdropStyle(rainActive)} />
-			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} />
+			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} aria-hidden='true' />
 		</>
 	)
 }

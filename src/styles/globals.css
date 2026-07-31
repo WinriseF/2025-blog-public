@@ -320,6 +320,10 @@
 	}
 }
 
+.site-entry-sphere[data-moving='true'] .site-entry-tile {
+	will-change: transform;
+}
+
 .heartbeat-container:hover {
 	.heartbeat {
 		animation: heartbeat-frame 0.8s ease-in-out;

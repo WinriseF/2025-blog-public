@@ -44,7 +44,7 @@ const tools = [
 	{
 		href: '/toolbox/version-control',
 		label: '版本控制器',
-		desc: '只读 Git 历史与差异工作台',
+		desc: '只读 Git / SVN 历史与差异工作台',
 		tone: 'from-emerald-400/25 via-sky-300/10 to-transparent',
 		icon: GitCompareArrows
 	}

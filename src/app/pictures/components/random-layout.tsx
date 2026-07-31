@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { useCenterInit, useCenterStore } from '@/hooks/use-center'
+import { useCenterStore } from '@/hooks/use-center'
 import type { Picture } from '../page'
 import siteContent from '@/config/site-content.json'
 import { cn } from '@/lib/utils'
@@ -364,7 +364,6 @@ const getStablePosition = (uniqueId: string, width: number, height: number): Pos
 }
 
 export const RandomLayout = ({ pictures }: RandomLayoutProps) => {
-	useCenterInit()
 	const { width, height } = useCenterStore()
 	const [show, setShow] = useState(false)
 

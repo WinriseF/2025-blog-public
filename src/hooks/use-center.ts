@@ -37,15 +37,37 @@ export const useCenterStore = create<CenterState>(set => ({
 	setCenter: (x, y) => set({ x, y }),
 	recalc: () => {
 		const c = computeCenter()
-		set({ x: c.x, y: c.y, width: c.width, height: c.height, centerX: c.centerX, centerY: c.centerY })
+		set(current => {
+			if (
+				current.x === c.x &&
+				current.y === c.y &&
+				current.centerX === c.centerX &&
+				current.centerY === c.centerY &&
+				current.width === c.width &&
+				current.height === c.height
+			) {
+				return current
+			}
+			return c
+		})
 	}
 }))
 
 export function useCenterInit() {
 	useEffect(() => {
-		const update = () => useCenterStore.getState().recalc()
-		update()
+		let frame = 0
+		const update = () => {
+			if (frame) return
+			frame = window.requestAnimationFrame(() => {
+				frame = 0
+				useCenterStore.getState().recalc()
+			})
+		}
+		useCenterStore.getState().recalc()
 		window.addEventListener('resize', update)
-		return () => window.removeEventListener('resize', update)
+		return () => {
+			if (frame) window.cancelAnimationFrame(frame)
+			window.removeEventListener('resize', update)
+		}
 	}, [])
 }

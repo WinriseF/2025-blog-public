@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { TimeTheme } from '@/lib/time-theme'
+import { startAnimationLoop } from '@/lib/animation-loop'
 import { rand } from './utils'
 import AmbientEffectLayer from './ambient-effect-layer'
 
 type TimeAtmosphereBackgroundProps = {
+	animated?: boolean
 	theme: TimeTheme
 	regenerateKey?: string | number
 }
@@ -63,7 +65,7 @@ function useReducedMotion() {
 	return reducedMotion
 }
 
-export default function TimeAtmosphereBackground({ theme, regenerateKey = 0 }: TimeAtmosphereBackgroundProps) {
+export default function TimeAtmosphereBackground({ animated = true, theme, regenerateKey = 0 }: TimeAtmosphereBackgroundProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
 	const { atmosphere } = theme
@@ -88,16 +90,12 @@ export default function TimeAtmosphereBackground({ theme, regenerateKey = 0 }: T
 
 		let width = canvas.clientWidth
 		let height = canvas.clientHeight
-		let animationFrame = 0
 		let resizeTimer: number | null = null
-		let lastTime = 0
-		let accumulatedTime = 0
 		let glows: Glow[] = []
 		let stars: Star[] = []
 
 		const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 640 ? 1.25 : 1.75)
 		const targetFps = reducedMotion ? 1 : Math.max(1, atmosphere.targetFps)
-		const frameInterval = 1000 / targetFps
 		const mobile = window.innerWidth < 640
 		const glowCount = reducedMotion ? Math.min(3, atmosphere.bubbleCount) : mobile ? Math.min(4, atmosphere.bubbleCount) : atmosphere.bubbleCount
 		const starCount = theme.name === 'night' ? (mobile ? 36 : 72) : 0
@@ -190,31 +188,19 @@ export default function TimeAtmosphereBackground({ theme, regenerateKey = 0 }: T
 			drawStars(t)
 		}
 
-		function frame(t: number) {
-			if (document.hidden) {
-				animationFrame = requestAnimationFrame(frame)
-				return
-			}
-
-			const deltaTime = lastTime ? t - lastTime : frameInterval
-			lastTime = t
-			accumulatedTime += deltaTime
-
-			if (accumulatedTime < frameInterval) {
-				animationFrame = requestAnimationFrame(frame)
-				return
-			}
-
-			accumulatedTime = 0
-			updateGlows(t)
-			draw(t)
-			animationFrame = requestAnimationFrame(frame)
-		}
-
 		resizeCanvas()
 		createGlows()
 		createStars()
 		draw()
+		const animationLoop = !reducedMotion
+			? startAnimationLoop(
+					({ timestamp }) => {
+						updateGlows(timestamp)
+						draw(timestamp)
+					},
+					{ element: canvas, targetFps }
+				)
+			: null
 
 		const resizeObserver = new ResizeObserver(() => {
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
@@ -228,16 +214,14 @@ export default function TimeAtmosphereBackground({ theme, regenerateKey = 0 }: T
 		})
 		resizeObserver.observe(canvas)
 
-		if (!reducedMotion) {
-			animationFrame = requestAnimationFrame(frame)
-		}
-
 		return () => {
-			if (animationFrame) cancelAnimationFrame(animationFrame)
+			animationLoop?.destroy()
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeObserver.disconnect()
+			canvas.width = 1
+			canvas.height = 1
 		}
-	}, [atmosphere, reducedMotion, regenerateKey, theme.name])
+	}, [animated, atmosphere, reducedMotion, regenerateKey, theme.name])
 
 	return (
 		<div className='pointer-events-none fixed inset-0 z-0 overflow-hidden' data-time-atmosphere={theme.name}>
@@ -248,8 +232,8 @@ export default function TimeAtmosphereBackground({ theme, regenerateKey = 0 }: T
 			<div className='pavilion-layer' />
 
 			{/* Canvas Animation */}
-			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' />
-			<AmbientEffectLayer themeName={theme.name} />
+			{animated && <canvas ref={canvasRef} className='absolute inset-0 h-full w-full' aria-hidden='true' />}
+			<AmbientEffectLayer themeName={theme.name} visualsEnabled={animated} />
 
 			{/* Noise Texture */}
 			<div

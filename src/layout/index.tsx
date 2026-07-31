@@ -44,6 +44,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const { theme: timeTheme } = useTimeTheme()
 	const pathname = usePathname()
 	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
+	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock'
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 	const [mounted, setMounted] = useState(false)
@@ -91,6 +92,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 			/>
 			{mounted ? (
 				<TimeAtmosphereBackground
+					animated={atmosphereAnimated}
 					theme={timeTheme}
 					regenerateKey={`${regenerateKey}-${timeTheme.name}`}
 				/>

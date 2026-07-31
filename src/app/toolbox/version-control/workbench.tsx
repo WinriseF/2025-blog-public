@@ -13,6 +13,9 @@ import { RepositoryCandidatePicker } from './repository-candidate-picker'
 export function Workbench() {
 	const containerRef = useRef<HTMLDivElement>(null)
 	const dragging = useRef(false)
+	const dragBounds = useRef<DOMRect | null>(null)
+	const dragFrame = useRef(0)
+	const pendingClientX = useRef(0)
 	const graphWidth = useMotionValue(300)
 	const overview = useVersionControlStore(state => state.overview)
 	const loading = useVersionControlStore(state => state.loading)
@@ -33,20 +36,32 @@ export function Workbench() {
 	}, [clearComparison, comparison])
 
 	useEffect(() => {
+		const applyDrag = () => {
+			dragFrame.current = 0
+			const rect = dragBounds.current
+			if (!dragging.current || !rect) return
+			graphWidth.set(Math.max(200, Math.min(pendingClientX.current - rect.left, 460)))
+		}
 		const move = (event: MouseEvent) => {
-			if (!dragging.current || !containerRef.current) return
-			const rect = containerRef.current.getBoundingClientRect()
-			graphWidth.set(Math.max(200, Math.min(event.clientX - rect.left, 460)))
+			if (!dragging.current) return
+			pendingClientX.current = event.clientX
+			if (!dragFrame.current) dragFrame.current = window.requestAnimationFrame(applyDrag)
 		}
 		const end = () => {
 			if (!dragging.current) return
+			if (dragFrame.current) {
+				window.cancelAnimationFrame(dragFrame.current)
+				applyDrag()
+			}
 			dragging.current = false
+			dragBounds.current = null
 			document.body.style.userSelect = ''
 			document.body.style.cursor = ''
 		}
 		window.addEventListener('mousemove', move)
 		window.addEventListener('mouseup', end)
 		return () => {
+			if (dragFrame.current) window.cancelAnimationFrame(dragFrame.current)
 			window.removeEventListener('mousemove', move)
 			window.removeEventListener('mouseup', end)
 			end()
@@ -106,6 +121,8 @@ export function Workbench() {
 					onMouseDown={event => {
 						event.preventDefault()
 						dragging.current = true
+						dragBounds.current = containerRef.current?.getBoundingClientRect() ?? null
+						pendingClientX.current = event.clientX
 						document.body.style.userSelect = 'none'
 						document.body.style.cursor = 'col-resize'
 					}}

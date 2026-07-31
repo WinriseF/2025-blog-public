@@ -33,6 +33,7 @@ const positiveModulo = (value: number, size: number) => ((value % size) + size) 
 const CLICK_DRAG_THRESHOLD = 8
 const logoCache = new Map<string, string | null>()
 const logoRequests = new Map<string, Promise<string | null>>()
+const entryVisualCache = new Map<string, { origin: string; tint: (typeof CARD_TINTS)[number] }>()
 
 function hashString(value: string) {
 	let hash = 0
@@ -62,6 +63,19 @@ function getEntryHostname(url: string) {
 	} catch {
 		return ''
 	}
+}
+
+function getEntryVisual(entry: SiteEntry) {
+	const cacheKey = `${entry.id}:${entry.url}`
+	const cached = entryVisualCache.get(cacheKey)
+	if (cached) return cached
+
+	const visual = {
+		origin: getEntryOrigin(entry.url).replace(/^https?:\/\//, ''),
+		tint: CARD_TINTS[hashString(entry.id) % CARD_TINTS.length]
+	}
+	entryVisualCache.set(cacheKey, visual)
+	return visual
 }
 
 function getLogoCandidates(url: string) {
@@ -154,38 +168,12 @@ export default function SiteEntrySphere() {
 		y: 0,
 		lastTime: 0
 	})
-	const frameRef = useRef<number | null>(null)
+	const surfaceRef = useRef<HTMLDivElement | null>(null)
+	const inertiaFrameRef = useRef<number | null>(null)
 	const renderFrameRef = useRef<number | null>(null)
 
 	useEffect(() => {
 		setMounted(true)
-	}, [])
-
-	useEffect(() => {
-		const tick = () => {
-			if (!dragRef.current.active) {
-				velocityRef.current = {
-					x: velocityRef.current.x * 0.93,
-					y: velocityRef.current.y * 0.93
-				}
-
-				if (Math.abs(velocityRef.current.x) >= 0.03 || Math.abs(velocityRef.current.y) >= 0.03) {
-					offsetRef.current = {
-						x: offsetRef.current.x + velocityRef.current.x,
-						y: offsetRef.current.y + velocityRef.current.y
-					}
-					queueRender()
-				}
-			}
-
-			frameRef.current = window.requestAnimationFrame(tick)
-		}
-
-		frameRef.current = window.requestAnimationFrame(tick)
-		return () => {
-			if (frameRef.current) window.cancelAnimationFrame(frameRef.current)
-			if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current)
-		}
 	}, [])
 
 	const queueRender = useCallback(() => {
@@ -196,6 +184,48 @@ export default function SiteEntrySphere() {
 			setRenderOffset({ ...offsetRef.current })
 		})
 	}, [])
+
+	const setMoving = useCallback((moving: boolean) => {
+		if (!surfaceRef.current) return
+		if (moving) surfaceRef.current.dataset.moving = 'true'
+		else delete surfaceRef.current.dataset.moving
+	}, [])
+
+	const stopInertia = useCallback(() => {
+		if (inertiaFrameRef.current !== null) window.cancelAnimationFrame(inertiaFrameRef.current)
+		inertiaFrameRef.current = null
+	}, [])
+
+	const startInertia = useCallback(() => {
+		if (inertiaFrameRef.current !== null) return
+
+		const tick = () => {
+			inertiaFrameRef.current = null
+			if (dragRef.current.active) return
+
+			velocityRef.current.x *= 0.93
+			velocityRef.current.y *= 0.93
+			if (Math.abs(velocityRef.current.x) < 0.03 && Math.abs(velocityRef.current.y) < 0.03) {
+				velocityRef.current = { x: 0, y: 0 }
+				setMoving(false)
+				return
+			}
+
+			offsetRef.current.x += velocityRef.current.x
+			offsetRef.current.y += velocityRef.current.y
+			queueRender()
+			inertiaFrameRef.current = window.requestAnimationFrame(tick)
+		}
+
+		inertiaFrameRef.current = window.requestAnimationFrame(tick)
+	}, [queueRender, setMoving])
+
+	useEffect(() => {
+		return () => {
+			stopInertia()
+			if (renderFrameRef.current !== null) window.cancelAnimationFrame(renderFrameRef.current)
+		}
+	}, [stopInertia])
 
 	const geometry = useMemo(() => {
 		const mobile = maxSM && init
@@ -250,6 +280,8 @@ export default function SiteEntrySphere() {
 	}, [entries, geometry, mounted, renderOffset])
 
 	const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+		stopInertia()
+		setMoving(true)
 		const target = event.target as HTMLElement
 		const tileElement = target.closest<HTMLElement>('[data-entry-url]')
 
@@ -265,7 +297,7 @@ export default function SiteEntrySphere() {
 		}
 		velocityRef.current = { x: 0, y: 0 }
 		event.currentTarget.setPointerCapture(event.pointerId)
-	}, [])
+	}, [setMoving, stopInertia])
 
 	const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
 		const drag = dragRef.current
@@ -304,12 +336,14 @@ export default function SiteEntrySphere() {
 		if (isClick && drag.targetUrl) {
 			window.open(drag.targetUrl, '_blank', 'noopener,noreferrer')
 		}
-	}, [])
+		startInertia()
+	}, [startInertia])
 
 	return (
 		<div className='relative h-dvh w-full overflow-hidden'>
 			<div
-				className='relative h-full w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing'
+				ref={surfaceRef}
+				className='site-entry-sphere relative h-full w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing'
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerEnd}
@@ -320,8 +354,7 @@ export default function SiteEntrySphere() {
 
 				<div className='absolute inset-0 [perspective:1100px]'>
 					{tiles.map(tile => {
-						const origin = getEntryOrigin(tile.entry.url).replace(/^https?:\/\//, '')
-						const tint = CARD_TINTS[hashString(tile.entry.id) % CARD_TINTS.length]
+						const { origin, tint } = getEntryVisual(tile.entry)
 
 						return (
 							<div
@@ -334,7 +367,7 @@ export default function SiteEntrySphere() {
 									event.preventDefault()
 									window.open(tile.entry.url, '_blank', 'noopener,noreferrer')
 								}}
-								className='group absolute block outline-none'
+								className='site-entry-tile group absolute block outline-none'
 								style={{
 									left: `calc(50% + ${tile.x}px)`,
 									top: `calc(50% + ${tile.y}px)`,
@@ -345,7 +378,6 @@ export default function SiteEntrySphere() {
 									transform: `translate(-50%, -50%) rotateX(${tile.rotateX}deg) rotateY(${tile.rotateY}deg) scale(${tile.scale})`,
 									transformStyle: 'preserve-3d',
 									backfaceVisibility: 'hidden',
-									willChange: 'transform',
 									contain: 'layout paint style'
 								}}>
 								<div
