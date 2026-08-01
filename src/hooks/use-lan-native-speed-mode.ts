@@ -5,34 +5,21 @@ import { detectLanNativeAgentCapability, type LanNativeAgentCapability } from '@
 import { createLanAgentLaunchRequest, launchLanNativeAgent, subscribeLanAgentCallbacks } from '@/lib/lan-transfer/native-agent/launch-client'
 import { LanNativeLocalBridge } from '@/lib/lan-transfer/native-agent/local-bridge'
 import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
-import { nativeAgentLnaTicketCount, runLanNativeHttpBenchmark, selectLocalNetworkAccessEndpoint } from '@/lib/lan-transfer/native-agent/peer-lna-http'
-import { runLanNativeBenchmark } from '@/lib/lan-transfer/native-agent/peer-webtransport'
-import { endpointAddressKind, summarizeNativeEndpoints, validLanWebTransportEndpoint } from '@/lib/lan-transfer/native-agent/endpoint-validation'
+import { summarizeNativeEndpoints } from '@/lib/lan-transfer/native-agent/endpoint-validation'
 import { logLanConnection, shortConnectionId } from '@/lib/lan-transfer/connection-diagnostics'
 import {
 	NATIVE_AGENT_BENCHMARK_VERSION,
 	NATIVE_AGENT_LNA_HTTP_VERSION,
 	NATIVE_AGENT_FILE_VERSION,
-	NATIVE_AGENT_SESSION_COUNT,
 	type LanNativeAgentAdvertisement,
 	type LanNativeAgentCallback,
 	type LanNativeAgentTicket,
-	type LanNativeBenchmarkDirection,
-	type LanNativeBenchmarkProgress,
-	type LanNativeBenchmarkResult
 } from '@/lib/lan-transfer/native-agent/types'
 
 const SPEED_MODE_PREFERENCE_KEY = 'lan-native-speed-mode-enabled'
 const LAUNCH_CALLBACK_TIMEOUT_MS = 30_000
 const LAUNCH_NONCE_TTL_MS = 150_000
 const INITIAL_CAPABILITY: LanNativeAgentCapability = { device: 'desktop', webTransport: false, canHostAgent: false }
-
-export type LanNativeBenchmarkState = {
-	state: 'idle' | 'running' | 'complete' | 'error'
-	progress?: LanNativeBenchmarkProgress
-	result?: LanNativeBenchmarkResult
-	error?: string
-}
 
 export type LanNativeSpeedModeState = LanNativeAgentCapability & {
 	ready: boolean
@@ -41,12 +28,9 @@ export type LanNativeSpeedModeState = LanNativeAgentCapability & {
 	status: string
 	localAdvertisement: LanNativeAgentAdvertisement | null
 	remoteAdvertisement: LanNativeAgentAdvertisement | null
-	canBenchmark: boolean
-	benchmark: LanNativeBenchmarkState
 	setEnabled: (enabled: boolean) => void
 	reconnect: () => void
 	issuePeerTicket: (peerDeviceId: string) => Promise<LanNativeAgentTicket>
-	runBenchmark: (direction: LanNativeBenchmarkDirection, totalBytes: number, requestTicket: () => Promise<LanNativeAgentTicket>) => Promise<void>
 	localAgentPort: LanNativeLocalAgentPort | null
 }
 
@@ -65,7 +49,6 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 	const [agentState, setAgentState] = useState<LanNativeSpeedModeState['agentState']>('idle')
 	const [agentError, setAgentError] = useState('')
 	const [callback, setCallback] = useState<LanNativeAgentCallback | null>(null)
-	const [benchmark, setBenchmark] = useState<LanNativeBenchmarkState>({ state: 'idle' })
 
 	const closeBridge = useCallback(() => {
 		connectionAttemptRef.current += 1
@@ -265,8 +248,6 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		setAgentError('本次会话已由另一台电脑提供极速模式')
 	}, [advertisedByPeer, closeBridge, localAdvertisement, localWins])
 
-	useEffect(() => setBenchmark({ state: 'idle' }), [remoteAdvertisement?.ownerDeviceId])
-
 	const issuePeerTicket = useCallback(
 		async (peerDeviceId: string) => {
 			const bridge = bridgeRef.current
@@ -289,46 +270,6 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		[ownerDeviceId]
 	)
 
-	const runBenchmark = useCallback(
-		async (direction: LanNativeBenchmarkDirection, totalBytes: number, requestTicket: () => Promise<LanNativeAgentTicket>) => {
-			if (!remoteAdvertisement) return void setBenchmark({ state: 'error', error: '当前连接没有可用的加速电脑' })
-			const sessionCount = NATIVE_AGENT_SESSION_COUNT
-			logLanConnection('NATIVE', 'benchmark-started', { direction, totalBytes, remoteOwner: shortConnectionId(remoteAdvertisement.ownerDeviceId), publicIpv6State: remoteAdvertisement.publicIpv6State })
-			setBenchmark({ state: 'running', progress: { direction, transport: 'lna-http', sessionCount, bytes: 0, totalBytes, startedAt: performance.now() } })
-			try {
-				const lna = await selectLocalNetworkAccessEndpoint(remoteAdvertisement.lnaHttpEndpoints)
-				const webTransportEndpoints = remoteAdvertisement.endpoints.filter(validLanWebTransportEndpoint)
-				const publicIpv6Available = webTransportEndpoints.some(endpoint => endpointAddressKind(endpoint) === 'gua-ipv6')
-				const canUseWebTransport = capability.webTransport && webTransportEndpoints.length > 0 && (lna.state !== 'denied' || publicIpv6Available)
-				const ticketCount = lna.state === 'available' ? nativeAgentLnaTicketCount(totalBytes) : sessionCount
-				logLanConnection('NATIVE', 'benchmark-route-evaluated', { lnaState: lna.state, webTransportSupported: capability.webTransport, publicIpv6Available, canUseWebTransport, selectedTransport: lna.state === 'available' ? 'lna-http' : canUseWebTransport ? 'webtransport' : 'none', ticketCount })
-				if (lna.state !== 'available' && !canUseWebTransport)
-					throw new Error(lna.state === 'denied' ? '你已拒绝本地网络访问权限，且加速电脑没有可用的公网 IPv6 WebTransport 地址' : lna.state === 'unavailable' ? lna.reason : '当前浏览器既不支持本地网络访问，也不支持 WebTransport')
-				logLanConnection('NATIVE', 'benchmark-tickets-requested', { ticketCount })
-				const tickets = await Promise.all(Array.from({ length: ticketCount }, () => requestTicket()))
-				logLanConnection('NATIVE', 'benchmark-tickets-received', { ticketCount: tickets.length })
-				if (tickets.some(ticket => ticket.ownerDeviceId !== remoteAdvertisement.ownerDeviceId)) throw new Error('极速通道凭据来自错误的设备')
-				const result =
-					lna.state === 'available'
-						? await runLanNativeHttpBenchmark({
-								tickets,
-								endpoint: lna.endpoint,
-								direction,
-								totalBytes,
-								onProgress: progress => setBenchmark({ state: 'running', progress })
-							})
-						: await runLanNativeBenchmark({ tickets, direction, totalBytes, onProgress: progress => setBenchmark({ state: 'running', progress }) })
-				setBenchmark({ state: 'complete', result })
-				logLanConnection('NATIVE', 'benchmark-completed', { direction, transport: result.transport, sessionCount: result.sessionCount, totalBytes, clientMbps: Math.round(result.clientMbps), agentMbps: Math.round(result.agentMbps) })
-			} catch (error) {
-				const message = error instanceof Error ? error.message : '极速模式测速失败'
-				setBenchmark({ state: 'error', error: message })
-				logLanConnection('NATIVE', 'benchmark-failed', { direction, totalBytes, error: message }, 'error')
-			}
-		},
-		[capability.webTransport, remoteAdvertisement]
-	)
-
 	const status = nativeSpeedStatus(localAdvertisement, remoteAdvertisement, agentState, agentError, capability.device, preferenceEnabled)
 
 	return {
@@ -339,12 +280,9 @@ export function useLanNativeSpeedMode(ownerDeviceId = '', advertisedByPeer: LanN
 		status,
 		localAdvertisement,
 		remoteAdvertisement,
-		canBenchmark: Boolean(remoteAdvertisement && !localAdvertisement),
-		benchmark,
 		setEnabled,
 		reconnect: launch,
 		issuePeerTicket,
-		runBenchmark,
 		localAgentPort: bridgeRef.current
 	}
 }

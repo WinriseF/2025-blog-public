@@ -3,6 +3,7 @@ import { LAN_CHUNK_TIERS, LAN_FILE_IO_BATCH_BYTES, LAN_LIMITS, type LanAttachmen
 
 const CONTROL_FRAME = 1
 const CHUNK_FRAME = 2
+const BENCHMARK_FRAME = 3
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
@@ -90,10 +91,18 @@ export function encodeControl(message: LanControlMessage) {
 }
 
 export function encodeChunk(attachmentId: string, chunkIndex: number, bytes: Uint8Array) {
-	const header = encoder.encode(JSON.stringify({ id: attachmentId, index: chunkIndex }))
+	return encodeDataFrame(CHUNK_FRAME, attachmentId, chunkIndex, bytes)
+}
+
+export function encodeBenchmarkChunk(benchmarkId: string, chunkIndex: number, bytes: Uint8Array) {
+	return encodeDataFrame(BENCHMARK_FRAME, benchmarkId, chunkIndex, bytes)
+}
+
+function encodeDataFrame(kind: typeof CHUNK_FRAME | typeof BENCHMARK_FRAME, id: string, chunkIndex: number, bytes: Uint8Array) {
+	const header = encoder.encode(JSON.stringify({ id, index: chunkIndex }))
 	if (header.byteLength > 0xffff) throw new Error('文件发送失败，请重新发送')
 	const frame = new Uint8Array(1 + 2 + header.byteLength + bytes.byteLength)
-	frame[0] = CHUNK_FRAME
+	frame[0] = kind
 	frame[1] = (header.byteLength >> 8) & 0xff
 	frame[2] = header.byteLength & 0xff
 	frame.set(header, 3)
@@ -118,7 +127,7 @@ export function decodeFrame(data: unknown) {
 			return null
 		}
 	}
-	if (bytes[0] !== CHUNK_FRAME || bytes.byteLength < 3) return null
+	if ((bytes[0] !== CHUNK_FRAME && bytes[0] !== BENCHMARK_FRAME) || bytes.byteLength < 3) return null
 	const headerLength = (bytes[1] << 8) | bytes[2]
 	const headerEnd = 3 + headerLength
 	if (bytes.byteLength < headerEnd) return null
@@ -129,7 +138,7 @@ export function decodeFrame(data: unknown) {
 		return null
 	}
 	const chunk = bytes.subarray(headerEnd)
-	return { kind: 'chunk' as const, id: header.id, index: header.index, bytes: chunk }
+	return { kind: bytes[0] === CHUNK_FRAME ? 'chunk' as const : 'benchmark' as const, id: header.id, index: header.index, bytes: chunk }
 }
 
 export function nextMissingChunkIndex(file: PreparedLanAttachment, receivedRanges: ChunkRange[], fromIndex: number) {

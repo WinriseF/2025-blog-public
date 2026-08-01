@@ -3,7 +3,7 @@ import { logLanConnection, shortConnectionId, summarizeIceCandidate, summarizeNe
 import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportHealthStats, LanTransportState } from './transport-types'
 import { ipAddressKind } from './native-agent/endpoint-validation'
 
-const transportControlPrefix = '__winrisef_lan_v12__:'
+const transportControlPrefix = '__winrisef_lan_v13__:'
 const TRANSPORT_FRAME_PROBE = 0xff
 const ICE_DIAGNOSTIC_SAMPLE_DELAYS = [0, 100, 250, 500, 1000, 2000, 3500, 5000, 7000, 9000] as const
 const encoder = new TextEncoder()
@@ -341,7 +341,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			this.updateIceDiagnostics(`ice-${this.pc.iceConnectionState}`)
 			this.emitConnectionState()
 		}
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v12', { ordered: true }))
+		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v13', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}

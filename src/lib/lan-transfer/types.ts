@@ -1,7 +1,7 @@
 import type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 export type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 
-export const LAN_PROTOCOL_VERSION = 12
+export const LAN_PROTOCOL_VERSION = 13
 export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
 export const LAN_CHUNK_TIERS = [
@@ -156,6 +156,69 @@ export type LanNativeAgentTicketResponse = {
 	requestId: string
 	ticket?: LanNativeAgentTicket
 	error?: string
+}
+
+export type LanWebRtcBenchmarkDirection = 'upload' | 'download'
+export type LanWebRtcBenchmarkWireDirection = 'requester-to-peer' | 'peer-to-requester'
+
+export type LanWebRtcBenchmarkProgress = {
+	direction: LanWebRtcBenchmarkDirection
+	bytes: number
+	totalBytes: number
+	startedAt: number
+}
+
+export type LanWebRtcBenchmarkResult = {
+	direction: LanWebRtcBenchmarkDirection
+	bytes: number
+	clientElapsedMs: number
+	receiverElapsedMs: number
+	clientMbps: number
+	receiverMbps: number
+}
+
+export type LanWebRtcBenchmarkRequest = {
+	type: 'webrtc-benchmark-request'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	benchmarkId: string
+	direction: LanWebRtcBenchmarkWireDirection
+	totalBytes: number
+	chunkSize: number
+}
+
+export type LanWebRtcBenchmarkReady = {
+	type: 'webrtc-benchmark-ready'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	benchmarkId: string
+	accepted: boolean
+	error?: string
+}
+
+export type LanWebRtcBenchmarkResultControl = {
+	type: 'webrtc-benchmark-result'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	benchmarkId: string
+	receivedBytes: number
+	receiverElapsedMs: number
+}
+
+export type LanWebRtcBenchmarkCancel = {
+	type: 'webrtc-benchmark-cancel'
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
+	peerId: string
+	seq: number
+	createdAt: number
+	benchmarkId: string
+	reason: string
 }
 
 export type LanAttachmentManifest = {
@@ -389,6 +452,10 @@ export type LanControlMessage =
 	| LanCapability
 	| LanNativeAgentTicketRequest
 	| LanNativeAgentTicketResponse
+	| LanWebRtcBenchmarkRequest
+	| LanWebRtcBenchmarkReady
+	| LanWebRtcBenchmarkResultControl
+	| LanWebRtcBenchmarkCancel
 	| LanChatMessageControl
 	| LanChatReceipt
 	| LanAttachmentOffer

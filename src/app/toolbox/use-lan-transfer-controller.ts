@@ -287,6 +287,8 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		setNativeTicketIssuer,
 		setNativeLocalAgentPort,
 		requestNativeAgentTicket: engine.requestNativeAgentTicket,
+		runWebRtcBenchmark: engine.runWebRtcBenchmark,
+		reserveBenchmark: engine.reserveBenchmark,
 		closeConnection,
 		leaveSession,
 		downloadAttachment: engine.downloadAttachment,

@@ -9,10 +9,26 @@ import {
 } from './file-transfer'
 import { LanAttachmentSendScheduler } from './attachment-send-scheduler'
 import { logLanConnection, shortConnectionId } from './connection-diagnostics'
+import {
+	attachmentFromOffer,
+	attachmentFromPrepared,
+	chooseReceiveStorage,
+	clampBytes,
+	fileRecord,
+	historyMessageForSync,
+	historyMessageFromRemote,
+	isInlineMediaKind,
+	isMobileCapability,
+	isUserCancel,
+	messageBase,
+	receiveStorageCandidates,
+	transferMeta,
+} from './connection-runtime-helpers'
 import { LanNativeFileRuntime } from './native-file-runtime'
+import { LanWebRtcBenchmarkRuntime } from './webrtc-benchmark-runtime'
 import type { LanNativeLocalAgentPort, LanNativePeerBulkPort } from './native-agent/ports'
 import type { LanConnectionTransport } from './transport-types'
-import { createStorageEngine, chooseStorageKind } from './storage/storage-manager'
+import { createStorageEngine } from './storage/storage-manager'
 import type { TransferFileMeta, LanStorageEngine } from './storage/types'
 import {
 	LAN_LIMITS,
@@ -23,12 +39,13 @@ import {
 	type LanAttachmentOffer,
 	type LanAttachmentReceived,
 	type LanCapability,
-	type LanChatHistoryMessage,
 	type LanChatMessage,
 	type LanControlMessage,
 	type LanFileRecord,
 	type LanNativeAgentTicket,
 	type LanSession,
+	type LanWebRtcBenchmarkDirection,
+	type LanWebRtcBenchmarkProgress,
 	type PreparedLanAttachment,
 } from './types'
 
@@ -38,7 +55,6 @@ type CachedReceivedFile = { engine: LanStorageEngine; fileId: string; messageId:
 type ProgressCheckpoint = { bytes: number; ts: number }
 type TransferSample = { bytes: number; ts: number; speedBps: number }
 type ResumeSync = { id: string; epoch: number; generation: number; ids: Set<string>; timer?: ReturnType<typeof setTimeout> }
-
 type RuntimeContext = {
 	session: LanSession
 	remotePeerName?: string
@@ -73,107 +89,6 @@ export type LanConnectionRuntimeEvent =
 
 type RuntimeListener = (event: LanConnectionRuntimeEvent) => void
 
-function transferMeta(offer: LanAttachmentOffer, storage: TransferFileMeta['storage']): TransferFileMeta {
-	return { ...offer.attachment, storage }
-}
-
-function messageBase(id: string, direction: 'in' | 'out', createdAt: number, peerId?: string): Omit<LanChatMessage, 'attachments'> {
-	return { id, direction, kind: 'attachments', status: direction === 'out' ? 'queued' : 'received', createdAt, peerId }
-}
-
-function attachmentFromPrepared(file: PreparedLanAttachment, storage: TransferFileMeta['storage'], previewUrl = ''): LanAttachment {
-	return { ...file, direction: 'out', storage, status: 'queued', progress: 0, previewUrl }
-}
-
-function attachmentFromOffer(offer: LanAttachmentOffer, storage: TransferFileMeta['storage'], progress = 0): LanAttachment {
-	return { ...offer.attachment, direction: 'in', storage, status: 'receiving', progress }
-}
-
-function historyMessageForSync(message: LanChatMessage): LanChatHistoryMessage {
-	return {
-		...message,
-		attachments: message.attachments.map(({ url, previewUrl, speedBps, etaSeconds, phase, ...attachment }) => attachment),
-	}
-}
-
-function invertDirection(direction: LanChatMessage['direction']) {
-	if (direction === 'out') return 'in'
-	if (direction === 'in') return 'out'
-	return 'system'
-}
-
-function historyMessageFromRemote(message: LanChatHistoryMessage): LanChatMessage {
-	const direction = invertDirection(message.direction)
-	return {
-		...message,
-		direction,
-		status: direction === 'in' ? 'received' : direction === 'out' ? 'sent' : 'received',
-		attachments: message.attachments.map(attachment => ({
-			...attachment,
-			direction: attachment.direction === 'out' ? 'in' : 'out',
-			speedBps: undefined,
-			etaSeconds: undefined,
-		})),
-	}
-}
-
-function fileRecord(messageIdValue: string, attachment: LanAttachment, peerName?: string): LanFileRecord {
-	return {
-		id: attachment.id,
-		messageId: messageIdValue,
-		direction: attachment.direction,
-		kind: attachment.kind,
-		name: attachment.name,
-		mime: attachment.mime,
-		size: attachment.size,
-		storage: attachment.storage,
-		status: attachment.status,
-		url: attachment.url,
-		createdAt: Date.now(),
-		peerName,
-	}
-}
-
-function receiveStorageCandidates(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null, allowDirectFile = true) {
-	const candidates: TransferFileMeta['storage'][] = []
-	const add = (kind: TransferFileMeta['storage']) => {
-		if (!candidates.includes(kind)) candidates.push(kind)
-	}
-
-	if (allowDirectFile && capability?.storage.fileSystemAccess && capability.platform === 'desktop') add('file')
-	if (requested === 'opfs' && capability?.storage.opfs) add('opfs')
-	if (requested === 'indexeddb' && capability?.storage.indexedDB) add('indexeddb')
-	if (capability?.storage.opfs) add('opfs')
-	if (capability?.storage.indexedDB) add('indexeddb')
-	if (size <= LAN_LIMITS.memoryMaxBytes) add('memory')
-	const fallback = chooseStorageKind(size, requested, capability)
-	if (fallback !== 'file' || allowDirectFile) {
-		if (fallback !== 'memory' || size <= LAN_LIMITS.memoryMaxBytes) add(fallback)
-	}
-	return candidates
-}
-
-function chooseReceiveStorage(size: number, requested: TransferFileMeta['storage'], capability: LanCapability | null, allowDirectFile = true) {
-	return receiveStorageCandidates(size, requested, capability, allowDirectFile)[0] || 'memory'
-}
-
-function isUserCancel(error: unknown) {
-	const name = error && typeof error === 'object' && 'name' in error ? String((error as { name?: unknown }).name || '') : ''
-	return name === 'AbortError' || name === 'NotAllowedError'
-}
-
-function isInlineMediaKind(kind: LanAttachmentKind) {
-	return kind === 'image' || kind === 'voice'
-}
-
-function isMobileCapability(capability?: LanCapability | null) {
-	return capability?.platform === 'android' || capability?.platform === 'ios'
-}
-
-function clampBytes(bytes: number, total: number) {
-	return Math.max(0, Math.min(total, bytes))
-}
-
 export class LanConnectionRuntime {
 	private listeners = new Set<RuntimeListener>()
 	private transport: LanConnectionTransport | null = null
@@ -195,6 +110,7 @@ export class LanConnectionRuntime {
 	private outgoingObjectUrls: string[] = []
 	private pendingNativeTickets = new Map<string, { resolve: (ticket: LanNativeAgentTicket) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
 	private nativeFallbackIncoming = new Set<string>()
+	private benchmarkReservation: symbol | null = null
 	private destroyed = false
 	private native: LanNativeFileRuntime
 	private sender = new LanAttachmentSendScheduler({
@@ -212,6 +128,17 @@ export class LanConnectionRuntime {
 		},
 		onTaskError: (file, reason) => this.failAttachment(file.id, file.messageId, reason),
 		onTransportStalled: reason => this.setStatus(reason),
+	})
+	private benchmark = new LanWebRtcBenchmarkRuntime({
+		transport: () => this.transport,
+		recommendedChunkSize: () => this.context?.remoteCapability?.limits.recommendedChunkSize,
+		fileTransferActive: () => this.hasFileTransfer() || Boolean(this.benchmarkReservation),
+		mobile: () => isMobileCapability(this.context?.localCapability) || isMobileCapability(this.context?.remoteCapability),
+		createId: messageId,
+		sendRequest: message => this.sendControl({ ...this.controlBase('webrtc-benchmark-request'), ...message }),
+		sendReady: message => this.sendControl({ ...this.controlBase('webrtc-benchmark-ready'), ...message }),
+		sendResult: message => this.sendControl({ ...this.controlBase('webrtc-benchmark-result'), ...message }),
+		sendCancel: message => this.sendControl({ ...this.controlBase('webrtc-benchmark-cancel'), ...message }),
 	})
 
 	constructor(nativePeerBulk: LanNativePeerBulkPort) {
@@ -249,8 +176,18 @@ export class LanConnectionRuntime {
 		return () => this.listeners.delete(listener)
 	}
 
-	hasActiveTransfer() {
-		return this.incoming.size > 0 || this.sender.hasPendingTransfer() || this.native.hasActiveTransfer()
+	hasActiveTransfer() { return this.hasFileTransfer() || this.isBenchmarkActive() }
+	private hasFileTransfer() { return this.incoming.size > 0 || this.sender.hasPendingTransfer() || this.native.hasActiveTransfer() }
+	private isBenchmarkActive() { return this.benchmark.isActive() || Boolean(this.benchmarkReservation) }
+
+	reserveBenchmark() {
+		if (!this.isOpen()) throw new Error('请先连接测速设备')
+		if (this.hasActiveTransfer()) throw new Error('当前连接正在传输文件或测速，请稍后重试')
+		const reservation = Symbol('lan-benchmark')
+		this.benchmarkReservation = reservation
+		return () => {
+			if (this.benchmarkReservation === reservation) this.benchmarkReservation = null
+		}
 	}
 
 	attachTransport(transport: LanConnectionTransport, context: RuntimeContext) {
@@ -266,6 +203,8 @@ export class LanConnectionRuntime {
 	}
 
 	detachTransport() {
+		this.benchmark.reset()
+		this.benchmarkReservation = null
 		this.sender.detach()
 		this.clearResumeSync()
 		this.transportEpoch += 1
@@ -330,6 +269,7 @@ export class LanConnectionRuntime {
 		const frame = decodeFrame(data)
 		if (!frame) return
 		if (frame.kind === 'control') return void this.handleControl(frame.message).catch(error => this.setStatus(error instanceof Error ? error.message : '发送失败'))
+		if (frame.kind === 'benchmark') return this.benchmark.handleFrame(frame.id, frame.index, frame.bytes)
 		this.queueIncomingChunk(frame.id, frame.index, frame.bytes)
 	}
 
@@ -393,6 +333,7 @@ export class LanConnectionRuntime {
 		const context = this.context
 		if (!files.length) return
 		if (!context || !this.isOpen()) return this.setStatus('请先连接设备')
+		if (this.isBenchmarkActive()) return this.setStatus('连接测速进行中，请完成或取消测速后再发送文件')
 		const remote = context.remoteCapability || null
 		const webFiles = options.kind === 'image' || options.kind === 'voice' ? files : await this.native.trySendBrowserFiles(files)
 		if (!webFiles.length) return
@@ -431,6 +372,7 @@ export class LanConnectionRuntime {
 	}
 
 	async acceptAttachment(id: string) {
+		if (this.isBenchmarkActive()) return this.setStatus('连接测速进行中，请完成或取消测速后再接收文件')
 		if (await this.native.accept(id)) return
 		await this.receivePendingAttachment(id, false)
 	}
@@ -468,6 +410,7 @@ export class LanConnectionRuntime {
 	}
 
 	selectNativeFiles() {
+		if (this.isBenchmarkActive()) return Promise.reject(new Error('连接测速进行中，请完成或取消测速后再发送文件'))
 		return this.native.selectAgentFiles()
 	}
 
@@ -667,6 +610,10 @@ export class LanConnectionRuntime {
 		})
 	}
 
+	async runWebRtcBenchmark(direction: LanWebRtcBenchmarkDirection, totalBytes: number, onProgress?: (progress: LanWebRtcBenchmarkProgress) => void, signal?: AbortSignal) {
+		return this.benchmark.run(direction, totalBytes, onProgress, signal)
+	}
+
 	private completeOutgoing(message: LanAttachmentReceived) {
 		const entry = this.prepared.get(message.id)
 		if (!entry || message.messageId !== entry.file.messageId) return
@@ -718,6 +665,10 @@ export class LanConnectionRuntime {
 
 	private async handleOffer(message: LanAttachmentOffer) {
 		if (this.destroyed) return
+		if (this.isBenchmarkActive()) {
+			this.sendControl({ ...this.controlBase('attachment-cancel'), id: message.attachment.id, messageId: message.messageId, reason: '对方正在进行连接测速' })
+			return
+		}
 		if (this.native.handleOffer(message)) return
 		const context = this.context
 		if (!context) return
@@ -858,6 +809,10 @@ export class LanConnectionRuntime {
 			this.flushOffersAndQueue()
 			return
 		}
+		if (message.type === 'webrtc-benchmark-request') return this.benchmark.handleRequest(message)
+		if (message.type === 'webrtc-benchmark-ready') return this.benchmark.handleReady(message)
+		if (message.type === 'webrtc-benchmark-result') return this.benchmark.handleResult(message)
+		if (message.type === 'webrtc-benchmark-cancel') return this.benchmark.handleCancel(message)
 		if (message.type === 'native-agent-ticket-request') {
 			const context = this.context
 			const request = shortConnectionId(message.requestId)

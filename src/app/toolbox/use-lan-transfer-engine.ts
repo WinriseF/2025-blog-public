@@ -5,7 +5,7 @@ import { createEmptyLanChatState, lanChatReducer, type LanChatAction, type LanCh
 import { downloadUrl } from '@/lib/lan-transfer/file-transfer'
 import { LanConnectionRuntime } from '@/lib/lan-transfer/connection-runtime'
 import type { LanConnectionRoute, LanConnectionTransport } from '@/lib/lan-transfer/transport-types'
-import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession } from '@/lib/lan-transfer/types'
+import type { LanAttachmentKind, LanCapability, LanConnectionState, LanFileRecord, LanPeer, LanSession, LanWebRtcBenchmarkDirection, LanWebRtcBenchmarkProgress } from '@/lib/lan-transfer/types'
 import type { LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
 import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 import { LanNativePeerBulkAdapter } from '@/lib/lan-transfer/native-agent/peer-native-file'
@@ -261,6 +261,18 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		return runtime.requestNativeAgentTicket()
 	}, [])
 
+	const runWebRtcBenchmark = useCallback((peerId: string, direction: LanWebRtcBenchmarkDirection, totalBytes: number, onProgress?: (progress: LanWebRtcBenchmarkProgress) => void, signal?: AbortSignal) => {
+		const runtime = managedRef.current.get(peerId)?.runtime
+		if (!runtime) return Promise.reject(new Error('请先选择测速设备'))
+		return runtime.runWebRtcBenchmark(direction, totalBytes, onProgress, signal)
+	}, [])
+
+	const reserveBenchmark = useCallback((peerId: string) => {
+		const runtime = managedRef.current.get(peerId)?.runtime
+		if (!runtime) throw new Error('请先选择测速设备')
+		return runtime.reserveBenchmark()
+	}, [])
+
 	const sendText = useCallback((text: string) => {
 		const runtime = getActiveRuntime()
 		if (!runtime) return optionsRef.current.setStatus('请先选择已连接设备')
@@ -314,6 +326,8 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		isTransferActive,
 		updateLocalCapability,
 		requestNativeAgentTicket,
+		runWebRtcBenchmark,
+		reserveBenchmark,
 		selectConnection: setActivePeerId,
 		sendText,
 		sendFiles,

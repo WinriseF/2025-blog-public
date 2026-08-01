@@ -10,11 +10,12 @@ const REQUEST_TIMEOUT_MS = 120_000
 export type LocalNetworkAccessDecision = { state: 'unsupported' | 'denied' } | { state: 'unavailable'; reason: string } | { state: 'available'; endpoint: string }
 type PermissionNameWithLna = PermissionName | 'local-network-access'
 
-export async function selectLocalNetworkAccessEndpoint(endpoints: string[]): Promise<LocalNetworkAccessDecision> {
+export async function selectLocalNetworkAccessEndpoint(endpoints: string[], signal?: AbortSignal): Promise<LocalNetworkAccessDecision> {
 	return selectLocalNetworkEndpoint(
 		endpoints,
 		validLanHttpBaseEndpoint,
-		'本地网络权限可用，但无法连接加速电脑的 HTTP/TCP 端口，请检查 Agent 版本和防火墙'
+		'本地网络权限可用，但无法连接加速电脑的 HTTP/TCP 端口，请检查 Agent 版本和防火墙',
+		signal
 	)
 }
 
@@ -29,8 +30,10 @@ export async function selectLocalNetworkAccessFileEndpoint(endpoints: string[]):
 async function selectLocalNetworkEndpoint(
 	endpoints: string[],
 	validate: (endpoint: string) => boolean,
-	unreachableMessage: string
+	unreachableMessage: string,
+	signal?: AbortSignal
 ): Promise<LocalNetworkAccessDecision> {
+	throwIfAborted(signal)
 	const initialPermission = await queryLocalNetworkAccessPermission()
 	logLanConnection('NATIVE-LNA', 'permission-checked', { state: initialPermission })
 	if (initialPermission === 'unsupported') return { state: 'unsupported' }
@@ -39,7 +42,10 @@ async function selectLocalNetworkEndpoint(
 	logLanConnection('NATIVE-LNA', 'probe-candidates-ready', { endpoints: summarizeNativeEndpoints(candidates) })
 	if (!candidates.length) return { state: 'unavailable', reason: '加速电脑没有发布可用的私网 HTTP 地址' }
 	for (const [index, endpoint] of candidates.entries()) {
+		throwIfAborted(signal)
 		const controller = new AbortController()
+		const abort = () => controller.abort()
+		signal?.addEventListener('abort', abort, { once: true })
 		const timer = setTimeout(() => controller.abort(), 3_000)
 		const startedAt = performance.now()
 		const addressKind = endpointAddressKind(endpoint)
@@ -56,8 +62,10 @@ async function selectLocalNetworkEndpoint(
 			logLanConnection('NATIVE-LNA', 'probe-failed', { index, addressKind, elapsedMs: Math.round(performance.now() - startedAt), error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }, 'warn')
 		} finally {
 			clearTimeout(timer)
+			signal?.removeEventListener('abort', abort)
 		}
 	}
+	throwIfAborted(signal)
 	const permissionAfterProbe = await queryLocalNetworkAccessPermission()
 	logLanConnection('NATIVE-LNA', 'permission-after-probe', { state: permissionAfterProbe })
 	if (permissionAfterProbe === 'denied') return { state: 'denied' }
@@ -74,7 +82,9 @@ export async function runLanNativeHttpBenchmark(options: {
 	direction: LanNativeBenchmarkDirection
 	totalBytes: number
 	onProgress?: (progress: LanNativeBenchmarkProgress) => void
+	signal?: AbortSignal
 }): Promise<LanNativeBenchmarkResult> {
+	throwIfAborted(options.signal)
 	const sessionCount = NATIVE_AGENT_SESSION_COUNT
 	const workerRequests = createWorkerRequestSizes(options.totalBytes, sessionCount)
 	const requiredTickets = workerRequests.reduce((count, requests) => count + requests.length, 0)
@@ -105,11 +115,22 @@ export async function runLanNativeHttpBenchmark(options: {
 	}
 	options.onProgress?.({ direction: options.direction, transport: 'lna-http', sessionCount, bytes: 0, totalBytes: options.totalBytes, startedAt })
 
-	await Promise.all(
-		workerRequests.map((requests, workerIndex) =>
-			runHttpWorker(options.endpoint, options.direction, requests, workerTickets[workerIndex]!, bytes => report(workerIndex, bytes))
+	const workerController = new AbortController()
+	const abortWorkers = () => workerController.abort()
+	options.signal?.addEventListener('abort', abortWorkers, { once: true })
+	try {
+		await Promise.all(
+			workerRequests.map((requests, workerIndex) =>
+				runHttpWorker(options.endpoint, options.direction, requests, workerTickets[workerIndex]!, bytes => report(workerIndex, bytes), workerController.signal)
+			)
 		)
-	)
+	} catch (error) {
+		workerController.abort()
+		if (options.signal?.aborted) throw new DOMException('测速已取消', 'AbortError')
+		throw error
+	} finally {
+		options.signal?.removeEventListener('abort', abortWorkers)
+	}
 	const clientElapsedMs = performance.now() - startedAt
 	return {
 		direction: options.direction,
@@ -123,7 +144,7 @@ export async function runLanNativeHttpBenchmark(options: {
 	}
 }
 
-async function queryLocalNetworkAccessPermission(): Promise<PermissionState | 'unsupported'> {
+export async function queryLocalNetworkAccessPermission(): Promise<PermissionState | 'unsupported'> {
 	if (typeof navigator === 'undefined' || !navigator.permissions?.query) return 'unsupported'
 	try {
 		const descriptor = { name: 'local-network-access' as PermissionNameWithLna } as PermissionDescriptor
@@ -148,31 +169,38 @@ async function runHttpWorker(
 	direction: LanNativeBenchmarkDirection,
 	requestSizes: number[],
 	tickets: LanNativeAgentTicket[],
-	onProgress: (bytes: number) => void
+	onProgress: (bytes: number) => void,
+	signal?: AbortSignal
 ) {
 	let completedBytes = 0
 	for (let index = 0; index < requestSizes.length; index += 1) {
+		throwIfAborted(signal)
 		const bytes = requestSizes[index]!
 		const reportRequest = (currentBytes: number) => onProgress(completedBytes + currentBytes)
-		if (direction === 'browser-to-agent') await uploadRequest(endpoint, bytes, tickets[index]!, reportRequest)
-		else await downloadRequest(endpoint, bytes, tickets[index]!, reportRequest)
+		if (direction === 'browser-to-agent') await uploadRequest(endpoint, bytes, tickets[index]!, reportRequest, signal)
+		else await downloadRequest(endpoint, bytes, tickets[index]!, reportRequest, signal)
 		completedBytes += bytes
 		onProgress(completedBytes)
 	}
 }
 
-function uploadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTicket, onProgress: (bytes: number) => void) {
+function uploadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTicket, onProgress: (bytes: number) => void, signal?: AbortSignal) {
 	return new Promise<void>((resolve, reject) => {
 		const xhr = new XMLHttpRequest()
+		const abort = () => xhr.abort()
+		const cleanup = () => signal?.removeEventListener('abort', abort)
+		if (signal?.aborted) return reject(new DOMException('测速已取消', 'AbortError'))
+		signal?.addEventListener('abort', abort, { once: true })
 		xhr.open('POST', endpointUrl(endpoint, 'benchmark'))
 		xhr.responseType = 'json'
 		xhr.timeout = REQUEST_TIMEOUT_MS
 		xhr.setRequestHeader('X-WinriseF-Ticket', ticket.token)
 		xhr.upload.onprogress = event => onProgress(Math.min(bytes, event.loaded))
-		xhr.onerror = () => reject(new Error('HTTP/TCP 上传连接失败，请检查防火墙和本地网络权限'))
-		xhr.ontimeout = () => reject(new Error('HTTP/TCP 上传超时'))
-		xhr.onabort = () => reject(new Error('HTTP/TCP 上传被浏览器中止'))
+		xhr.onerror = () => { cleanup(); reject(new Error('HTTP/TCP 上传连接失败，请检查防火墙和本地网络权限')) }
+		xhr.ontimeout = () => { cleanup(); reject(new Error('HTTP/TCP 上传超时')) }
+		xhr.onabort = () => { cleanup(); reject(signal?.aborted ? new DOMException('测速已取消', 'AbortError') : new Error('HTTP/TCP 上传被浏览器中止')) }
 		xhr.onload = () => {
+			cleanup()
 			try {
 				const response = xhr.response as { bytes?: unknown } | null
 				if (xhr.status !== 200) return reject(httpStatusError(xhr.status, response))
@@ -187,20 +215,25 @@ function uploadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTi
 	})
 }
 
-function downloadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTicket, onProgress: (bytes: number) => void) {
+function downloadRequest(endpoint: string, bytes: number, ticket: LanNativeAgentTicket, onProgress: (bytes: number) => void, signal?: AbortSignal) {
 	return new Promise<void>((resolve, reject) => {
 		const url = new URL(endpointUrl(endpoint, 'benchmark'))
 		url.searchParams.set('bytes', String(bytes))
 		const xhr = new XMLHttpRequest()
+		const abort = () => xhr.abort()
+		const cleanup = () => signal?.removeEventListener('abort', abort)
+		if (signal?.aborted) return reject(new DOMException('测速已取消', 'AbortError'))
+		signal?.addEventListener('abort', abort, { once: true })
 		xhr.open('GET', url)
 		xhr.responseType = 'arraybuffer'
 		xhr.timeout = REQUEST_TIMEOUT_MS
 		xhr.setRequestHeader('X-WinriseF-Ticket', ticket.token)
 		xhr.onprogress = event => onProgress(Math.min(bytes, event.loaded))
-		xhr.onerror = () => reject(new Error('HTTP/TCP 下载连接失败，请检查防火墙和本地网络权限'))
-		xhr.ontimeout = () => reject(new Error('HTTP/TCP 下载超时'))
-		xhr.onabort = () => reject(new Error('HTTP/TCP 下载被浏览器中止'))
+		xhr.onerror = () => { cleanup(); reject(new Error('HTTP/TCP 下载连接失败，请检查防火墙和本地网络权限')) }
+		xhr.ontimeout = () => { cleanup(); reject(new Error('HTTP/TCP 下载超时')) }
+		xhr.onabort = () => { cleanup(); reject(signal?.aborted ? new DOMException('测速已取消', 'AbortError') : new Error('HTTP/TCP 下载被浏览器中止')) }
 		xhr.onload = () => {
+			cleanup()
 			try {
 				if (xhr.status !== 200) return reject(httpStatusError(xhr.status))
 				if (!(xhr.response instanceof ArrayBuffer) || xhr.response.byteLength !== bytes)
@@ -243,4 +276,8 @@ function httpStatusError(status: number, response?: unknown) {
 	const error = response && typeof response === 'object' && 'error' in response ? response.error : null
 	const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : ''
 	return new Error(message || `Agent 拒绝了 HTTP/TCP 测速请求（${status || '网络错误'}）`)
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+	if (signal?.aborted) throw new DOMException('测速已取消', 'AbortError')
 }

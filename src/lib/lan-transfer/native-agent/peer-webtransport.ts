@@ -18,7 +18,9 @@ export async function runLanNativeBenchmark(options: {
 	direction: LanNativeBenchmarkDirection
 	totalBytes: number
 	onProgress?: (progress: LanNativeBenchmarkProgress) => void
+	signal?: AbortSignal
 }): Promise<LanNativeBenchmarkResult> {
+	throwIfAborted(options.signal)
 	if (!Number.isSafeInteger(options.totalBytes) || options.totalBytes <= 0) throw new Error('测速大小无效')
 	const sessionCount = NATIVE_AGENT_SESSION_COUNT
 	if (options.tickets.length !== sessionCount) throw new Error('极速通道并行凭据数量不完整')
@@ -31,16 +33,21 @@ export async function runLanNativeBenchmark(options: {
 		certificateSha256: firstTicket.certificateSha256,
 		networkEpoch: firstTicket.networkEpoch,
 		validate: validLanWebTransportEndpoint,
+		signal: options.signal,
 	})
 	const shardSizes = splitBytes(options.totalBytes, options.tickets.length)
 	const preparedResults = await Promise.allSettled(
-		options.tickets.map((ticket, index) => prepareBenchmarkSession(ticket, endpoint, options.direction, shardSizes[index]!))
+		options.tickets.map((ticket, index) => prepareBenchmarkSession(ticket, endpoint, options.direction, shardSizes[index]!, options.signal))
 	)
 	const sessions = preparedResults.flatMap(result => (result.status === 'fulfilled' ? [result.value] : []))
 	const rejected = preparedResults.find(result => result.status === 'rejected')
 	if (rejected?.status === 'rejected') {
 		invalidatePinnedWebTransportEndpoint(firstTicket.certificateSha256, firstTicket.networkEpoch)
-		for (const session of sessions) session.transport.close({ closeCode: 1, reason: 'parallel setup failed' })
+		for (const session of sessions) {
+			session.abortCleanup?.()
+			session.transport.close({ closeCode: 1, reason: 'parallel setup failed' })
+		}
+		if (options.signal?.aborted) throw new DOMException('测速已取消', 'AbortError')
 		throw rejected.reason
 	}
 
@@ -84,7 +91,10 @@ export async function runLanNativeBenchmark(options: {
 			agentMbps: (bytes * 8) / Math.max(agentElapsedMs, 0.001) / 1_000
 		}
 	} finally {
-		for (const session of sessions) session.transport.close({ closeCode: 0, reason: 'parallel benchmark complete' })
+		for (const session of sessions) {
+			session.abortCleanup?.()
+			session.transport.close({ closeCode: options.signal?.aborted ? 1 : 0, reason: options.signal?.aborted ? 'benchmark cancelled' : 'parallel benchmark complete' })
+		}
 	}
 }
 
@@ -92,16 +102,21 @@ type PreparedBenchmarkSession = {
 	transport: WebTransportLike
 	controlReader: ExactStreamReader
 	totalBytes: number
+	abortCleanup?: () => void
 }
 
 async function prepareBenchmarkSession(
 	ticket: LanNativeAgentTicket,
 	endpoint: string,
 	direction: LanNativeBenchmarkDirection,
-	totalBytes: number
+	totalBytes: number,
+	signal?: AbortSignal
 ): Promise<PreparedBenchmarkSession> {
 	if (ticket.expiresAt <= Date.now()) throw new Error('极速通道凭据已过期，请重试')
+	throwIfAborted(signal)
 	const transport = createPinnedWebTransport(endpoint, ticket.certificateSha256)
+	const abort = () => transport.close({ closeCode: 1, reason: 'benchmark cancelled' })
+	signal?.addEventListener('abort', abort, { once: true })
 	try {
 		await withTimeout(transport.ready, 4_000, '连接加速电脑 WebTransport 地址超时')
 		const control = await transport.createBidirectionalStream()
@@ -112,9 +127,11 @@ async function prepareBenchmarkSession(
 		validateAck(ack, totalBytes)
 		await controlWriter.close()
 		controlWriter.releaseLock()
-		return { transport, controlReader, totalBytes }
+		return { transport, controlReader, totalBytes, abortCleanup: () => signal?.removeEventListener('abort', abort) }
 	} catch (error) {
+		signal?.removeEventListener('abort', abort)
 		transport.close({ closeCode: 1, reason: 'benchmark setup failed' })
+		if (signal?.aborted) throw new DOMException('测速已取消', 'AbortError')
 		throw error
 	}
 }
@@ -294,4 +311,8 @@ function parseResult(bytes: Uint8Array, expectedBytes: number) {
 
 function assertMagic(actual: Uint8Array, expected: Uint8Array, label: string) {
 	if (expected.some((byte, index) => actual[index] !== byte)) throw new Error(`${label}格式错误`)
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+	if (signal?.aborted) throw new DOMException('测速已取消', 'AbortError')
 }

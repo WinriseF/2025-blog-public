@@ -6,6 +6,7 @@ import { selectLocalNetworkAccessFileEndpoint } from './native-agent/peer-lna-ht
 import { endpointAddressKind, validLanFileWebTransportEndpoint } from './native-agent/endpoint-validation'
 import { NATIVE_FILE_IO_BLOCK_BYTES } from './native-agent/native-storage-writer'
 import type { LanNativeSelectedFile, LanNativeTransferEvent, LanNativeTransferGrant } from './native-agent/types'
+import { LAN_PROTOCOL_VERSION } from './types'
 import type {
 	LanAttachment,
 	LanAttachmentManifest,
@@ -34,7 +35,7 @@ type PreparedStorage = { engine: LanStorageEngine; meta: TransferFileMeta }
 type NativeRuntimeHost = {
 	context: () => NativeContext | null
 	peerBulk: LanNativePeerBulkPort
-	controlBase: <T extends LanControlMessage['type']>(type: T, createdAt?: number) => { type: T; protocolVersion: 12; peerId: string; seq: number; createdAt: number }
+	controlBase: <T extends LanControlMessage['type']>(type: T, createdAt?: number) => { type: T; protocolVersion: typeof LAN_PROTOCOL_VERSION; peerId: string; seq: number; createdAt: number }
 	sendControl: (message: LanControlMessage) => boolean
 	prepareStorage: (offer: LanAttachmentOffer) => Promise<PreparedStorage>
 	createAttachment: (messageId: string, createdAt: number, direction: 'in' | 'out', attachment: LanAttachment) => void
