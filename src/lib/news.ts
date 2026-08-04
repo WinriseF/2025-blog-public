@@ -349,6 +349,18 @@ function getMarkdownTitle(markdown: string, fallback: string): string {
 	return MARKDOWN_TITLE_RE.exec(markdown)?.[1]?.trim() || fallback
 }
 
+function stripLeadingMarkdownTitle(markdown: string): string {
+	const lines = markdown.split(/\r?\n/)
+	if (!/^\uFEFF?#\s+/.test(lines[0] || '')) return markdown
+
+	let contentStart = 1
+	while (contentStart < lines.length && !lines[contentStart].trim()) {
+		contentStart += 1
+	}
+
+	return lines.slice(contentStart).join('\n')
+}
+
 function getSectionMarkdown(markdown: string, heading: string): string {
 	const lines = markdown.split(/\r?\n/)
 	const sectionLines: string[] = []
@@ -404,7 +416,8 @@ export async function getNewsArticle(date: string): Promise<NewsResult<NewsArtic
 	const result = await fetchNewsText(`${date}.md`)
 	if (!result.ok) return result
 
-	const markdown = result.data.text
+	const sourceMarkdown = result.data.text
+	const markdown = stripLeadingMarkdownTitle(sourceMarkdown)
 	const contentCount = countListItems(getSectionMarkdown(markdown, '内容'))
 	const sourceCount = countListItems(getSectionMarkdown(markdown, '来源'))
 	const summaryParts: string[] = []
@@ -415,7 +428,7 @@ export async function getNewsArticle(date: string): Promise<NewsResult<NewsArtic
 		ok: true,
 		data: {
 			date,
-			title: normalizeNewsDisplayTitle(getMarkdownTitle(markdown, `${date} ${NEWS_INDEX_TITLE}`), date),
+			title: normalizeNewsDisplayTitle(getMarkdownTitle(sourceMarkdown, `${date} ${NEWS_INDEX_TITLE}`), date),
 			markdown,
 			sourceUrl: result.data.url,
 			tags: ['新闻', '趋势', 'B站', 'NewsNow'],
