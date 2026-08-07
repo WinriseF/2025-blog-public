@@ -1,10 +1,9 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import Link from 'next/link'
 import dayjs, { type Dayjs } from 'dayjs'
 import 'dayjs/locale/zh-cn'
-import { ArrowUpLeft, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { MotionConfig, motion } from 'motion/react'
 import { getAlmanacDay } from '@/lib/calendar/almanac'
 import { getCalendarFestival } from '@/lib/calendar/festivals'
@@ -95,17 +94,8 @@ export function CalendarClient() {
 
 				<div className={styles.content}>
 					<motion.header className={styles.header} initial={{ opacity: 0.72, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}>
-						<div className={styles.headerTopline}>
-							<Link href='/' className={styles.backLink}>
-								<ArrowUpLeft aria-hidden='true' />
-								返回首页
-							</Link>
-							<span>公历 × 农历 × 二十四节气</span>
-						</div>
-
 						<div className={styles.titleRow}>
 							<div className={styles.titleBlock}>
-								<span>TEMPORAL INDEX · {viewMonth.format('MM')}</span>
 								<h1>
 									<motion.span
 										key={viewMonth.year()}

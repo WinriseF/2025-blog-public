@@ -22,10 +22,7 @@ export function SolarTermTrack({ context }: SolarTermTrackProps) {
 	return (
 		<section className={styles.solarTerms} aria-labelledby='solar-term-track-title'>
 			<div className={styles.solarTermHeading}>
-				<div>
-					<span>SEASONAL ORBIT</span>
-					<h2 id='solar-term-track-title'>节气行至此处</h2>
-				</div>
+				<h2 id='solar-term-track-title'>节气行至此处</h2>
 				<p>{context.phrase}</p>
 			</div>
 
