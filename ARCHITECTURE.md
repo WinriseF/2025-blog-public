@@ -442,6 +442,26 @@ Flow:
 8. Emoji sticker UI, preview, and export use the browser/system emoji font so the exported image matches the in-browser preview.
 9. Mosaic and blur rendering derives the sampling size from the mask dimensions instead of using only a fixed source-pixel size, so high-resolution phone photos keep a visible privacy effect in responsive previews and original-size exports.
 
+## OCR Toolbox
+
+Frontend:
+
+- `src/app/toolbox/ocr-tool.tsx`
+- `src/app/toolbox/ocr-preview.tsx`
+- `src/app/toolbox/ocr-result-panel.tsx`
+- `src/app/toolbox/use-ocr-worker.ts`
+- `src/components/select-menu.tsx`
+- `src/lib/ocr/`
+
+Flow:
+
+1. `/toolbox/ocr` loads a single-image OCR workbench wrapped in `ToolPageShell`. PNG, JPG, JPEG, and WEBP images can be selected, dropped, or pasted; the selected image stays in browser memory as a `File` and Object URL and is never sent to an application API.
+2. Selecting an image does not load OCR resources. The first explicit recognize action creates `src/lib/ocr/ocr.worker.ts`, transfers the image as an `ArrayBuffer`, initializes one `PaddleOcrService`, and reuses its ONNX sessions for later images on the same page. Initialization is shown with an indeterminate progress bar because the package exposes one `initialize()` promise but no model byte-progress events.
+3. OCR defaults to `ppu-paddle-ocr`'s `V6_SMALL_MODEL`; the page-level model menu can instead select V6 Tiny or V6 Medium. Tiny and Small use the library defaults: per-line recognition, the default confidence threshold, and automatic WebGPU/WASM provider selection. The package's Web tests do not cover Medium and its detector does not implement PaddleOCR's minimum-side resize, so Medium uses WASM plus the official 736px minimum-side preprocessing and 4000px cap. The Worker converts its boxes back to original image coordinates before mapping all package results into project-owned types.
+4. Canceling an active task terminates the Worker while retaining the selected image. Changing models also releases the current Worker and ONNX sessions, clears stale results, and keeps the image ready for a new run. Initialization errors and Worker crashes discard the instance so retry starts fresh; route unmount always terminates it, and image replacement or clearing releases the old Object URL.
+5. Model and dictionary files use the package-provided GitHub URLs, while `onnxruntime-web` uses its default jsDelivr WASM path. There are no local model/WASM assets, Service Worker caches, COOP/COEP headers, or Netlify header changes; first use therefore requires network access and later loads depend on normal browser HTTP caching.
+6. Recognition boxes remain in original image coordinates and are scaled as percentage overlays in the responsive preview. Clicking a box selects it and highlights the matching text in the result panel; clicking image whitespace clears the selection. Only the bottom-right zoom control opens the shared `ImagePreviewDialog` for zoom and pan. The editable result remains independent from box geometry and can be copied or downloaded as `<original filename>.ocr.txt`.
+
 ## Build And Generated Files
 
 Scripts in `package.json`:

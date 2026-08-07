@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, Send } from 'lucide-react'
+import { ArrowUpRight, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
@@ -33,6 +33,13 @@ const tools = [
 		desc: '人脸遮挡编辑器',
 		tone: 'from-rose-300/25 via-pink-200/10 to-transparent',
 		icon: ScanFace
+	},
+	{
+		href: '/toolbox/ocr',
+		label: 'OCR 文字识别',
+		desc: '图片转可编辑文字',
+		tone: 'from-cyan-400/20 via-amber-200/10 to-transparent',
+		icon: ScanText
 	},
 	{
 		href: '/toolbox/password',
