@@ -1,3 +1,4 @@
+import * as ort from 'onnxruntime-web'
 import { PaddleOcrService, V6_MEDIUM_MODEL, V6_SMALL_MODEL, V6_TINY_MODEL } from 'ppu-paddle-ocr/web'
 import type { OcrErrorPhase, OcrModel, OcrWorkerRequest, OcrWorkerResponse } from './types'
 
@@ -9,6 +10,10 @@ const MODEL_BY_KEY = {
 
 const MEDIUM_MIN_SIDE = 736
 const MEDIUM_MAX_SIDE = 4000
+const ORT_VERSION = ort.env.versions.web ?? ort.env.versions.common
+
+// Keep ORT's glue module and WASM binary outside the Next.js deployment output.
+ort.env.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`
 
 let service: PaddleOcrService | null = null
 let initialization: Promise<PaddleOcrService> | null = null
