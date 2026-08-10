@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commandSignature, commandSubcommand, commandSummary, isAuditCommand, normalizeCommandName, tokenizeCommand } from './command-semantics'
+import { commandSignature, commandSubcommand, commandSummary, isAuditCommand, normalizeCommandName, tokenizeCommand } from '../../src/lib/codex-session/command-semantics'
 
 describe('command semantics', () => {
 	it('保留引号参数并提取 Git 子命令', () => {

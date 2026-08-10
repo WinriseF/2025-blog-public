@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { RecordEnvelope } from './parser-internal'
-import { buildTokenUsage } from './token-usage'
-import type { ParseDiagnostic } from './types'
+import type { RecordEnvelope } from '../../src/lib/codex-session/parser-internal'
+import { buildTokenUsage } from '../../src/lib/codex-session/token-usage'
+import type { ParseDiagnostic } from '../../src/lib/codex-session/types'
 
 function tokenRecord(sequence: number, total: number, input = 100, cached = 20): RecordEnvelope {
 	return {

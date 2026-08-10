@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeCodexPatch, normalizeCodexPatch } from './patch-analysis'
-import type { PatchInput } from './patch-analysis'
+import { analyzeCodexPatch, normalizeCodexPatch } from '../../src/lib/codex-session/patch-analysis'
+import type { PatchInput } from '../../src/lib/codex-session/patch-analysis'
 
 function patch(diff: string | undefined, operation: PatchInput['operation'] = 'modify'): PatchInput {
 	return { path: 'src/example.ts', operation, diff }

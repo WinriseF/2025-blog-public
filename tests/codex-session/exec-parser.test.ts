@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeExecSource } from './exec-parser'
+import { decodeExecSource } from '../../src/lib/codex-session/exec-parser'
 
 describe('decodeExecSource', () => {
 	it('静态展开常量、模板字符串和 Promise.all', () => {

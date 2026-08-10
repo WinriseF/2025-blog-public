@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readJsonlFile } from './jsonl-reader'
+import { readJsonlFile } from '../../src/lib/codex-session/jsonl-reader'
 
 describe('readJsonlFile', () => {
 	it('保留物理行号并在 BOM、空行和损坏行后继续', async () => {

@@ -1,8 +1,8 @@
 import { resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { analyzeShellProcesses } from './shell-analysis'
-import type { ProcessRun } from './types'
+import { analyzeShellProcesses } from '../../src/lib/codex-session/shell-analysis'
+import type { ProcessRun } from '../../src/lib/codex-session/types'
 
 const wasmBase = pathToFileURL(`${resolve('public/wasm/codex-session')}${sep}`).href
 

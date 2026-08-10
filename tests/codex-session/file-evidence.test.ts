@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { FileEvidenceCollector } from './file-evidence'
-import type { ParsedCommand, ProcessRun } from './types'
+import { FileEvidenceCollector } from '../../src/lib/codex-session/file-evidence'
+import type { ParsedCommand, ProcessRun } from '../../src/lib/codex-session/types'
 
 const context = { sequence: 1, callId: 'patch', sourceRefs: [{ line: 1, byteStart: 0, byteEnd: 10 }] }
 

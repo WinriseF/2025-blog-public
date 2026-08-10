@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { RecordEnvelope } from './parser-internal'
-import { parseCodexSession } from './parser'
+import type { RecordEnvelope } from '../../src/lib/codex-session/parser-internal'
+import { parseCodexSession } from '../../src/lib/codex-session/parser'
 
 function record(sequence: number, type: string, payload: Record<string, unknown>): RecordEnvelope {
 	return { sequence, sourceRef: { line: sequence, byteStart: sequence * 100, byteEnd: sequence * 100 + 90 }, record: { timestamp: `2026-01-01T00:00:${String(sequence).padStart(2, '0')}.000Z`, type, payload } }

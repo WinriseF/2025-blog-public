@@ -62,6 +62,7 @@ Important note: `next.config.ts` currently has `typescript.ignoreBuildErrors: tr
 - `public/blogs/`: blog content, blog index, generated word-cloud data.
 - `public/images/`: local image paths mirrored from the image repository when present.
 - `scripts/`: build-time helper scripts.
+- `tests/`: Vitest suites and fixtures, kept outside production source and excluded from the application TypeScript project.
 - `supabase/`: like function and database migration.
 - `edge-functions/`: EdgeOne Edge Functions used by the transfer toolbox.
 
@@ -475,7 +476,7 @@ Scripts in `package.json`:
 - `prebuild`: runs `pnpm generate:word-cloud`.
 - `build`: Next build with Turbopack.
 - `svg`: regenerates `src/svgs/index.ts`.
-- `test:codex-session`: runs the synthetic Vitest suite for the browser-only Codex Session parser.
+- `test:codex-session`: runs only `tests/codex-session/`, the synthetic Vitest suite for the browser-only Codex Session parser.
 - `format`: Prettier.
 
 Per project instructions, do not run `pnpm`, `npm`, or package scripts for verification unless the user explicitly asks.
@@ -526,6 +527,7 @@ The frontend is split into two boundaries:
 
 - `src/lib/codex-session/` owns the Worker protocol, `stream-chain` Web Stream JSONL ingestion, physical line/byte indexing, permissive Zod validation, Codex record normalization, tool-protocol normalization, `call_id` correlation, restricted Acorn static analysis of outer `exec` JavaScript, Tree-sitter Shell analysis, authoritative command/file audit aggregation, and recorded-only Token accounting.
 - `src/app/toolbox/codex-session/` owns file selection/drop, parse progress and cancellation, the Session audit summary, the three fixed command/file/Token views, view-local search and filters, TanStack-virtualized lists, the dynamically loaded Recharts graph, focused command/file/Token details, and the on-demand patch Diff modal.
+- `tests/codex-session/` owns parser tests and synthetic fixtures. It is outside `src`, targeted explicitly by Vitest, and excluded from the production TypeScript project.
 
 The main thread sends the original `File` to `parser.worker.ts`. The Worker streams bytes through the JSONL parser, normalizes the Session, and then loads `public/wasm/codex-session/` grammars to analyze Shell batches off the main thread. It returns periodic byte/record progress followed by one audit-focused `SessionParseResult` containing final diagnostics. Process, file, and Token evidence retains its source reference, but the product does not expose raw JSONL history. Session strings are rendered through React text nodes or `<pre>` and never through `dangerouslySetInnerHTML`. Replacing or cancelling an import terminates the Worker and advances a request generation so stale results are ignored. Worker initialization failure is surfaced directly and has no whole-file main-thread fallback.
 
