@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-08-07.
+Last updated: 2026-08-10.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -28,7 +28,8 @@ Primary stack:
 - Zustand for client state stores.
 - SWR for client-side data fetching and cache behavior.
 - `marked`, `shiki`, `mermaid`, and `html-react-parser` for Markdown rendering.
-- `@pierre/diffs@1.2.12` for the Git/SVN diff review surface.
+- `@pierre/diffs@1.2.12` for Git/SVN diff review and Codex Session patch parsing/rendering.
+- `stream-chain`, Zod, Acorn/Acorn Walk, `web-tree-sitter`, PowerShell/Bash/CMD WASM grammars, `pathe`, TanStack Virtual, Recharts, and `strip-ansi` for the browser-only Codex Session parser.
 - `motion` for animation.
 - `lucide-react` and local SVG files for icons.
 - `interactjs` for pointer-based drag/resize interactions in the face privacy masking tool.
@@ -124,6 +125,7 @@ Main route groups and pages:
 - `/toolbox/markdown`: local Markdown preview tool with a desktop expanded preview mode and independent preview reading progress.
 - `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
 - `/toolbox/password`: browser-only random password, passphrase, and PIN generator.
+- `/toolbox/codex-session`: browser-only Codex rollout JSONL audit dashboard for key command runs, explicit file reads, successful file patches, and recorded Token usage.
 - `/t`, `/t/[code]`, and `/t/status`: public encrypted transfer, LAN transfer, and relay storage status entrypoints.
 - `/healthz`: lightweight uncached `GET`/`HEAD` health probe implemented in `src/app/healthz/route.ts` for the `e`, `n`, and `v` deployments.
 
@@ -473,6 +475,7 @@ Scripts in `package.json`:
 - `prebuild`: runs `pnpm generate:word-cloud`.
 - `build`: Next build with Turbopack.
 - `svg`: regenerates `src/svgs/index.ts`.
+- `test:codex-session`: runs the synthetic Vitest suite for the browser-only Codex Session parser.
 - `format`: Prettier.
 
 Per project instructions, do not run `pnpm`, `npm`, or package scripts for verification unless the user explicitly asks.
@@ -514,6 +517,29 @@ Cache headers are configured for:
 `/toolbox/agent` is the product-level entry for the portable WinriseF Toolbox Agent. It renders the one-shot `agent-ready` protocol-registration result inline, removes that query parameter from browser history, and links to the currently available native-backed tools: LAN transfer/native acceleration and the Git/SVN version-control workbench. A neutral visit does not claim that a resident process is online because the Agent is intentionally headless and starts only for a requested feature.
 
 The page uses the shared `/images/toolbox/winrisef-toolbox-agent.png` brand asset. The source asset is maintained in the sibling image repository and mirrored under the same public path. Feature-specific launch callbacks remain owned by `/t/native-agent-return` and `/toolbox/version-control/agent-return`; the capability center is not an authentication callback endpoint.
+
+## Codex Session Parser
+
+`/toolbox/codex-session` imports one user-selected Codex `rollout-*.jsonl` and keeps the source `File` only in current-page memory. It does not scan `.codex`, upload or persist the file, use an API route, connect to the Toolbox Agent, execute commands, or access paths mentioned inside the Session.
+
+The frontend is split into two boundaries:
+
+- `src/lib/codex-session/` owns the Worker protocol, `stream-chain` Web Stream JSONL ingestion, physical line/byte indexing, permissive Zod validation, Codex record normalization, tool-protocol normalization, `call_id` correlation, restricted Acorn static analysis of outer `exec` JavaScript, Tree-sitter Shell analysis, authoritative command/file audit aggregation, and recorded-only Token accounting.
+- `src/app/toolbox/codex-session/` owns file selection/drop, parse progress and cancellation, the Session audit summary, the three fixed command/file/Token views, view-local search and filters, TanStack-virtualized lists, the dynamically loaded Recharts graph, focused command/file/Token details, and the on-demand patch Diff modal.
+
+The main thread sends the original `File` to `parser.worker.ts`. The Worker streams bytes through the JSONL parser, normalizes the Session, and then loads `public/wasm/codex-session/` grammars to analyze Shell batches off the main thread. It returns periodic byte/record progress followed by one audit-focused `SessionParseResult` containing final diagnostics. Process, file, and Token evidence retains its source reference, but the product does not expose raw JSONL history. Session strings are rendered through React text nodes or `<pre>` and never through `dangerouslySetInnerHTML`. Replacing or cancelling an import terminates the Worker and advances a request generation so stale results are ignored. Worker initialization failure is surfaced directly and has no whole-file main-thread fallback.
+
+`web-tree-sitter` ships one browser/Node entry containing guarded imports of `fs/promises` and `module`. `next.config.ts` maps those imports to `browser-node-stub.ts` only for browser bundles so Turbopack can resolve the shared entry; the Worker still takes the package's browser branch and fetches WASM from `public/wasm/codex-session/`. Webpack has matching browser fallbacks. The stubs throw if a Node-only branch is ever reached in the browser instead of silently masking an invalid runtime path.
+
+Calls and outputs are correlated by `call_id`, including output-first, interleaved, missing, and duplicate cases. The command protocol normalizes legacy `exec_command`, current `tools.shell_command`, and Responses API `local_shell_call` / `local_shell_call_output` records. `custom_tool_call(name="exec")` is parsed but never evaluated: only a bounded literal/constant/template/collection subset can emit nested calls, with stable `<outerCallId>:<ordinal>` IDs. Results are assigned to an inner call only when the static data flow proves one unique target; a shared result from parallel inner calls remains unknown and does not invent per-call success. Process continuations use recorded session/cell identifiers. Missing explicit exit/success evidence remains unknown instead of defaulting to success.
+
+File audit evidence is intentionally narrow. Read files come only from explicit local read-tool input paths or literal paths passed to recognized read commands such as `Get-Content`, `cat`, and `sed`. Search commands such as `rg`, `grep`, and `Select-String` increment a search-operation counter but their output paths are never expanded into the file list. Modified files come only from `event_msg.patch_apply_end` records whose `success` field is `true`; rejected or failed patches increment the failed-attempt counter and contribute no changed files. Repeated paths are merged, and successful patch records retain operation type and their recorded unified diff. `@pierre/diffs` parses complete patches; file-header-free hunks and pure create/delete fragments are normalized into parseable patches, while irrecoverable loose fragments keep a conservative line-count fallback. File and summary additions/deletions are cumulative successful-patch activity, not a final net repository diff. Opening any patch record shows that file's complete chronological patch stack in one wide Diff modal with unified/split layout and local Diff theme controls. Assistant prose, directory listings, search output, and speculative tool-name matching are not file evidence.
+
+Command analysis deliberately separates a recorded execution batch from the executable command nodes inside it. PowerShell, Bash, and CMD dialects are detected from explicit hints and syntax, then parsed with Tree-sitter. Literal `bash -lc`, `pwsh -Command`, `cmd /c`, WSL, and Docker exec/run Shell wrappers are recursively expanded to a bounded depth. `local_shell_call` argv arrays remain structured direct-process arguments, so metacharacters inside one argument cannot become fabricated pipelines or extra commands. When a grammar reports an error, a quote-aware conservative fallback extracts only known commands in provable command positions; structurally damaged scripts and dynamic command names remain partial instead of being counted as confirmed.
+
+The command audit includes Git, Docker, package managers, build/test tools, language runtimes, network commands, explicit file mutations, important system commands, and otherwise identifiable external programs. Read/search/list/formatting helpers and Shell wrapper nodes stay out of command totals. The command view presents human-readable purpose labels, stable command-signature frequencies, batch success/failure/unknown totals, view-local search, execution mode, and loop/conditional/pipeline/nested context. A command detail shows that node, its containing script, and the recorded batch output separately. Exit code and completion state always belong to the whole execution batch; the UI does not claim that each command inside a loop, condition, pipeline, or parallel aggregate succeeded independently.
+
+Token totals come only from `event_msg.payload.type === "token_count"`. The final valid monotonic `total_token_usage` is the Session total; cumulative records are never summed. Input includes cached input, output includes reasoning output, and both subsets are shown without double counting. The view also derives request count, request average, request peak, cache rate, context-window utilization, and fresh/cached/output request trends from recorded `last_token_usage` samples. Missing usage is displayed as unavailable, decreasing cumulative totals are hidden as invalid, and fork/subagent Sessions are marked as possibly inherited. There is no tokenizer fallback or cost estimate.
 
 ## Architectural Risks And Constraints
 

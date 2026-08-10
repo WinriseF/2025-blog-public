@@ -1,0 +1,11 @@
+{"timestamp":"2026-01-02T03:04:05.000Z","type":"session_meta","payload":{"id":"synthetic-session","cwd":"C:\\demo","cli_version":"1.0.0","source":"cli"}}
+{"timestamp":"2026-01-02T03:04:06.000Z","type":"turn_context","payload":{"turn_id":"turn-1","model":"gpt-test","cwd":"C:\\demo"}}
+{"timestamp":"2026-01-02T03:04:07.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"创建一个示例文件"}]}}
+{"timestamp":"2026-01-02T03:04:08.000Z","type":"event_msg","payload":{"type":"user_message","message":"创建一个示例文件"}}
+{"timestamp":"2026-01-02T03:04:09.000Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"outer-1","input":"const command = 'echo hello'; await tools.exec_command({ cmd: command, workdir: 'C:\\\\demo' });"}}
+{"timestamp":"2026-01-02T03:04:10.000Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"outer-1","output":[{"type":"input_text","text":"Process exited with code 0\nFinal output:\nhello"}]}}
+{"timestamp":"2026-01-02T03:04:11.000Z","type":"response_item","payload":{"type":"function_call","name":"apply_patch","call_id":"patch-1","arguments":"{\"patch\":\"*** Begin Patch\\n*** Add File: C:\\\\demo\\\\hello.txt\\n+hello\\n*** End Patch\"}"}}
+{"timestamp":"2026-01-02T03:04:12.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"patch-1","output":"Done!"}}
+{"timestamp":"2026-01-02T03:04:13.000Z","type":"event_msg","payload":{"type":"patch_apply_end","call_id":"patch-1","success":true,"changes":{"C:\\demo\\hello.txt":{"type":"add","unified_diff":"+hello"}}}}
+{"timestamp":"2026-01-02T03:04:14.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":120,"cached_input_tokens":20,"cache_write_input_tokens":0,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":150},"last_token_usage":{"input_tokens":120,"cached_input_tokens":20,"cache_write_input_tokens":0,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":150},"model_context_window":1000}}}
+{"timestamp":"2026-01-02T03:04:15.000Z","type":"event_msg","payload":{"type":"task_complete"}}

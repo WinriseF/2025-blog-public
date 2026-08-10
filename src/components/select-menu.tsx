@@ -119,7 +119,7 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 						exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -2, scale: 0.99 }}
 						transition={{ duration: shouldReduceMotion ? 0 : 0.16 }}
 						className='absolute top-[calc(100%+8px)] right-0 z-50 min-w-full overflow-hidden rounded-lg border border-border bg-article p-1.5 shadow-[0_18px_50px_-24px_var(--color-primary)]'>
-						<div id={listboxId} role='listbox' aria-label={ariaLabel} className='grid gap-1'>
+						<div id={listboxId} role='listbox' aria-label={ariaLabel} className='grid max-h-72 gap-1 overflow-y-auto overscroll-contain'>
 							{options.map((option, index) => {
 								const selectedOption = option.value === value
 								const active = index === activeIndex

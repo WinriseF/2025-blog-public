@@ -14,7 +14,8 @@ export function PierreDiffViewer({
 	modelKey,
 	theme,
 	sideBySide,
-	changesOnly
+	changesOnly,
+	hideFileHeader = false
 }: {
 	file: DiffFile
 	source: DiffViewerSource | null
@@ -22,6 +23,7 @@ export function PierreDiffViewer({
 	theme: DiffThemeDefinition
 	sideBySide: boolean
 	changesOnly: boolean
+	hideFileHeader?: boolean
 }) {
 	const [metadata, setMetadata] = useState<FileDiffMetadata | null>(null)
 	const [error, setError] = useState<string | null>(null)
@@ -78,13 +80,14 @@ export function PierreDiffViewer({
 			lineDiffType: 'word-alt' as const,
 			overflow: 'wrap' as const,
 			hunkSeparators: 'line-info' as const,
-			stickyHeader: true,
+			disableFileHeader: hideFileHeader,
+			stickyHeader: !hideFileHeader,
 			expandUnchanged: !changesOnly,
 			disableErrorHandling: true,
 			theme: theme.shiki,
 			themeType: theme.type
 		}),
-		[changesOnly, sideBySide, theme.shiki, theme.type]
+		[changesOnly, hideFileHeader, sideBySide, theme.shiki, theme.type]
 	)
 
 	if (error) return <ViewerState error={error} />

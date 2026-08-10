@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
+import { ArrowUpRight, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
@@ -54,6 +54,13 @@ const tools = [
 		desc: '只读 Git / SVN 历史与差异工作台',
 		tone: 'from-emerald-400/25 via-sky-300/10 to-transparent',
 		icon: GitCompareArrows
+	},
+	{
+		href: '/toolbox/codex-session',
+		label: 'Codex 对话解析器',
+		desc: '本地解析GPT Session',
+		tone: 'from-sky-400/25 via-violet-300/10 to-transparent',
+		icon: FileJson2
 	}
 ]
 

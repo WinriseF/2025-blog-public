@@ -3,6 +3,7 @@ import { NextConfig } from 'next'
 
 // The default ORT entry emits a 25+ MiB WASM asset; use its external-WASM build instead.
 const onnxRuntimeExternalEntry = './node_modules/onnxruntime-web/dist/ort.min.mjs'
+const browserNodeStub = './src/lib/codex-session/browser-node-stub.ts'
 
 const nextConfig: NextConfig = {
 	devIndicators: false,
@@ -17,7 +18,9 @@ const nextConfig: NextConfig = {
 	},
 	turbopack: {
 		resolveAlias: {
-			'onnxruntime-web': onnxRuntimeExternalEntry
+			'onnxruntime-web': onnxRuntimeExternalEntry,
+			'fs/promises': { browser: browserNodeStub },
+			module: { browser: browserNodeStub }
 		},
 		rules: {
 			'*.svg': {
@@ -32,6 +35,12 @@ const nextConfig: NextConfig = {
 		config.resolve.alias = {
 			...config.resolve.alias,
 			'onnxruntime-web$': path.resolve(onnxRuntimeExternalEntry)
+		}
+		config.resolve.fallback = {
+			...config.resolve.fallback,
+			fs: false,
+			'fs/promises': false,
+			module: false
 		}
 
 		config.module.rules.push({
