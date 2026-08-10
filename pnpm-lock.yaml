@@ -171,12 +171,6 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.3.2
-      tree-sitter-batch:
-        specifier: 0.11.1
-        version: 0.11.1
-      tree-sitter-pwsh:
-        specifier: 0.38.1
-        version: 0.38.1
       typescript:
         specifier: ^5
         version: 5.0.2
@@ -2602,14 +2596,6 @@ packages:
   no-case@3.0.4:
     resolution: {integrity: sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==}
 
-  node-addon-api@8.9.1:
-    resolution: {integrity: sha512-4eUQWVPCUUUiBjLnHS3cXWeC6ryoPUc0U3rP7IuzapoGbzMqd/r6KKO0clr0b+snQhsrueFEhCZDdK+LK7hxKg==}
-    engines: {node: ^18 || ^20 || >= 21}
-
-  node-gyp-build@4.8.4:
-    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
-    hasBin: true
-
   node-releases@2.0.50:
     resolution: {integrity: sha512-J6l92tKHX6w8Jy5nO1Vuc01NoIiRGi/d6qBKVxh+IQ8Cr3b6HbVNfKiF8ZpFKufTwpwxMmce2W3iQZ861ZRyTg==}
     engines: {node: '>=18'}
@@ -3060,22 +3046,6 @@ packages:
   tinyrainbow@3.1.1:
     resolution: {integrity: sha512-yau8yJdTt989Mm0Bd/236QnzEiPf2xLLTqUZRUJOo/3CB078LSwzei343DgtJVmfJKJE3TMINY1u42SQsP6mXw==}
     engines: {node: '>=14.0.0'}
-
-  tree-sitter-batch@0.11.1:
-    resolution: {integrity: sha512-teQFEBJz1tb8A4WlqdkEpFXlGVR4++Un7RIUdBKALf8wcDW90wOf/stdS4rjcOFTYFPcQYZdrc4Q6XcXAF3OMA==}
-    peerDependencies:
-      tree-sitter: '>=0.25.0'
-    peerDependenciesMeta:
-      tree-sitter:
-        optional: true
-
-  tree-sitter-pwsh@0.38.1:
-    resolution: {integrity: sha512-vf92XvOapTJkARHv2pB29yccIA0kdSTSOuuurhkxdaiKO0+FLzSUIPJwewNZKsU2RafdcJyn+ugeBf5btPROsQ==}
-    peerDependencies:
-      tree-sitter: ^0.25.0
-    peerDependenciesMeta:
-      tree-sitter:
-        optional: true
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
@@ -5696,10 +5666,6 @@ snapshots:
       lower-case: 2.0.2
       tslib: 2.8.1
 
-  node-addon-api@8.9.1: {}
-
-  node-gyp-build@4.8.4: {}
-
   node-releases@2.0.50: {}
 
   nth-check@2.0.1:
@@ -6118,16 +6084,6 @@ snapshots:
       picomatch: 4.0.5
 
   tinyrainbow@3.1.1: {}
-
-  tree-sitter-batch@0.11.1:
-    dependencies:
-      node-addon-api: 8.9.1
-      node-gyp-build: 4.8.4
-
-  tree-sitter-pwsh@0.38.1:
-    dependencies:
-      node-addon-api: 8.9.1
-      node-gyp-build: 4.8.4
 
   trim-lines@3.0.1: {}
 
