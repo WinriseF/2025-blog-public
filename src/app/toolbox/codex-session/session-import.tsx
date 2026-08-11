@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type DragEvent } from 'react'
-import { FileJson2, LockKeyhole, X } from 'lucide-react'
+import { FileJson2, FolderSearch2, LockKeyhole, X } from 'lucide-react'
 import { formatBytes } from './format'
 
 type SessionImportProps = {
@@ -28,10 +28,9 @@ export function SessionImport({ onFile, progress, error, onCancel }: SessionImpo
 
 	return (
 		<section className='mx-auto flex min-h-[520px] max-w-3xl flex-col justify-center px-4 py-10 max-sm:min-h-[calc(100dvh-8rem)]'>
-		<div className='mb-7 text-center'>
-			<p className='text-brand text-xs tracking-[0.22em] uppercase'>Codex Session</p>
-			<h1 className='mt-3 text-3xl font-semibold tracking-tight max-sm:text-2xl'>Codex Session 审计</h1>
-			<p className='text-secondary mx-auto mt-3 max-w-xl leading-6'>统计本次 Session 真正运行的关键命令、明确读取和修改的文件，以及记录的 Token 用量。</p>
+			<div className='mb-7 text-center'>
+				<h1 className='text-3xl font-semibold tracking-tight max-sm:text-2xl'>Codex Session 审计</h1>
+				<p className='text-secondary mx-auto mt-3 max-w-xl leading-6'>统计本次 Session 真正运行的关键命令、明确读取和修改的文件，以及记录的 Token 用量。</p>
 		</div>
 
 		{progress ? (
@@ -61,16 +60,24 @@ export function SessionImport({ onFile, progress, error, onCancel }: SessionImpo
 				<span className='border-brand/25 bg-article text-brand flex size-16 items-center justify-center rounded-2xl border shadow-sm'>
 					<FileJson2 size={29} />
 				</span>
-				<span className='mt-5 text-base font-semibold'>选择或拖入 rollout JSONL</span>
-				<span className='text-secondary mt-2 text-sm'>首版一次解析一个 Codex Session 文件</span>
+				<span className='mt-5 text-base font-semibold'>选择或拖入 Codex Session 文件</span>
+				<span className='text-secondary mt-2 text-sm'>本地解析</span>
 			</label>
 		)}
 
 		<div className='text-secondary mt-5 flex items-start gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 text-xs leading-5'>
 			<LockKeyhole size={16} className='mt-0.5 shrink-0 text-emerald-500' />
-			<p>文件仅在当前浏览器页面内解析，不上传、不持久化，不执行 Session 中记录的任何命令或 tools.* 调用。</p>
+			<p>文件仅在当前浏览器页面内解析。</p>
+		</div>
+		<div className='text-secondary mt-3 flex items-start gap-3 rounded-xl border border-border bg-background/35 px-4 py-3 text-xs leading-5'>
+			<FolderSearch2 size={16} className='mt-0.5 shrink-0 text-brand' />
+			<div>
+				<p>请选择 <code className='text-primary font-mono'>rollout-*.jsonl</code> 文件。默认位置：</p>
+				<p className='mt-1 break-all font-mono text-[11px]'>Windows：C:\\Users\\你的用户名\\.codex\\sessions\\年\\月\\日\\rollout-*.jsonl</p>
+				<p className='mt-1 break-all font-mono text-[11px]'>macOS / Linux：~/.codex/sessions/年/月/日/rollout-*.jsonl</p>
+			</div>
 		</div>
 		{error && <div className='mt-4 rounded-xl border border-rose-400/30 bg-rose-400/5 px-4 py-3 text-sm text-rose-500'>{error}</div>}
-	</section>
+		</section>
 	)
 }
