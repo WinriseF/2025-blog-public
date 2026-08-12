@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { applyTimeTheme, getMsUntilNextTimeTheme, getTimeTheme, getTimeThemeName, timeThemes, type TimeTheme, type TimeThemeName } from '@/lib/time-theme'
 
 const themeCycle: TimeThemeName[] = ['dawn', 'noon', 'sunset', 'night']
@@ -8,7 +9,16 @@ const themeCycle: TimeThemeName[] = ['dawn', 'noon', 'sunset', 'night']
 type TimeThemeContextValue = {
 	theme: TimeTheme
 	manual: boolean
+	transitioning: boolean
 	cycleTheme: () => void
+}
+
+type NativeViewTransition = {
+	finished: Promise<void>
+}
+
+type ViewTransitionDocument = Document & {
+	startViewTransition?: (update: () => void) => NativeViewTransition
 }
 
 function getInitialThemeFromDom(): TimeTheme {
@@ -21,17 +31,42 @@ function getInitialThemeFromDom(): TimeTheme {
 const TimeThemeContext = createContext<TimeThemeContextValue>({
 	theme: getTimeTheme(),
 	manual: false,
+	transitioning: false,
 	cycleTheme: () => {}
 })
 
 export function TimeThemeProvider({ children }: { children: React.ReactNode }) {
 	const [theme, setTheme] = useState<TimeTheme>(() => getInitialThemeFromDom())
 	const [manualThemeName, setManualThemeName] = useState<TimeThemeName | null>(null)
+	const [transitioning, setTransitioning] = useState(false)
+	const themeTransitionId = useRef(0)
 
 	const applyTheme = useCallback((nextTheme: TimeTheme) => {
 		const root = document.documentElement
-		if (root.dataset.timeTheme !== nextTheme.name) applyTimeTheme(nextTheme, root)
-		setTheme(current => (current.name === nextTheme.name ? current : nextTheme))
+		if (root.dataset.timeTheme === nextTheme.name) return
+
+		const updateTheme = () => {
+			applyTimeTheme(nextTheme, root)
+			flushSync(() => setTheme(nextTheme))
+		}
+		const documentWithViewTransition = document as ViewTransitionDocument
+
+		if (!documentWithViewTransition.startViewTransition || document.hidden) {
+			updateTheme()
+			return
+		}
+
+		const transitionId = ++themeTransitionId.current
+		root.classList.add('time-theme-transitioning')
+		flushSync(() => setTransitioning(true))
+		const transition = documentWithViewTransition.startViewTransition(updateTheme)
+		const finish = () => {
+			if (themeTransitionId.current !== transitionId) return
+			root.classList.remove('time-theme-transitioning')
+			setTransitioning(false)
+		}
+
+		void transition.finished.then(finish, finish)
 	}, [])
 
 	useEffect(() => {
@@ -68,9 +103,10 @@ export function TimeThemeProvider({ children }: { children: React.ReactNode }) {
 		() => ({
 			theme,
 			manual: manualThemeName !== null,
+			transitioning,
 			cycleTheme
 		}),
-		[theme, manualThemeName, cycleTheme]
+		[theme, manualThemeName, transitioning, cycleTheme]
 	)
 
 	return <TimeThemeContext.Provider value={value}>{children}</TimeThemeContext.Provider>

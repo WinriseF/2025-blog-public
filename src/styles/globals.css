@@ -206,6 +206,47 @@
 	}
 }
 
+html.time-theme-transitioning,
+html.time-theme-transitioning * {
+	transition: none !important;
+}
+
+@keyframes time-theme-snapshot-out {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes time-theme-snapshot-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+html.time-theme-transitioning::view-transition-group(root) {
+	animation: none;
+}
+
+html.time-theme-transitioning::view-transition-old(root),
+html.time-theme-transitioning::view-transition-new(root) {
+	mix-blend-mode: normal;
+	will-change: opacity;
+}
+
+html.time-theme-transitioning::view-transition-old(root) {
+	animation: time-theme-snapshot-out 720ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+html.time-theme-transitioning::view-transition-new(root) {
+	animation: time-theme-snapshot-in 720ms cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
 @utility card {
 	@apply bg-card absolute rounded-[40px] border p-6;
 	box-shadow:
@@ -612,6 +653,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	html.time-theme-transitioning::view-transition-old(root),
+	html.time-theme-transitioning::view-transition-new(root) {
+		animation-duration: 1ms;
+	}
+
 	[data-time-atmosphere],
 	[data-time-atmosphere] *,
 	.news-panel-enter,

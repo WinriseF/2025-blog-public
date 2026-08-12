@@ -84,7 +84,7 @@ export default function NavCard() {
 	const init = useSize(state => state.init)
 	const maxSM = useSize(state => state.maxSM)
 	const maxXS = useSize(state => state.maxXS)
-	const { theme, cycleTheme } = useTimeTheme()
+	const { theme, transitioning, cycleTheme } = useTimeTheme()
 	const [isExpanded, setIsExpanded] = useState(false)
 	const navRef = useRef<HTMLDivElement>(null)
 	const pointerInsideRef = useRef(false)
@@ -94,6 +94,7 @@ export default function NavCard() {
 	const longPressTimerRef = useRef<number | null>(null)
 	const longPressStartRef = useRef<{ x: number; y: number } | null>(null)
 	const longPressTriggeredRef = useRef(false)
+	const mousePositionRef = useRef<{ x: number; y: number } | null>(null)
 
 	const form = pathname === '/' && !maxSM ? 'full' : 'icons'
 	const compactIconNav = form === 'icons' && init
@@ -163,14 +164,30 @@ export default function NavCard() {
 
 	useEffect(() => clearLongPress, [clearLongPress])
 
+	useEffect(() => {
+		if (transitioning || !compactIconNav || !mousePositionRef.current || !navRef.current) return
+
+		const { x, y } = mousePositionRef.current
+		const bounds = navRef.current.getBoundingClientRect()
+		pointerInsideRef.current = x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom
+		updateExpanded()
+	}, [compactIconNav, transitioning, updateExpanded])
+
+	const rememberMousePosition = (event: React.PointerEvent<HTMLDivElement>) => {
+		if (event.pointerType === 'mouse') mousePositionRef.current = { x: event.clientX, y: event.clientY }
+	}
+
 	const handlePointerEnter = (event: React.PointerEvent<HTMLDivElement>) => {
 		if (!compactIconNav || event.pointerType !== 'mouse') return
+		rememberMousePosition(event)
 		pointerInsideRef.current = true
 		updateExpanded()
 	}
 
 	const handlePointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
 		if (!compactIconNav || event.pointerType !== 'mouse') return
+		rememberMousePosition(event)
+		if (transitioning || document.documentElement.classList.contains('time-theme-transitioning')) return
 		pointerInsideRef.current = false
 		updateExpanded()
 	}
@@ -233,6 +250,7 @@ export default function NavCard() {
 					ref={navRef}
 					onPointerEnter={handlePointerEnter}
 					onPointerLeave={handlePointerLeave}
+					onPointerMove={rememberMousePosition}
 					onFocusCapture={handleFocusCapture}
 					onBlurCapture={handleBlurCapture}
 					className={cn(form === 'icons' && '-m-3 flex items-center p-3', form === 'icons' && iconGapClass)}>
