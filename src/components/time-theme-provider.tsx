@@ -29,19 +29,17 @@ export function TimeThemeProvider({ children }: { children: React.ReactNode }) {
 	const [manualThemeName, setManualThemeName] = useState<TimeThemeName | null>(null)
 
 	const applyTheme = useCallback((nextTheme: TimeTheme) => {
-		applyTimeTheme(nextTheme, document.documentElement)
-		setTheme(nextTheme)
+		const root = document.documentElement
+		if (root.dataset.timeTheme !== nextTheme.name) applyTimeTheme(nextTheme, root)
+		setTheme(current => (current.name === nextTheme.name ? current : nextTheme))
 	}, [])
 
 	useEffect(() => {
+		if (manualThemeName) return
+
 		let timer: number | null = null
 
 		const updateTheme = () => {
-			if (manualThemeName) {
-				applyTheme(timeThemes[manualThemeName])
-				return
-			}
-
 			applyTheme(getTimeTheme())
 
 			if (timer !== null) window.clearTimeout(timer)

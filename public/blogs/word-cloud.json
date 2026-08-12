@@ -2,7 +2,7 @@
 	"years": [
 		{
 			"year": "2026",
-			"articleCount": 11,
+			"articleCount": 12,
 			"words": [
 				{
 					"text": "rag",
@@ -38,7 +38,7 @@
 				},
 				{
 					"text": "模型",
-					"weight": 0.7006,
+					"weight": 0.7113,
 					"count": 108,
 					"articles": [
 						{
@@ -70,8 +70,8 @@
 				},
 				{
 					"text": "系统",
-					"weight": 0.6823,
-					"count": 97,
+					"weight": 0.7062,
+					"count": 104,
 					"articles": [
 						{
 							"slug": "software-architecture-gof-23-design-patterns",
@@ -102,8 +102,8 @@
 				},
 				{
 					"text": "数据",
-					"weight": 0.6781,
-					"count": 108,
+					"weight": 0.7029,
+					"count": 115,
 					"articles": [
 						{
 							"slug": "mysql-innodb-underlying-mechanism",
@@ -198,8 +198,8 @@
 				},
 				{
 					"text": "ai",
-					"weight": 0.5634,
-					"count": 88,
+					"weight": 0.5571,
+					"count": 90,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
@@ -230,7 +230,7 @@
 				},
 				{
 					"text": "prompt",
-					"weight": 0.5282,
+					"weight": 0.5307,
 					"count": 57,
 					"articles": [
 						{
@@ -262,7 +262,7 @@
 				},
 				{
 					"text": "知识",
-					"weight": 0.5228,
+					"weight": 0.528,
 					"count": 69,
 					"articles": [
 						{
@@ -294,7 +294,7 @@
 				},
 				{
 					"text": "上下文",
-					"weight": 0.4912,
+					"weight": 0.4987,
 					"count": 51,
 					"articles": [
 						{
@@ -321,6 +321,38 @@
 							"slug": "rag-intro-why-retrieval-augmented-generation",
 							"title": "RAG 入门：大模型为什么需要检索增强生成",
 							"count": 6
+						}
+					]
+				},
+				{
+					"text": "服务",
+					"weight": 0.4771,
+					"count": 46,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 16
+						},
+						{
+							"slug": "software-architecture-gof-23-design-patterns",
+							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+							"count": 8
+						},
+						{
+							"slug": "git-principles-from-commit-to-mastery",
+							"title": "Git 原理：从一次提交到真正精通",
+							"count": 8
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 2
 						}
 					]
 				},
@@ -358,7 +390,7 @@
 				},
 				{
 					"text": "spring ai",
-					"weight": 0.4583,
+					"weight": 0.4542,
 					"count": 50,
 					"articles": [
 						{
@@ -390,7 +422,7 @@
 				},
 				{
 					"text": "成本",
-					"weight": 0.4124,
+					"weight": 0.4211,
 					"count": 48,
 					"articles": [
 						{
@@ -422,7 +454,7 @@
 				},
 				{
 					"text": "代码",
-					"weight": 0.41,
+					"weight": 0.412,
 					"count": 34,
 					"articles": [
 						{
@@ -453,40 +485,8 @@
 					]
 				},
 				{
-					"text": "服务",
-					"weight": 0.396,
-					"count": 30,
-					"articles": [
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 8
-						},
-						{
-							"slug": "git-principles-from-commit-to-mastery",
-							"title": "Git 原理：从一次提交到真正精通",
-							"count": 8
-						},
-						{
-							"slug": "rag-open-source-solutions-and-community-practices",
-							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 8
-						},
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 2
-						},
-						{
-							"slug": "rag-development-spring-ai-pgvector",
-							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-							"count": 2
-						}
-					]
-				},
-				{
 					"text": "大模型",
-					"weight": 0.3944,
+					"weight": 0.3891,
 					"count": 28,
 					"articles": [
 						{
@@ -513,7 +513,7 @@
 				},
 				{
 					"text": "问答",
-					"weight": 0.3895,
+					"weight": 0.3877,
 					"count": 38,
 					"articles": [
 						{
@@ -577,7 +577,7 @@
 				},
 				{
 					"text": "spring",
-					"weight": 0.3708,
+					"weight": 0.3691,
 					"count": 40,
 					"articles": [
 						{
@@ -609,7 +609,7 @@
 				},
 				{
 					"text": "能力",
-					"weight": 0.3662,
+					"weight": 0.368,
 					"count": 29,
 					"articles": [
 						{
@@ -641,8 +641,8 @@
 				},
 				{
 					"text": "应用",
-					"weight": 0.351,
-					"count": 22,
+					"weight": 0.3461,
+					"count": 23,
 					"articles": [
 						{
 							"slug": "rag-open-source-solutions-and-community-practices",
@@ -673,7 +673,7 @@
 				},
 				{
 					"text": "指标",
-					"weight": 0.3398,
+					"weight": 0.3353,
 					"count": 20,
 					"articles": [
 						{
@@ -700,7 +700,7 @@
 				},
 				{
 					"text": "架构",
-					"weight": 0.3377,
+					"weight": 0.3346,
 					"count": 25,
 					"articles": [
 						{
@@ -731,14 +731,19 @@
 					]
 				},
 				{
-					"text": "平台",
-					"weight": 0.3241,
-					"count": 16,
+					"text": "验证",
+					"weight": 0.3247,
+					"count": 17,
 					"articles": [
+						{
+							"slug": "git-principles-from-commit-to-mastery",
+							"title": "Git 原理：从一次提交到真正精通",
+							"count": 5
+						},
 						{
 							"slug": "rag-open-source-solutions-and-community-practices",
 							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 8
+							"count": 4
 						},
 						{
 							"slug": "ai-agent-skills-introduction",
@@ -746,53 +751,14 @@
 							"count": 3
 						},
 						{
-							"slug": "git-principles-from-commit-to-mastery",
-							"title": "Git 原理：从一次提交到真正精通",
-							"count": 3
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 2
 						},
 						{
 							"slug": "software-architecture-gof-23-design-patterns",
 							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
 							"count": 2
-						}
-					]
-				},
-				{
-					"text": "私有",
-					"weight": 0.3238,
-					"count": 22,
-					"articles": [
-						{
-							"slug": "rag-open-source-solutions-and-community-practices",
-							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 12
-						},
-						{
-							"slug": "rag-intro-why-retrieval-augmented-generation",
-							"title": "RAG 入门：大模型为什么需要检索增强生成",
-							"count": 8
-						},
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 2
-						}
-					]
-				},
-				{
-					"text": "知识库",
-					"weight": 0.3229,
-					"count": 36,
-					"articles": [
-						{
-							"slug": "rag-intro-why-retrieval-augmented-generation",
-							"title": "RAG 入门：大模型为什么需要检索增强生成",
-							"count": 18
-						},
-						{
-							"slug": "rag-document-parsing-and-chunking",
-							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
-							"count": 18
 						}
 					]
 				},
@@ -829,19 +795,14 @@
 					]
 				},
 				{
-					"text": "验证",
-					"weight": 0.3098,
-					"count": 15,
+					"text": "平台",
+					"weight": 0.3198,
+					"count": 16,
 					"articles": [
-						{
-							"slug": "git-principles-from-commit-to-mastery",
-							"title": "Git 原理：从一次提交到真正精通",
-							"count": 5
-						},
 						{
 							"slug": "rag-open-source-solutions-and-community-practices",
 							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 4
+							"count": 8
 						},
 						{
 							"slug": "ai-agent-skills-introduction",
@@ -849,13 +810,84 @@
 							"count": 3
 						},
 						{
+							"slug": "git-principles-from-commit-to-mastery",
+							"title": "Git 原理：从一次提交到真正精通",
+							"count": 3
+						},
+						{
 							"slug": "software-architecture-gof-23-design-patterns",
 							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
 							"count": 2
+						}
+					]
+				},
+				{
+					"text": "私有",
+					"weight": 0.3181,
+					"count": 22,
+					"articles": [
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 12
+						},
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 8
+						},
+						{
+							"slug": "software-architecture-gof-23-design-patterns",
+							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+							"count": 2
+						}
+					]
+				},
+				{
+					"text": "知识库",
+					"weight": 0.3158,
+					"count": 36,
+					"articles": [
+						{
+							"slug": "rag-intro-why-retrieval-augmented-generation",
+							"title": "RAG 入门：大模型为什么需要检索增强生成",
+							"count": 18
+						},
+						{
+							"slug": "rag-document-parsing-and-chunking",
+							"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "部署",
+					"weight": 0.3128,
+					"count": 27,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 15
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 8
+						},
+						{
+							"slug": "software-architecture-gof-23-design-patterns",
+							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+							"count": 1
 						},
 						{
 							"slug": "rag-core-pipeline-from-documents-to-answers",
 							"title": "RAG 核心流程详解：从文档到答案经历了什么",
+							"count": 1
+						},
+						{
+							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
 							"count": 1
 						}
 					]
@@ -894,7 +926,7 @@
 				},
 				{
 					"text": "claude",
-					"weight": 0.2979,
+					"weight": 0.2898,
 					"count": 28,
 					"articles": [
 						{
@@ -906,7 +938,7 @@
 				},
 				{
 					"text": "输入",
-					"weight": 0.2808,
+					"weight": 0.2822,
 					"count": 15,
 					"articles": [
 						{
@@ -938,8 +970,8 @@
 				},
 				{
 					"text": "输出",
-					"weight": 0.2788,
-					"count": 17,
+					"weight": 0.2801,
+					"count": 18,
 					"articles": [
 						{
 							"slug": "ai-agent-skills-introduction",
@@ -970,7 +1002,7 @@
 				},
 				{
 					"text": "mcp",
-					"weight": 0.27,
+					"weight": 0.264,
 					"count": 13,
 					"articles": [
 						{
@@ -987,7 +1019,7 @@
 				},
 				{
 					"text": "dify",
-					"weight": 0.2689,
+					"weight": 0.2616,
 					"count": 39,
 					"articles": [
 						{
@@ -998,8 +1030,20 @@
 					]
 				},
 				{
+					"text": "gpu",
+					"weight": 0.2586,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 18
+						}
+					]
+				},
+				{
 					"text": "检索",
-					"weight": 0.2585,
+					"weight": 0.2528,
 					"count": 34,
 					"articles": [
 						{
@@ -1015,8 +1059,20 @@
 					]
 				},
 				{
+					"text": "docker",
+					"weight": 0.2471,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 26
+						}
+					]
+				},
+				{
 					"text": "git",
-					"weight": 0.2539,
+					"weight": 0.2471,
 					"count": 26,
 					"articles": [
 						{
@@ -1028,7 +1084,7 @@
 				},
 				{
 					"text": "gof",
-					"weight": 0.2539,
+					"weight": 0.2471,
 					"count": 26,
 					"articles": [
 						{
@@ -1040,19 +1096,31 @@
 				},
 				{
 					"text": "innodb",
-					"weight": 0.2539,
+					"weight": 0.2471,
 					"count": 26,
 					"articles": [
 						{
 							"slug": "mysql-innodb-underlying-mechanism",
 							"title": "MySQL / InnoDB 底层机制深度解析",
+							"count": 26
+						}
+					]
+				},
+				{
+					"text": "linux",
+					"weight": 0.2471,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
 							"count": 26
 						}
 					]
 				},
 				{
 					"text": "mysql",
-					"weight": 0.2539,
+					"weight": 0.2471,
 					"count": 26,
 					"articles": [
 						{
@@ -1063,25 +1131,20 @@
 					]
 				},
 				{
-					"text": "编排",
-					"weight": 0.25,
-					"count": 11,
+					"text": "portainer",
+					"weight": 0.2471,
+					"count": 26,
 					"articles": [
 						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 6
-						},
-						{
-							"slug": "rag-open-source-solutions-and-community-practices",
-							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 5
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 26
 						}
 					]
 				},
 				{
 					"text": "函数",
-					"weight": 0.2492,
+					"weight": 0.2469,
 					"count": 13,
 					"articles": [
 						{
@@ -1112,59 +1175,25 @@
 					]
 				},
 				{
-					"text": "codex",
-					"weight": 0.2461,
-					"count": 26,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 26
-						}
-					]
-				},
-				{
-					"text": "skill",
-					"weight": 0.2461,
-					"count": 26,
-					"articles": [
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 26
-						}
-					]
-				},
-				{
-					"text": "迁移",
-					"weight": 0.2452,
-					"count": 12,
+					"text": "编排",
+					"weight": 0.2445,
+					"count": 11,
 					"articles": [
 						{
 							"slug": "software-architecture-gof-23-design-patterns",
 							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 8
-						},
-						{
-							"slug": "git-principles-from-commit-to-mastery",
-							"title": "Git 原理：从一次提交到真正精通",
-							"count": 2
-						},
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 1
+							"count": 6
 						},
 						{
 							"slug": "rag-open-source-solutions-and-community-practices",
 							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 1
+							"count": 5
 						}
 					]
 				},
 				{
 					"text": "评估",
-					"weight": 0.244,
+					"weight": 0.2428,
 					"count": 15,
 					"articles": [
 						{
@@ -1195,8 +1224,59 @@
 					]
 				},
 				{
+					"text": "迁移",
+					"weight": 0.242,
+					"count": 12,
+					"articles": [
+						{
+							"slug": "software-architecture-gof-23-design-patterns",
+							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+							"count": 8
+						},
+						{
+							"slug": "git-principles-from-commit-to-mastery",
+							"title": "Git 原理：从一次提交到真正精通",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-open-source-solutions-and-community-practices",
+							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+							"count": 1
+						}
+					]
+				},
+				{
+					"text": "codex",
+					"weight": 0.2394,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 26
+						}
+					]
+				},
+				{
+					"text": "skill",
+					"weight": 0.2394,
+					"count": 26,
+					"articles": [
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 26
+						}
+					]
+				},
+				{
 					"text": "底层",
-					"weight": 0.2429,
+					"weight": 0.2375,
 					"count": 16,
 					"articles": [
 						{
@@ -1213,7 +1293,7 @@
 				},
 				{
 					"text": "算法",
-					"weight": 0.241,
+					"weight": 0.2357,
 					"count": 10,
 					"articles": [
 						{
@@ -1229,8 +1309,40 @@
 					]
 				},
 				{
+					"text": "网络",
+					"weight": 0.233,
+					"count": 8,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 2
+						},
+						{
+							"slug": "software-architecture-gof-23-design-patterns",
+							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+							"count": 2
+						},
+						{
+							"slug": "git-principles-from-commit-to-mastery",
+							"title": "Git 原理：从一次提交到真正精通",
+							"count": 2
+						},
+						{
+							"slug": "ai-agent-skills-introduction",
+							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"count": 1
+						},
+						{
+							"slug": "rag-development-spring-ai-pgvector",
+							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
+							"count": 1
+						}
+					]
+				},
+				{
 					"text": "ai 大模型",
-					"weight": 0.2356,
+					"weight": 0.2293,
 					"count": 18,
 					"articles": [
 						{
@@ -1242,7 +1354,7 @@
 				},
 				{
 					"text": "计算",
-					"weight": 0.2286,
+					"weight": 0.2265,
 					"count": 9,
 					"articles": [
 						{
@@ -1274,7 +1386,7 @@
 				},
 				{
 					"text": "版本控制",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1286,7 +1398,7 @@
 				},
 				{
 					"text": "底层原理",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1298,7 +1410,7 @@
 				},
 				{
 					"text": "后端开发",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1310,7 +1422,7 @@
 				},
 				{
 					"text": "面向对象",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1322,7 +1434,7 @@
 				},
 				{
 					"text": "软件体系结构",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1334,7 +1446,7 @@
 				},
 				{
 					"text": "设计模式",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1346,7 +1458,7 @@
 				},
 				{
 					"text": "数据库底层",
-					"weight": 0.2269,
+					"weight": 0.2207,
 					"count": 18,
 					"articles": [
 						{
@@ -1357,8 +1469,32 @@
 					]
 				},
 				{
+					"text": "nvidia gpu",
+					"weight": 0.2207,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 18
+						}
+					]
+				},
+				{
+					"text": "ubuntu server",
+					"weight": 0.2207,
+					"count": 18,
+					"articles": [
+						{
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+							"count": 18
+						}
+					]
+				},
+				{
 					"text": "控制",
-					"weight": 0.2248,
+					"weight": 0.2199,
 					"count": 16,
 					"articles": [
 						{
@@ -1375,7 +1511,7 @@
 				},
 				{
 					"text": "智能体",
-					"weight": 0.2198,
+					"weight": 0.2139,
 					"count": 18,
 					"articles": [
 						{
@@ -1387,7 +1523,7 @@
 				},
 				{
 					"text": "ai agent",
-					"weight": 0.2198,
+					"weight": 0.2139,
 					"count": 18,
 					"articles": [
 						{
@@ -1399,7 +1535,7 @@
 				},
 				{
 					"text": "chunk",
-					"weight": 0.2171,
+					"weight": 0.2113,
 					"count": 26,
 					"articles": [
 						{
@@ -1411,7 +1547,7 @@
 				},
 				{
 					"text": "java",
-					"weight": 0.2162,
+					"weight": 0.2104,
 					"count": 26,
 					"articles": [
 						{
@@ -1423,7 +1559,7 @@
 				},
 				{
 					"text": "pgvector",
-					"weight": 0.2162,
+					"weight": 0.2104,
 					"count": 26,
 					"articles": [
 						{
@@ -1435,7 +1571,7 @@
 				},
 				{
 					"text": "rerank",
-					"weight": 0.2162,
+					"weight": 0.2104,
 					"count": 26,
 					"articles": [
 						{
@@ -1447,7 +1583,7 @@
 				},
 				{
 					"text": "生态",
-					"weight": 0.2108,
+					"weight": 0.2071,
 					"count": 9,
 					"articles": [
 						{
@@ -1469,7 +1605,7 @@
 				},
 				{
 					"text": "图片",
-					"weight": 0.2102,
+					"weight": 0.2065,
 					"count": 11,
 					"articles": [
 						{
@@ -1491,7 +1627,7 @@
 				},
 				{
 					"text": "分类",
-					"weight": 0.2064,
+					"weight": 0.2054,
 					"count": 9,
 					"articles": [
 						{
@@ -1523,7 +1659,7 @@
 				},
 				{
 					"text": "ragflow",
-					"weight": 0.2036,
+					"weight": 0.1981,
 					"count": 26,
 					"articles": [
 						{
@@ -1534,40 +1670,8 @@
 					]
 				},
 				{
-					"text": "部署",
-					"weight": 0.2024,
-					"count": 12,
-					"articles": [
-						{
-							"slug": "rag-open-source-solutions-and-community-practices",
-							"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-							"count": 8
-						},
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 1
-						},
-						{
-							"slug": "rag-core-pipeline-from-documents-to-answers",
-							"title": "RAG 核心流程详解：从文档到答案经历了什么",
-							"count": 1
-						},
-						{
-							"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
-							"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
-							"count": 1
-						},
-						{
-							"slug": "rag-intro-why-retrieval-augmented-generation",
-							"title": "RAG 入门：大模型为什么需要检索增强生成",
-							"count": 1
-						}
-					]
-				},
-				{
 					"text": "标签",
-					"weight": 0.1983,
+					"weight": 0.1957,
 					"count": 7,
 					"articles": [
 						{
@@ -1594,7 +1698,7 @@
 				},
 				{
 					"text": "文档解析",
-					"weight": 0.194,
+					"weight": 0.1887,
 					"count": 18,
 					"articles": [
 						{
@@ -1606,7 +1710,7 @@
 				},
 				{
 					"text": "智能",
-					"weight": 0.1936,
+					"weight": 0.1883,
 					"count": 8,
 					"articles": [
 						{
@@ -1618,7 +1722,7 @@
 				},
 				{
 					"text": "检索增强生成",
-					"weight": 0.1931,
+					"weight": 0.1879,
 					"count": 18,
 					"articles": [
 						{
@@ -1630,7 +1734,7 @@
 				},
 				{
 					"text": "权限控制",
-					"weight": 0.1931,
+					"weight": 0.1879,
 					"count": 18,
 					"articles": [
 						{
@@ -1642,7 +1746,7 @@
 				},
 				{
 					"text": "向量数据库",
-					"weight": 0.1931,
+					"weight": 0.1879,
 					"count": 18,
 					"articles": [
 						{
@@ -1654,7 +1758,7 @@
 				},
 				{
 					"text": "hybrid search",
-					"weight": 0.1931,
+					"weight": 0.1879,
 					"count": 18,
 					"articles": [
 						{
@@ -1665,35 +1769,8 @@
 					]
 				},
 				{
-					"text": "网络",
-					"weight": 0.19,
-					"count": 6,
-					"articles": [
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 2
-						},
-						{
-							"slug": "git-principles-from-commit-to-mastery",
-							"title": "Git 原理：从一次提交到真正精通",
-							"count": 2
-						},
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 1
-						},
-						{
-							"slug": "rag-development-spring-ai-pgvector",
-							"title": "RAG 开发实战：用 Spring AI 和 pgvector 搭建知识库问答",
-							"count": 1
-						}
-					]
-				},
-				{
 					"text": "开源项目",
-					"weight": 0.1819,
+					"weight": 0.177,
 					"count": 18,
 					"articles": [
 						{
@@ -1705,7 +1782,7 @@
 				},
 				{
 					"text": "rag-anything",
-					"weight": 0.1819,
+					"weight": 0.177,
 					"count": 18,
 					"articles": [
 						{
@@ -1717,7 +1794,7 @@
 				},
 				{
 					"text": "学习",
-					"weight": 0.1789,
+					"weight": 0.1766,
 					"count": 6,
 					"articles": [
 						{
@@ -1744,7 +1821,7 @@
 				},
 				{
 					"text": "样本",
-					"weight": 0.1758,
+					"weight": 0.1734,
 					"count": 7,
 					"articles": [
 						{
@@ -1771,7 +1848,7 @@
 				},
 				{
 					"text": "厂商",
-					"weight": 0.172,
+					"weight": 0.169,
 					"count": 6,
 					"articles": [
 						{
@@ -1792,119 +1869,37 @@
 					]
 				},
 				{
-					"text": "评测",
-					"weight": 0.1661,
-					"count": 18,
-					"articles": [
-						{
-							"slug": "rag-production-evaluation-security-operations",
-							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
-							"count": 18
-						}
-					]
-				},
-				{
-					"text": "运维",
-					"weight": 0.1661,
-					"count": 18,
-					"articles": [
-						{
-							"slug": "rag-production-evaluation-security-operations",
-							"title": "企业级 RAG：评测、安全、权限和运维怎么做",
-							"count": 18
-						}
-					]
-				},
-				{
-					"text": "sdk",
-					"weight": 0.1651,
-					"count": 5,
-					"articles": [
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 3
-						},
-						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
-							"count": 1
-						},
-						{
-							"slug": "rag-intro-why-retrieval-augmented-generation",
-							"title": "RAG 入门：大模型为什么需要检索增强生成",
-							"count": 1
-						}
-					]
-				},
-				{
-					"text": "agent",
-					"weight": 0.164,
+					"text": "nvidia",
+					"weight": 0.1647,
 					"count": 8,
 					"articles": [
 						{
-							"slug": "ai-agent-skills-introduction",
-							"title": "AI Agent Skill 详解：把提示词沉淀成可复用工作流",
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
 							"count": 8
 						}
 					]
 				},
 				{
-					"text": "版本",
-					"weight": 0.1456,
+					"text": "server",
+					"weight": 0.1647,
 					"count": 8,
 					"articles": [
 						{
-							"slug": "git-principles-from-commit-to-mastery",
-							"title": "Git 原理：从一次提交到真正精通",
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
 							"count": 8
 						}
 					]
 				},
 				{
-					"text": "对象",
-					"weight": 0.1456,
+					"text": "ubuntu",
+					"weight": 0.1647,
 					"count": 8,
 					"articles": [
 						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "结构",
-					"weight": 0.1456,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "模式",
-					"weight": 0.1456,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-							"count": 8
-						}
-					]
-				},
-				{
-					"text": "软件",
-					"weight": 0.1456,
-					"count": 8,
-					"articles": [
-						{
-							"slug": "software-architecture-gof-23-design-patterns",
-							"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+							"slug": "local-linux-docker-gpu-server-deployment",
+							"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
 							"count": 8
 						}
 					]
@@ -4324,7 +4319,7 @@
 	],
 	"all": {
 		"year": "all",
-		"articleCount": 16,
+		"articleCount": 17,
 		"words": [
 			{
 				"text": "rag",
@@ -4360,7 +4355,7 @@
 			},
 			{
 				"text": "模型",
-				"weight": 0.8882,
+				"weight": 0.9016,
 				"count": 202,
 				"articles": [
 					{
@@ -4392,8 +4387,8 @@
 			},
 			{
 				"text": "数据",
-				"weight": 0.8371,
-				"count": 162,
+				"weight": 0.8596,
+				"count": 169,
 				"articles": [
 					{
 						"slug": "mysql-innodb-underlying-mechanism",
@@ -4424,8 +4419,8 @@
 			},
 			{
 				"text": "系统",
-				"weight": 0.806,
-				"count": 143,
+				"weight": 0.8289,
+				"count": 150,
 				"articles": [
 					{
 						"slug": "redis-interview-guide",
@@ -4456,8 +4451,8 @@
 			},
 			{
 				"text": "ai",
-				"weight": 0.639,
-				"count": 122,
+				"weight": 0.6364,
+				"count": 124,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -4487,8 +4482,40 @@
 				]
 			},
 			{
+				"text": "服务",
+				"weight": 0.622,
+				"count": 73,
+				"articles": [
+					{
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+						"count": 16
+					},
+					{
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 8
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "git-principles-from-commit-to-mastery",
+						"title": "Git 原理：从一次提交到真正精通",
+						"count": 8
+					}
+				]
+			},
+			{
 				"text": "知识",
-				"weight": 0.6064,
+				"weight": 0.6107,
 				"count": 85,
 				"articles": [
 					{
@@ -4520,7 +4547,7 @@
 			},
 			{
 				"text": "开发",
-				"weight": 0.6019,
+				"weight": 0.6061,
 				"count": 74,
 				"articles": [
 					{
@@ -4551,8 +4578,40 @@
 				]
 			},
 			{
+				"text": "上下文",
+				"weight": 0.5939,
+				"count": 72,
+				"articles": [
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 8
+					},
+					{
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 8
+					},
+					{
+						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
+						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
+						"count": 7
+					}
+				]
+			},
+			{
 				"text": "向量",
-				"weight": 0.5894,
+				"weight": 0.5908,
 				"count": 75,
 				"articles": [
 					{
@@ -4615,40 +4674,8 @@
 				]
 			},
 			{
-				"text": "上下文",
-				"weight": 0.5851,
-				"count": 72,
-				"articles": [
-					{
-						"slug": "rag-production-evaluation-security-operations",
-						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
-						"count": 8
-					},
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "rag-core-pipeline-from-documents-to-answers",
-						"title": "RAG 核心流程详解：从文档到答案经历了什么",
-						"count": 8
-					},
-					{
-						"slug": "rag-retrieval-optimization-embedding-hybrid-rerank",
-						"title": "RAG 检索优化：Embedding、混合检索和 Rerank 怎么选",
-						"count": 7
-					}
-				]
-			},
-			{
 				"text": "prompt",
-				"weight": 0.576,
+				"weight": 0.5774,
 				"count": 65,
 				"articles": [
 					{
@@ -4679,40 +4706,8 @@
 				]
 			},
 			{
-				"text": "服务",
-				"weight": 0.5603,
-				"count": 57,
-				"articles": [
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 8
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
-					},
-					{
-						"slug": "git-principles-from-commit-to-mastery",
-						"title": "Git 原理：从一次提交到真正精通",
-						"count": 8
-					},
-					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 8
-					}
-				]
-			},
-			{
 				"text": "代码",
-				"weight": 0.5505,
+				"weight": 0.5558,
 				"count": 64,
 				"articles": [
 					{
@@ -4744,7 +4739,7 @@
 			},
 			{
 				"text": "成本",
-				"weight": 0.5445,
+				"weight": 0.5527,
 				"count": 71,
 				"articles": [
 					{
@@ -4776,7 +4771,7 @@
 			},
 			{
 				"text": "spring ai",
-				"weight": 0.5374,
+				"weight": 0.535,
 				"count": 72,
 				"articles": [
 					{
@@ -4808,7 +4803,7 @@
 			},
 			{
 				"text": "平台",
-				"weight": 0.5297,
+				"weight": 0.5285,
 				"count": 45,
 				"articles": [
 					{
@@ -4840,7 +4835,7 @@
 			},
 			{
 				"text": "api",
-				"weight": 0.515,
+				"weight": 0.5174,
 				"count": 49,
 				"articles": [
 					{
@@ -4872,7 +4867,7 @@
 			},
 			{
 				"text": "大模型",
-				"weight": 0.5082,
+				"weight": 0.5059,
 				"count": 48,
 				"articles": [
 					{
@@ -4936,8 +4931,8 @@
 			},
 			{
 				"text": "应用",
-				"weight": 0.4838,
-				"count": 45,
+				"weight": 0.4772,
+				"count": 46,
 				"articles": [
 					{
 						"slug": "ai-large-model-access-intro-1",
@@ -4968,7 +4963,7 @@
 			},
 			{
 				"text": "能力",
-				"weight": 0.4604,
+				"weight": 0.4649,
 				"count": 48,
 				"articles": [
 					{
@@ -5000,8 +4995,8 @@
 			},
 			{
 				"text": "验证",
-				"weight": 0.4471,
-				"count": 33,
+				"weight": 0.455,
+				"count": 35,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
@@ -5095,6 +5090,38 @@
 				]
 			},
 			{
+				"text": "部署",
+				"weight": 0.438,
+				"count": 47,
+				"articles": [
+					{
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+						"count": 15
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 8
+					},
+					{
+						"slug": "rag-open-source-solutions-and-community-practices",
+						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					}
+				]
+			},
+			{
 				"text": "指标",
 				"weight": 0.4316,
 				"count": 34,
@@ -5160,7 +5187,7 @@
 			},
 			{
 				"text": "参数",
-				"weight": 0.3958,
+				"weight": 0.3976,
 				"count": 31,
 				"articles": [
 					{
@@ -5192,7 +5219,7 @@
 			},
 			{
 				"text": "私有",
-				"weight": 0.3957,
+				"weight": 0.3931,
 				"count": 31,
 				"articles": [
 					{
@@ -5223,25 +5250,8 @@
 				]
 			},
 			{
-				"text": "ai 大模型",
-				"weight": 0.3926,
-				"count": 52,
-				"articles": [
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 34
-					},
-					{
-						"slug": "rag-intro-why-retrieval-augmented-generation",
-						"title": "RAG 入门：大模型为什么需要检索增强生成",
-						"count": 18
-					}
-				]
-			},
-			{
 				"text": "图片",
-				"weight": 0.3904,
+				"weight": 0.3896,
 				"count": 30,
 				"articles": [
 					{
@@ -5273,7 +5283,7 @@
 			},
 			{
 				"text": "训练",
-				"weight": 0.3896,
+				"weight": 0.3879,
 				"count": 28,
 				"articles": [
 					{
@@ -5336,9 +5346,26 @@
 				]
 			},
 			{
+				"text": "ai 大模型",
+				"weight": 0.3872,
+				"count": 52,
+				"articles": [
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 34
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 18
+					}
+				]
+			},
+			{
 				"text": "输出",
-				"weight": 0.3824,
-				"count": 35,
+				"weight": 0.3823,
+				"count": 36,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
@@ -5369,7 +5396,7 @@
 			},
 			{
 				"text": "学习",
-				"weight": 0.3822,
+				"weight": 0.3814,
 				"count": 57,
 				"articles": [
 					{
@@ -5401,7 +5428,7 @@
 			},
 			{
 				"text": "输入",
-				"weight": 0.3723,
+				"weight": 0.3749,
 				"count": 28,
 				"articles": [
 					{
@@ -5433,7 +5460,7 @@
 			},
 			{
 				"text": "算法",
-				"weight": 0.3682,
+				"weight": 0.3673,
 				"count": 24,
 				"articles": [
 					{
@@ -5464,9 +5491,9 @@
 				]
 			},
 			{
-				"text": "部署",
-				"weight": 0.3605,
-				"count": 32,
+				"text": "网络",
+				"weight": 0.3612,
+				"count": 22,
 				"articles": [
 					{
 						"slug": "practical-machine-learning-limu",
@@ -5474,57 +5501,30 @@
 						"count": 8
 					},
 					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 8
+						"slug": "java21-virtual-threads",
+						"title": "Java 21 虚拟线程：它到底解决了什么问题",
+						"count": 3
 					},
 					{
-						"slug": "rag-open-source-solutions-and-community-practices",
-						"title": "RAG 开源方案选型：社区项目给我们的工程启发",
-						"count": 8
-					},
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
 						"count": 2
 					},
 					{
-						"slug": "redis-interview-guide",
-						"title": "Redis 核心原理与工程实践入门",
+						"slug": "software-architecture-gof-23-design-patterns",
+						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
 						"count": 2
-					}
-				]
-			},
-			{
-				"text": "检测",
-				"weight": 0.3547,
-				"count": 39,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 29
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
 					},
 					{
 						"slug": "git-principles-from-commit-to-mastery",
 						"title": "Git 原理：从一次提交到真正精通",
-						"count": 1
-					},
-					{
-						"slug": "rag-core-pipeline-from-documents-to-answers",
-						"title": "RAG 核心流程详解：从文档到答案经历了什么",
-						"count": 1
+						"count": 2
 					}
 				]
 			},
 			{
 				"text": "评估",
-				"weight": 0.3544,
+				"weight": 0.3552,
 				"count": 32,
 				"articles": [
 					{
@@ -5555,8 +5555,62 @@
 				]
 			},
 			{
+				"text": "检测",
+				"weight": 0.3515,
+				"count": 39,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 29
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "git-principles-from-commit-to-mastery",
+						"title": "Git 原理：从一次提交到真正精通",
+						"count": 1
+					},
+					{
+						"slug": "rag-core-pipeline-from-documents-to-answers",
+						"title": "RAG 核心流程详解：从文档到答案经历了什么",
+						"count": 1
+					}
+				]
+			},
+			{
+				"text": "gpu",
+				"weight": 0.3483,
+				"count": 29,
+				"articles": [
+					{
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+						"count": 18
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 8
+					},
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 2
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 1
+					}
+				]
+			},
+			{
 				"text": "后端开发",
-				"weight": 0.3514,
+				"weight": 0.3466,
 				"count": 36,
 				"articles": [
 					{
@@ -5605,7 +5659,7 @@
 			},
 			{
 				"text": "分类",
-				"weight": 0.3388,
+				"weight": 0.3395,
 				"count": 29,
 				"articles": [
 					{
@@ -5636,40 +5690,8 @@
 				]
 			},
 			{
-				"text": "网络",
-				"weight": 0.3357,
-				"count": 20,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 3
-					},
-					{
-						"slug": "software-architecture-gof-23-design-patterns",
-						"title": "软件体系结构中的 23 个 GoF 设计模式：从创建、组合到协作",
-						"count": 2
-					},
-					{
-						"slug": "git-principles-from-commit-to-mastery",
-						"title": "Git 原理：从一次提交到真正精通",
-						"count": 2
-					},
-					{
-						"slug": "redis-interview-guide",
-						"title": "Redis 核心原理与工程实践入门",
-						"count": 2
-					}
-				]
-			},
-			{
 				"text": "mcp",
-				"weight": 0.3328,
+				"weight": 0.3291,
 				"count": 21,
 				"articles": [
 					{
@@ -5690,35 +5712,8 @@
 				]
 			},
 			{
-				"text": "模型训练",
-				"weight": 0.3282,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 4
-					},
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 4
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 4
-					},
-					{
-						"slug": "rag-intro-why-retrieval-augmented-generation",
-						"title": "RAG 入门：大模型为什么需要检索增强生成",
-						"count": 4
-					}
-				]
-			},
-			{
 				"text": "函数",
-				"weight": 0.3266,
+				"weight": 0.3259,
 				"count": 23,
 				"articles": [
 					{
@@ -5749,8 +5744,35 @@
 				]
 			},
 			{
+				"text": "模型训练",
+				"weight": 0.3253,
+				"count": 16,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 4
+					},
+					{
+						"slug": "practical-machine-learning-limu",
+						"title": "斯坦福 21 秋季：实用机器学习中文版",
+						"count": 4
+					},
+					{
+						"slug": "ai-large-model-access-intro-1",
+						"title": "AI 大模型接入入门——1",
+						"count": 4
+					},
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 4
+					}
+				]
+			},
+			{
 				"text": "目标检测",
-				"weight": 0.3238,
+				"weight": 0.3194,
 				"count": 26,
 				"articles": [
 					{
@@ -5767,7 +5789,7 @@
 			},
 			{
 				"text": "比赛",
-				"weight": 0.3168,
+				"weight": 0.3125,
 				"count": 25,
 				"articles": [
 					{
@@ -5784,7 +5806,7 @@
 			},
 			{
 				"text": "类别",
-				"weight": 0.3156,
+				"weight": 0.3113,
 				"count": 21,
 				"articles": [
 					{
@@ -5801,7 +5823,7 @@
 			},
 			{
 				"text": "java",
-				"weight": 0.3142,
+				"weight": 0.3099,
 				"count": 34,
 				"articles": [
 					{
@@ -5818,7 +5840,7 @@
 			},
 			{
 				"text": "计算机视觉",
-				"weight": 0.3104,
+				"weight": 0.3061,
 				"count": 22,
 				"articles": [
 					{
@@ -5835,7 +5857,7 @@
 			},
 			{
 				"text": "编排",
-				"weight": 0.3065,
+				"weight": 0.3031,
 				"count": 17,
 				"articles": [
 					{
@@ -5857,7 +5879,7 @@
 			},
 			{
 				"text": "数据标注",
-				"weight": 0.3025,
+				"weight": 0.2984,
 				"count": 20,
 				"articles": [
 					{
@@ -5874,7 +5896,7 @@
 			},
 			{
 				"text": "智能",
-				"weight": 0.301,
+				"weight": 0.2983,
 				"count": 19,
 				"articles": [
 					{
@@ -5901,7 +5923,7 @@
 			},
 			{
 				"text": "claude",
-				"weight": 0.3006,
+				"weight": 0.2965,
 				"count": 30,
 				"articles": [
 					{
@@ -5917,42 +5939,8 @@
 				]
 			},
 			{
-				"text": "知识库",
-				"weight": 0.2998,
-				"count": 36,
-				"articles": [
-					{
-						"slug": "rag-intro-why-retrieval-augmented-generation",
-						"title": "RAG 入门：大模型为什么需要检索增强生成",
-						"count": 18
-					},
-					{
-						"slug": "rag-document-parsing-and-chunking",
-						"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "大小模型",
-				"weight": 0.2996,
-				"count": 20,
-				"articles": [
-					{
-						"slug": "yolo-apple-disease-detection",
-						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
-						"count": 16
-					},
-					{
-						"slug": "rag-production-evaluation-security-operations",
-						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
-						"count": 4
-					}
-				]
-			},
-			{
 				"text": "生态",
-				"weight": 0.2984,
+				"weight": 0.2964,
 				"count": 22,
 				"articles": [
 					{
@@ -5983,8 +5971,42 @@
 				]
 			},
 			{
+				"text": "知识库",
+				"weight": 0.2957,
+				"count": 36,
+				"articles": [
+					{
+						"slug": "rag-intro-why-retrieval-augmented-generation",
+						"title": "RAG 入门：大模型为什么需要检索增强生成",
+						"count": 18
+					},
+					{
+						"slug": "rag-document-parsing-and-chunking",
+						"title": "RAG 文档解析与 Chunk 切分：为什么答案质量经常坏在入库阶段",
+						"count": 18
+					}
+				]
+			},
+			{
+				"text": "大小模型",
+				"weight": 0.2955,
+				"count": 20,
+				"articles": [
+					{
+						"slug": "yolo-apple-disease-detection",
+						"title": "基于大小模型协同的苹果病虫害检测系统复盘",
+						"count": 16
+					},
+					{
+						"slug": "rag-production-evaluation-security-operations",
+						"title": "企业级 RAG：评测、安全、权限和运维怎么做",
+						"count": 4
+					}
+				]
+			},
+			{
 				"text": "样本",
-				"weight": 0.2896,
+				"weight": 0.2883,
 				"count": 17,
 				"articles": [
 					{
@@ -6016,7 +6038,7 @@
 			},
 			{
 				"text": "深度学习",
-				"weight": 0.2754,
+				"weight": 0.2723,
 				"count": 12,
 				"articles": [
 					{
@@ -6038,7 +6060,7 @@
 			},
 			{
 				"text": "标签",
-				"weight": 0.2732,
+				"weight": 0.2713,
 				"count": 15,
 				"articles": [
 					{
@@ -6070,7 +6092,7 @@
 			},
 			{
 				"text": "特征",
-				"weight": 0.2728,
+				"weight": 0.2703,
 				"count": 18,
 				"articles": [
 					{
@@ -6097,7 +6119,7 @@
 			},
 			{
 				"text": "yolo",
-				"weight": 0.2711,
+				"weight": 0.2666,
 				"count": 28,
 				"articles": [
 					{
@@ -6109,7 +6131,7 @@
 			},
 			{
 				"text": "微调",
-				"weight": 0.2671,
+				"weight": 0.2641,
 				"count": 14,
 				"articles": [
 					{
@@ -6131,7 +6153,7 @@
 			},
 			{
 				"text": "机器学习",
-				"weight": 0.2665,
+				"weight": 0.2621,
 				"count": 34,
 				"articles": [
 					{
@@ -6143,7 +6165,7 @@
 			},
 			{
 				"text": "实用机器学习",
-				"weight": 0.2665,
+				"weight": 0.2621,
 				"count": 34,
 				"articles": [
 					{
@@ -6155,7 +6177,7 @@
 			},
 			{
 				"text": "应用开发",
-				"weight": 0.2613,
+				"weight": 0.2578,
 				"count": 20,
 				"articles": [
 					{
@@ -6172,7 +6194,7 @@
 			},
 			{
 				"text": "比赛复盘",
-				"weight": 0.2599,
+				"weight": 0.2556,
 				"count": 22,
 				"articles": [
 					{
@@ -6184,7 +6206,7 @@
 			},
 			{
 				"text": "模型接入",
-				"weight": 0.2469,
+				"weight": 0.2428,
 				"count": 34,
 				"articles": [
 					{
@@ -6196,7 +6218,7 @@
 			},
 			{
 				"text": "厂商",
-				"weight": 0.2428,
+				"weight": 0.2406,
 				"count": 13,
 				"articles": [
 					{
@@ -6223,7 +6245,7 @@
 			},
 			{
 				"text": "dify",
-				"weight": 0.2418,
+				"weight": 0.2385,
 				"count": 40,
 				"articles": [
 					{
@@ -6240,7 +6262,7 @@
 			},
 			{
 				"text": "langchain4j",
-				"weight": 0.2418,
+				"weight": 0.2378,
 				"count": 36,
 				"articles": [
 					{
@@ -6252,7 +6274,7 @@
 			},
 			{
 				"text": "检索",
-				"weight": 0.24,
+				"weight": 0.2367,
 				"count": 34,
 				"articles": [
 					{
@@ -6269,7 +6291,7 @@
 			},
 			{
 				"text": "回归",
-				"weight": 0.2381,
+				"weight": 0.2365,
 				"count": 13,
 				"articles": [
 					{
@@ -6301,7 +6323,7 @@
 			},
 			{
 				"text": "病虫害检测",
-				"weight": 0.2349,
+				"weight": 0.231,
 				"count": 16,
 				"articles": [
 					{
@@ -6313,7 +6335,7 @@
 			},
 			{
 				"text": "类别取舍",
-				"weight": 0.2349,
+				"weight": 0.231,
 				"count": 16,
 				"articles": [
 					{
@@ -6325,7 +6347,7 @@
 			},
 			{
 				"text": "模型协同",
-				"weight": 0.2349,
+				"weight": 0.231,
 				"count": 16,
 				"articles": [
 					{
@@ -6337,7 +6359,7 @@
 			},
 			{
 				"text": "sdk",
-				"weight": 0.2322,
+				"weight": 0.2301,
 				"count": 11,
 				"articles": [
 					{
@@ -6364,7 +6386,7 @@
 			},
 			{
 				"text": "苹果",
-				"weight": 0.2317,
+				"weight": 0.2279,
 				"count": 17,
 				"articles": [
 					{
@@ -6375,8 +6397,20 @@
 				]
 			},
 			{
+				"text": "docker",
+				"weight": 0.2273,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+						"count": 26
+					}
+				]
+			},
+			{
 				"text": "git",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 26,
 				"articles": [
 					{
@@ -6388,7 +6422,7 @@
 			},
 			{
 				"text": "gof",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 26,
 				"articles": [
 					{
@@ -6400,19 +6434,31 @@
 			},
 			{
 				"text": "innodb",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 26,
 				"articles": [
 					{
 						"slug": "mysql-innodb-underlying-mechanism",
 						"title": "MySQL / InnoDB 底层机制深度解析",
+						"count": 26
+					}
+				]
+			},
+			{
+				"text": "linux",
+				"weight": 0.2273,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
 						"count": 26
 					}
 				]
 			},
 			{
 				"text": "mysql",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 26,
 				"articles": [
 					{
@@ -6423,8 +6469,20 @@
 				]
 			},
 			{
+				"text": "portainer",
+				"weight": 0.2273,
+				"count": 26,
+				"articles": [
+					{
+						"slug": "local-linux-docker-gpu-server-deployment",
+						"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+						"count": 26
+					}
+				]
+			},
+			{
 				"text": "redis",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 26,
 				"articles": [
 					{
@@ -6436,7 +6494,7 @@
 			},
 			{
 				"text": "并发编程",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 18,
 				"articles": [
 					{
@@ -6448,76 +6506,13 @@
 			},
 			{
 				"text": "虚拟线程",
-				"weight": 0.2311,
+				"weight": 0.2273,
 				"count": 18,
 				"articles": [
 					{
 						"slug": "java21-virtual-threads",
 						"title": "Java 21 虚拟线程：它到底解决了什么问题",
 						"count": 18
-					}
-				]
-			},
-			{
-				"text": "java 21",
-				"weight": 0.2311,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "project loom",
-				"weight": 0.2311,
-				"count": 18,
-				"articles": [
-					{
-						"slug": "java21-virtual-threads",
-						"title": "Java 21 虚拟线程：它到底解决了什么问题",
-						"count": 18
-					}
-				]
-			},
-			{
-				"text": "线性",
-				"weight": 0.2259,
-				"count": 11,
-				"articles": [
-					{
-						"slug": "practical-machine-learning-limu",
-						"title": "斯坦福 21 秋季：实用机器学习中文版",
-						"count": 8
-					},
-					{
-						"slug": "git-principles-from-commit-to-mastery",
-						"title": "Git 原理：从一次提交到真正精通",
-						"count": 2
-					},
-					{
-						"slug": "ai-large-model-access-intro-1",
-						"title": "AI 大模型接入入门——1",
-						"count": 1
-					}
-				]
-			},
-			{
-				"text": "底层",
-				"weight": 0.2255,
-				"count": 16,
-				"articles": [
-					{
-						"slug": "git-principles-from-commit-to-mastery",
-						"title": "Git 原理：从一次提交到真正精通",
-						"count": 8
-					},
-					{
-						"slug": "mysql-innodb-underlying-mechanism",
-						"title": "MySQL / InnoDB 底层机制深度解析",
-						"count": 8
 					}
 				]
 			}

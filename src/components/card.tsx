@@ -26,7 +26,8 @@ interface Props {
 }
 
 export default function Card({ children, order, width, height, x, y, className }: Props) {
-	const { maxSM, init } = useSize()
+	const maxSM = useSize(state => state.maxSM)
+	const init = useSize(state => state.init)
 	const shouldReduceMotion = useReducedMotion()
 	const [show, setShow] = useState(false)
 	const pressingRef = useRef(false)

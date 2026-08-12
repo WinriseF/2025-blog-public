@@ -243,9 +243,12 @@ Global navigation is `src/components/nav-card.tsx`.
 It is rendered by the global layout on all pages. It adapts between:
 
 - full card mode on the homepage,
-- icon strip mode on other routes and mobile.
+- a compact avatar trigger wherever the icon-strip form is used; desktop pointer hover or keyboard focus expands it, while touch and pen input can tap or long-press the avatar,
+- responsive expanded spacing on small screens, with the time-theme control as the final entry.
 
-Navigation items are currently hardcoded inside `nav-card.tsx`.
+The compact trigger preserves the avatar's homepage link: the first touch tap expands the strip, and a second tap follows the link. Tapping outside closes a touch-expanded strip. Navigation items and the time-theme control are currently hardcoded inside `nav-card.tsx`; the theme control shares the global `TimeThemeProvider` state.
+
+The compact navigation limits global store subscriptions to the fields it renders, moves its selection highlight with compositor-friendly transforms, and installs the outside-pointer listener only while touch expansion is active. Manual time-theme changes apply once and suspend the automatic boundary timer until automatic mode is restored.
 
 ## Content Maintenance
 
