@@ -34,7 +34,7 @@ const characterGroupOptions: Array<{ name: CharacterGroupName; label: string; sa
 	{ name: 'uppercase', label: '大写', sample: 'A–Z' },
 	{ name: 'lowercase', label: '小写', sample: 'a–z' },
 	{ name: 'digits', label: '数字', sample: '0–9' },
-	{ name: 'symbols', label: '符号', sample: '!@#$' }
+	{ name: 'symbols', label: '符号', sample: '!#%&' }
 ]
 
 const separators = [

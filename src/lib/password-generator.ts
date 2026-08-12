@@ -44,7 +44,7 @@ export const CHARACTER_GROUPS: Record<CharacterGroupName, string> = {
 	uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
 	lowercase: 'abcdefghijklmnopqrstuvwxyz',
 	digits: '0123456789',
-	symbols: '!@#$%^&*()-_=+[]{};:,.?/'
+	symbols: '!#%&()*+,-./:;<=>?@[]^_{|}~'
 }
 
 export const DEFAULT_RANDOM_OPTIONS: RandomPasswordOptions = {
