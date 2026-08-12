@@ -1,0 +1,7 @@
+{
+	"title": "本地 Linux + Docker + GPU 服务器部署完整流程记录",
+	"tags": ["Linux", "Ubuntu Server", "Docker", "NVIDIA GPU", "Portainer"],
+	"date": "2026-07-28",
+	"summary": "记录在保留 Windows 数据盘的前提下，部署 Ubuntu Server、WiFi、国内 APT 源、Docker、Portainer、NVIDIA 驱动和 NVIDIA Container Toolkit 的完整过程。",
+	"cover": "/blogs/local-linux-docker-gpu-server-deployment/docker.png"
+}
