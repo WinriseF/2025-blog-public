@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { RecordEnvelope } from '../../src/lib/codex-session/parser-internal'
+import type { RecordEnvelope } from '../../src/lib/codex-session/record-utils'
 import { buildTokenUsage } from '../../src/lib/codex-session/token-usage'
 import type { ParseDiagnostic } from '../../src/lib/codex-session/types'
 

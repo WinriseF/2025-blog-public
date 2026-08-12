@@ -1,5 +1,4 @@
-import type { RecordEnvelope } from './parser-internal'
-import { asNumber, asObject, payloadType, recordPayload, tokenUsageSchema } from './record-utils'
+import { asNumber, asObject, payloadType, recordPayload, tokenUsageSchema, type RecordEnvelope } from './record-utils'
 import type { ParseDiagnostic, SessionTokenUsage, TokenUsageNumbers } from './types'
 
 function mapUsage(value: unknown): TokenUsageNumbers | undefined {

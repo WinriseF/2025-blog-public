@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { SourceRef } from './types'
 
 export const codexRecordSchema = z
 	.object({
@@ -21,6 +22,13 @@ export const tokenUsageSchema = z
 
 export type CodexRecord = z.infer<typeof codexRecordSchema>
 export type UnknownRecord = Record<string, unknown>
+
+export type RecordEnvelope = {
+	sequence: number
+	sourceRef: SourceRef
+	record?: CodexRecord
+	parseError?: string
+}
 
 export function isObject(value: unknown): value is UnknownRecord {
 	return typeof value === 'object' && value !== null && !Array.isArray(value)

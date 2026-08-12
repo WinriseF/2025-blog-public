@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { Maximize2, X } from 'lucide-react'
-import { categoryLabels, commandContexts, commandIdentity, executionLabel, statusLabels } from './command-format'
 import { CodexPatchModal } from './codex-patch-viewer'
-import type { DetailSelection } from './detail-types'
-import { fileOperationLabels, formatDate, formatLineChanges, formatNumber } from './format'
-import type { FileChange } from '@/lib/codex-session/types'
+import { categoryLabels, commandContexts, commandIdentity, executionLabel, fileOperationLabels, formatDate, formatLineChanges, formatNumber, statusLabels } from './format'
+import type { FileChange, FileRead, ParsedCommand, ProcessRun, TokenUsageSample } from '@/lib/codex-session/types'
+
+export type DetailSelection =
+	| { type: 'command'; value: { process: ProcessRun; command: ParsedCommand } }
+	| { type: 'file-change'; value: FileChange }
+	| { type: 'file-read'; value: FileRead }
+	| { type: 'token'; value: TokenUsageSample }
 
 function InfoGrid({ values }: { values: Array<[string, string | undefined]> }) {
 	return <dl className='grid border-y border-border sm:grid-cols-2 sm:gap-x-6'>{values.filter(([, value]) => value !== undefined).map(([label, value]) => <div key={label} className='min-w-0 border-b border-border py-3 last:border-b-0'><dt className='text-secondary text-[10px]'>{label}</dt><dd className='mt-1 whitespace-pre-wrap break-all font-mono text-xs'>{value}</dd></div>)}</dl>

@@ -4,7 +4,7 @@ import { useDeferredValue, useMemo, useState } from 'react'
 import { BookOpenText, FileDiff, Search, X } from 'lucide-react'
 import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import type { FileAudit, FileChangeOperation } from '@/lib/codex-session/types'
-import type { DetailSelection } from './detail-types'
+import type { DetailSelection } from './detail-panel'
 import { fileOperationLabels, formatLineChanges, formatNumber } from './format'
 import { VirtualList } from './virtual-list'
 

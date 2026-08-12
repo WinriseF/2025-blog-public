@@ -5,9 +5,8 @@ import { Code2, Container, FileText, GitBranch, Hammer, Network, Package, Search
 import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import { commandSignature, isAuditCommand } from '@/lib/codex-session/command-semantics'
 import type { CommandCategory, ParsedCommand, ProcessRun } from '@/lib/codex-session/types'
-import { batchStatusLabel, categoryLabels, commandContexts, executionLabel } from './command-format'
-import type { DetailSelection } from './detail-types'
-import { compactText, formatNumber } from './format'
+import type { DetailSelection } from './detail-panel'
+import { batchStatusLabel, categoryLabels, commandContexts, compactText, executionLabel, formatNumber } from './format'
 import { VirtualList } from './virtual-list'
 
 type CommandRow = { id: string; process: ProcessRun; command: ParsedCommand; signature: string }

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
 import LikeButton from '@/components/like-button'
@@ -9,12 +10,40 @@ import initialData from './list.json'
 type AboutData = {
 	title: string
 	description: string
-	content: string
 }
 
 export default function Page() {
 	const data = initialData as AboutData
-	const { content, loading } = useMarkdownRender(data.content)
+	const [markdown, setMarkdown] = useState('')
+	const [contentLoading, setContentLoading] = useState(true)
+	const [contentError, setContentError] = useState(false)
+	const { content, loading: markdownLoading } = useMarkdownRender(markdown)
+
+	useEffect(() => {
+		let cancelled = false
+
+		fetch('/about.md')
+			.then(response => {
+				if (!response.ok) throw new Error(`About content request failed: ${response.status}`)
+				return response.text()
+			})
+			.then(value => {
+				if (!cancelled) setMarkdown(value)
+			})
+			.catch(error => {
+				console.error('About content load error:', error)
+				if (!cancelled) setContentError(true)
+			})
+			.finally(() => {
+				if (!cancelled) setContentLoading(false)
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [])
+
+	const loading = contentLoading || markdownLoading
 
 	return (
 		<div className='flex flex-col items-center justify-center px-6 pt-32 pb-12 max-sm:px-0'>
@@ -26,6 +55,8 @@ export default function Page() {
 
 				{loading ? (
 					<div className='text-secondary text-center'>加载中...</div>
+				) : contentError ? (
+					<div className='text-secondary text-center'>内容加载失败，请稍后再试。</div>
 				) : (
 					<motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className='card relative p-6'>
 						<div className='prose prose-sm max-w-none'>{content}</div>

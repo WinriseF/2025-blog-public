@@ -1,6 +1,5 @@
 import parserWebStream from 'stream-chain/jsonl/parserWebStream.js'
-import type { RecordEnvelope } from './parser-internal'
-import { codexRecordSchema, isObject } from './record-utils'
+import { codexRecordSchema, isObject, type RecordEnvelope } from './record-utils'
 import type { SourceRef } from './types'
 
 type JsonlErrorMarker = {

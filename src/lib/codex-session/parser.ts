@@ -1,10 +1,8 @@
 import { decodeExecSource } from './exec-parser'
 import { FileEvidenceCollector } from './file-evidence'
-import type { RecordEnvelope } from './parser-internal'
-import { ProcessTracker, parseToolResult } from './process-tracker'
-import { asBoolean, asObject, asString, extractText, parseJsonObject, recordPayload } from './record-utils'
+import { ProcessTracker, isCommandTool, parseToolResult } from './process-tracker'
+import { asBoolean, asObject, asString, extractText, parseJsonObject, recordPayload, type RecordEnvelope } from './record-utils'
 import { buildTokenUsage } from './token-usage'
-import { isCommandTool } from './tool-protocol'
 import type { EventStatus, ParseDiagnostic, SessionParseResult, SessionSource, SourceRef } from './types'
 
 const KNOWN_RECORD_TYPES = new Set(['session_meta', 'turn_context', 'response_item', 'event_msg', 'compacted', 'world_state', 'rollback'])

@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import type { SessionTokenUsage } from '@/lib/codex-session/types'
-import type { DetailSelection } from './detail-types'
+import type { DetailSelection } from './detail-panel'
 import { formatDate, formatNumber } from './format'
 
 const TokenChart = dynamic(() => import('./token-chart'), { ssr: false, loading: () => <div className='text-secondary flex h-72 items-center justify-center text-xs'>正在加载图表...</div> })
