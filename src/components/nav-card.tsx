@@ -144,7 +144,7 @@ export default function NavCard() {
 	}, [clearLongPress])
 
 	useEffect(() => {
-		if (activeIndex >= 0) setHoveredIndex(activeIndex)
+		setHoveredIndex(Math.max(activeIndex, 0))
 	}, [activeIndex])
 
 	useEffect(() => {
