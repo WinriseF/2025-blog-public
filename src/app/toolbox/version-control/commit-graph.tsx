@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, FolderOpen, GitBranch, GitCommitHorizontal, Globe2, Loader2, RefreshCw, Search, X } from 'lucide-react'
+import { FolderOpen, GitCommitHorizontal, Globe2, Loader2 } from 'lucide-react'
 import {
 	buildGitGraphDisplayCommits,
 	computeGitGraphLayout,
@@ -13,6 +13,7 @@ import { useVersionControlStore, type VersionSelection } from '@/lib/version-con
 import type { GraphCommit, RepositoryOverview } from '@/lib/version-control/types'
 import { CommitHoverCard } from './commit-hover-card'
 import { GitRefBadges } from './git-ref-badges'
+import { RepositorySidebarHeader, type RepositoryViewMode } from './repository-sidebar-header'
 
 const ROW_HEIGHT = 44
 const SWIMLANE_WIDTH = 11
@@ -262,7 +263,7 @@ const CommitRowGraph = memo(function CommitRowGraph({ row, selected, compare }: 
 	)
 })
 
-export function CommitGraph() {
+export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; onModeChange: (mode: RepositoryViewMode) => void }) {
 	const commits = useVersionControlStore(state => state.commits)
 	const overview = useVersionControlStore(state => state.overview)
 	const search = useVersionControlStore(state => state.search)
@@ -274,7 +275,6 @@ export function CommitGraph() {
 	const compareWith = useVersionControlStore(state => state.compareWith)
 	const loadMore = useVersionControlStore(state => state.loadMoreHistory)
 	const setSearch = useVersionControlStore(state => state.setSearch)
-	const refresh = useVersionControlStore(state => state.refresh)
 	const connectHistory = useVersionControlStore(state => state.connectHistory)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const closeTimer = useRef<number | null>(null)
@@ -289,7 +289,7 @@ export function CommitGraph() {
 	const rawByHash = useMemo(() => new Map(commits.map(commit => [commit.hash, commit])), [commits])
 	const displayCommits = useMemo(() => buildGitGraphDisplayCommits(commits), [commits])
 	const layout = useMemo(() => computeGitGraphLayout(displayCommits), [displayCommits])
-	const workingRows = overview && !overview.isBare ? 1 : 0
+	const workingRows = overview && !overview.isBare && overview.capabilities?.hasWorkingTree !== false ? 1 : 0
 	const totalRows = displayCommits.length + workingRows
 	const totalHeight = totalRows * ROW_HEIGHT
 	const workingTreeWidth = layout.rows[0] ? rowSvgWidth(layout.rows[0]) : SWIMLANE_WIDTH * 2
@@ -306,7 +306,7 @@ export function CommitGraph() {
 	}, [debouncedSearch, search, setSearch])
 	useEffect(() => {
 		setSearchInput(search)
-	}, [search])
+	}, [overview?.currentBranch, search])
 	useEffect(() => {
 		const element = scrollRef.current
 		if (!element) return
@@ -377,53 +377,14 @@ export function CommitGraph() {
 
 	return (
 		<aside className='border-border bg-background flex h-full w-full flex-col border-r'>
-			<div className='border-border space-y-2 border-b px-3 py-2'>
-				<div className='flex min-h-6 items-center justify-between gap-3'>
-					<span className='text-secondary text-xs font-semibold'>{overview?.repositoryKind === 'svn' ? 'SVN 历史' : 'Git 历史'}</span>
-					<div className='flex max-w-[72%] min-w-0 items-center gap-2'>
-						<div className='border-border bg-article/70 flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2.5 py-1'>
-							<GitBranch size={12} className='text-secondary shrink-0' />
-							<span className='truncate text-sm font-semibold'>{branchLabel(overview)}</span>
-							{overview?.upstreamBranch && (
-								<span className='flex shrink-0 items-center gap-1.5'>
-									<span className='inline-flex items-center gap-0.5 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400'>
-										<ArrowUp size={10} />
-										{overview.ahead}
-									</span>
-									<span className='inline-flex items-center gap-0.5 rounded-md bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400'>
-										<ArrowDown size={10} />
-										{overview.behind}
-									</span>
-								</span>
-							)}
-						</div>
-						<button
-							onClick={() => void refresh()}
-							disabled={loading}
-							title='刷新 Git 视图'
-							className='border-border bg-article/70 text-secondary hover:text-primary flex size-8 shrink-0 items-center justify-center rounded-lg border disabled:opacity-50'>
-							{loading ? <Loader2 size={13} className='animate-spin' /> : <RefreshCw size={13} />}
-						</button>
-					</div>
-				</div>
-				<div className='relative'>
-					<Search size={14} className='text-secondary absolute top-1/2 left-3 -translate-y-1/2' />
-					<input
-						value={searchInput}
-						onChange={event => setSearchInput(event.target.value)}
-											placeholder={overview?.repositoryKind === 'svn' ? '消息、作者、revision' : '消息、作者、hash、ref'}
-						className='border-border bg-article/70 placeholder:text-secondary/65 focus:ring-brand/20 h-8 w-full rounded-md border pr-9 pl-9 text-xs outline-none focus:ring-2'
-					/>
-					{searchInput && (
-						<button
-							onClick={() => setSearchInput('')}
-							aria-label='清空搜索'
-							className='text-secondary hover:text-primary absolute top-1/2 right-2 -translate-y-1/2 rounded p-1'>
-							<X size={12} />
-						</button>
-					)}
-				</div>
-			</div>
+			<RepositorySidebarHeader
+				mode={mode}
+				onModeChange={onModeChange}
+				query={searchInput}
+				onQueryChange={setSearchInput}
+				placeholder={overview?.repositoryKind === 'svn' ? '消息、作者、revision' : '消息、作者、hash、ref'}
+				overview={overview}
+			/>
 
 			<div ref={scrollRef} onScroll={handleScroll} className='relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto'>
 				{overview?.repositoryKind === 'svn' && !overview.svn?.historyConnected ? (
@@ -489,10 +450,6 @@ export function CommitGraph() {
 
 function PanelState({ children }: { children: React.ReactNode }) {
 	return <div className='text-secondary flex h-full items-center justify-center gap-2 px-4 text-center text-xs'>{children}</div>
-}
-function branchLabel(overview: RepositoryOverview | null) {
-	if (overview?.repositoryKind === 'svn') return overview.svn?.relativeUrl || overview.currentBranch || 'SVN 工作副本'
-	return overview?.currentBranch || (overview?.isDetachedHead ? 'Detached HEAD' : overview?.isBare ? 'Bare repository' : 'Branch')
 }
 function workspaceLabel(overview: RepositoryOverview | null) {
 	if (!overview) return '工作区'

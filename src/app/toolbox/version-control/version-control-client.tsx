@@ -8,7 +8,7 @@ import { Workbench } from './workbench'
 
 export function VersionControlClient() {
 	const [supported, setSupported] = useState(true)
-	const repositoryId = useVersionControlStore(state => state.repositoryId)
+	const repository = useVersionControlStore(state => state.repository)
 	const connect = useVersionControlStore(state => state.connect)
 	const disconnect = useVersionControlStore(state => state.disconnect)
 
@@ -28,5 +28,5 @@ export function VersionControlClient() {
 		}
 	}, [connect, disconnect])
 
-	return repositoryId ? <Workbench /> : <RepositoryLaunch supported={supported} />
+	return repository ? <Workbench /> : <RepositoryLaunch supported={supported} />
 }

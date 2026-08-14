@@ -11,6 +11,7 @@ import {
 	type PreviewContent,
 	type RepositoryCandidate,
 	type RepositoryOverview,
+	type RepositoryTreeEntry,
 	type RevisionRef,
 	type VersionControlCallback,
 	type WorkingTreeGroup
@@ -80,6 +81,12 @@ export class VersionControlBridge {
 	getHistory(repositoryId: string, query: string | null, skip: number, limit = 48) {
 		return this.request<{ items: GraphCommit[]; nextSkip: number; hasMore: boolean }>('get-history-page', { repositoryId, query: query || null, skip, limit })
 	}
+	getDirectory(repositoryId: string, path: string, skip: number, limit = 96) {
+		return this.request<{ items: RepositoryTreeEntry[]; nextSkip: number; hasMore: boolean }>('get-directory-page', { repositoryId, path, skip, limit })
+	}
+	async openRepositoryFile(repositoryId: string, path: string) {
+		return (await this.requestPreview('open-repository-file', { repositoryId, path })).modified
+	}
 	openDiff(repositoryId: string, oldRevision: RevisionRef, newRevision: RevisionRef, group: WorkingTreeGroup) {
 		return this.request<DiffSessionInfo>('open-diff', { repositoryId, oldRevision, newRevision, group })
 	}
@@ -87,10 +94,14 @@ export class VersionControlBridge {
 		return this.request<{ items: DiffFile[]; nextSkip: number; hasMore: boolean }>('get-diff-files-page', { repositoryId, diffId, skip, limit })
 	}
 	async openPreview(repositoryId: string, diffId: string, fileId: number, perspective: ConflictPerspective, mode: 'full' | 'patch' = 'full') {
+		return this.requestPreview('open-file-preview', { repositoryId, diffId, fileId, perspective, mode })
+	}
+
+	private async requestPreview(type: string, fields: Record<string, unknown>) {
 		const requestId = this.nextRequestId()
 		const preview = new Promise<PreviewContent>((resolve, reject) => this.previews.set(requestId, { resolve, reject }))
 		try {
-			await this.requestWithId(requestId, 'open-file-preview', { repositoryId, diffId, fileId, perspective, mode })
+			await this.requestWithId(requestId, type, fields)
 			return await preview
 		} catch (error) {
 			this.previews.delete(requestId)

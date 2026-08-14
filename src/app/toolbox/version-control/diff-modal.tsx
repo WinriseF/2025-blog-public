@@ -33,8 +33,7 @@ const perspectives: Array<{ value: ConflictPerspective; label: string }> = [
 
 export function DiffModal() {
 	const activeFile = useVersionControlStore(state => state.activeFile)
-	const bridge = useVersionControlStore(state => state.bridge)
-	const repositoryId = useVersionControlStore(state => state.repositoryId)
+	const repository = useVersionControlStore(state => state.repository)
 	const diff = useVersionControlStore(state => state.diff)
 	const repositoryKind = useVersionControlStore(state => state.overview?.repositoryKind)
 	const perspective = useVersionControlStore(state => state.conflictPerspective)
@@ -48,8 +47,9 @@ export function DiffModal() {
 	const [copied, setCopied] = useState(false)
 	const [themeOverride, setThemeOverride] = useState<DiffThemeId | null>(null)
 	const request = useRef(0)
-	const defaultToPatch = repositoryKind === 'svn' && Boolean(activeFile && !activeFile.isBinary && activeFile.nodeKind !== 'dir' && activeFile.previewTooLarge)
-	const previewMode = repositoryKind === 'svn' && changesOnly ? 'patch' : 'full'
+	const patchSource = repositoryKind === 'svn' || repository?.source === 'github-rest'
+	const defaultToPatch = patchSource && Boolean(activeFile && !activeFile.isBinary && activeFile.nodeKind !== 'dir' && (repository?.source === 'github-rest' || activeFile.previewTooLarge))
+	const previewMode = patchSource && changesOnly ? 'patch' : 'full'
 	const themeId = themeOverride ?? siteTheme.name
 	const diffTheme = diffThemes[themeId]
 	const themeStyle = useMemo(() => createThemeStyle(diffTheme), [diffTheme])
@@ -86,11 +86,11 @@ export function DiffModal() {
 		const current = ++request.current
 		setPreview(null)
 		setError(null)
-		if (!activeFile || !bridge || !repositoryId || !diff || activeFile.isBinary || activeFile.nodeKind === 'dir' || (previewMode === 'full' && activeFile.previewTooLarge)) return
+		if (!activeFile || !repository || !diff || activeFile.isBinary || activeFile.nodeKind === 'dir' || (previewMode === 'full' && activeFile.previewTooLarge)) return
 		const key = previewKey(diff.diffId, activeFile.fileId, perspective, previewMode)
 		const timer = window.setTimeout(() => {
-			void bridge
-				.openPreview(repositoryId, diff.diffId, activeFile.fileId, perspective, previewMode)
+			void repository
+				.openPreview(diff.diffId, activeFile.fileId, perspective, previewMode)
 				.then(value => {
 					if (request.current === current) setPreview({ key, content: value })
 				})
@@ -99,7 +99,7 @@ export function DiffModal() {
 				})
 		}, 70)
 		return () => window.clearTimeout(timer)
-	}, [activeFile, bridge, diff, perspective, previewMode, repositoryId])
+	}, [activeFile, diff, perspective, previewMode, repository])
 
 	useEffect(() => {
 		if (!activeFile) return
@@ -115,12 +115,13 @@ export function DiffModal() {
 
 	const modelKey = previewKey(diff?.diffId || 'none', activeFile?.fileId ?? -1, perspective, previewMode)
 	const currentPreview = preview?.key === modelKey ? preview.content : null
+	const currentMode = currentPreview?.mode || previewMode
 	const source = useMemo<DiffViewerSource | null>(() => {
 		if (!currentPreview) return null
-		return previewMode === 'patch'
+		return currentMode === 'patch'
 			? { kind: 'patch', patch: currentPreview.original }
 			: { kind: 'files', original: currentPreview.original, modified: currentPreview.modified }
-	}, [currentPreview, previewMode])
+	}, [currentMode, currentPreview])
 
 	if (!activeFile) return null
 	const unavailable = activeFile.isBinary
@@ -132,10 +133,10 @@ export function DiffModal() {
 					? '文件超过单侧 2MiB 完整预览上限，请切换到「仅变更」查看 Patch。'
 					: '文件超过单侧 2MiB 预览上限，可在未超过导出上限时完整导出。'
 				: null
-	const copyTitle = previewMode === 'patch' ? '复制 Patch' : isDeleted(activeFile.status) ? '复制旧版本源码' : '复制新版本源码'
+	const copyTitle = currentMode === 'patch' ? '复制 Patch' : isDeleted(activeFile.status) ? '复制旧版本源码' : '复制新版本源码'
 	const copy = async () => {
 		if (!currentPreview) return
-		const value = previewMode === 'patch' ? currentPreview.original : isDeleted(activeFile.status) ? currentPreview.original : currentPreview.modified
+		const value = currentMode === 'patch' ? currentPreview.original : isDeleted(activeFile.status) ? currentPreview.original : currentPreview.modified
 		try {
 			await navigator.clipboard.writeText(value)
 			setCopied(true)

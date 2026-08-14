@@ -19,6 +19,20 @@ export type RepositoryCandidate = {
 	relativeUrl?: string
 }
 
+export type RepositoryTreeEntry = {
+	name: string
+	path: string
+	kind: 'file' | 'directory' | 'symlink' | 'submodule'
+	size: number | null
+	isBinary: boolean
+}
+
+export type RepositoryFileContent = {
+	path: string
+	content: string
+	size: number
+}
+
 export type WorkingTreeGroup = 'all' | 'staged' | 'unstaged' | 'untracked' | 'conflicted'
 export type ConflictPerspective = 'base-to-ours' | 'base-to-theirs' | 'ours-to-theirs' | 'head-to-working'
 export type ExportFormat = 'markdown' | 'json' | 'xml' | 'txt'
@@ -57,6 +71,7 @@ export type RepositoryOverview = {
 		canExport: boolean
 		supportsStaging: boolean
 		supportsHistory: boolean
+		hasWorkingTree?: boolean
 	}
 	svn?: {
 		relativeUrl: string
@@ -97,7 +112,7 @@ export type DiffFile = {
 }
 
 export type DiffSessionInfo = { diffId: string; summary: DiffSummary; totalFiles: number }
-export type PreviewContent = { original: string; modified: string }
+export type PreviewContent = { original: string; modified: string; mode?: 'full' | 'patch' }
 export type ExportEvent =
 	| { type: 'export-complete'; exportTargetId: string; insideRepository: boolean }
 	| { type: 'export-failed'; exportTargetId: string; error: string }

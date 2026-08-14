@@ -11,6 +11,7 @@ import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
 import { TimeThemeProvider, useTimeTheme } from '@/components/time-theme-provider'
 import { usePathname } from 'next/navigation'
+import { useVersionControlStore } from '@/lib/version-control/store'
 
 const HOME_FIT_DESIGN_WIDTH = 2048
 const HOME_FIT_DESIGN_HEIGHT = 1152
@@ -44,6 +45,8 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const { theme: timeTheme } = useTimeTheme()
 	const pathname = usePathname()
 	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
+	const isVersionControlCallback = pathname === '/toolbox/version-control/agent-return'
+	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.repository))
 	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock'
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
@@ -101,7 +104,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 			)}
 			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
-				{!isVersionControlRoute && <NavCard />}
+				{!isVersionControlCallback && !(isVersionControlRoute && versionControlWorkbenchOpen) && <NavCard />}
 			</main>
 
 			{!isVersionControlRoute && maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}

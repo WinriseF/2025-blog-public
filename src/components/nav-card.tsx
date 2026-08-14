@@ -103,7 +103,7 @@ export default function NavCard() {
 	const iconGapClass = maxSM ? (maxXS ? 'gap-2' : 'gap-3') : 'gap-6'
 	const isCurrentPath = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 	const activeIndex = list.findIndex(item => isCurrentPath(item.href))
-	const [hoveredIndex, setHoveredIndex] = useState(Math.max(activeIndex, 0))
+	const [hoveredIndex, setHoveredIndex] = useState(Math.max(activeIndex, form === 'icons' ? -1 : 0))
 	const siteTitle = useConfigStore(state => state.siteContent.meta.title)
 	const styles = useConfigStore(state => state.cardStyles.navCard)
 	const hiCardStyles = useConfigStore(state => state.cardStyles.hiCard)
@@ -144,8 +144,8 @@ export default function NavCard() {
 	}, [clearLongPress])
 
 	useEffect(() => {
-		setHoveredIndex(Math.max(activeIndex, 0))
-	}, [activeIndex])
+		setHoveredIndex(Math.max(activeIndex, form === 'icons' ? -1 : 0))
+	}, [activeIndex, form])
 
 	useEffect(() => {
 		closeNavigation()
@@ -295,10 +295,11 @@ export default function NavCard() {
 									animate={
 										form === 'icons'
 											? {
-													x: hoveredIndex * (itemHeight + iconGap) - extraSize,
+													x: Math.max(hoveredIndex, 0) * (itemHeight + iconGap) - extraSize,
 													y: -extraSize,
 													width: itemHeight + extraSize * 2,
-													height: itemHeight + extraSize * 2
+													height: itemHeight + extraSize * 2,
+													opacity: hoveredIndex >= 0 ? 1 : 0
 												}
 											: { x: 0, y: hoveredIndex * (itemHeight + 8), width: '100%', height: itemHeight }
 									}

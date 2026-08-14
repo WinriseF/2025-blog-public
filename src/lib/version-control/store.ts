@@ -2,6 +2,8 @@
 
 import { create } from 'zustand'
 import { VersionControlBridge } from './bridge'
+import { GitHubRestRepositoryDataSource } from './github-rest-repository-data-source'
+import { LocalAgentRepositoryDataSource, type RepositoryDataSource } from './repository-data-source'
 import type {
 	ConflictPerspective,
 	DiffFile,
@@ -20,15 +22,15 @@ import type {
 export type VersionSelection = { kind: 'working-tree'; label: string } | { kind: 'commit'; commit: GraphCommit }
 
 type VersionControlState = {
-	bridge: VersionControlBridge | null
+	agentBridge: VersionControlBridge | null
+	repository: RepositoryDataSource | null
 	connection: 'idle' | 'launching' | 'connecting' | 'connected' | 'error'
 	expectedNonce: string | null
 	error: string | null
-	repositoryId: string | null
 	candidates: RepositoryCandidate[]
 	overview: RepositoryOverview | null
 	commits: GraphCommit[]
-	historySkip: number
+	historyCursor: string | null
 	historyHasMore: boolean
 	search: string
 	selection: VersionSelection | null
@@ -43,6 +45,7 @@ type VersionControlState = {
 	exportEvent: ExportEvent | null
 	setLaunch: (nonce: string) => void
 	connect: (callback: VersionControlCallback) => Promise<void>
+	openRemoteRepository: (url: string) => Promise<void>
 	selectRepository: () => Promise<void>
 	chooseRepositoryCandidate: (candidateId: string) => Promise<void>
 	connectHistory: () => Promise<void>
@@ -68,11 +71,11 @@ type VersionControlState = {
 }
 
 const initialSession = {
-	repositoryId: null,
+	repository: null,
 	candidates: [],
 	overview: null,
 	commits: [],
-	historySkip: 0,
+	historyCursor: null,
 	historyHasMore: false,
 	selection: null,
 	comparison: null,
@@ -90,7 +93,7 @@ let latestHistoryGeneration = 0
 const historyRequests = new Map<string, Promise<void>>()
 
 export const useVersionControlStore = create<VersionControlState>((set, get) => ({
-	bridge: null,
+	agentBridge: null,
 	connection: 'idle',
 	expectedNonce: null,
 	error: null,
@@ -118,18 +121,32 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 				set({ exportEvent: event })
 				if (event.type === 'export-complete' && event.insideRepository) void get().refresh()
 			})
-			get().bridge?.close()
-			set({ bridge, connection: 'connected', expectedNonce: null })
+			get().agentBridge?.close()
+			set({ agentBridge: bridge, connection: 'connected', expectedNonce: null })
 		} catch (error) {
 			bridge.close()
 			set({ connection: 'error', error: message(error) })
 		}
 	},
 
+	openRemoteRepository: async url => {
+		invalidateDiffLoads()
+		return run(set, async () => {
+			const repository = await GitHubRestRepositoryDataSource.open(url)
+			const overview = await repository.connectHistory()
+			get().repository?.dispose?.()
+			const historyGeneration = invalidateHistoryLoads()
+			set({ ...initialSession, repository, overview, search: '', group: 'all', loading: true })
+			await loadHistory(get, set, true, historyGeneration)
+			const first = get().commits[0]
+			if (first) await get().selectVersion({ kind: 'commit', commit: first })
+		})
+	},
+
 	selectRepository: async () => {
 		invalidateDiffLoads()
 		return run(set, async () => {
-			const bridge = required(get().bridge, 'Agent 尚未连接')
+			const bridge = required(get().agentBridge, 'Agent 尚未连接')
 			const selected = await bridge.selectRepository()
 			if (selected.cancelled) return
 			if (selected.candidates?.length) {
@@ -138,7 +155,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			}
 			if (!selected.repositoryId || !selected.overview) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ ...initialSession, candidates: [], repositoryId: selected.repositoryId, overview: selected.overview, loading: true })
+			set({ ...initialSession, candidates: [], repository: new LocalAgentRepositoryDataSource(bridge, selected.repositoryId), overview: selected.overview, loading: true })
 			await loadHistory(get, set, true, historyGeneration)
 			if (selected.overview.isBare) {
 				const first = get().commits[0]
@@ -150,11 +167,11 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 	chooseRepositoryCandidate: async candidateId => {
 		invalidateDiffLoads()
 		return run(set, async () => {
-			const bridge = required(get().bridge, 'Agent 尚未连接')
+			const bridge = required(get().agentBridge, 'Agent 尚未连接')
 			const selected = await bridge.openRepositoryCandidate(candidateId)
 			if (selected.cancelled || !selected.repositoryId || !selected.overview) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ ...initialSession, candidates: [], repositoryId: selected.repositoryId, overview: selected.overview, loading: true })
+			set({ ...initialSession, candidates: [], repository: new LocalAgentRepositoryDataSource(bridge, selected.repositoryId), overview: selected.overview, loading: true })
 			await loadHistory(get, set, true, historyGeneration)
 			await get().selectVersion({ kind: 'working-tree', label: '工作区' })
 		})
@@ -162,11 +179,10 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 
 	connectHistory: async () => {
 		return run(set, async () => {
-			const bridge = required(get().bridge, 'Agent 尚未连接')
-			const repositoryId = required(get().repositoryId, '尚未打开项目')
-			const overview = await bridge.connectHistory(repositoryId)
+			const repository = required(get().repository, '尚未打开项目')
+			const overview = await repository.connectHistory()
 			const historyGeneration = invalidateHistoryLoads()
-			set({ overview, commits: [], historySkip: 0, historyHasMore: false })
+			set({ overview, commits: [], historyCursor: null, historyHasMore: false })
 			await loadHistory(get, set, true, historyGeneration)
 		})
 	},
@@ -175,9 +191,10 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		invalidateDiffLoads()
 		invalidateHistoryLoads()
 		return run(set, async () => {
-			const { bridge, repositoryId } = get()
-			if (bridge && repositoryId) await bridge.closeRepository(repositoryId)
-		set({ ...initialSession, candidates: [] })
+			const { repository } = get()
+			if (repository) await repository.close()
+			repository?.dispose?.()
+			set({ ...initialSession, candidates: [] })
 		})
 	},
 
@@ -186,7 +203,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 	setSearch: async query => {
 		const generation = invalidateHistoryLoads()
 		return run(set, async () => {
-			set({ search: query, commits: [], historySkip: 0, historyHasMore: false })
+			set({ search: query, commits: [], historyCursor: null, historyHasMore: false })
 			await loadHistory(get, set, true, generation)
 		})
 	},
@@ -226,20 +243,22 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		)
 		const activePath = get().activeFile?.path
 		await scheduleDiff(set, async generation => {
-			const bridge = required(get().bridge, 'Agent 尚未连接')
-			const repositoryId = required(get().repositoryId, '尚未打开项目')
+			const repository = required(get().repository, '尚未打开项目')
 			const selection = get().selection
 			const comparison = get().comparison
-			const overview = await bridge.refresh(repositoryId)
+			const overview = await repository.refresh()
 			if (!isLatestDiff(generation)) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ overview, commits: [], historySkip: 0, historyHasMore: false })
+			set({ overview, commits: [], historyCursor: null, historyHasMore: false })
 			await loadHistory(get, set, true, historyGeneration)
 			if (!isLatestDiff(generation)) return
-			const valid =
-				selection?.kind === 'commit' && !get().commits.some(item => item.hash === selection.commit.hash)
-					? ({ kind: 'working-tree', label: '工作区' } as VersionSelection)
-					: selection
+			const supportsWorkingTree = overview.capabilities?.hasWorkingTree !== false && !overview.isBare
+			const fallback = supportsWorkingTree
+				? ({ kind: 'working-tree', label: '工作区' } as VersionSelection)
+				: get().commits[0]
+					? ({ kind: 'commit', commit: get().commits[0] } as VersionSelection)
+					: null
+			const valid = selection?.kind === 'commit' && !get().commits.some(item => item.hash === selection.commit.hash) ? fallback : selection
 			set({ selection: valid || null })
 			if (!valid) return
 			const comparisonOldHash = comparison?.old.kind === 'commit' ? comparison.old.commit.hash : null
@@ -283,24 +302,29 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 	setPerspective: conflictPerspective => set({ conflictPerspective }),
 
 	prepareExport: async (format, layout) => {
-		const { bridge, repositoryId, diff, files, selectedFileIds } = get()
-		return required(bridge, 'Agent 尚未连接').prepareExport(required(repositoryId, '尚未打开项目'), required(diff, '尚未创建比较').diffId, format, layout, [
-			...selectedFileIds
-		], files.length)
+		const { repository, diff, files, selectedFileIds } = get()
+		const source = required(repository, '尚未打开项目')
+		if (!source.prepareExport) throw new Error('当前仓库不支持导出')
+		return source.prepareExport(required(diff, '尚未创建比较').diffId, format, layout, [...selectedFileIds], files.length)
 	},
 	confirmExport: async (targetId, allowInside) => {
-		await required(get().bridge, 'Agent 尚未连接').confirmExport(targetId, allowInside)
+		const source = required(get().repository, '尚未打开项目')
+		if (!source.confirmExport) throw new Error('当前仓库不支持导出')
+		await source.confirmExport(targetId, allowInside)
 	},
 	cancelExport: async targetId => {
-		await required(get().bridge, 'Agent 尚未连接').cancelExport(targetId)
+		const source = required(get().repository, '尚未打开项目')
+		if (!source.cancelExport) throw new Error('当前仓库不支持导出')
+		await source.cancelExport(targetId)
 	},
 	clearError: () => set({ error: null }),
 	clearCandidates: () => set({ candidates: [] }),
 	disconnect: () => {
 		invalidateDiffLoads()
 		invalidateHistoryLoads()
-		get().bridge?.close()
-		set({ bridge: null, connection: 'idle', expectedNonce: null, error: null, ...initialSession, candidates: [] })
+		get().repository?.dispose?.()
+		get().agentBridge?.close()
+		set({ agentBridge: null, connection: 'idle', expectedNonce: null, error: null, ...initialSession, candidates: [] })
 	}
 }))
 
@@ -310,17 +334,17 @@ async function loadHistory(
 	reset: boolean,
 	generation: number
 ) {
-	const { bridge, repositoryId, search } = get()
-	if (!bridge || !repositoryId) return
-	const skip = reset ? 0 : get().historySkip
+	const { repository, search } = get()
+	if (!repository) return
+	const cursor = reset ? null : get().historyCursor
 	if (!reset && !get().historyHasMore) return
-	const key = `${generation}:${repositoryId}:${search}:${skip}`
+	const key = `${generation}:${repository.key}:${search}:${cursor || 'start'}`
 	let request = historyRequests.get(key)
 	if (!request) {
-		request = bridge.getHistory(repositoryId, search, skip).then(page => {
-			if (generation !== latestHistoryGeneration || get().repositoryId !== repositoryId || get().search !== search) return
-			if (!reset && get().historySkip !== skip) return
-			set({ commits: reset ? page.items : [...get().commits, ...page.items], historySkip: page.nextSkip, historyHasMore: page.hasMore })
+		request = repository.getHistory(search, cursor).then(page => {
+			if (generation !== latestHistoryGeneration || get().repository !== repository || get().search !== search) return
+			if (!reset && get().historyCursor !== cursor) return
+			set({ commits: reset ? page.items : [...get().commits, ...page.items], historyCursor: page.nextCursor, historyHasMore: page.nextCursor !== null })
 		})
 		historyRequests.set(key, request)
 	}
@@ -358,10 +382,10 @@ async function openComparison(
 	current: VersionSelection,
 	generation: number
 ) {
-	await openDiff(get, set, revisionFor(old, get().overview), revisionFor(current, get().overview), 'all', generation)
+	await openDiff(get, set, revisionFor(old), revisionFor(current), 'all', generation)
 }
 
-function revisionFor(selection: VersionSelection, overview: RepositoryOverview | null): RevisionRef {
+function revisionFor(selection: VersionSelection): RevisionRef {
 	if (selection.kind === 'working-tree') return { kind: 'working-tree' }
 	return selection.commit.isStash ? { kind: 'stash', oid: selection.commit.hash } : { kind: 'commit', oid: selection.commit.hash }
 }
@@ -374,11 +398,10 @@ async function openDiff(
 	group: WorkingTreeGroup,
 	generation: number
 ) {
-	const bridge = required(get().bridge, 'Agent 尚未连接')
-	const repositoryId = required(get().repositoryId, '尚未打开项目')
-	const diff = await bridge.openDiff(repositoryId, oldRevision, newRevision, group)
+	const repository = required(get().repository, '尚未打开项目')
+	const diff = await repository.openDiff(oldRevision, newRevision, group)
 	if (!isLatestDiff(generation)) return
-	const firstPage = await bridge.getDiffFiles(repositoryId, diff.diffId, 0)
+	const firstPage = await repository.getDiffFiles(diff.diffId, null)
 	if (!isLatestDiff(generation)) return
 	set({
 		diff,
@@ -386,10 +409,9 @@ async function openDiff(
 		selectedFileIds: new Set(firstPage.items.filter(isSelectableFile).map(file => file.fileId)),
 		activeFile: null
 	})
-	let skip = firstPage.nextSkip
-	let hasMore = firstPage.hasMore
-	while (hasMore) {
-		const page = await bridge.getDiffFiles(repositoryId, diff.diffId, skip)
+	let cursor = firstPage.nextCursor
+	while (cursor !== null) {
+		const page = await repository.getDiffFiles(diff.diffId, cursor)
 		if (!isLatestDiff(generation)) return
 		const state = get()
 		const files = [...state.files, ...page.items]
@@ -398,8 +420,7 @@ async function openDiff(
 			if (isSelectableFile(file)) selectedFileIds.add(file.fileId)
 		}
 		set({ files, selectedFileIds })
-		skip = page.nextSkip
-		hasMore = page.hasMore
+		cursor = page.nextCursor
 	}
 }
 
