@@ -1,15 +1,17 @@
 {
 	"short_name": "WinriseF",
 	"name": "WinriseF",
-	"start_url": ".",
+	"start_url": "/",
+	"scope": "/",
 
 	"form_factor": "wide",
 
 	"icons": [
 		{
 			"src": "/favicon.png",
-			"sizes": "512x512",
-			"type": "image/png"
+			"sizes": "1024x1024",
+			"type": "image/png",
+			"purpose": "any"
 		}
 	],
 	"display": "standalone"
