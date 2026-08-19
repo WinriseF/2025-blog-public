@@ -160,7 +160,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			if (selected.overview.isBare) {
 				const first = get().commits[0]
 				if (first) await get().selectVersion({ kind: 'commit', commit: first })
-			} else await get().selectVersion({ kind: 'working-tree', label: '工作区' })
+			}
 		})
 	},
 
@@ -173,7 +173,10 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			const historyGeneration = invalidateHistoryLoads()
 			set({ ...initialSession, candidates: [], repository: new LocalAgentRepositoryDataSource(bridge, selected.repositoryId), overview: selected.overview, loading: true })
 			await loadHistory(get, set, true, historyGeneration)
-			await get().selectVersion({ kind: 'working-tree', label: '工作区' })
+			if (selected.overview.isBare) {
+				const first = get().commits[0]
+				if (first) await get().selectVersion({ kind: 'commit', commit: first })
+			}
 		})
 	},
 
