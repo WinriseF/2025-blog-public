@@ -28,6 +28,7 @@ export interface RepositoryDataSource {
 	refresh(): Promise<RepositoryOverview>
 	getHistory(query: string | null, cursor: string | null, limit?: number): Promise<HistoryPage>
 	getDirectory(path: string, cursor: string | null, limit?: number): Promise<DirectoryPage>
+	getRepositoryImageUrl?(path: string): string | null
 	openRepositoryFile(path: string): Promise<RepositoryFileContent>
 	openDiff(oldRevision: RevisionRef, newRevision: RevisionRef, group: WorkingTreeGroup): Promise<DiffSessionInfo>
 	getDiffFiles(diffId: string, cursor: string | null, limit?: number): Promise<DiffFilesPage>

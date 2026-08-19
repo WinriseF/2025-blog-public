@@ -13,6 +13,7 @@ import type {
 } from './types'
 
 const API_ROOT = 'https://api.github.com'
+const RAW_ROOT = 'https://raw.githubusercontent.com'
 const API_VERSION = '2026-03-10'
 const NETWORK_PAGE_SIZE = 100
 const UI_PAGE_SIZE = 30
@@ -60,6 +61,23 @@ type GitHubContent = {
 	size: number
 }
 
+type GitHubTreeEntry = {
+	path: string
+	mode: string
+	type: 'blob' | 'tree' | 'commit'
+	size?: number
+}
+
+type GitHubTree = {
+	truncated: boolean
+	tree: GitHubTreeEntry[]
+}
+
+type DirectorySnapshot = {
+	entries: Map<string, RepositoryTreeEntry[]>
+	truncated: boolean
+}
+
 type HistoryStream = {
 	items: GraphCommit[]
 	nextApiPage: number
@@ -81,6 +99,7 @@ export class GitHubRestRepositoryDataSource implements RepositoryDataSource {
 	readonly source = 'github-rest'
 	readonly key: string
 	private readonly baseUrl: string
+	private readonly rawBaseUrl: string
 	private overview: RepositoryOverview
 	private abortController = new AbortController()
 	private historyPages = new Map<number, Promise<GitHubCommit[]>>()
@@ -89,6 +108,7 @@ export class GitHubRestRepositoryDataSource implements RepositoryDataSource {
 	private details = new Map<string, Promise<GitHubCommitDetail>>()
 	private comparisons = new Map<string, Promise<GitHubComparison>>()
 	private directories = new Map<string, Promise<RepositoryTreeEntry[]>>()
+	private treeSnapshot: Promise<DirectorySnapshot> | null = null
 	private files = new Map<string, Promise<string>>()
 	private diffs = new Map<string, DiffSession>()
 	private diffSequence = 0
@@ -100,6 +120,7 @@ export class GitHubRestRepositoryDataSource implements RepositoryDataSource {
 	) {
 		this.key = `github-rest:${owner}/${repositoryName}`
 		this.baseUrl = `${API_ROOT}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`
+		this.rawBaseUrl = `${RAW_ROOT}/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`
 		this.overview = createOverview(repository)
 	}
 
@@ -166,6 +187,14 @@ export class GitHubRestRepositoryDataSource implements RepositoryDataSource {
 		const items = entries.slice(offset, offset + pageSize)
 		const nextOffset = offset + items.length
 		return { items, nextCursor: nextOffset < entries.length ? String(nextOffset) : null }
+	}
+
+	getRepositoryImageUrl(path: string) {
+		const normalizedPath = normalizeRepositoryPath(path)
+		const branch = this.overview.currentBranch
+		if (!normalizedPath || !branch) return null
+		const encodedPath = normalizedPath.split('/').map(encodeURIComponent).join('/')
+		return `${this.rawBaseUrl}/${encodeURIComponent(branch)}/${encodedPath}`
 	}
 
 	async openRepositoryFile(path: string): Promise<RepositoryFileContent> {
@@ -274,17 +303,34 @@ export class GitHubRestRepositoryDataSource implements RepositoryDataSource {
 		const key = `${this.overview.currentBranch}:${path}`
 		let request = this.directories.get(key)
 		if (!request) {
-			const encodedPath = path ? `/${path.split('/').map(encodeURIComponent).join('/')}` : ''
-			const url = `${this.baseUrl}/contents${encodedPath}?ref=${encodeURIComponent(this.overview.currentBranch || '')}`
-			request = this.request(url)
-				.then(response => response.json() as Promise<GitHubContent[] | GitHubContent>)
-				.then(contents => {
-					if (!Array.isArray(contents)) throw new Error('所选路径不是文件夹')
-					return contents.map(toRepositoryTreeEntry).sort(compareRepositoryEntries)
-				})
+			request = this.getTreeSnapshot().then(snapshot => snapshot.truncated ? this.getContentsDirectory(path) : snapshot.entries.get(path) || [])
 			this.directories.set(key, request)
 		}
 		return request
+	}
+
+	private getTreeSnapshot() {
+		let request = this.treeSnapshot
+		if (!request) {
+			const ref = required(this.overview.currentBranch, '远端仓库没有可读取的分支')
+			const url = `${this.baseUrl}/git/trees/${encodeURIComponent(ref)}?recursive=1`
+			request = this.request(url)
+				.then(response => response.json() as Promise<GitHubTree>)
+				.then(tree => ({ entries: buildDirectoryMap(tree.tree), truncated: tree.truncated }))
+			this.treeSnapshot = request
+		}
+		return request
+	}
+
+	private getContentsDirectory(path: string) {
+		const encodedPath = path ? `/${path.split('/').map(encodeURIComponent).join('/')}` : ''
+		const url = `${this.baseUrl}/contents${encodedPath}?ref=${encodeURIComponent(this.overview.currentBranch || '')}`
+		return this.request(url)
+			.then(response => response.json() as Promise<GitHubContent[] | GitHubContent>)
+			.then(contents => {
+				if (!Array.isArray(contents)) throw new Error('所选路径不是文件夹')
+				return contents.map(toRepositoryTreeEntry).sort(compareRepositoryEntries)
+			})
 	}
 
 	private getFile(ref: string, path: string) {
@@ -310,6 +356,7 @@ export class GitHubRestRepositoryDataSource implements RepositoryDataSource {
 		this.details.clear()
 		this.comparisons.clear()
 		this.directories.clear()
+		this.treeSnapshot = null
 		this.files.clear()
 		this.diffs.clear()
 	}
@@ -414,6 +461,34 @@ function toRepositoryTreeEntry(content: GitHubContent): RepositoryTreeEntry {
 		kind,
 		size: kind === 'file' ? content.size : null,
 		isBinary: kind === 'file' && isBinaryPath(content.path)
+	}
+}
+
+function buildDirectoryMap(entries: GitHubTreeEntry[]) {
+	const directories = new Map<string, RepositoryTreeEntry[]>([['', []]])
+	for (const entry of entries) {
+		const path = normalizeRepositoryPath(entry.path)
+		if (!path) continue
+		const item = toRepositoryTreeEntryFromTree(entry, path)
+		const separator = path.lastIndexOf('/')
+		const parent = separator === -1 ? '' : path.slice(0, separator)
+		const children = directories.get(parent) || []
+		children.push(item)
+		directories.set(parent, children)
+		if (item.kind === 'directory' && !directories.has(path)) directories.set(path, [])
+	}
+	for (const children of directories.values()) children.sort(compareRepositoryEntries)
+	return directories
+}
+
+function toRepositoryTreeEntryFromTree(entry: GitHubTreeEntry, path: string): RepositoryTreeEntry {
+	const kind = entry.type === 'tree' ? 'directory' : entry.type === 'commit' ? 'submodule' : entry.mode === '120000' ? 'symlink' : 'file'
+	return {
+		name: path.slice(path.lastIndexOf('/') + 1),
+		path,
+		kind,
+		size: kind === 'file' ? entry.size ?? null : null,
+		isBinary: kind === 'file' && isBinaryPath(path)
 	}
 }
 

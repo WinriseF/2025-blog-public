@@ -1,4 +1,5 @@
 import type { DiffsThemeNames } from '@pierre/diffs'
+import type { CSSProperties } from 'react'
 import type { TimeThemeName } from '@/lib/time-theme'
 
 export type OfficialDiffThemeId = 'pierre-light' | 'pierre-dark'
@@ -62,6 +63,19 @@ export const diffThemes: Record<DiffThemeId, DiffThemeDefinition> = {
 		background: '#0a0a0a',
 		foreground: '#fafafa'
 	}
+}
+
+export function createDiffThemeStyle(theme: DiffThemeDefinition) {
+	return {
+		colorScheme: theme.type,
+		'--diff-background': theme.background,
+		'--diff-foreground': theme.foreground,
+		'--diff-border': 'color-mix(in srgb, var(--diff-foreground) 14%, transparent)',
+		'--diff-muted': 'color-mix(in srgb, var(--diff-foreground) 58%, transparent)',
+		'--diff-subtle': 'color-mix(in srgb, var(--diff-foreground) 4%, transparent)',
+		'--diff-hover': 'color-mix(in srgb, var(--diff-foreground) 7%, transparent)',
+		'--diff-active': 'color-mix(in srgb, var(--diff-foreground) 11%, var(--diff-background))'
+	} as CSSProperties
 }
 
 export function isOfficialDiffTheme(theme: DiffThemeId): theme is OfficialDiffThemeId {

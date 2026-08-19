@@ -6,7 +6,6 @@ import {
 	useRef,
 	useState,
 	type ButtonHTMLAttributes,
-	type CSSProperties,
 	type ReactNode
 } from 'react'
 import { Check, Columns2, Copy, FileWarning, Palette, Rows3, SunMoon, X } from 'lucide-react'
@@ -19,7 +18,7 @@ import {
 	getNextOfficialDiffTheme,
 	getNextTimeDiffTheme,
 	isOfficialDiffTheme,
-	type DiffThemeDefinition,
+	createDiffThemeStyle,
 	type DiffThemeId
 } from './diff-themes'
 import { PierreDiffViewer } from './pierre-diff-viewer'
@@ -52,7 +51,7 @@ export function DiffModal() {
 	const previewMode = patchSource && changesOnly ? 'patch' : 'full'
 	const themeId = themeOverride ?? siteTheme.name
 	const diffTheme = diffThemes[themeId]
-	const themeStyle = useMemo(() => createThemeStyle(diffTheme), [diffTheme])
+	const themeStyle = useMemo(() => createDiffThemeStyle(diffTheme), [diffTheme])
 	const officialTheme = isOfficialDiffTheme(themeId)
 	const nextOfficialTheme = getNextOfficialDiffTheme(themeId)
 	const nextTimeTheme = isOfficialDiffTheme(themeId) ? siteTheme.name : getNextTimeDiffTheme(themeId)
@@ -276,19 +275,6 @@ function ModalState({ message, file }: { message: string; file: { additions: num
 
 function iconButton() {
 	return 'flex size-8 items-center justify-center rounded-md border transition disabled:opacity-25 [border-color:var(--diff-border)] [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'
-}
-
-function createThemeStyle(theme: DiffThemeDefinition) {
-	return {
-		colorScheme: theme.type,
-		'--diff-background': theme.background,
-		'--diff-foreground': theme.foreground,
-		'--diff-border': 'color-mix(in srgb, var(--diff-foreground) 14%, transparent)',
-		'--diff-muted': 'color-mix(in srgb, var(--diff-foreground) 58%, transparent)',
-		'--diff-subtle': 'color-mix(in srgb, var(--diff-foreground) 4%, transparent)',
-		'--diff-hover': 'color-mix(in srgb, var(--diff-foreground) 7%, transparent)',
-		'--diff-active': 'color-mix(in srgb, var(--diff-foreground) 11%, var(--diff-background))'
-	} as CSSProperties
 }
 
 function previewKey(diffId: string, fileId: number, perspective: ConflictPerspective, mode: 'full' | 'patch') {

@@ -1,33 +1,46 @@
 'use client'
 
+import { File as PierreFile, Virtualizer } from '@pierre/diffs/react'
+import type { FileContents } from '@pierre/diffs'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
+import { useTimeTheme } from '@/components/time-theme-provider'
 import { useVersionControlStore } from '@/lib/version-control/store'
 import type { RepositoryFileContent, RepositoryTreeEntry } from '@/lib/version-control/types'
+import { ImagePreviewDialog } from '../image-preview-dialog'
+import { createDiffThemeStyle, diffThemes } from './diff-themes'
 
 type FileState =
 	| { status: 'idle' | 'loading' }
-	| { status: 'ready'; file: RepositoryFileContent }
+	| { status: 'ready'; file: RepositoryFileContent; version: number }
 	| { status: 'unavailable'; message: string }
 	| { status: 'error'; message: string }
 
 export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | null }) {
 	const repository = useVersionControlStore(state => state.repository)
 	const overview = useVersionControlStore(state => state.overview)
+	const { theme: siteTheme } = useTimeTheme()
 	const [state, setState] = useState<FileState>({ status: 'idle' })
 	const [reload, setReload] = useState(0)
 	const [copied, setCopied] = useState(false)
+	const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
 	const generation = useRef(0)
+	const imageUrl = entry?.kind === 'file' && isImagePath(entry.path) ? repository?.getRepositoryImageUrl?.(entry.path) || null : null
 
 	useEffect(() => {
 		const request = ++generation.current
 		setCopied(false)
+		setImagePreviewOpen(false)
 		if (!entry || !repository) {
 			setState({ status: 'idle' })
 			return
 		}
 		if (entry.kind !== 'file') {
 			setState({ status: 'unavailable', message: entry.kind === 'submodule' ? '子模块不提供源码预览' : '符号链接不提供源码预览' })
+			return
+		}
+		if (imageUrl) {
+			setState({ status: 'idle' })
 			return
 		}
 		if (entry.isBinary) {
@@ -38,15 +51,34 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 		void repository
 			.openRepositoryFile(entry.path)
 			.then(file => {
-				if (request === generation.current) setState({ status: 'ready', file })
+				if (request === generation.current) setState({ status: 'ready', file, version: request })
 			})
 			.catch(error => {
 				if (request === generation.current) setState({ status: 'error', message: previewError(error) })
 			})
-	}, [entry, overview, reload, repository])
+	}, [entry, imageUrl, overview, reload, repository])
 
 	const lineCount = useMemo(() => (state.status === 'ready' ? Math.max(1, state.file.content.split('\n').length) : 0), [state])
-	const lineNumbers = useMemo(() => Array.from({ length: lineCount }, (_, index) => index + 1).join('\n'), [lineCount])
+	const diffTheme = diffThemes[siteTheme.name]
+	const themeStyle = useMemo(() => createDiffThemeStyle(diffTheme), [diffTheme])
+	const source = useMemo<FileContents | null>(() => {
+		if (state.status !== 'ready' || state.file.path !== entry?.path) return null
+		return {
+			name: state.file.path,
+			contents: state.file.content,
+			cacheKey: `${repository?.key}:${state.file.path}:${state.version}:${contentKey(state.file.content)}`
+		}
+	}, [entry?.path, repository?.key, state])
+	const fileOptions = useMemo(
+		() => ({
+			theme: diffTheme.shiki,
+			themeType: diffTheme.type,
+			overflow: 'scroll' as const,
+			disableFileHeader: true,
+			stickyHeader: false
+		}),
+		[diffTheme.shiki, diffTheme.type]
+	)
 	const sourceLabel = repository?.source === 'github-rest' ? overview?.currentBranch || 'HEAD' : overview?.isBare ? 'HEAD' : '工作区'
 
 	if (!entry)
@@ -63,14 +95,14 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 		)
 
 	return (
-		<section className='bg-background flex h-full min-w-0 flex-col overflow-hidden'>
-			<header className='border-border bg-background/90 flex h-12 shrink-0 items-center gap-2 border-b px-4'>
+		<section style={themeStyle} className='flex h-full min-w-0 flex-col overflow-hidden [background-color:var(--diff-background)] [color:var(--diff-foreground)]'>
+			<header className='flex h-12 shrink-0 items-center gap-2 border-b px-4 [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
 				<FileCode2 size={15} className='text-brand shrink-0' />
 				<span title={entry.path} className='min-w-0 flex-1 truncate font-mono text-xs'>{entry.path}</span>
-				<span className='border-border bg-article/55 text-secondary shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px]'>{sourceLabel}</span>
-				{state.status === 'ready' && (
+				<span className='shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>{sourceLabel}</span>
+				{state.status === 'ready' && !imageUrl && (
 					<>
-						<span className='text-secondary hidden shrink-0 text-[10px] sm:inline'>{formatBytes(state.file.size)} · {lineCount} 行</span>
+						<span className='hidden shrink-0 text-[10px] [color:var(--diff-muted)] sm:inline'>{formatBytes(state.file.size)} · {lineCount} 行</span>
 						<button
 							onClick={() => {
 								void navigator.clipboard.writeText(state.file.content).then(() => {
@@ -79,14 +111,18 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 								})
 							}}
 							title='复制文件'
-							className='text-secondary hover:bg-article hover:text-primary flex size-7 shrink-0 items-center justify-center rounded-md transition'>
+							className='flex size-7 shrink-0 items-center justify-center rounded-md transition [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'>
 							{copied ? <Check size={13} className='text-emerald-400' /> : <Clipboard size={13} />}
 						</button>
 					</>
 				)}
 			</header>
 
-			{state.status === 'loading' ? (
+			{imageUrl ? (
+				<button type='button' onClick={() => setImagePreviewOpen(true)} className='flex min-h-0 flex-1 cursor-zoom-in items-center justify-center overflow-auto [background-color:var(--diff-subtle)]'>
+					<img src={imageUrl} alt={entry.name} className='block h-full w-full object-contain' />
+				</button>
+			) : state.status === 'loading' ? (
 				<ViewerState><Loader2 size={17} className='text-brand animate-spin' />正在读取文件…</ViewerState>
 			) : state.status === 'unavailable' ? (
 				<ViewerState><FileWarning size={18} />{state.message}</ViewerState>
@@ -99,13 +135,13 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 					</button>
 				</ViewerState>
 			) : state.status === 'ready' ? (
-				<div className='bg-article/20 min-h-0 flex-1 overflow-auto'>
-					<div className='flex min-h-full min-w-max items-stretch font-mono text-[12px] leading-5'>
-						<pre aria-hidden className='border-border bg-article/45 text-secondary/45 sticky left-0 z-[1] border-r px-3 py-4 text-right select-none'>{lineNumbers}</pre>
-						<pre className='text-primary/90 [tab-size:4] px-4 py-4 whitespace-pre'>{state.file.content || ' '}</pre>
-					</div>
-				</div>
+				source ? (
+					<Virtualizer className='min-h-0 flex-1 overflow-auto [background-color:var(--diff-background)]' contentClassName='min-h-full'>
+						<PierreFile file={source} options={fileOptions} />
+					</Virtualizer>
+				) : null
 			) : null}
+			{imagePreviewOpen && imageUrl && <ImagePreviewDialog src={imageUrl} alt={entry.name} onClose={() => setImagePreviewOpen(false)} />}
 		</section>
 	)
 }
@@ -126,4 +162,14 @@ function formatBytes(bytes: number) {
 	if (bytes < 1024) return `${bytes} B`
 	if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function contentKey(content: string) {
+	let hash = 2166136261
+	for (let index = 0; index < content.length; index += 1) hash = Math.imul(hash ^ content.charCodeAt(index), 16777619)
+	return `${content.length}:${hash >>> 0}`
+}
+
+function isImagePath(path: string) {
+	return /\.(?:apng|avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(path)
 }
