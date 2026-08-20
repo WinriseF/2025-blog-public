@@ -267,6 +267,7 @@ export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; 
 	const commits = useVersionControlStore(state => state.commits)
 	const overview = useVersionControlStore(state => state.overview)
 	const search = useVersionControlStore(state => state.search)
+	const branchFilter = useVersionControlStore(state => state.branchFilter)
 	const selection = useVersionControlStore(state => state.selection)
 	const comparison = useVersionControlStore(state => state.comparison)
 	const hasMore = useVersionControlStore(state => state.historyHasMore)
@@ -330,7 +331,7 @@ export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; 
 			latestScroll.current = 0
 			setScrollTop(0)
 		}
-	}, [search])
+	}, [branchFilter, search])
 
 	const handleScroll = useCallback(() => {
 		const element = scrollRef.current

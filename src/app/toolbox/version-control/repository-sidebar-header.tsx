@@ -2,6 +2,7 @@
 
 import { Files, GitBranch, History, Search, Server, X } from 'lucide-react'
 import type { RepositoryOverview } from '@/lib/version-control/types'
+import { RepositoryBranchFilter } from './repository-branch-filter'
 
 export type RepositoryViewMode = 'history' | 'files'
 
@@ -27,10 +28,7 @@ export function RepositorySidebarHeader({
 					<ModeButton active={mode === 'history'} label='历史' icon={<History size={12} />} onClick={() => onModeChange('history')} />
 					<ModeButton active={mode === 'files'} label='文件' icon={<Files size={12} />} onClick={() => onModeChange('files')} />
 				</nav>
-				<div title={branchLabel(overview)} className='border-border bg-article/45 text-secondary flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2'>
-					{overview?.repositoryKind === 'svn' ? <Server size={11} className='shrink-0 text-orange-300' /> : <GitBranch size={11} className='text-brand shrink-0' />}
-					<span className='truncate font-mono text-[10px]'>{branchLabel(overview)}</span>
-				</div>
+				{mode === 'history' && overview?.capabilities?.supportsBranchFilter ? <RepositoryBranchFilter /> : <BranchLabel overview={overview} />}
 			</div>
 			<div className='relative'>
 				<Search size={13} className='text-secondary absolute top-1/2 left-3 -translate-y-1/2' />
@@ -47,6 +45,15 @@ export function RepositorySidebarHeader({
 				)}
 			</div>
 		</header>
+	)
+}
+
+function BranchLabel({ overview }: { overview: RepositoryOverview | null }) {
+	return (
+		<div title={branchLabel(overview)} className='border-border bg-article/45 text-secondary flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2'>
+			{overview?.repositoryKind === 'svn' ? <Server size={11} className='shrink-0 text-orange-300' /> : <GitBranch size={11} className='text-brand shrink-0' />}
+			<span className='truncate font-mono text-[10px]'>{branchLabel(overview)}</span>
+		</div>
 	)
 }
 

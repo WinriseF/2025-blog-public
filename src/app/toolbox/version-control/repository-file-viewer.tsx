@@ -2,7 +2,7 @@
 
 import { File as PierreFile, Virtualizer } from '@pierre/diffs/react'
 import type { FileContents } from '@pierre/diffs'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import { useVersionControlStore } from '@/lib/version-control/store'
@@ -12,7 +12,8 @@ import { createDiffThemeStyle, diffThemes } from './diff-themes'
 
 type FileState =
 	| { status: 'idle' | 'loading' }
-	| { status: 'ready'; file: RepositoryFileContent; version: number }
+	| { status: 'ready'; file: RepositoryFileContent }
+	| { status: 'image'; path: string; url: string; size: number }
 	| { status: 'unavailable'; message: string }
 	| { status: 'error'; message: string }
 
@@ -24,41 +25,66 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 	const [reload, setReload] = useState(0)
 	const [copied, setCopied] = useState(false)
 	const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
-	const generation = useRef(0)
-	const imageUrl = entry?.kind === 'file' && isImagePath(entry.path) ? repository?.getRepositoryImageUrl?.(entry.path) || null : null
+	const imagePath = entry?.kind === 'file' && isImagePath(entry.path)
+	const remoteImageUrl = imagePath ? repository?.getRepositoryImageUrl?.(entry.path) || null : null
+	const imageUrl = remoteImageUrl || (state.status === 'image' && state.path === entry?.path ? state.url : null)
 
 	useEffect(() => {
-		const request = ++generation.current
+		let disposed = false
+		let objectUrl: string | null = null
+		const cleanup = () => {
+			disposed = true
+			if (objectUrl) URL.revokeObjectURL(objectUrl)
+		}
 		setCopied(false)
 		setImagePreviewOpen(false)
 		if (!entry || !repository) {
 			setState({ status: 'idle' })
-			return
+			return cleanup
 		}
 		if (entry.kind !== 'file') {
 			setState({ status: 'unavailable', message: entry.kind === 'submodule' ? '子模块不提供源码预览' : '符号链接不提供源码预览' })
-			return
+			return cleanup
 		}
-		if (imageUrl) {
+		if (remoteImageUrl) {
 			setState({ status: 'idle' })
-			return
+			return cleanup
+		}
+		if (imagePath && overview?.capabilities?.supportsImagePreview && repository.openRepositoryImage) {
+			setState({ status: 'loading' })
+			void repository
+				.openRepositoryImage(entry.path)
+				.then(blob => {
+					const url = URL.createObjectURL(blob)
+					objectUrl = url
+					if (!disposed) setState({ status: 'image', path: entry.path, url, size: blob.size })
+					else {
+						URL.revokeObjectURL(url)
+						objectUrl = null
+					}
+				})
+				.catch(error => {
+					if (!disposed) setState({ status: 'error', message: previewError(error) })
+				})
+			return cleanup
 		}
 		if (entry.isBinary) {
 			setState({ status: 'unavailable', message: '二进制文件无法在线预览' })
-			return
+			return cleanup
 		}
 		setState({ status: 'loading' })
 		void repository
 			.openRepositoryFile(entry.path)
 			.then(file => {
-				if (request === generation.current) setState({ status: 'ready', file, version: request })
+				if (!disposed) setState({ status: 'ready', file })
 			})
 			.catch(error => {
-				if (request === generation.current) setState({ status: 'error', message: previewError(error) })
+				if (!disposed) setState({ status: 'error', message: previewError(error) })
 			})
-	}, [entry, imageUrl, overview, reload, repository])
+		return cleanup
+	}, [entry, imagePath, overview, reload, remoteImageUrl, repository])
 
-	const lineCount = useMemo(() => (state.status === 'ready' ? Math.max(1, state.file.content.split('\n').length) : 0), [state])
+	const contentInfo = useMemo(() => (state.status === 'ready' ? analyzeContent(state.file.content) : null), [state])
 	const diffTheme = diffThemes[siteTheme.name]
 	const themeStyle = useMemo(() => createDiffThemeStyle(diffTheme), [diffTheme])
 	const source = useMemo<FileContents | null>(() => {
@@ -66,9 +92,9 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 		return {
 			name: state.file.path,
 			contents: state.file.content,
-			cacheKey: `${repository?.key}:${state.file.path}:${state.version}:${contentKey(state.file.content)}`
+			cacheKey: `${repository?.key}:${state.file.path}:${contentInfo?.key}`
 		}
-	}, [entry?.path, repository?.key, state])
+	}, [contentInfo?.key, entry?.path, repository?.key, state])
 	const fileOptions = useMemo(
 		() => ({
 			theme: diffTheme.shiki,
@@ -100,9 +126,9 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 				<FileCode2 size={15} className='text-brand shrink-0' />
 				<span title={entry.path} className='min-w-0 flex-1 truncate font-mono text-xs'>{entry.path}</span>
 				<span className='shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>{sourceLabel}</span>
-				{state.status === 'ready' && !imageUrl && (
+				{state.status === 'ready' && (
 					<>
-						<span className='hidden shrink-0 text-[10px] [color:var(--diff-muted)] sm:inline'>{formatBytes(state.file.size)} · {lineCount} 行</span>
+						<span className='hidden shrink-0 text-[10px] [color:var(--diff-muted)] sm:inline'>{formatBytes(state.file.size)} · {contentInfo?.lines} 行</span>
 						<button
 							onClick={() => {
 								void navigator.clipboard.writeText(state.file.content).then(() => {
@@ -116,6 +142,7 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 						</button>
 					</>
 				)}
+				{imageUrl && <span className='hidden shrink-0 text-[10px] [color:var(--diff-muted)] sm:inline'>{formatBytes(state.status === 'image' ? state.size : entry.size || 0)}</span>}
 			</header>
 
 			{imageUrl ? (
@@ -153,7 +180,7 @@ function ViewerState({ children }: { children: React.ReactNode }) {
 function previewError(error: unknown) {
 	const message = error instanceof Error ? error.message : String(error)
 	if (/binary/i.test(message)) return '二进制文件无法在线预览'
-	if (/too large|2 MiB/i.test(message)) return '文件超过 2 MiB，无法在线预览'
+	if (/too large|larger than|2 MiB|16 MiB/i.test(message)) return '文件超过预览大小限制'
 	if (/UTF-8/i.test(message)) return '仅支持预览 UTF-8 文本文件'
 	return message
 }
@@ -164,10 +191,15 @@ function formatBytes(bytes: number) {
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function contentKey(content: string) {
+function analyzeContent(content: string) {
 	let hash = 2166136261
-	for (let index = 0; index < content.length; index += 1) hash = Math.imul(hash ^ content.charCodeAt(index), 16777619)
-	return `${content.length}:${hash >>> 0}`
+	let lines = 1
+	for (let index = 0; index < content.length; index += 1) {
+		const code = content.charCodeAt(index)
+		hash = Math.imul(hash ^ code, 16777619)
+		if (code === 10) lines += 1
+	}
+	return { key: `${content.length}:${hash >>> 0}`, lines }
 }
 
 function isImagePath(path: string) {

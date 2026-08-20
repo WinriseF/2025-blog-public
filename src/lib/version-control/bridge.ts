@@ -9,6 +9,7 @@ import {
 	type ExportLayout,
 	type GraphCommit,
 	type PreviewContent,
+	type RepositoryBranch,
 	type RepositoryCandidate,
 	type RepositoryOverview,
 	type RepositoryTreeEntry,
@@ -18,7 +19,11 @@ import {
 } from './types'
 
 type PendingRequest = { resolve: (value: unknown) => void; reject: (error: Error) => void }
-type PreviewWaiter = { resolve: (value: PreviewContent) => void; reject: (error: Error) => void }
+type StreamWaiter = {
+	kind: 'text' | 'image'
+	resolve: (value: PreviewContent | Blob) => void
+	reject: (error: Error) => void
+}
 type ControlOutput = { type: string; requestId?: number; ok?: boolean; result?: unknown; error?: string }
 
 export class VersionControlBridge {
@@ -26,7 +31,7 @@ export class VersionControlBridge {
 	private writer: WritableStreamDefaultWriter<Uint8Array> | null = null
 	private requestId = 0
 	private pending = new Map<number, PendingRequest>()
-	private previews = new Map<number, PreviewWaiter>()
+	private streams = new Map<number, StreamWaiter>()
 	private exportListeners = new Set<(event: ExportEvent) => void>()
 	private closed = false
 
@@ -78,14 +83,26 @@ export class VersionControlBridge {
 	refresh(repositoryId: string) {
 		return this.request<RepositoryOverview>('refresh-repository', { repositoryId })
 	}
-	getHistory(repositoryId: string, query: string | null, skip: number, limit = 48) {
-		return this.request<{ items: GraphCommit[]; nextSkip: number; hasMore: boolean }>('get-history-page', { repositoryId, query: query || null, skip, limit })
+	getHistory(repositoryId: string, query: string | null, skip: number, limit = 48, branchRefs: string[] = []) {
+		return this.request<{ items: GraphCommit[]; nextSkip: number; hasMore: boolean }>('get-history-page', {
+			repositoryId,
+			query: query || null,
+			branchRefs: branchRefs.length ? branchRefs : null,
+			skip,
+			limit
+		})
+	}
+	getBranches(repositoryId: string, skip: number, limit = 128) {
+		return this.request<{ items: RepositoryBranch[]; nextSkip: number; hasMore: boolean }>('get-branches-page', { repositoryId, skip, limit })
 	}
 	getDirectory(repositoryId: string, path: string, skip: number, limit = 96) {
 		return this.request<{ items: RepositoryTreeEntry[]; nextSkip: number; hasMore: boolean }>('get-directory-page', { repositoryId, path, skip, limit })
 	}
 	async openRepositoryFile(repositoryId: string, path: string) {
-		return (await this.requestPreview('open-repository-file', { repositoryId, path })).modified
+		return (await this.requestStream<PreviewContent>('open-repository-file', 'text', { repositoryId, path })).modified
+	}
+	openRepositoryImage(repositoryId: string, path: string) {
+		return this.requestStream<Blob>('open-repository-image', 'image', { repositoryId, path })
 	}
 	openDiff(repositoryId: string, oldRevision: RevisionRef, newRevision: RevisionRef, group: WorkingTreeGroup) {
 		return this.request<DiffSessionInfo>('open-diff', { repositoryId, oldRevision, newRevision, group })
@@ -94,20 +111,23 @@ export class VersionControlBridge {
 		return this.request<{ items: DiffFile[]; nextSkip: number; hasMore: boolean }>('get-diff-files-page', { repositoryId, diffId, skip, limit })
 	}
 	async openPreview(repositoryId: string, diffId: string, fileId: number, perspective: ConflictPerspective, mode: 'full' | 'patch' = 'full') {
-		return this.requestPreview('open-file-preview', { repositoryId, diffId, fileId, perspective, mode })
+		return this.requestStream<PreviewContent>('open-file-preview', 'text', { repositoryId, diffId, fileId, perspective, mode })
 	}
 
-	private async requestPreview(type: string, fields: Record<string, unknown>) {
+	private async requestStream<T extends PreviewContent | Blob>(type: string, kind: StreamWaiter['kind'], fields: Record<string, unknown>) {
 		const requestId = this.nextRequestId()
-		const preview = new Promise<PreviewContent>((resolve, reject) => this.previews.set(requestId, { resolve, reject }))
+		const preview = new Promise<T>((resolve, reject) =>
+			this.streams.set(requestId, { kind, resolve: value => resolve(value as T), reject })
+		)
 		try {
 			await this.requestWithId(requestId, type, fields)
 			return await preview
 		} catch (error) {
-			this.previews.delete(requestId)
+			this.streams.delete(requestId)
 			throw error
 		}
 	}
+
 	prepareExport(repositoryId: string, diffId: string, format: ExportFormat, layout: ExportLayout, selectedFileIds: number[], totalFiles: number) {
 		return this.request<{ cancelled: boolean; exportTargetId?: string; insideRepository?: boolean }>('prepare-export', {
 			repositoryId,
@@ -134,8 +154,8 @@ export class VersionControlBridge {
 			const normalized = normalizeError(error)
 			this.pending.get(requestId)?.reject(normalized)
 			this.pending.delete(requestId)
-			this.previews.get(requestId)?.reject(normalized)
-			this.previews.delete(requestId)
+			this.streams.get(requestId)?.reject(normalized)
+			this.streams.delete(requestId)
 		})
 		return response
 	}
@@ -189,7 +209,7 @@ export class VersionControlBridge {
 				void this.readPreview(next.value)
 			}
 		} catch (error) {
-			if (!this.closed) this.failPreviews(normalizeError(error))
+			if (!this.closed) this.failStreams(normalizeError(error))
 		} finally {
 			streams.releaseLock()
 		}
@@ -206,23 +226,32 @@ export class VersionControlBridge {
 				requestId: number
 				originalBytes: number
 				modifiedBytes: number
+				contentType?: string
 			}
 			if (!Number.isSafeInteger(metadata.requestId) || metadata.requestId <= 0) throw new Error('预览流 requestId 无效')
 			requestId = metadata.requestId
-			if (
-				![metadata.originalBytes, metadata.modifiedBytes].every(value => Number.isSafeInteger(value) && value >= 0 && value <= 2 * 1024 * 1024)
-			)
+			const isImage = metadata.contentType?.startsWith('image/') === true
+			const limit = isImage ? 16 * 1024 * 1024 : 2 * 1024 * 1024
+			if (![metadata.originalBytes, metadata.modifiedBytes].every(value => Number.isSafeInteger(value) && value >= 0 && value <= limit))
 				throw new Error('预览流长度无效')
-			const original = new TextDecoder('utf-8', { fatal: true }).decode(await reader.readExact(metadata.originalBytes))
-			const modified = new TextDecoder('utf-8', { fatal: true }).decode(await reader.readExact(metadata.modifiedBytes))
-			this.previews.get(requestId)?.resolve({ original, modified })
-			this.previews.delete(requestId)
+			const originalBytes = await reader.readExact(metadata.originalBytes)
+			const modifiedBytes = await reader.readExact(metadata.modifiedBytes)
+			const preview = this.streams.get(requestId)
+			if (preview && preview.kind !== (isImage ? 'image' : 'text')) throw new Error('预览流类型不匹配')
+			if (isImage) {
+				if (metadata.originalBytes) throw new Error('图片预览流无效')
+				preview?.resolve(new Blob([modifiedBytes.buffer], { type: metadata.contentType }))
+			} else {
+				const decoder = new TextDecoder('utf-8', { fatal: true })
+				preview?.resolve({ original: decoder.decode(originalBytes), modified: decoder.decode(modifiedBytes) })
+			}
+			this.streams.delete(requestId)
 		} catch (error) {
 			const normalized = normalizeError(error)
 			if (requestId !== null) {
-				this.previews.get(requestId)?.reject(normalized)
-				this.previews.delete(requestId)
-			} else this.failPreviews(normalized)
+				this.streams.get(requestId)?.reject(normalized)
+				this.streams.delete(requestId)
+			} else this.failStreams(normalized)
 		} finally {
 			reader.release()
 		}
@@ -242,14 +271,14 @@ export class VersionControlBridge {
 		this.helloResolver?.reject(error)
 		this.helloResolver = null
 		for (const pending of this.pending.values()) pending.reject(error)
-		for (const preview of this.previews.values()) preview.reject(error)
+		for (const preview of this.streams.values()) preview.reject(error)
 		this.pending.clear()
-		this.previews.clear()
+		this.streams.clear()
 	}
 
-	private failPreviews(error: Error) {
-		for (const preview of this.previews.values()) preview.reject(error)
-		this.previews.clear()
+	private failStreams(error: Error) {
+		for (const preview of this.streams.values()) preview.reject(error)
+		this.streams.clear()
 	}
 }
 

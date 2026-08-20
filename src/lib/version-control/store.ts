@@ -12,6 +12,7 @@ import type {
 	ExportFormat,
 	ExportLayout,
 	GraphCommit,
+	RepositoryBranch,
 	RepositoryCandidate,
 	RepositoryOverview,
 	RevisionRef,
@@ -29,6 +30,10 @@ type VersionControlState = {
 	error: string | null
 	candidates: RepositoryCandidate[]
 	overview: RepositoryOverview | null
+	branches: RepositoryBranch[]
+	branchesLoaded: boolean
+	branchesLoading: boolean
+	branchFilter: string[]
 	commits: GraphCommit[]
 	historyCursor: string | null
 	historyHasMore: boolean
@@ -50,7 +55,9 @@ type VersionControlState = {
 	chooseRepositoryCandidate: (candidateId: string) => Promise<void>
 	connectHistory: () => Promise<void>
 	closeRepository: () => Promise<void>
+	loadBranches: () => Promise<void>
 	loadMoreHistory: () => Promise<void>
+	setBranchFilter: (branchRefs: string[]) => void
 	setSearch: (query: string) => Promise<void>
 	selectVersion: (selection: VersionSelection) => Promise<void>
 	compareWith: (selection: VersionSelection) => Promise<void>
@@ -74,6 +81,10 @@ const initialSession = {
 	repository: null,
 	candidates: [],
 	overview: null,
+	branches: [],
+	branchesLoaded: false,
+	branchesLoading: false,
+	branchFilter: [],
 	commits: [],
 	historyCursor: null,
 	historyHasMore: false,
@@ -87,9 +98,11 @@ const initialSession = {
 }
 
 const DIFF_INTENT_DEBOUNCE_MS = 90
+const BRANCH_FILTER_DEBOUNCE_MS = 220
 let latestDiffGeneration = 0
 let diffQueue: Promise<void> = Promise.resolve()
 let latestHistoryGeneration = 0
+let branchFilterTimer: number | null = null
 const historyRequests = new Map<string, Promise<void>>()
 
 export const useVersionControlStore = create<VersionControlState>((set, get) => ({
@@ -201,7 +214,50 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		})
 	},
 
+	loadBranches: async () => {
+		const { repository, branchesLoaded, branchesLoading } = get()
+		if (!repository?.getBranches || branchesLoaded || branchesLoading) return
+		set({ branchesLoading: true, error: null })
+		try {
+			const branches = await repository.getBranches()
+			if (get().repository === repository) set({ branches, branchesLoaded: true })
+		} catch (error) {
+			if (get().repository === repository) set({ error: message(error) })
+		} finally {
+			if (get().repository === repository) set({ branchesLoading: false })
+		}
+	},
+
 	loadMoreHistory: async () => run(set, () => loadHistory(get, set, false, latestHistoryGeneration)),
+
+	setBranchFilter: branchRefs => {
+		const branches = get().branches
+		const branchFilter = normalizeBranchFilter(branchRefs, branches)
+		if (sameStrings(branchFilter, get().branchFilter)) return
+		invalidateDiffLoads()
+		const generation = invalidateHistoryLoads()
+		set({
+			branchFilter,
+			commits: [],
+			historyCursor: null,
+			historyHasMore: false,
+			selection: null,
+			comparison: null,
+			diff: null,
+			files: [],
+			selectedFileIds: new Set<number>(),
+			activeFile: null,
+			loading: true,
+			error: null
+		})
+		branchFilterTimer = window.setTimeout(() => {
+			branchFilterTimer = null
+			void loadHistory(get, set, true, generation).then(
+				() => generation === latestHistoryGeneration && set({ loading: false }),
+				error => generation === latestHistoryGeneration && set({ loading: false, error: message(error) })
+			)
+		}, BRANCH_FILTER_DEBOUNCE_MS)
+	},
 
 	setSearch: async query => {
 		const generation = invalidateHistoryLoads()
@@ -249,10 +305,21 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			const repository = required(get().repository, '尚未打开项目')
 			const selection = get().selection
 			const comparison = get().comparison
+			const hadBranchesLoaded = get().branchesLoaded
 			const overview = await repository.refresh()
+			const branches = hadBranchesLoaded && repository.getBranches ? await repository.getBranches() : []
 			if (!isLatestDiff(generation)) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ overview, commits: [], historyCursor: null, historyHasMore: false })
+			set({
+				overview,
+				branches,
+				branchesLoaded: hadBranchesLoaded && Boolean(repository.getBranches),
+				branchesLoading: false,
+				branchFilter: normalizeBranchFilter(get().branchFilter, branches),
+				commits: [],
+				historyCursor: null,
+				historyHasMore: false
+			})
 			await loadHistory(get, set, true, historyGeneration)
 			if (!isLatestDiff(generation)) return
 			const supportsWorkingTree = overview.capabilities?.hasWorkingTree !== false && !overview.isBare
@@ -337,15 +404,21 @@ async function loadHistory(
 	reset: boolean,
 	generation: number
 ) {
-	const { repository, search } = get()
+	const { repository, search, branchFilter } = get()
 	if (!repository) return
 	const cursor = reset ? null : get().historyCursor
 	if (!reset && !get().historyHasMore) return
-	const key = `${generation}:${repository.key}:${search}:${cursor || 'start'}`
+	const key = `${generation}:${repository.key}:${search}:${JSON.stringify(branchFilter)}:${cursor || 'start'}`
 	let request = historyRequests.get(key)
 	if (!request) {
-		request = repository.getHistory(search, cursor).then(page => {
-			if (generation !== latestHistoryGeneration || get().repository !== repository || get().search !== search) return
+		request = repository.getHistory(search, cursor, undefined, branchFilter).then(page => {
+			if (
+				generation !== latestHistoryGeneration ||
+				get().repository !== repository ||
+				get().search !== search ||
+				!sameStrings(get().branchFilter, branchFilter)
+			)
+				return
 			if (!reset && get().historyCursor !== cursor) return
 			set({ commits: reset ? page.items : [...get().commits, ...page.items], historyCursor: page.nextCursor, historyHasMore: page.nextCursor !== null })
 		})
@@ -431,6 +504,16 @@ function isSelectableFile(file: DiffFile) {
 	return !file.isBinary && !file.exportTooLarge && file.nodeKind !== 'dir'
 }
 
+function normalizeBranchFilter(branchRefs: string[], branches: RepositoryBranch[]) {
+	if (!branchRefs.length || !branches.length) return []
+	const selected = new Set(branchRefs)
+	return branches.filter(branch => selected.has(branch.id)).map(branch => branch.id)
+}
+
+function sameStrings(left: string[], right: string[]) {
+	return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
 async function scheduleDiff(
 	set: (partial: Partial<VersionControlState>) => void,
 	action: (generation: number) => Promise<void>
@@ -459,6 +542,10 @@ function invalidateDiffLoads() {
 }
 
 function invalidateHistoryLoads() {
+	if (branchFilterTimer !== null) {
+		window.clearTimeout(branchFilterTimer)
+		branchFilterTimer = null
+	}
 	latestHistoryGeneration += 1
 	return latestHistoryGeneration
 }

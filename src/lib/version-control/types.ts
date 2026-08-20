@@ -40,6 +40,13 @@ export type ExportLayout = 'split' | 'unified' | 'git-patch'
 
 export type GitRef = { name: string; kind: 'head' | 'branch' | 'remote-branch' | 'tag' | 'stash' | 'deleted-branch' }
 
+export type RepositoryBranch = {
+	id: string
+	name: string
+	kind: 'branch' | 'remote-branch'
+	current: boolean
+}
+
 export type GraphCommit = {
 	hash: string
 	shortHash: string
@@ -71,6 +78,8 @@ export type RepositoryOverview = {
 		canExport: boolean
 		supportsStaging: boolean
 		supportsHistory: boolean
+		supportsImagePreview?: boolean
+		supportsBranchFilter?: boolean
 		hasWorkingTree?: boolean
 	}
 	svn?: {

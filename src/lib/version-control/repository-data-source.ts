@@ -7,6 +7,7 @@ import type {
 	ExportLayout,
 	GraphCommit,
 	PreviewContent,
+	RepositoryBranch,
 	RepositoryOverview,
 	RepositoryFileContent,
 	RepositoryTreeEntry,
@@ -26,9 +27,11 @@ export interface RepositoryDataSource {
 	close(): Promise<unknown>
 	dispose?(): void
 	refresh(): Promise<RepositoryOverview>
-	getHistory(query: string | null, cursor: string | null, limit?: number): Promise<HistoryPage>
+	getBranches?(): Promise<RepositoryBranch[]>
+	getHistory(query: string | null, cursor: string | null, limit?: number, branchRefs?: string[]): Promise<HistoryPage>
 	getDirectory(path: string, cursor: string | null, limit?: number): Promise<DirectoryPage>
 	getRepositoryImageUrl?(path: string): string | null
+	openRepositoryImage?(path: string): Promise<Blob>
 	openRepositoryFile(path: string): Promise<RepositoryFileContent>
 	openDiff(oldRevision: RevisionRef, newRevision: RevisionRef, group: WorkingTreeGroup): Promise<DiffSessionInfo>
 	getDiffFiles(diffId: string, cursor: string | null, limit?: number): Promise<DiffFilesPage>
@@ -67,8 +70,20 @@ export class LocalAgentRepositoryDataSource implements RepositoryDataSource {
 		return this.bridge.refresh(this.repositoryId)
 	}
 
-	async getHistory(query: string | null, cursor: string | null, limit?: number): Promise<HistoryPage> {
-		const page = await this.bridge.getHistory(this.repositoryId, query, parseCursor(cursor), limit)
+	async getBranches() {
+		const branches: RepositoryBranch[] = []
+		let skip = 0
+		for (;;) {
+			const page = await this.bridge.getBranches(this.repositoryId, skip)
+			branches.push(...page.items)
+			if (!page.hasMore) return branches
+			if (page.nextSkip <= skip) throw new Error('分支分页游标无效')
+			skip = page.nextSkip
+		}
+	}
+
+	async getHistory(query: string | null, cursor: string | null, limit?: number, branchRefs: string[] = []): Promise<HistoryPage> {
+		const page = await this.bridge.getHistory(this.repositoryId, query, parseCursor(cursor), limit, branchRefs)
 		return { items: page.items, nextCursor: page.hasMore ? String(page.nextSkip) : null }
 	}
 
@@ -80,6 +95,10 @@ export class LocalAgentRepositoryDataSource implements RepositoryDataSource {
 	async openRepositoryFile(path: string): Promise<RepositoryFileContent> {
 		const content = await this.bridge.openRepositoryFile(this.repositoryId, path)
 		return { path, content, size: new TextEncoder().encode(content).byteLength }
+	}
+
+	openRepositoryImage(path: string) {
+		return this.bridge.openRepositoryImage(this.repositoryId, path)
 	}
 
 	openDiff(oldRevision: RevisionRef, newRevision: RevisionRef, group: WorkingTreeGroup) {
