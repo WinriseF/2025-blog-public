@@ -159,6 +159,9 @@ export type TokenUsageSample = TokenUsageNumbers & {
 	id: string
 	sequence: number
 	timestamp?: string
+	turnId?: string
+	cwd?: string
+	model?: string
 	contextWindow?: number
 	sourceRef: SourceRef
 }
@@ -171,20 +174,126 @@ export type SessionTokenUsage = {
 	samples: TokenUsageSample[]
 }
 
+export type TurnPerformance = {
+	id: string
+	startedAt?: string
+	firstResponseAt?: string
+	endedAt?: string
+	cwd?: string
+	model?: string
+	requestCount: number
+	outputTokens: number
+}
+
+export type SessionPerformance = {
+	turns: TurnPerformance[]
+}
+
+export type PerformanceMetrics = {
+	turnCount: number
+	firstResponseCount: number
+	completedTurnCount: number
+	requestCount: number
+	outputTokens: number
+	firstResponseAverageMs?: number
+	firstResponseP50Ms?: number
+	firstResponseP95Ms?: number
+	averageTurnDurationMs?: number
+	outputTokensPerSecond?: number
+}
+
 export type SessionParseResult = {
 	source: SessionSource
 	meta: SessionMetadata
 	processes: ProcessRun[]
 	fileAudit: FileAudit
 	tokenUsage: SessionTokenUsage
+	performance: SessionPerformance
 	diagnostics: ParseDiagnostic[]
+}
+
+export type SessionSummaryTokenSample = TokenUsageNumbers & {
+	timestamp?: string
+	turnId?: string
+	cwd?: string
+	model?: string
+}
+
+export type SessionSummary = {
+	key: string
+	relativePath?: string
+	source: SessionSource
+	meta: SessionMetadata
+	tokenUsage: {
+		status: SessionTokenUsage['status']
+		scope: SessionTokenUsage['scope']
+		total?: TokenUsageNumbers
+		samples: SessionSummaryTokenSample[]
+	}
+	performance: SessionPerformance
+	projectKeys: string[]
+	requestCount: number
+	warningCount: number
+}
+
+export type SessionBatchFailure = {
+	key: string
+	name: string
+	relativePath?: string
+	message: string
+}
+
+export type SessionBatchResult = {
+	sessions: SessionSummary[]
+	failures: SessionBatchFailure[]
+}
+
+export type SessionBatchSource = {
+	key: string
+	file: File
+	relativePath?: string
+}
+
+export type SessionCollectionFilters = {
+	dateFrom?: string
+	dateTo?: string
+	projectKey?: string
+	model?: string
+}
+
+export type TokenTimeBucket = TokenUsageNumbers & {
+	key: string
+	sessionCount: number
+	unallocated: number
+}
+
+export type ProjectTokenBucket = TokenUsageNumbers & {
+	key: string
+	label: string
+	sessionCount: number
+	lastUsedAt?: string
+	unallocated: number
+}
+
+export type SessionCollectionAnalytics = {
+	sessions: SessionSummary[]
+	total: TokenUsageNumbers
+	requestCount: number
+	daily: TokenTimeBucket[]
+	projects: ProjectTokenBucket[]
+	performance: PerformanceMetrics
+	unallocatedTokens: number
+	activeDays: number
 }
 
 export type ParserWorkerRequest =
 	| { type: 'parse'; id: number; file: File }
+	| { type: 'parse-batch'; id: number; sources: SessionBatchSource[] }
 	| { type: 'cancel'; id: number }
 
 export type ParserWorkerResponse =
 	| { type: 'progress'; id: number; bytesRead: number; records: number }
+	| { type: 'batch-progress'; id: number; completedFiles: number; totalFiles: number; currentName: string; bytesRead: number; totalBytes: number; records: number }
 	| { type: 'success'; id: number; result: SessionParseResult }
+	| { type: 'batch-success'; id: number; result: SessionBatchResult }
 	| { type: 'error'; id: number; message: string }

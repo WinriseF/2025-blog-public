@@ -43,4 +43,14 @@ describe('buildTokenUsage', () => {
 		const usage = buildTokenUsage([], true, [])
 		expect(usage).toMatchObject({ status: 'missing', scope: 'possibly-inherited' })
 	})
+
+	it('把请求样本关联到当时的 turn、目录和模型', () => {
+		const context: RecordEnvelope = {
+			sequence: 1,
+			sourceRef: { line: 1, byteStart: 0, byteEnd: 10 },
+			record: { type: 'turn_context', payload: { turn_id: 'turn-1', cwd: 'C:\\project-a', model: 'gpt-test' } }
+		}
+		const usage = buildTokenUsage([context, tokenRecord(2, 120)], false, [])
+		expect(usage.samples[0]).toMatchObject({ turnId: 'turn-1', cwd: 'C:\\project-a', model: 'gpt-test' })
+	})
 })

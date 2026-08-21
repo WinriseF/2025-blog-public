@@ -1,14 +1,18 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import type { SessionTokenUsage } from '@/lib/codex-session/types'
+import type { PerformanceMetrics, SessionTokenUsage } from '@/lib/codex-session/types'
 import type { DetailSelection } from './detail-panel'
 import { formatDate, formatNumber } from './format'
+import { PerformanceStats } from './performance-stats'
 
 const TokenChart = dynamic(() => import('./token-chart'), { ssr: false, loading: () => <div className='text-secondary flex h-72 items-center justify-center text-xs'>正在加载图表...</div> })
 
-export function TokenView({ usage, onSelect }: { usage: SessionTokenUsage; onSelect: (selection: DetailSelection) => void }) {
-	if (usage.status === 'missing') return <div className='text-secondary flex min-h-72 items-center justify-center border-y border-border px-5 text-center'>此 Session 没有记录 Token 用量</div>
+export function TokenView({ usage, performance, onSelect }: { usage: SessionTokenUsage; performance: PerformanceMetrics; onSelect: (selection: DetailSelection) => void }) {
+	if (usage.status === 'missing') return <div className='space-y-5'>
+		<PerformanceStats metrics={performance} />
+		<div className='text-secondary flex min-h-48 items-center justify-center border-y border-border px-5 text-center'>此 Session 没有记录 Token 用量，输出速度和请求均值不可计算</div>
+	</div>
 
 	const total = usage.total
 	const requests = usage.samples.length
@@ -38,6 +42,7 @@ export function TokenView({ usage, onSelect }: { usage: SessionTokenUsage; onSel
 					<p className='mt-1 truncate text-base font-semibold'>{value}</p>
 				</div>)}
 			</div>
+			<PerformanceStats metrics={performance} />
 
 			{total && <div className='grid gap-3 text-xs md:grid-cols-2'>
 				<div className='border-l-2 border-brand bg-background/20 px-4 py-3'>Fresh input {formatNumber(total.freshInput)} · Cached {formatNumber(total.cachedInput)} · Cache write {formatNumber(total.cacheWriteInput)}</div>

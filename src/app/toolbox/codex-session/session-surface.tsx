@@ -1,31 +1,38 @@
 'use client'
 
 import { useState, type DragEvent } from 'react'
-import { FileJson2, FilePlus2, FolderSearch2, LockKeyhole, RotateCcw, Trash2, X } from 'lucide-react'
+import { ArrowLeft, FileJson2, FilePlus2, FolderOpen, FolderSearch2, LockKeyhole, RotateCcw, Trash2, X } from 'lucide-react'
 import { isAuditCommand } from '@/lib/codex-session/command-semantics'
 import type { SessionParseResult } from '@/lib/codex-session/types'
 import { formatBytes, formatDate, formatNumber } from './format'
 
 type SessionImportProps = {
-	onFile: (file: File) => void
-	progress?: { file: File; bytesRead: number; records: number }
+	onFiles: (files: File[]) => void
+	progress?: {
+		currentName: string
+		bytesRead: number
+		totalBytes: number
+		records: number
+		completedFiles?: number
+		totalFiles?: number
+	}
 	error?: string
 	onCancel?: () => void
 }
 
-export function SessionImport({ onFile, progress, error, onCancel }: SessionImportProps) {
+export function SessionImport({ onFiles, progress, error, onCancel }: SessionImportProps) {
 	const [dragging, setDragging] = useState(false)
-	const percent = progress ? Math.min((progress.bytesRead / progress.file.size) * 100, 100) : 0
+	const percent = progress?.totalBytes ? Math.min((progress.bytesRead / progress.totalBytes) * 100, 100) : 0
 
-	const takeFile = (files: FileList | null) => {
-		const file = files?.[0]
-		if (file) onFile(file)
+	const takeFiles = (files: FileList | null) => {
+		const selected = Array.from(files ?? [])
+		if (selected.length) onFiles(selected)
 	}
 
-	const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+	const handleDrop = (event: DragEvent<HTMLDivElement>) => {
 		event.preventDefault()
 		setDragging(false)
-		takeFile(event.dataTransfer.files)
+		takeFiles(event.dataTransfer.files)
 	}
 
 	return (
@@ -39,8 +46,11 @@ export function SessionImport({ onFile, progress, error, onCancel }: SessionImpo
 				<div className='rounded-2xl border border-border bg-background/35 p-6 shadow-sm'>
 					<div className='flex items-start justify-between gap-4'>
 						<div className='min-w-0'>
-							<p className='truncate font-medium'>{progress.file.name}</p>
-							<p className='text-secondary mt-1 text-xs'>{formatBytes(progress.bytesRead)} / {formatBytes(progress.file.size)} · {progress.records.toLocaleString('zh-CN')} 条记录</p>
+							<p className='truncate font-medium'>{progress.currentName}</p>
+							<p className='text-secondary mt-1 text-xs'>
+								{progress.totalFiles ? `${progress.completedFiles ?? 0} / ${progress.totalFiles} 个文件 · ` : ''}
+								{formatBytes(progress.bytesRead)} / {formatBytes(progress.totalBytes)} · {progress.records.toLocaleString('zh-CN')} 条记录
+							</p>
 						</div>
 						<button type='button' onClick={onCancel} className='text-secondary hover:text-primary flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs transition'>
 							<X size={14} /> 取消
@@ -52,19 +62,28 @@ export function SessionImport({ onFile, progress, error, onCancel }: SessionImpo
 					<p className='text-secondary mt-3 text-xs'>正在 Worker 中流式解析，页面仍可交互。</p>
 				</div>
 			) : (
-				<label
+				<div
 					onDragEnter={() => setDragging(true)}
 					onDragLeave={() => setDragging(false)}
 					onDragOver={event => event.preventDefault()}
 					onDrop={handleDrop}
-					className={`group flex cursor-pointer flex-col items-center rounded-3xl border border-dashed px-6 py-14 text-center transition ${dragging ? 'border-brand bg-brand/10' : 'border-brand/35 bg-brand/5 hover:border-brand/65 hover:bg-brand/10'}`}>
-					<input type='file' className='hidden' onClick={event => (event.currentTarget.value = '')} onChange={event => takeFile(event.target.files)} />
+					className={`group flex flex-col items-center rounded-3xl border border-dashed px-6 py-12 text-center transition ${dragging ? 'border-brand bg-brand/10' : 'border-brand/35 bg-brand/5 hover:border-brand/65 hover:bg-brand/10'}`}>
 					<span className='border-brand/25 bg-article text-brand flex size-16 items-center justify-center rounded-2xl border shadow-sm'>
 						<FileJson2 size={29} />
 					</span>
 					<span className='mt-5 text-base font-semibold'>选择或拖入 Codex Session 文件</span>
-					<span className='text-secondary mt-2 text-sm'>本地解析</span>
-				</label>
+					<span className='text-secondary mt-2 text-sm'>单个 Session 进入完整审计，多个 Session 生成时间线</span>
+					<div className='mt-5 flex flex-wrap justify-center gap-2'>
+						<label className='bg-brand flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white'>
+							<input type='file' accept='.jsonl,application/x-ndjson' multiple className='hidden' onClick={event => (event.currentTarget.value = '')} onChange={event => takeFiles(event.target.files)} />
+							<FilePlus2 size={14} /> 选择文件
+						</label>
+						<label className='hover:border-brand/50 flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background/35 px-4 py-2 text-xs font-medium transition'>
+							<input type='file' multiple className='hidden' {...{ webkitdirectory: '' }} onClick={event => (event.currentTarget.value = '')} onChange={event => takeFiles(event.target.files)} />
+							<FolderOpen size={14} /> 选择目录
+						</label>
+					</div>
+				</div>
 			)}
 
 			<div className='text-secondary mt-5 flex items-start gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 text-xs leading-5'>
@@ -79,7 +98,7 @@ export function SessionImport({ onFile, progress, error, onCancel }: SessionImpo
 					<p className='mt-1 break-all font-mono text-[11px]'>macOS / Linux：~/.codex/sessions/年/月/日/rollout-*.jsonl</p>
 				</div>
 			</div>
-			{error && <div className='mt-4 rounded-xl border border-rose-400/30 bg-rose-400/5 px-4 py-3 text-sm text-rose-500'>{error}</div>}
+			{error && <div className='mt-4 flex items-center justify-between gap-3 rounded-xl border border-rose-400/30 bg-rose-400/5 px-4 py-3 text-sm text-rose-500'><span>{error}</span>{onCancel && <button type='button' onClick={onCancel} className='shrink-0 rounded-full border border-rose-400/30 px-3 py-1.5 text-xs'>返回</button>}</div>}
 		</section>
 	)
 }
@@ -88,9 +107,10 @@ type SessionOverviewProps = {
 	result: SessionParseResult
 	onClear: () => void
 	onFile: (file: File) => void
+	backToTimeline?: boolean
 }
 
-export function SessionOverview({ result, onClear, onFile }: SessionOverviewProps) {
+export function SessionOverview({ result, onClear, onFile, backToTimeline }: SessionOverviewProps) {
 	const tokenTotal = result.tokenUsage.status === 'available' ? formatNumber(result.tokenUsage.total?.total) : '不可用'
 	const commands = result.processes.flatMap(process => (process.analysis?.commands ?? []).filter(isAuditCommand).map(command => ({ process, command })))
 	const auditedProcesses = [...new Map(commands.map(item => [item.process.id, item.process])).values()]
@@ -119,11 +139,11 @@ export function SessionOverview({ result, onClear, onFile }: SessionOverviewProp
 				<div className='flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 text-xs'>
 					<span className='text-secondary min-w-0 max-w-[min(48vw,36rem)] truncate' title={result.source.name}>{result.source.name}</span>
 					<label className='hover:border-brand/45 flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-2 transition'>
-						<input type='file' className='hidden' onClick={event => (event.currentTarget.value = '')} onChange={event => event.target.files?.[0] && onFile(event.target.files[0])} />
+						<input type='file' accept='.jsonl,application/x-ndjson' className='hidden' onClick={event => (event.currentTarget.value = '')} onChange={event => event.target.files?.[0] && onFile(event.target.files[0])} />
 						<FilePlus2 size={14} /> 重新导入
 					</label>
-					<button type='button' onClick={onClear} className='hover:border-rose-400/50 hover:text-rose-500 flex items-center gap-1.5 rounded-full border border-border px-3 py-2 transition'>
-						<Trash2 size={14} /> 清空
+					<button type='button' onClick={onClear} className={`flex items-center gap-1.5 rounded-full border border-border px-3 py-2 transition ${backToTimeline ? 'hover:border-brand/50 hover:text-brand' : 'hover:border-rose-400/50 hover:text-rose-500'}`}>
+						{backToTimeline ? <ArrowLeft size={14} /> : <Trash2 size={14} />} {backToTimeline ? '返回时间线' : '清空'}
 					</button>
 				</div>
 			</div>

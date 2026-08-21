@@ -1,11 +1,11 @@
 import { decodeExecSource } from './exec-parser'
 import { FileEvidenceCollector } from './file-evidence'
+import { buildSessionPerformance } from './performance'
 import { ProcessTracker, isCommandTool, parseToolResult } from './process-tracker'
 import { asBoolean, asObject, asString, extractText, parseJsonObject, recordPayload, type RecordEnvelope } from './record-utils'
+import { CODEX_RECORD_TYPES, collectSessionMetadata } from './session-metadata'
 import { buildTokenUsage } from './token-usage'
 import type { EventStatus, ParseDiagnostic, SessionParseResult, SessionSource, SourceRef } from './types'
-
-const KNOWN_RECORD_TYPES = new Set(['session_meta', 'turn_context', 'response_item', 'event_msg', 'compacted', 'world_state', 'rollback'])
 
 type SourceDescriptor = Omit<SessionSource, 'recordCount'>
 
@@ -53,27 +53,15 @@ function resultStatus(value: unknown): EventStatus {
 	return /^(?:error|failed)\b|\n(?:error|failed):/i.test(text) ? 'failed' : 'completed'
 }
 
-function metaContainsSubagent(payload: Record<string, unknown>) {
-	return /subagent|sub_agent|fork/.test(JSON.stringify([payload.source, payload.thread_source, payload.originator]).toLowerCase())
-}
-
 export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnvelope[]): SessionParseResult {
+	const collected = collectSessionMetadata(envelopes)
 	const diagnostics: ParseDiagnostic[] = []
 	const calls = new Map<string, CallState>()
 	const pendingResults = new Map<string, ResultState[]>()
-	const models = new Set<string>()
 	const fileEvidence = new FileEvidenceCollector()
 	const processTracker = new ProcessTracker()
 	let currentTurnId: string | undefined
-	let recognizedRecords = 0
-	let sessionId: string | undefined
 	let cwd: string | undefined
-	let startedAt: string | undefined
-	let endedAt: string | undefined
-	let cliVersion: string | undefined
-	let gitBranch: string | undefined
-	let forkedFromId: string | undefined
-	let isSubagent = false
 
 	const addDiagnostic = (envelope: RecordEnvelope, severity: ParseDiagnostic['severity'], code: string, message: string, processId?: string) => {
 		diagnostics.push({ id: `diagnostic-${code}-${envelope.sequence}-${diagnostics.length}`, severity, code, message, sourceRef: envelope.sourceRef, processId })
@@ -166,30 +154,16 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 		const record = envelope.record
 		const payload = recordPayload(record)
 		const itemType = asString(payload.type)
-		if (record.timestamp) {
-			startedAt ??= record.timestamp
-			endedAt = record.timestamp
-		}
-		if (!KNOWN_RECORD_TYPES.has(record.type)) continue
-		recognizedRecords++
+		if (!CODEX_RECORD_TYPES.has(record.type)) continue
 
 		if (record.type === 'session_meta') {
-			sessionId = asString(payload.id) ?? asString(payload.session_id) ?? sessionId
 			cwd = asString(payload.cwd) ?? cwd
-			startedAt = asString(payload.timestamp) ?? record.timestamp ?? startedAt
-			cliVersion = asString(payload.cli_version) ?? cliVersion
-			gitBranch = asString(asObject(payload.git)?.branch) ?? gitBranch
-			const threadSource = asObject(payload.thread_source)
-			forkedFromId = asString(payload.forked_from_id) ?? asString(payload.parent_session_id) ?? asString(threadSource?.parent_thread_id) ?? asString(threadSource?.parent_session_id) ?? forkedFromId
-			isSubagent ||= metaContainsSubagent(payload)
 			continue
 		}
 
 		if (record.type === 'turn_context') {
 			currentTurnId = asString(payload.turn_id) ?? currentTurnId
 			cwd = asString(payload.cwd) ?? cwd
-			const model = asString(payload.model)
-			if (model) models.add(model)
 			continue
 		}
 
@@ -232,7 +206,7 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 		}
 	}
 
-	if (!recognizedRecords) throw new Error('文件中没有可识别的 Codex Session 记录')
+	if (!collected.recognizedRecords) throw new Error('文件中没有可识别的 Codex Session 记录')
 
 	let missingDiagnostics = 0
 	for (const [callId, call] of calls) {
@@ -252,26 +226,15 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 
 	processTracker.settleUnfinished()
 	fileEvidence.markUnsettled('unknown')
-	const inherited = Boolean(isSubagent || forkedFromId)
-	const modelList = [...models]
+	const tokenUsage = buildTokenUsage(envelopes, Boolean(collected.meta.isSubagent || collected.meta.forkedFromId), diagnostics)
 
 	return {
 		source: { ...source, recordCount: envelopes.length },
-		meta: {
-			id: sessionId,
-			cwd,
-			startedAt,
-			endedAt,
-			model: modelList.at(-1),
-			models: modelList,
-			cliVersion,
-			gitBranch,
-			forkedFromId,
-			isSubagent
-		},
+		meta: collected.meta,
 		processes: processTracker.list(),
 		fileAudit: fileEvidence.result(),
-		tokenUsage: buildTokenUsage(envelopes, inherited, diagnostics),
+		tokenUsage,
+		performance: buildSessionPerformance(envelopes, tokenUsage),
 		diagnostics
 	}
 }

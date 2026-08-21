@@ -1,4 +1,4 @@
-import { asNumber, asObject, payloadType, recordPayload, tokenUsageSchema, type RecordEnvelope } from './record-utils'
+import { asNumber, asObject, asString, payloadType, recordPayload, tokenUsageSchema, type RecordEnvelope } from './record-utils'
 import type { ParseDiagnostic, SessionTokenUsage, TokenUsageNumbers } from './types'
 
 function mapUsage(value: unknown): TokenUsageNumbers | undefined {
@@ -23,11 +23,24 @@ export function buildTokenUsage(records: RecordEnvelope[], possiblyInherited: bo
 	let contextWindow: number | undefined
 	let previousTotal: number | undefined
 	let invalid = false
+	let currentTurnId: string | undefined
+	let currentCwd: string | undefined
+	let currentModel: string | undefined
 
 	for (const envelope of records) {
 		const record = envelope.record
-		if (!record || record.type !== 'event_msg' || payloadType(record) !== 'token_count') continue
+		if (!record) continue
 		const payload = recordPayload(record)
+		if (record.type === 'session_meta') {
+			currentCwd = asString(payload.cwd) ?? currentCwd
+			currentModel = asString(payload.model) ?? currentModel
+		}
+		else if (record.type === 'turn_context') {
+			currentTurnId = asString(payload.turn_id) ?? currentTurnId
+			currentCwd = asString(payload.cwd) ?? currentCwd
+			currentModel = asString(payload.model) ?? currentModel
+		}
+		if (record.type !== 'event_msg' || payloadType(record) !== 'token_count') continue
 		const info = asObject(payload.info)
 		if (!info) continue
 		contextWindow = asNumber(info.model_context_window) ?? contextWindow
@@ -74,6 +87,9 @@ export function buildTokenUsage(records: RecordEnvelope[], possiblyInherited: bo
 				id: `token-${envelope.sequence}`,
 				sequence: envelope.sequence,
 				timestamp: record.timestamp,
+				turnId: currentTurnId,
+				cwd: currentCwd,
+				model: currentModel,
 				contextWindow: asNumber(info.model_context_window),
 				sourceRef: envelope.sourceRef
 			})

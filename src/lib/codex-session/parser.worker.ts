@@ -3,7 +3,8 @@ import { isAuditCommand } from './command-semantics'
 import { FileEvidenceCollector } from './file-evidence'
 import { parseCodexSession } from './parser'
 import { analyzeShellProcesses } from './shell-analysis'
-import type { ParserWorkerRequest, ParserWorkerResponse } from './types'
+import { parseCodexSessionSummary } from './summary-parser'
+import type { ParserWorkerRequest, ParserWorkerResponse, SessionBatchFailure, SessionSummary } from './types'
 
 let active: { id: number; controller: AbortController } | undefined
 
@@ -23,6 +24,64 @@ self.onmessage = async (event: MessageEvent<ParserWorkerRequest>) => {
 	active = { id: request.id, controller }
 
 	try {
+		if (request.type === 'parse-batch') {
+			const sessions: SessionSummary[] = []
+			const failures: SessionBatchFailure[] = []
+			const totalBytes = request.sources.reduce((total, source) => total + source.file.size, 0)
+			let completedBytes = 0
+			let completedRecords = 0
+
+			for (let index = 0; index < request.sources.length; index++) {
+				const source = request.sources[index]
+				if (controller.signal.aborted || active?.id !== request.id) return
+				try {
+					const parsed = await readJsonlFile(
+						source.file,
+						progress => {
+							if (active?.id !== request.id || controller.signal.aborted) return
+							post({
+								type: 'batch-progress',
+								id: request.id,
+								completedFiles: index,
+								totalFiles: request.sources.length,
+								currentName: source.relativePath ?? source.file.name,
+								bytesRead: completedBytes + progress.bytesRead,
+								totalBytes,
+								records: completedRecords + progress.records
+							})
+						},
+						controller.signal
+					)
+					const summary = parseCodexSessionSummary(
+						source.key,
+						source.relativePath,
+						{
+							name: source.file.name,
+							size: source.file.size,
+							lastModified: source.file.lastModified,
+							lineCount: parsed.lineCount
+						},
+						parsed.records
+					)
+					sessions.push(summary)
+					completedRecords += parsed.records.length
+				} catch (error) {
+					if (controller.signal.aborted) throw error
+					failures.push({
+						key: source.key,
+						name: source.file.name,
+						relativePath: source.relativePath,
+						message: error instanceof Error ? error.message : 'Session 解析失败'
+					})
+				}
+				completedBytes += source.file.size
+			}
+
+			if (active?.id !== request.id || controller.signal.aborted) return
+			post({ type: 'batch-success', id: request.id, result: { sessions, failures } })
+			return
+		}
+
 		const parsed = await readJsonlFile(
 			request.file,
 			progress => {
