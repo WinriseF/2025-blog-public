@@ -301,7 +301,7 @@ export default function NavCard() {
 													height: itemHeight + extraSize * 2,
 													opacity: hoveredIndex >= 0 ? 1 : 0
 												}
-											: { x: 0, y: hoveredIndex * (itemHeight + 8), width: '100%', height: itemHeight }
+											: { x: 0, y: hoveredIndex * (itemHeight + 8), width: '100%', height: itemHeight, opacity: 1 }
 									}
 									transition={{
 										type: 'spring',
