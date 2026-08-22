@@ -14,6 +14,9 @@ importers:
       '@edgeone/pages-blob':
         specifier: ^0.0.12
         version: 0.0.12
+      '@mediabunny/aac-encoder':
+        specifier: 1.55.2
+        version: 1.55.2(mediabunny@1.55.2)
       '@pierre/diffs':
         specifier: 1.2.12
         version: 1.2.12(@shikijs/themes@3.23.0)(react-dom@19.2.0(react@19.2.1))(react@19.2.1)
@@ -53,6 +56,9 @@ importers:
       marked:
         specifier: ^17.0.0
         version: 17.0.6
+      mediabunny:
+        specifier: 1.55.2
+        version: 1.55.2
       mermaid:
         specifier: ^11.15.0
         version: 11.16.0
@@ -91,7 +97,7 @@ importers:
         version: 3.23.0
       sonner:
         specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.0(react@19.2.1))(react@19.2.1)
+        version: 2.0.8(@types/react@19.2.17)(react-dom@19.2.0(react@19.2.1))(react@19.2.1)
       stream-chain:
         specifier: ^4.2.5
         version: 4.2.5
@@ -962,6 +968,11 @@ packages:
   '@lumis-sh/wasm-bash@0.26.4':
     resolution: {integrity: sha512-LjVl21eahkWEOBcYyTWSRNntHXvU3fwSN0YU0B6dw9CfVrzGAkRViCFoa6+VJZ5NH3qFy862FbOmU7lRdGlmBA==}
 
+  '@mediabunny/aac-encoder@1.55.2':
+    resolution: {integrity: sha512-INsmfYO++m+gq3FoaAId2oNnNtBaY3GOaFbZorTroUppZiWNO5yEDvxSh7U646J1xlYDiGTqGvPNLaDNpWHMVA==}
+    peerDependencies:
+      mediabunny: ^1.0.0
+
   '@mermaid-js/parser@1.2.0':
     resolution: {integrity: sha512-oYPyv8A4As1yH5Bx+04iQEQxXuIQDe0GKCNSRgao6z8AM9jixXIfP0vsppRLvGf+nKIOb9/LdpWA4YuJiVvESA==}
 
@@ -1625,6 +1636,15 @@ packages:
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.13':
+    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
+
+  '@types/dom-webcodecs@0.1.19':
+    resolution: {integrity: sha512-+yFUIDUaASFz0vQpWBErPxun/Lb+F0TdrlTsj50gm7K797YzEx2TmV6fEiwciHyFNghlZYPgQXH5qRcwMHcJFQ==}
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
@@ -2518,6 +2538,9 @@ packages:
   mdn-data@2.0.30:
     resolution: {integrity: sha512-GaqWWShW4kv/G9IEucWScBx9G1/vsFZZJUO+tD26M8J8z3Kw5RDQjaoZe03YAClgeS/SWPOcb4nkFBTEi5DUEA==}
 
+  mediabunny@1.55.2:
+    resolution: {integrity: sha512-EEx4O6qYddAdCyWPMZNDwI7uc5hewNHrPAf9jLcVhIbXoPsiqNQ+D9i1pfadmGkjN2V318jSrZljkpoziYm6Lg==}
+
   mermaid@11.16.0:
     resolution: {integrity: sha512-Zvm3kbstgdpvIJPPItlL7fppIZ3kibvc1oZIGxdvk9t6UFz6flv+Jw7FtRGKwfcI8OckmH04LqG6LlS6X4B1pA==}
 
@@ -2934,11 +2957,15 @@ packages:
   snake-case@3.0.4:
     resolution: {integrity: sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==}
 
-  sonner@2.0.7:
-    resolution: {integrity: sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==}
+  sonner@2.0.8:
+    resolution: {integrity: sha512-UM/ByIoFra8yzV75n1o0Puu0bw5U/9UNnDacrJNspekBewIfsQ3D6ez1nvlWpt7aTsO6rujQtifBpycwIivqlg==}
     peerDependencies:
+      '@types/react': ^18.0.0 || ^19.0.0
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -4169,6 +4196,10 @@ snapshots:
 
   '@lumis-sh/wasm-bash@0.26.4': {}
 
+  '@mediabunny/aac-encoder@1.55.2(mediabunny@1.55.2)':
+    dependencies:
+      mediabunny: 1.55.2
+
   '@mermaid-js/parser@1.2.0':
     dependencies:
       '@chevrotain/types': 11.1.2
@@ -4746,6 +4777,14 @@ snapshots:
       '@types/d3-zoom': 3.0.8
 
   '@types/deep-eql@4.0.2': {}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.19
+
+  '@types/dom-webcodecs@0.1.13': {}
+
+  '@types/dom-webcodecs@0.1.19': {}
 
   '@types/estree@1.0.9': {}
 
@@ -5574,6 +5613,11 @@ snapshots:
 
   mdn-data@2.0.30: {}
 
+  mediabunny@1.55.2:
+    dependencies:
+      '@types/dom-mediacapture-transform': 0.1.12
+      '@types/dom-webcodecs': 0.1.13
+
   mermaid@11.16.0:
     dependencies:
       '@braintree/sanitize-url': 7.1.2
@@ -5989,10 +6033,12 @@ snapshots:
       dot-case: 3.0.4
       tslib: 2.8.1
 
-  sonner@2.0.7(react-dom@19.2.0(react@19.2.1))(react@19.2.1):
+  sonner@2.0.8(@types/react@19.2.17)(react-dom@19.2.0(react@19.2.1))(react@19.2.1):
     dependencies:
       react: 19.2.1
       react-dom: 19.2.0(react@19.2.1)
+    optionalDependencies:
+      '@types/react': 19.2.17
 
   source-map-js@1.2.1: {}
 

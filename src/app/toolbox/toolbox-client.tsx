@@ -15,8 +15,8 @@ const tools = [
 	},
 	{
 		href: '/toolbox/compress',
-		label: '图片压缩',
-		desc: 'PNG / JPG 转 WEBP',
+		label: '媒体压缩',
+		desc: '图片 / 视频本地压缩',
 		tone: 'from-teal-400/20 via-cyan-300/10 to-transparent',
 		icon: ImageIcon
 	},

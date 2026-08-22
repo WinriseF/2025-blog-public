@@ -83,7 +83,7 @@ async function fileToWebp(file: File, quality: number, maxWidth?: number) {
 	}
 }
 
-export function CompressTool() {
+export function ImageCompressPanel() {
 	const shouldReduceMotion = useReducedMotion()
 	const [images, setImages] = useState<SelectedImage[]>([])
 	const [quality, setQuality] = useState(0.8)
@@ -316,11 +316,6 @@ export function CompressTool() {
 	return (
 		<div className='relative text-sm'>
 			<div className='mx-auto flex max-w-5xl flex-col gap-8'>
-				<div>
-					<h1 className='text-2xl font-semibold tracking-normal text-primary'>图片压缩</h1>
-					<p className='text-secondary mt-3 text-sm'>本地转换为 WEBP，不上传服务器</p>
-				</div>
-
 				<motion.label
 					initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
 					animate={{ opacity: 1, scale: 1 }}

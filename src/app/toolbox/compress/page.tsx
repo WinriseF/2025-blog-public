@@ -1,10 +1,10 @@
-import { CompressTool } from '../compress-tool'
 import { ToolPageShell } from '../tool-page-shell'
+import { MediaCompressTool } from './media-compress-tool'
 
 export default function Page() {
 	return (
 		<ToolPageShell>
-			<CompressTool />
+			<MediaCompressTool />
 		</ToolPageShell>
 	)
 }

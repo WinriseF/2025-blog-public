@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-08-21.
+Last updated: 2026-08-22.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -34,6 +34,7 @@ Primary stack:
 - `lucide-react` and local SVG files for icons.
 - `interactjs` for pointer-based drag/resize interactions in the face privacy masking tool.
 - `qrcode` for browser-side QR code generation in the transfer toolbox.
+- `mediabunny` and its optional AAC encoder extension for streaming, browser-only video compression through WebCodecs.
 - Native browser `RTCPeerConnection` and `RTCDataChannel` APIs for LAN transfer sessions.
 - Netlify deployment through `@netlify/plugin-nextjs`.
 - Supabase Edge Function for the like endpoint and Supabase Realtime Presence and Broadcast for LAN transfer signaling.
@@ -123,7 +124,7 @@ Main route groups and pages:
 - `/world-clock`, `/music`, `/game`, `/svgs`: utility or experimental pages.
 - `/toolbox`: toolbox directory page with links to the browser tools, `/toolbox/agent`, `/toolbox/version-control`, and `/t`.
 - `/toolbox/agent`: WinriseF Toolbox Agent capability center and portable protocol-registration result page.
-- `/toolbox/compress`: image compression tool.
+- `/toolbox/compress`: unified browser-only image and large-video compression tool.
 - `/toolbox/markdown`: local Markdown preview tool with a desktop expanded preview mode and independent preview reading progress.
 - `/toolbox/face-mask`: local privacy masking tool for face detection, manual rectangular masks, and original-size image export.
 - `/toolbox/password`: browser-only random password, passphrase, and PIN generator.
@@ -354,6 +355,22 @@ Frontend:
 - `src/lib/transfer-relay.ts`
 
 Toolbox UI uses short `motion/react` entry, upload-state, and button-press feedback with reduced-motion opt-outs. Markdown preview can hide the editor and fill the toolbox card on desktop; its embedded progress bar tracks and scrubs only the preview scroll area. Entering the LAN workbench runs a one-shot, pointer-free Canvas water ripple from the tab click position: a downsampled, damped height-field simulation draws cyan crests over the workbench for about 1.3 seconds, then unmounts. Reduced-motion preferences skip it. Transfer progress and connection state keep their existing lightweight CSS transitions to avoid animation work on high-frequency events.
+
+### Media Compression Toolbox
+
+`/toolbox/compress` keeps the existing Canvas-based WEBP image converter and adds a separate video panel. The video path is intentionally Chromium desktop-first because large outputs require `showSaveFilePicker()` and direct disk writes.
+
+Relevant files:
+
+- `src/app/toolbox/compress/media-compress-tool.tsx`: image/video mode shell.
+- `src/app/toolbox/compress/video-compress-panel.tsx`: video metadata, presets, progress, pause/resume, and local-save UI.
+- `src/app/toolbox/compress/use-video-compress.ts`: main-thread Worker and File System Access lifecycle.
+- `src/lib/video-compress/video-compress.worker.ts`: MediaBunny conversion pipeline.
+- `src/lib/video-compress/presets.ts`: deterministic resolution, frame-rate, bitrate, and output-size rules.
+
+The coordinator worker uses `BlobSource` for lazy MP4/MOV/WebM/MKV reads, MediaBunny `Conversion` for track handling and WebCodecs transcoding, regular MP4 with a finalized `moov` seek index, and `StreamTarget` for backpressured positional writes. Stable single-lane mode writes directly. Dual-lane mode runs 10–180 second bitrate-aware video segments through two dedicated segment workers, keeps only a bounded set of short `BufferTarget` results, and immediately remuxes ready segments in order through MediaBunny `EncodedPacketSink` / `EncodedVideoPacketSource`; the full output is never buffered or written to a second temporary file. Audio is copied or encoded once through a composable conversion while video packets are merged. Never replace this path with `file.arrayBuffer()`, a complete output `Blob`, or a whole-file WASM filesystem. Output is H.264 MP4; AAC is copied only when its source bitrate already fits the preset, otherwise it is encoded natively or through the dynamically loaded official `@mediabunny/aac-encoder` extension. Default presets derive the source average bitrate from file size and duration, target a smaller fraction of the original size, and both UI and Worker reject settings whose estimated output is not smaller than the input.
+
+The save picker runs from the user's main-thread button gesture. Its serializable `FileSystemFileHandle` is passed to the Worker, while a small bridge prevents MediaBunny from committing the browser's temporary output file until conversion and finalization have both succeeded. Cancellation and failures abort that temporary write. Same-page pause/resume is supported; reload/crash recovery and persistent checkpoints are deliberately out of scope. `src/hooks/use-screen-wake-lock.ts` owns the shared screen-wake lifecycle used here and by the LAN wrapper.
 
 Backend:
 
