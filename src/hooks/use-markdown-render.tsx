@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import parse, { type HTMLReactParserOptions, Element, type DOMNode } from 'html-react-parser'
 import type { MarkdownRenderResult as RawMarkdownRenderResult, TocItem } from '@/lib/markdown-renderer'
 import { MarkdownImage } from '@/components/markdown-image'
@@ -26,65 +26,6 @@ type WorkerResponse =
 			type: 'ERROR'
 			payload: string
 	  }
-
-// zero-visual cache: markdown -> {html,toc} + markdown -> ReactElement
-// use full markdown string as key to avoid hash collision; LRU 20 limits memory (~4MB worst)
-const renderResultCache = new Map<string, RawMarkdownRenderResult>()
-const reactContentCache = new Map<string, ReactElement>()
-const MAX_CACHE_SIZE = 20
-
-// shared worker singleton — keeps shiki highlighter warm, single dispatcher for all hook instances
-let sharedWorker: Worker | null = null
-let globalRequestId = 0
-type PendingEntry = {
-	onSuccess: (payload: RawMarkdownRenderResult) => void
-	onError: (message: string) => void
-	cancelled: () => boolean
-}
-const pendingRequests = new Map<number, PendingEntry>()
-
-function ensureSharedWorker(): Worker {
-	if (!sharedWorker) {
-		sharedWorker = new Worker(new URL('../lib/markdown.worker.ts', import.meta.url))
-		sharedWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-			const entry = pendingRequests.get(event.data.id)
-			if (!entry) return
-			pendingRequests.delete(event.data.id)
-			if (entry.cancelled()) return
-			if (event.data.type === 'SUCCESS') entry.onSuccess(event.data.payload)
-			else entry.onError(event.data.payload)
-		}
-		sharedWorker.onerror = () => {
-			// fail all pending to main-thread fallback, then recycle worker
-			const entries = Array.from(pendingRequests.entries())
-			pendingRequests.clear()
-			for (const [, entry] of entries) {
-				if (!entry.cancelled()) entry.onError('worker error')
-			}
-			sharedWorker?.terminate()
-			sharedWorker = null
-		}
-	}
-	return sharedWorker
-}
-
-function setCacheWithLimit<K, V>(map: Map<K, V>, key: K, value: V) {
-	if (map.has(key)) map.delete(key)
-	if (map.size >= MAX_CACHE_SIZE) {
-		const firstKey = map.keys().next().value as K
-		map.delete(firstKey)
-	}
-	map.set(key, value)
-}
-
-function touchCache<K, V>(map: Map<K, V>, key: K): V | undefined {
-	const value = map.get(key)
-	if (value !== undefined) {
-		map.delete(key)
-		map.set(key, value)
-	}
-	return value
-}
 
 function decodeHtmlAttribute(value: string): string {
 	return value
@@ -143,36 +84,25 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 	const [content, setContent] = useState<ReactElement | null>(null)
 	const [toc, setToc] = useState<TocItem[]>([])
 	const [loading, setLoading] = useState<boolean>(true)
+	const workerRef = useRef<Worker | null>(null)
+	const requestIdRef = useRef(0)
 	const useWorker = options?.worker !== false
 	const canUseWorker = useMemo(() => useWorker && typeof window !== 'undefined' && typeof Worker !== 'undefined', [useWorker])
 
 	useEffect(() => {
 		let cancelled = false
-		let pendingId: number | null = null
-		// use markdown string directly as cache key — no collision
-		const cachedReact = touchCache(reactContentCache, markdown)
-		const cachedResult = touchCache(renderResultCache, markdown)
-		if (cachedReact && cachedResult) {
-			setContent(cachedReact)
-			setToc(cachedResult.toc)
-			setLoading(false)
-			return () => {
-				cancelled = true
-			}
-		}
+		const requestId = ++requestIdRef.current
 
 		async function renderOnMainThread() {
 			setLoading(true)
 			try {
 				const { renderMarkdown } = await import('@/lib/markdown-renderer')
 				const { html, toc } = await renderMarkdown(markdown)
-				if (cancelled) return
-				const result: RawMarkdownRenderResult = { html, toc }
-				setCacheWithLimit(renderResultCache, markdown, result)
-				const reactContent = parseMarkdownHtml(html)
-				setCacheWithLimit(reactContentCache, markdown, reactContent)
-				setContent(reactContent)
-				setToc(toc)
+				if (!cancelled) {
+					const reactContent = parseMarkdownHtml(html)
+					setContent(reactContent)
+					setToc(toc)
+				}
 			} catch (error) {
 				console.error('Markdown render error:', error)
 				if (!cancelled) {
@@ -187,38 +117,34 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 		}
 
 		function renderInWorker() {
-			// if we have raw result cached, reuse it without worker
-			if (cachedResult) {
-				const reactContent = parseMarkdownHtml(cachedResult.html)
-				setCacheWithLimit(reactContentCache, markdown, reactContent)
-				setContent(reactContent)
-				setToc(cachedResult.toc)
-				setLoading(false)
-				return
-			}
-
 			setLoading(true)
 			try {
-				const requestId = ++globalRequestId
-				pendingId = requestId
-				pendingRequests.set(requestId, {
-					cancelled: () => cancelled,
-					onSuccess: payload => {
-						setCacheWithLimit(renderResultCache, markdown, payload)
-						const reactContent = parseMarkdownHtml(payload.html)
-						setCacheWithLimit(reactContentCache, markdown, reactContent)
-						setContent(reactContent)
-						setToc(payload.toc)
-						setLoading(false)
-					},
-					onError: message => {
-						console.error('Markdown worker error:', message)
-						if (!cancelled) void renderOnMainThread()
-						else setLoading(false)
-					}
-				})
+				workerRef.current?.terminate()
+				const worker = new Worker(new URL('../lib/markdown.worker.ts', import.meta.url))
+				workerRef.current = worker
 
-				const worker = ensureSharedWorker()
+				worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+					if (cancelled || event.data.id !== requestId) return
+
+					if (event.data.type === 'SUCCESS') {
+						const { html, toc } = event.data.payload
+						setContent(parseMarkdownHtml(html))
+						setToc(toc)
+						setLoading(false)
+						return
+					}
+
+					console.error('Markdown worker error:', event.data.payload)
+					setContent(null)
+					setToc([])
+					setLoading(false)
+				}
+
+				worker.onerror = error => {
+					console.error('Markdown worker failed:', error)
+					if (!cancelled) void renderOnMainThread()
+				}
+
 				worker.postMessage({ id: requestId, markdown })
 			} catch (error) {
 				console.error('Markdown worker init failed:', error)
@@ -234,7 +160,8 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 
 		return () => {
 			cancelled = true
-			if (pendingId !== null) pendingRequests.delete(pendingId)
+			workerRef.current?.terminate()
+			workerRef.current = null
 		}
 	}, [canUseWorker, markdown])
 

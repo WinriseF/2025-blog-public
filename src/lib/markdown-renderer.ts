@@ -39,46 +39,33 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 		}
 	}
 
-	// Pre-process code blocks with Shiki — batch parallel, zero visual diff
+	// Pre-process code blocks with Shiki
 	const codeBlockMap = new Map<string, { html: string; original: string }>()
 	const tokens = marked.lexer(markdown)
 
-	const codeTasks: Array<{ token: Tokens.Code; index: number }> = []
-	for (let i = 0; i < tokens.length; i++) {
-		const token = tokens[i]
+	for (const token of tokens) {
 		if (token.type === 'code') {
 			const codeToken = token as Tokens.Code
 			if ((codeToken.lang || '').trim().toLowerCase() === 'mermaid') continue
-			codeTasks.push({ token: codeToken, index: codeBlockMap.size })
-			// reserve key to keep stable ordering
-			const placeholder = `__SHIKI_CODE_${codeBlockMap.size}__`
-			codeBlockMap.set(placeholder, { html: '', original: codeToken.text })
-			codeToken.text = placeholder
-		}
-	}
 
-	if (codeTasks.length > 0) {
-		const CONCURRENCY = 4
-		for (let i = 0; i < codeTasks.length; i += CONCURRENCY) {
-			const batch = codeTasks.slice(i, i + CONCURRENCY)
-			await Promise.all(
-				batch.map(async ({ token, index }) => {
-					const key = `__SHIKI_CODE_${index}__`
-					const originalCode = codeBlockMap.get(key)?.original ?? token.text
-					try {
-						const html = await codeToHtml(originalCode, {
-							lang: token.lang || 'text',
-							themes: {
-								light: 'one-light',
-								dark: 'github-dark'
-							}
-						})
-						codeBlockMap.set(key, { html, original: originalCode })
-					} catch {
-						codeBlockMap.set(key, { html: '', original: originalCode })
+			const originalCode = codeToken.text
+			try {
+				const html = await codeToHtml(originalCode, {
+					lang: codeToken.lang || 'text',
+					themes: {
+						light: 'one-light',
+						dark: 'github-dark'
 					}
 				})
-			)
+				const key = `__SHIKI_CODE_${codeBlockMap.size}__`
+				codeBlockMap.set(key, { html, original: originalCode })
+				codeToken.text = key
+			} catch {
+				// Keep original if highlighting fails
+				const key = `__SHIKI_CODE_${codeBlockMap.size}__`
+				codeBlockMap.set(key, { html: '', original: originalCode })
+				codeToken.text = key
+			}
 		}
 	}
 

@@ -86,7 +86,7 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 		}
 
 		scrollTarget.addEventListener('scroll', scheduleProgressUpdate, { passive: true })
-		window.addEventListener('resize', scheduleProgressUpdate, { passive: true } as AddEventListenerOptions)
+		window.addEventListener('resize', scheduleProgressUpdate)
 		updateProgress()
 
 		return () => {

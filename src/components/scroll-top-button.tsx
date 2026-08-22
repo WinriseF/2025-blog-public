@@ -25,20 +25,12 @@ export function ScrollTopButton({ className, delay }: ScrollTopButtonProps) {
 	}, [delay])
 
 	useEffect(() => {
-		let frame: number | null = null
 		const handleScroll = () => {
-			if (frame !== null) return
-			frame = window.requestAnimationFrame(() => {
-				frame = null
-				setActive(window.scrollY > 200)
-			})
+			setActive(window.scrollY > 200)
 		}
 		handleScroll()
 		window.addEventListener('scroll', handleScroll, { passive: true })
-		return () => {
-			window.removeEventListener('scroll', handleScroll)
-			if (frame !== null) window.cancelAnimationFrame(frame)
-		}
+		return () => window.removeEventListener('scroll', handleScroll)
 	}, [])
 
 	if (!show || !active) return null
