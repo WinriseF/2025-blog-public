@@ -18,6 +18,7 @@ type BlogTocProps = {
 export function BlogToc({ toc, delay = 0 }: BlogTocProps) {
 	const activeIdsRef = useRef(new Set<string>())
 	const [activeId, setActiveId] = useState<string>()
+	const frameRef = useRef<number | null>(null)
 
 	useEffect(() => {
 		if (toc.length === 0) return
@@ -31,8 +32,13 @@ export function BlogToc({ toc, delay = 0 }: BlogTocProps) {
 					else activeIdsRef.current.delete(entry.target.id)
 				}
 
-				const nextActiveId = toc.find(item => activeIdsRef.current.has(item.id))?.id
-				setActiveId(current => (current === nextActiveId ? current : nextActiveId))
+				// zero-visual coalesce: same frame dedupe, no extra renders
+				if (frameRef.current !== null) return
+				frameRef.current = window.requestAnimationFrame(() => {
+					frameRef.current = null
+					const nextActiveId = toc.find(item => activeIdsRef.current.has(item.id))?.id
+					setActiveId(current => (current === nextActiveId ? current : nextActiveId))
+				})
 			},
 			{
 				rootMargin: '-100px 0px -100px 0px',
@@ -48,6 +54,10 @@ export function BlogToc({ toc, delay = 0 }: BlogTocProps) {
 		return () => {
 			observer.disconnect()
 			activeIdsRef.current.clear()
+			if (frameRef.current !== null) {
+				window.cancelAnimationFrame(frameRef.current)
+				frameRef.current = null
+			}
 		}
 	}, [toc])
 
