@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type DragEvent } from 'react'
-import { ArrowLeft, FileJson2, FilePlus2, FolderOpen, FolderSearch2, LockKeyhole, RotateCcw, Trash2, X } from 'lucide-react'
+import { ArrowLeft, FileJson2, FilePlus2, FolderOpen, FolderSearch2, RotateCcw, Trash2, X } from 'lucide-react'
 import { isAuditCommand } from '@/lib/codex-session/command-semantics'
 import type { SessionParseResult } from '@/lib/codex-session/types'
 import { formatBytes, formatDate, formatNumber } from './format'
@@ -72,7 +72,6 @@ export function SessionImport({ onFiles, progress, error, onCancel }: SessionImp
 						<FileJson2 size={29} />
 					</span>
 					<span className='mt-5 text-base font-semibold'>选择或拖入 Codex Session 文件</span>
-					<span className='text-secondary mt-2 text-sm'>单个 Session 进入完整审计，多个 Session 生成时间线</span>
 					<div className='mt-5 flex flex-wrap justify-center gap-2'>
 						<label className='bg-brand flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white'>
 							<input type='file' accept='.jsonl,application/x-ndjson' multiple className='hidden' onClick={event => (event.currentTarget.value = '')} onChange={event => takeFiles(event.target.files)} />
@@ -86,10 +85,6 @@ export function SessionImport({ onFiles, progress, error, onCancel }: SessionImp
 				</div>
 			)}
 
-			<div className='text-secondary mt-5 flex items-start gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 text-xs leading-5'>
-				<LockKeyhole size={16} className='mt-0.5 shrink-0 text-emerald-500' />
-				<p>文件仅在当前浏览器页面内解析。</p>
-			</div>
 			<div className='text-secondary mt-3 flex items-start gap-3 rounded-xl border border-border bg-background/35 px-4 py-3 text-xs leading-5'>
 				<FolderSearch2 size={16} className='mt-0.5 shrink-0 text-brand' />
 				<div>
