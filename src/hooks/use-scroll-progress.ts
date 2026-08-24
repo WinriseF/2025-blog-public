@@ -32,6 +32,7 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 	const rootRef = useRef<HTMLDivElement | null>(null)
 	const inputRef = useRef<HTMLInputElement | null>(null)
 	const frameRef = useRef<number | null>(null)
+	const maxScrollRef = useRef(0)
 	const progressValueRef = useRef(-1)
 	const progressLabelRef = useRef('')
 
@@ -56,21 +57,32 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 		}
 	}, [])
 
+	const measureMaxScroll = useCallback(() => {
+		const scrollContainer = scrollContainerRef?.current
+		maxScrollRef.current = getMaxScroll(scrollContainer)
+	}, [scrollContainerRef])
+
 	const updateProgress = useCallback(() => {
 		const scrollContainer = scrollContainerRef?.current
-		const maxScroll = getMaxScroll(scrollContainer)
 		const scrollPosition = scrollContainer ? scrollContainer.scrollTop : window.scrollY
-		const nextProgress = maxScroll > 0 ? scrollPosition / maxScroll : 0
+		const nextProgress = maxScrollRef.current > 0 ? scrollPosition / maxScrollRef.current : 0
 
 		updateProgressValue(getProgressValue(nextProgress))
 	}, [scrollContainerRef, updateProgressValue])
 
 	useEffect(() => {
-		const scheduleProgressUpdate = () => {
+		let measureRequested = false
+
+		const scheduleProgressUpdate = (measure = false) => {
+			measureRequested ||= measure
 			if (frameRef.current !== null) return
 
 			frameRef.current = window.requestAnimationFrame(() => {
 				frameRef.current = null
+				if (measureRequested) {
+					measureRequested = false
+					measureMaxScroll()
+				}
 				updateProgress()
 			})
 		}
@@ -80,18 +92,22 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 		let resizeObserver: ResizeObserver | null = null
 
 		if (typeof ResizeObserver !== 'undefined') {
-			resizeObserver = new ResizeObserver(scheduleProgressUpdate)
+			resizeObserver = new ResizeObserver(() => scheduleProgressUpdate(true))
 			resizeObserver.observe(scrollContainer ?? document.documentElement)
 			if (!scrollContainer && document.body) resizeObserver.observe(document.body)
 		}
 
-		scrollTarget.addEventListener('scroll', scheduleProgressUpdate, { passive: true })
-		window.addEventListener('resize', scheduleProgressUpdate)
+		const handleScroll = () => scheduleProgressUpdate()
+		const handleResize = () => scheduleProgressUpdate(true)
+
+		scrollTarget.addEventListener('scroll', handleScroll, { passive: true })
+		window.addEventListener('resize', handleResize)
+		measureMaxScroll()
 		updateProgress()
 
 		return () => {
-			scrollTarget.removeEventListener('scroll', scheduleProgressUpdate)
-			window.removeEventListener('resize', scheduleProgressUpdate)
+			scrollTarget.removeEventListener('scroll', handleScroll)
+			window.removeEventListener('resize', handleResize)
 			resizeObserver?.disconnect()
 
 			if (frameRef.current !== null) {
@@ -99,12 +115,13 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 				frameRef.current = null
 			}
 		}
-	}, [scrollContainerRef, updateProgress])
+	}, [measureMaxScroll, scrollContainerRef, updateProgress])
 
 	const scrollToProgress = useCallback((nextProgress: number) => {
 		const targetProgress = clampProgress(nextProgress)
 		const scrollContainer = scrollContainerRef?.current
-		const maxScroll = getMaxScroll(scrollContainer)
+		measureMaxScroll()
+		const maxScroll = maxScrollRef.current
 		const targetScroll = maxScroll * targetProgress
 
 		updateProgressValue(maxScroll > 0 ? getProgressValue(targetProgress) : 0)
@@ -121,7 +138,7 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 			behavior: 'auto'
 		})
 		root.style.scrollBehavior = previousScrollBehavior
-	}, [scrollContainerRef, updateProgressValue])
+	}, [measureMaxScroll, scrollContainerRef, updateProgressValue])
 
 	return {
 		rootRef,

@@ -1,3 +1,22 @@
+.article-card {
+	border: 1px solid var(--color-border);
+	box-shadow:
+		0 40px 50px -32px rgba(0, 0, 0, 0.05),
+		inset 0 0 20 rgba(255, 255, 255, 0.25);
+}
+
+.article-card-backdrop {
+	pointer-events: none;
+	position: sticky;
+	top: 0;
+	z-index: 0;
+	height: 100dvh;
+	width: calc(100% + 4rem);
+	margin: -2rem -2rem calc(2rem - 100dvh);
+	background: var(--color-article);
+	backdrop-filter: blur(4px);
+}
+
 .prose {
 	line-height: 1.8;
 	color: inherit;
@@ -185,10 +204,21 @@ html[data-time-theme='night'] .prose .shiki span {
 /* Code Block with Copy Button */
 .prose .code-block-wrapper {
 	position: relative;
+	min-width: 0;
+	max-width: 100%;
 	margin: 1em 0 2em;
 }
 
-.prose .code-block-wrapper > pre {
+.prose .code-block-wrapper.code-block-contained {
+	content-visibility: auto;
+	contain-intrinsic-block-size: var(--code-block-intrinsic-size);
+}
+
+.prose .code-block-content {
+	display: contents;
+}
+
+.prose .code-block-content > pre {
 	margin: 0;
 }
 
@@ -218,6 +248,18 @@ html[data-time-theme='night'] .prose .shiki span {
 .prose .code-block-copy-btn:hover {
 	background: rgba(255, 255, 255, 1);
 	border-color: rgba(0, 0, 0, 0.15);
+}
+
+.prose .code-block-check-icon {
+	display: none;
+}
+
+.prose .code-block-copy-btn[data-copied='true'] .code-block-copy-icon {
+	display: none;
+}
+
+.prose .code-block-copy-btn[data-copied='true'] .code-block-check-icon {
+	display: block;
 }
 
 html[data-time-theme='night'] .prose .code-block-copy-btn {

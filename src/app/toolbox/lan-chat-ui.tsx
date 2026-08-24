@@ -5,7 +5,7 @@ import WaveformPlayer from '@arraypress/waveform-player'
 import { Check, CheckCheck, Clock3, Download, FileArchive, Image as ImageIcon, Laptop, Mic, Monitor, Paperclip, Send, Smartphone, X } from 'lucide-react'
 import { formatBytes } from '@/lib/lan-transfer/file-transfer'
 import type { LanAttachment, LanChatMessage } from '@/lib/lan-transfer/types'
-import { ImagePreviewDialog } from './image-preview-dialog'
+import { ImagePreviewDialog } from '@/components/image-preview-dialog'
 
 type AttachmentAction = 'file' | 'image'
 

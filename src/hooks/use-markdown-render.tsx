@@ -53,7 +53,7 @@ function parseMarkdownHtml(html: string): ReactElement {
 			if (domNode instanceof Element && domNode.name === 'div' && domNode.attribs['data-code-block-index']) {
 				const block = codeBlocks[Number(domNode.attribs['data-code-block-index'])]
 				if (!block) return
-				return <CodeBlock code={block.code}>{parse(block.preHtml) as ReactElement}</CodeBlock>
+				return <CodeBlock code={block.code} html={block.preHtml} />
 			}
 
 			if (domNode instanceof Element && domNode.name === 'div' && domNode.attribs['data-mermaid-code']) {

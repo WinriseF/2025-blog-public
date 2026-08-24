@@ -25,11 +25,6 @@
 	}
 	* {
 		@apply border-border;
-		transition:
-			border-color 600ms ease,
-			background-color 600ms ease,
-			color 600ms ease,
-			box-shadow 600ms ease;
 	}
 
 	input:focus,
@@ -108,7 +103,7 @@
 		width: 100%;
 		height: 4px;
 		overflow: hidden;
-		background-color: color-mix(in srgb, var(--color-brand) 12%, transparent);
+		background-color: color-mix(in srgb, var(--color-brand) 22%, transparent);
 		contain: paint;
 	}
 
@@ -117,11 +112,11 @@
 		height: 100%;
 		background: linear-gradient(
 			90deg,
-			color-mix(in srgb, var(--color-brand) 68%, #ff4d8d) 0%,
-			var(--color-brand) 28%,
-			color-mix(in srgb, var(--color-brand) 42%, var(--color-brand-secondary)) 52%,
-			var(--color-brand-secondary) 74%,
-			color-mix(in srgb, var(--color-brand-secondary) 58%, #ffd166) 100%
+			color-mix(in srgb, var(--color-brand) 72%, var(--color-primary)) 0%,
+			color-mix(in srgb, var(--color-brand) 82%, var(--color-primary)) 28%,
+			color-mix(in srgb, color-mix(in srgb, var(--color-brand) 56%, var(--color-brand-secondary)) 86%, var(--color-primary)) 52%,
+			color-mix(in srgb, var(--color-brand-secondary) 82%, var(--color-primary)) 74%,
+			color-mix(in srgb, var(--color-brand-secondary) 72%, var(--color-primary)) 100%
 		);
 		transform: scaleX(var(--reading-progress-scale));
 		transform-origin: left center;
@@ -204,6 +199,16 @@
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
 		@apply bg-white/40! backdrop-blur;
 	}
+}
+
+html.theme-color-transition *,
+html.theme-color-transition *::before,
+html.theme-color-transition *::after {
+	transition:
+		border-color 600ms ease,
+		background-color 600ms ease,
+		color 600ms ease,
+		box-shadow 600ms ease !important;
 }
 
 html.time-theme-transitioning,

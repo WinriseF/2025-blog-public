@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { motion, useScroll, useSpring, useTransform } from 'motion/react'
+import { motion } from 'motion/react'
 import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import LikeButton from '@/components/like-button'
 import { BlogToc } from '@/components/blog-toc'
@@ -21,48 +20,12 @@ type BlogSidebarProps = {
 	toc: TocItem[]
 	slug?: string
 }
-const offset = 72
 
 export function BlogSidebar({ cover, summary, toc, slug }: BlogSidebarProps) {
-	const [maxOffset, setMaxOffset] = useState(0)
-	const { scrollY } = useScroll()
 	const coverSrc = getBlogCover(cover)
 
-	useEffect(() => {
-		const updateMaxOffset = () => {
-			const maxScrollable = document.documentElement.scrollHeight - window.innerHeight
-
-			const nextMaxOffset = Math.max(0, maxScrollable - offset)
-
-			setMaxOffset(nextMaxOffset)
-		}
-
-		const timer = setTimeout(() => {
-			updateMaxOffset()
-		}, 5000)
-
-		updateMaxOffset()
-		window.addEventListener('resize', updateMaxOffset)
-
-		return () => {
-			window.removeEventListener('resize', updateMaxOffset)
-			clearTimeout(timer)
-		}
-	}, [])
-
-	const adjustedScrollY = useTransform(scrollY, value => {
-		const adjusted = Math.max(0, value - offset)
-		return Math.min(adjusted, maxOffset)
-	})
-	const sidebarY = useSpring(adjustedScrollY, {
-		stiffness: 100,
-		damping: 15,
-		mass: 0.6,
-		restDelta: 0.5
-	})
-
 	return (
-		<motion.div className='relative flex w-[200px] shrink-0 flex-col items-start gap-4 self-start max-sm:hidden' style={{ y: sidebarY }}>
+		<div className='sticky top-6 flex w-[200px] shrink-0 flex-col items-start gap-4 self-start max-sm:hidden'>
 			<motion.div
 				initial={{ opacity: 0, scale: 0.8 }}
 				animate={{ opacity: 1, scale: 1 }}
@@ -76,17 +39,21 @@ export function BlogSidebar({ cover, summary, toc, slug }: BlogSidebarProps) {
 					initial={{ opacity: 0, scale: 0.8 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: INIT_DELAY + ANIMATION_DELAY * 2 }}
-					className='bg-card w-full rounded-xl border p-3 text-sm'>
+					tabIndex={0}
+					className='group bg-card w-full rounded-xl border p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-brand/50'>
 					<h2 className='text-secondary mb-2 font-medium'>摘要</h2>
-					<div className='text-secondary scrollbar-none max-h-[240px] cursor-text overflow-auto'>{summary}</div>
+					<div className='text-secondary scrollbar-none max-h-[3.75rem] cursor-text overflow-hidden transition-[max-height] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:max-h-[320px] group-hover:overflow-auto group-focus:max-h-[320px] group-focus:overflow-auto motion-reduce:transition-none'>
+						{summary}
+					</div>
 				</motion.div>
 			)}
 
 			<BlogToc toc={toc} delay={INIT_DELAY + ANIMATION_DELAY * 3} />
 
-			<LikeButton slug={slug} delay={(INIT_DELAY + ANIMATION_DELAY * 4) * 1000} />
-
-			<ScrollTopButton delay={INIT_DELAY + ANIMATION_DELAY * 5} />
-		</motion.div>
+			<div className='flex w-full items-center gap-3'>
+				<LikeButton slug={slug} delay={(INIT_DELAY + ANIMATION_DELAY * 4) * 1000} />
+				<ScrollTopButton className='border-brand/35 bg-brand/20 text-brand [&_path]:fill-brand [&_path]:fill-opacity-90' delay={INIT_DELAY + ANIMATION_DELAY * 5} />
+			</div>
+		</div>
 	)
 }

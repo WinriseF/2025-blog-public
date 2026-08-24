@@ -93,10 +93,10 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 				return `<pre data-code="${escapedCode}">${codeData.html}</pre>`
 			}
 			// Fallback for failed highlighting
-			return `<pre data-code="${escapedCode}"><code>${codeData.original}</code></pre>`
+			return `<pre data-code="${escapedCode}"><code>${escapeHtmlAttribute(codeData.original)}</code></pre>`
 		}
 		// Fallback to default (inline code, not code block)
-		return `<code>${token.text}</code>`
+		return `<code>${escapeHtmlAttribute(token.text)}</code>`
 	}
 
 	renderer.listitem = (token: Tokens.ListItem) => {

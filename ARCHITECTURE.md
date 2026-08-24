@@ -1,6 +1,6 @@
 # Project Architecture
 
-Last updated: 2026-08-22.
+Last updated: 2026-08-24.
 
 This document is written for future AI agents and maintainers. Read it before doing broad scans of the project.
 
@@ -91,7 +91,7 @@ Because the global layout is strongly client-driven, many pages depend on browse
 
 ## Frontend Animation And Main-Thread Performance
 
-Continuous visual loops use `src/lib/animation-loop.ts`. The scheduler keeps the browser's visible `requestAnimationFrame` cadence, pauses work while the document or target is not visible, and resets frame timing on resume so a background-tab gap cannot create a large simulation jump. The global atmosphere, homepage WebGL core, world clock, and game use this lifecycle. The atmosphere keeps its CSS surface but releases animated Canvas layers while the opaque `/game` or `/world-clock` surface covers them; ambient rain selection and music behavior remain mounted.
+Continuous visual loops use `src/lib/animation-loop.ts`. Display-synchronized loops keep the browser's visible `requestAnimationFrame` cadence, while target-FPS loops sleep until the next requested draw and enter `requestAnimationFrame` only to align that frame with display presentation. The scheduler pauses while the document or target is not visible and resets frame timing on resume so a background-tab gap cannot create a large simulation jump. The global atmosphere, homepage WebGL core, world clock, and game use this lifecycle. The atmosphere keeps its CSS surface but releases animated Canvas layers while the opaque `/game` or `/world-clock` surface covers them; ambient rain selection and music behavior remain mounted.
 
 Performance-sensitive interaction rules:
 
@@ -99,8 +99,11 @@ Performance-sensitive interaction rules:
 - World-clock rendering remains display-synchronized, while stable marker geometry, label vectors, Canvas dimensions, and DOM style values are reused. Astronomical lighting refreshes once per displayed clock second, hidden-tab timers stop, and WebGL resources/context are explicitly released on teardown.
 - Game rendering keeps its visible frame cadence and DPR, but hidden/offscreen frames stop, resize events are coalesced, and duplicate backing-store allocations are ignored. Ball trails use a fixed five-point ring and transient entity lists compact in place to avoid frame-by-frame garbage collection spikes; HUD markup lives in `src/app/game/game-surface.tsx`.
 - Pointer-heavy surfaces cache layout bounds at gesture start and coalesce updates to one per display frame; do not reintroduce layout reads inside raw pointer-move loops.
+- The base stylesheet has no permanent universal element transition; a scoped `html.theme-color-transition` rule (border/background/color/box-shadow) exists to be enabled only temporarily around time-theme switches, never during normal scrolling or hover.
+- The blog sidebar pins with native CSS `position: sticky`; do not replace it with scroll-driven JS transforms or springs. The article preserves its translucent 4px blur through a viewport-height sticky backdrop clipped by the full article shell; do not move `backdrop-filter` back onto the full-height article element.
+- Reading progress caches the maximum scroll range and refreshes it through `ResizeObserver`; scrolling itself reads only the current position and updates the existing transform-based bar once per display frame. Progress scrubbing forces one fresh measurement before jumping, and scroll-to-top React state changes only when its 200px threshold is crossed.
 - Blog TOC headings share one `IntersectionObserver`. Mermaid diagrams consume the existing time-theme context instead of installing one document observer per diagram.
-- Word-cloud placement uses short `d3-cloud` time slices so large year sets do not monopolize the main thread. Markdown code-block replacement uses indexed element placeholders rather than scanning every parsed text node against every code block.
+- Word-cloud placement uses short `d3-cloud` time slices so large year sets do not monopolize the main thread. Markdown code-block replacement uses indexed element placeholders rather than scanning every parsed text node against every code block; Shiki's trusted inner HTML is inserted without expanding every token into the React tree, and code blocks enable `content-visibility` only after their real heights have been measured.
 - The `/calendar` route renders a fixed 42-day month grid and memoizes month, almanac, festival, solar-term, and annual-progress data around the active date. Month, date, and path transitions are finite transform/opacity animations; its only continuous loop is a CSS orbit rotation that is disabled by reduced-motion preferences.
 - Time-theme changes use the browser View Transition API when available. The page changes its theme once and old/new page snapshots use a 720ms opacity-only eased cross-fade with normal blending, preventing every page element from independently animating color, border, background, and shadow. Compact navigation latches its pointer-hover state during the snapshot so a stationary cursor does not cause it to collapse, then checks the last pointer position when the transition finishes. Reduced-motion preferences use an immediate transition; unsupported browsers and background tabs retain the existing property-transition fallback.
 
@@ -208,6 +211,7 @@ Relevant files:
 - `src/components/blog-preview.tsx`
 - `src/components/code-block.tsx`
 - `src/components/markdown-image.tsx`
+- `src/components/image-preview-dialog.tsx`
 - `src/components/mermaid-diagram.tsx`
 
 Pipeline:
@@ -219,9 +223,10 @@ Pipeline:
 5. Code blocks are highlighted with `shiki`.
 6. HTML is parsed back into React elements by `html-react-parser`.
 7. External links receive safe target attributes.
-8. `<img>` nodes are replaced with `MarkdownImage`.
-9. Shiki code blocks are wrapped with `CodeBlock` for UI features such as copy.
-10. Fenced `mermaid` code blocks are emitted as placeholders by the worker renderer and rendered on the client by `MermaidDiagram`; keep text-only command output, file trees, conflict examples, and raw object examples as ordinary code blocks.
+8. `<img>` nodes are replaced with `MarkdownImage`; clicking one opens the same zoom, pan, double-click, Escape, and overlay-close `ImagePreviewDialog` shared by toolbox image surfaces.
+9. Shiki code blocks use a lightweight `CodeBlock` shell whose highlighted inner HTML is inserted directly; the article delegates copy-button feedback without one React state subscription per block.
+10. Mounted code blocks are measured before offscreen `content-visibility` is enabled, preserving their scroll geometry while skipping unnecessary layout and paint work.
+11. Fenced `mermaid` code blocks are emitted as placeholders by the worker renderer and rendered on the client by `MermaidDiagram`; keep text-only command output, file trees, conflict examples, and raw object examples as ordinary code blocks.
 
 ## Homepage Architecture
 
@@ -287,8 +292,9 @@ Runtime asset helper:
 Image display helper:
 
 - `src/components/optimized-image.tsx`
+- `src/components/image-preview-dialog.tsx`: shared full-screen zoom/pan preview used by Markdown articles, LAN chat, OCR, and repository image viewing.
 
-This is a thin native `<img>` wrapper, not Next Image.
+`OptimizedImage` is a thin native `<img>` wrapper, not Next Image.
 
 ## News Architecture
 

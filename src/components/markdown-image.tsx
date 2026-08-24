@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DialogModal } from '@/components/dialog-modal'
+import { ImagePreviewDialog } from '@/components/image-preview-dialog'
 import { getAssetUrl } from '@/lib/asset-url'
 
 type MarkdownImageProps = {
@@ -25,16 +25,7 @@ export function MarkdownImage({ src, alt = '', title = '' }: MarkdownImageProps)
 				onClick={() => setDisplay(true)}
 				className='h-auto max-w-full cursor-pointer transition-opacity hover:opacity-80'
 			/>
-			<DialogModal open={display} onClose={() => setDisplay(false)} className='pointer-events-none max-w-none bg-transparent p-0'>
-				<img
-					src={imageSrc}
-					alt={alt}
-					loading='lazy'
-					decoding='async'
-					onClick={() => setDisplay(false)}
-					className='pointer-events-auto h-auto max-h-[90vh] max-w-full cursor-zoom-out rounded-2xl object-contain'
-				/>
-			</DialogModal>
+			{display && <ImagePreviewDialog src={imageSrc} alt={alt} onClose={() => setDisplay(false)} />}
 		</>
 	)
 }

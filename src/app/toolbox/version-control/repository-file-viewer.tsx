@@ -7,7 +7,7 @@ import { Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lu
 import { useTimeTheme } from '@/components/time-theme-provider'
 import { useVersionControlStore } from '@/lib/version-control/store'
 import type { RepositoryFileContent, RepositoryTreeEntry } from '@/lib/version-control/types'
-import { ImagePreviewDialog } from '../image-preview-dialog'
+import { ImagePreviewDialog } from '@/components/image-preview-dialog'
 import { createDiffThemeStyle, diffThemes } from './diff-themes'
 
 type FileState =

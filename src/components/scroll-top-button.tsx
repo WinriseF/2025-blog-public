@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion } from 'motion/react'
 import TopSVG from '@/svgs/top.svg'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ type ScrollTopButtonProps = {
 export function ScrollTopButton({ className, delay }: ScrollTopButtonProps) {
 	const [show, setShow] = useState(false)
 	const [active, setActive] = useState(false)
+	const activeRef = useRef(false)
 
 	const handleClick = useCallback(() => {
 		window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -25,12 +26,23 @@ export function ScrollTopButton({ className, delay }: ScrollTopButtonProps) {
 	}, [delay])
 
 	useEffect(() => {
+		let frame = 0
 		const handleScroll = () => {
-			setActive(window.scrollY > 200)
+			if (frame) return
+			frame = window.requestAnimationFrame(() => {
+				frame = 0
+				const nextActive = window.scrollY > 200
+				if (activeRef.current === nextActive) return
+				activeRef.current = nextActive
+				setActive(nextActive)
+			})
 		}
 		handleScroll()
 		window.addEventListener('scroll', handleScroll, { passive: true })
-		return () => window.removeEventListener('scroll', handleScroll)
+		return () => {
+			if (frame) window.cancelAnimationFrame(frame)
+			window.removeEventListener('scroll', handleScroll)
+		}
 	}, [])
 
 	if (!show || !active) return null

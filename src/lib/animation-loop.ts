@@ -24,7 +24,7 @@ export function startAnimationLoop(
 ): AnimationLoop {
 	const frameInterval = targetFps ? 1000 / targetFps : 0
 	let animationFrame = 0
-	let accumulatedMs = 0
+	let wakeTimer = 0
 	let elapsedMs = 0
 	let inViewport = true
 	let lastTimestamp = 0
@@ -32,8 +32,21 @@ export function startAnimationLoop(
 
 	const canRun = () => !destroyed && !document.hidden && inViewport
 
-	const schedule = () => {
+	const requestFrame = () => {
+		wakeTimer = 0
 		if (!animationFrame && canRun()) animationFrame = window.requestAnimationFrame(tick)
+	}
+
+	const schedule = () => {
+		if (animationFrame || wakeTimer || !canRun()) return
+		if (!frameInterval || !lastTimestamp) {
+			requestFrame()
+			return
+		}
+
+		const waitMs = Math.max(0, frameInterval - (performance.now() - lastTimestamp) - 4)
+		if (waitMs <= 0) requestFrame()
+		else wakeTimer = window.setTimeout(requestFrame, waitMs)
 	}
 
 	const tick = (timestamp: number) => {
@@ -41,16 +54,11 @@ export function startAnimationLoop(
 		if (!canRun()) return
 
 		const fallbackDelta = frameInterval || 1000 / 60
-		const deltaMs = lastTimestamp ? Math.min(timestamp - lastTimestamp, maxDeltaMs) : fallbackDelta
+		const deltaLimit = frameInterval ? Math.max(maxDeltaMs, frameInterval) : maxDeltaMs
+		const deltaMs = lastTimestamp ? Math.min(timestamp - lastTimestamp, deltaLimit) : fallbackDelta
 		lastTimestamp = timestamp
 		elapsedMs += deltaMs
-		accumulatedMs += deltaMs
-
-		if (!frameInterval || accumulatedMs + 0.5 >= frameInterval) {
-			const drawDeltaMs = frameInterval ? accumulatedMs : deltaMs
-			if (frameInterval) accumulatedMs %= frameInterval
-			draw({ deltaMs: drawDeltaMs, elapsedMs, timestamp })
-		}
+		draw({ deltaMs, elapsedMs, timestamp })
 
 		schedule()
 	}
@@ -63,7 +71,9 @@ export function startAnimationLoop(
 		}
 
 		if (animationFrame) window.cancelAnimationFrame(animationFrame)
+		if (wakeTimer) window.clearTimeout(wakeTimer)
 		animationFrame = 0
+		wakeTimer = 0
 		lastTimestamp = 0
 	}
 
@@ -88,7 +98,9 @@ export function startAnimationLoop(
 		destroy() {
 			destroyed = true
 			if (animationFrame) window.cancelAnimationFrame(animationFrame)
+			if (wakeTimer) window.clearTimeout(wakeTimer)
 			animationFrame = 0
+			wakeTimer = 0
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
 			observer?.disconnect()
 		}

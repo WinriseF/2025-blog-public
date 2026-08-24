@@ -19,14 +19,7 @@ export function ImagePreviewDialog({ src, alt, onClose }: { src: string; alt: st
 
 	return createPortal(
 		<div role='dialog' aria-modal='true' aria-label={`查看图片：${alt}`} className='fixed inset-0 z-[1001] overflow-hidden bg-black/90 p-5' onClick={event => event.currentTarget === event.target && onClose()}>
-			<TransformWrapper
-				initialScale={1}
-				minScale={1}
-				maxScale={5}
-				centerOnInit
-				panning={{ allowLeftClickPan: true, velocityDisabled: true }}
-				doubleClick={{ mode: 'toggle', step: 1 }}
-			>
+			<TransformWrapper initialScale={1} minScale={1} maxScale={5} centerOnInit panning={{ allowLeftClickPan: true, velocityDisabled: true }} doubleClick={{ mode: 'toggle', step: 1 }}>
 				<TransformComponent wrapperClass='touch-none' wrapperStyle={{ width: '100%', height: '100%' }} contentClass='flex items-center justify-center' contentStyle={{ width: '100%', height: '100%' }}>
 					<img src={src} alt={alt} draggable={false} className='max-h-full max-w-full select-none object-contain' />
 				</TransformComponent>
