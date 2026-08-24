@@ -1,4 +1,4 @@
-import { asString, payloadType, recordPayload, type RecordEnvelope } from './record-utils'
+import { asNumber, asString, payloadType, recordPayload, type RecordEnvelope } from './record-utils'
 import type { PerformanceMetrics, SessionPerformance, SessionTokenUsage, TurnPerformance } from './types'
 
 type MutableTurn = TurnPerformance & { startPriority: number }
@@ -75,8 +75,18 @@ export function buildSessionPerformance(envelopes: RecordEnvelope[], usage: Sess
 		} else if (itemType === 'agent_message') {
 			setFirstResponse(getTurn(), timestamp)
 		} else if (itemType === 'task_complete' || itemType === 'turn_aborted') {
-			const turn = getTurn()
+			const turn = enterTurn(asString(payload.turn_id), timestamp)
 			turn.endedAt = timestamp ?? turn.endedAt
+			const durationMs = asNumber(payload.duration_ms)
+			if (durationMs !== undefined && durationMs >= 0) {
+				turn.durationMs = durationMs
+				turn.durationSource = 'recorded'
+			}
+			const firstResponseLatencyMs = asNumber(payload.time_to_first_token_ms)
+			if (firstResponseLatencyMs !== undefined && firstResponseLatencyMs >= 0) {
+				turn.firstResponseLatencyMs = firstResponseLatencyMs
+				turn.firstResponseSource = 'recorded'
+			}
 		}
 	}
 
@@ -100,7 +110,20 @@ export function buildSessionPerformance(envelopes: RecordEnvelope[], usage: Sess
 
 	return {
 		turns: [...turns.values()]
-			.map(({ startPriority: _, ...turn }) => turn)
+			.map(({ startPriority: _, ...turn }) => {
+				const start = timestampMs(turn.startedAt)
+				const firstResponse = timestampMs(turn.firstResponseAt)
+				const end = timestampMs(turn.endedAt)
+				if (turn.firstResponseLatencyMs === undefined && start !== undefined && firstResponse !== undefined && firstResponse >= start) {
+					turn.firstResponseLatencyMs = firstResponse - start
+					turn.firstResponseSource = 'correlated'
+				}
+				if (turn.durationMs === undefined && start !== undefined && end !== undefined && end >= start) {
+					turn.durationMs = end - start
+					turn.durationSource = 'correlated'
+				}
+				return turn
+			})
 			.filter(turn => turn.startedAt || turn.firstResponseAt || turn.requestCount)
 			.sort((left, right) => (left.startedAt ?? '').localeCompare(right.startedAt ?? ''))
 	}
@@ -114,11 +137,13 @@ function percentile(values: number[], percentileValue: number) {
 
 export function summarizePerformance(turns: TurnPerformance[]): PerformanceMetrics {
 	const firstResponses = turns.flatMap(turn => {
+		if (turn.firstResponseLatencyMs !== undefined) return [turn.firstResponseLatencyMs]
 		const start = timestampMs(turn.startedAt)
 		const response = timestampMs(turn.firstResponseAt)
 		return start !== undefined && response !== undefined && response >= start ? [response - start] : []
 	})
 	const completedTurns = turns.flatMap(turn => {
+		if (turn.durationMs !== undefined && turn.durationMs > 0) return [{ duration: turn.durationMs, outputTokens: turn.outputTokens }]
 		const start = timestampMs(turn.startedAt)
 		const end = timestampMs(turn.endedAt)
 		return start !== undefined && end !== undefined && end > start ? [{ duration: end - start, outputTokens: turn.outputTokens }] : []

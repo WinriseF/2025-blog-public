@@ -1,9 +1,11 @@
 import { decodeExecSource } from './exec-parser'
+import { buildSessionActivity } from './activity-analysis'
 import { FileEvidenceCollector } from './file-evidence'
 import { buildSessionPerformance } from './performance'
-import { ProcessTracker, isCommandTool, parseToolResult } from './process-tracker'
-import { asBoolean, asObject, asString, extractText, parseJsonObject, recordPayload, type RecordEnvelope } from './record-utils'
+import { ProcessTracker } from './process-tracker'
+import { asBoolean, asString, recordPayload, type RecordEnvelope } from './record-utils'
 import { CODEX_RECORD_TYPES, collectSessionMetadata } from './session-metadata'
+import { appendSourceRef, isCommandTool, parseToolResult, toolCallId, toolCallInput, toolResultValue } from './tool-record'
 import { buildTokenUsage } from './token-usage'
 import type { EventStatus, ParseDiagnostic, SessionParseResult, SessionSource, SourceRef } from './types'
 
@@ -28,36 +30,12 @@ type ResultState = {
 	value: unknown
 }
 
-function appendRef(refs: SourceRef[], ref: SourceRef) {
-	if (!refs.some(item => item.line === ref.line && item.byteStart === ref.byteStart)) refs.push(ref)
-}
-
-function callIdFrom(payload: Record<string, unknown>, sequence: number) {
-	return asString(payload.call_id) ?? asString(payload.id) ?? `missing-call-id-${sequence}`
-}
-
-function callInput(payload: Record<string, unknown>, itemType: string) {
-	if (itemType === 'local_shell_call') return payload.action ?? payload
-	const raw = payload.arguments ?? payload.input ?? payload.params
-	return parseJsonObject(raw) ?? raw
-}
-
-function resultStatus(value: unknown): EventStatus {
-	const parsed = parseToolResult(value)
-	if (parsed.status !== 'unknown') return parsed.status
-	const object = asObject(value)
-	const explicitError = asBoolean(object?.is_error) ?? asBoolean(object?.isError)
-	const success = asBoolean(object?.success)
-	if (explicitError === true || success === false) return 'failed'
-	const text = extractText(value).trim()
-	return /^(?:error|failed)\b|\n(?:error|failed):/i.test(text) ? 'failed' : 'completed'
-}
-
 export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnvelope[]): SessionParseResult {
 	const collected = collectSessionMetadata(envelopes)
 	const diagnostics: ParseDiagnostic[] = []
 	const calls = new Map<string, CallState>()
 	const pendingResults = new Map<string, ResultState[]>()
+	const execDecodes = new Map<string, ReturnType<typeof decodeExecSource>>()
 	const fileEvidence = new FileEvidenceCollector()
 	const processTracker = new ProcessTracker()
 	let currentTurnId: string | undefined
@@ -78,8 +56,8 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 	const applyResultToCall = (call: CallState, result: ResultState) => {
 		call.resultCount++
 		if (call.resultCount > 1) addDiagnostic(result.envelope, 'warning', 'DUPLICATE_TOOL_RESULT', `调用 ${call.id} 出现多个结果`, isCommandTool(call.name) ? `process-${call.id}` : undefined)
-		call.status = resultStatus(result.value)
-		appendRef(call.sourceRefs, result.envelope.sourceRef)
+		call.status = parseToolResult(result.value).status
+		appendSourceRef(call.sourceRefs, result.envelope.sourceRef)
 		processTracker.applyResult(call.id, result.value, [result.envelope.sourceRef])
 		fileEvidence.applyCallStatus(call.id, call.status)
 
@@ -88,7 +66,7 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 			if (nested && !nested.resultCount) {
 				nested.resultCount++
 				nested.status = call.status
-				appendRef(nested.sourceRefs, result.envelope.sourceRef)
+				appendSourceRef(nested.sourceRefs, result.envelope.sourceRef)
 				processTracker.applyResult(nested.id, result.value, [result.envelope.sourceRef])
 				fileEvidence.applyCallStatus(nested.id, nested.status)
 			}
@@ -98,7 +76,7 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 				if (!nested || nested.resultCount) continue
 				nested.resultCount++
 				nested.status = 'unknown'
-				appendRef(nested.sourceRefs, result.envelope.sourceRef)
+				appendSourceRef(nested.sourceRefs, result.envelope.sourceRef)
 				processTracker.markSettledWithoutResult(nested.id, [result.envelope.sourceRef])
 				fileEvidence.applyCallStatus(nested.id, 'unknown')
 			}
@@ -138,8 +116,8 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 	}
 
 	const registerResult = (envelope: RecordEnvelope, payload: Record<string, unknown>) => {
-		const callId = callIdFrom(payload, envelope.sequence)
-		const result = { envelope, value: 'output' in payload ? payload : payload.result ?? payload }
+		const callId = toolCallId(payload, envelope.sequence)
+		const result = { envelope, value: toolResultValue(payload) }
 		const call = calls.get(callId)
 		if (call) applyResultToCall(call, result)
 		else pendingResults.set(callId, [...(pendingResults.get(callId) ?? []), result])
@@ -170,11 +148,12 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 		if (record.type === 'response_item') {
 			if (itemType === 'function_call' || itemType === 'custom_tool_call' || itemType === 'local_shell_call') {
 				const name = asString(payload.name) ?? itemType
-				const callId = callIdFrom(payload, envelope.sequence)
-				const input = callInput(payload, itemType)
+				const callId = toolCallId(payload, envelope.sequence)
+				const input = toolCallInput(payload, itemType)
 				const outer = registerCall(envelope, name, input, callId)
 				if (itemType === 'custom_tool_call' && name.toLowerCase() === 'exec' && typeof input === 'string') {
 					const decoded = decodeExecSource(input, callId)
+					execDecodes.set(callId, decoded)
 					for (const message of decoded.diagnostics) addDiagnostic(envelope, 'warning', 'EXEC_STATIC_ANALYSIS', message)
 					for (const nestedCall of decoded.calls) {
 						const nestedInput = nestedCall.input ?? nestedCall.inputSource
@@ -227,6 +206,7 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 	processTracker.settleUnfinished()
 	fileEvidence.markUnsettled('unknown')
 	const tokenUsage = buildTokenUsage(envelopes, Boolean(collected.meta.isSubagent || collected.meta.forkedFromId), diagnostics)
+	const performance = buildSessionPerformance(envelopes, tokenUsage)
 
 	return {
 		source: { ...source, recordCount: envelopes.length },
@@ -234,7 +214,8 @@ export function parseCodexSession(source: SourceDescriptor, envelopes: RecordEnv
 		processes: processTracker.list(),
 		fileAudit: fileEvidence.result(),
 		tokenUsage,
-		performance: buildSessionPerformance(envelopes, tokenUsage),
+		activity: buildSessionActivity(envelopes, tokenUsage, performance, { execDecodes }),
+		performance,
 		diagnostics
 	}
 }

@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Maximize2, X } from 'lucide-react'
 import { CodexPatchModal } from './codex-patch-viewer'
-import { categoryLabels, commandContexts, commandIdentity, executionLabel, fileOperationLabels, formatDate, formatLineChanges, formatNumber, statusLabels } from './format'
-import type { FileChange, FileRead, ParsedCommand, ProcessRun, TokenUsageSample } from '@/lib/codex-session/types'
+import { categoryLabels, commandContexts, commandIdentity, executionLabel, fileOperationLabels, formatDate, formatDurationMs, formatLineChanges, formatNumber, statusLabels, toolCategoryLabels } from './format'
+import type { FileChange, FileRead, ParsedCommand, ProcessRun, TokenUsageSample, ToolActivity } from '@/lib/codex-session/types'
 
 export type DetailSelection =
 	| { type: 'command'; value: { process: ProcessRun; command: ParsedCommand } }
 	| { type: 'file-change'; value: FileChange }
 	| { type: 'file-read'; value: FileRead }
+	| { type: 'tool-activity'; value: ToolActivity }
 	| { type: 'token'; value: TokenUsageSample }
 
 function InfoGrid({ values }: { values: Array<[string, string | undefined]> }) {
@@ -96,6 +97,23 @@ function PanelBody({ selection }: { selection: DetailSelection }) {
 		</>
 	}
 
+	if (selection.type === 'tool-activity') {
+		const tool = selection.value
+		return <InfoGrid values={[
+			['工具', tool.name],
+			['类别', toolCategoryLabels[tool.category]],
+			['状态', statusLabels[tool.status]],
+			['调用来源', tool.origin === 'exec-nested' ? 'exec 内嵌逻辑调用' : tool.origin === 'event' ? '运行时事件' : '直接调用'],
+			['开始时间', formatDate(tool.startedAt)],
+			['结束时间', formatDate(tool.endedAt)],
+			['耗时', formatDurationMs(tool.durationMs)],
+			['耗时证据', tool.durationSource === 'recorded' ? '日志直接记录' : tool.durationSource === 'correlated' ? '调用与结果关联' : tool.durationSource === 'estimated' ? '时间戳估算' : '不可用'],
+			['Turn ID', tool.turnId],
+			['Call ID', tool.callId],
+			['来源行', tool.sourceRefs.map(ref => `L${ref.line}`).join('、')]
+		]} />
+	}
+
 	const sample = selection.value
 	return <InfoGrid values={[
 		['Fresh input', formatNumber(sample.freshInput)],
@@ -115,7 +133,7 @@ type DetailPanelProps = {
 }
 
 export function DetailPanel({ selection, onClose }: DetailPanelProps) {
-	const title = selection.type === 'command' ? selection.value.command.summary : selection.type === 'file-change' ? selection.value.path : selection.type === 'file-read' ? `读取 ${selection.value.path}` : 'Token 请求样本'
+	const title = selection.type === 'command' ? selection.value.command.summary : selection.type === 'file-change' ? selection.value.path : selection.type === 'file-read' ? `读取 ${selection.value.path}` : selection.type === 'tool-activity' ? selection.value.name : 'Token 模型步骤样本'
 
 	useEffect(() => {
 		const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose()

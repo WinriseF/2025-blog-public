@@ -8,12 +8,13 @@ import { isAuditCommand } from '@/lib/codex-session/command-semantics'
 import { summarizePerformance } from '@/lib/codex-session/performance'
 import type { SessionParseResult } from '@/lib/codex-session/types'
 import { CommandsView } from './commands-view'
+import { ActivityView } from './activity-view'
 import { DetailPanel, type DetailSelection } from './detail-panel'
 import { FilesView } from './files-view'
 import { SessionOverview } from './session-surface'
 import { TokenView } from './token-view'
 
-type TabId = 'commands' | 'files' | 'token'
+type TabId = 'activity' | 'commands' | 'files' | 'token'
 
 type SessionDetailProps = {
 	result: SessionParseResult
@@ -24,11 +25,12 @@ type SessionDetailProps = {
 
 export function SessionDetail({ result, onExit, onFile, backToTimeline }: SessionDetailProps) {
 	const shouldReduceMotion = useReducedMotion()
-	const [tab, setTab] = useState<TabId>('commands')
+	const [tab, setTab] = useState<TabId>('activity')
 	const [selection, setSelection] = useState<DetailSelection | null>(null)
 	const warnings = result.diagnostics.filter(item => item.severity !== 'info').length
 	const commandCount = result.processes.reduce((total, process) => total + (process.analysis?.commands.filter(isAuditCommand).length ?? 0), 0)
 	const tabs: Array<{ id: TabId; label: string; count: number }> = [
+		{ id: 'activity', label: '活动', count: result.activity.metrics.requestCount },
 		{ id: 'commands', label: '命令', count: commandCount },
 		{ id: 'files', label: '文件', count: result.fileAudit.changes.length + result.fileAudit.reads.length },
 		{ id: 'token', label: 'Token', count: result.tokenUsage.samples.length }
@@ -52,6 +54,7 @@ export function SessionDetail({ result, onExit, onFile, backToTimeline }: Sessio
 
 			<div className={selection ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.62fr)] lg:items-start lg:gap-5' : undefined}>
 				<section className='mt-5 min-w-0'>
+					{tab === 'activity' && <ActivityView activity={result.activity} onSelect={setSelection} />}
 					{tab === 'commands' && <CommandsView processes={result.processes} onSelect={setSelection} />}
 					{tab === 'files' && <FilesView audit={result.fileAudit} onSelect={setSelection} />}
 					{tab === 'token' && <TokenView usage={result.tokenUsage} performance={summarizePerformance(result.performance.turns)} onSelect={setSelection} />}

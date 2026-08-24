@@ -16,7 +16,7 @@ export function PerformanceStats({ metrics }: { metrics: PerformanceMetrics }) {
 		['首响应平均', formatMilliseconds(metrics.firstResponseAverageMs)],
 		['平均回合耗时', formatMilliseconds(metrics.averageTurnDurationMs)],
 		['端到端 Output/s', metrics.outputTokensPerSecond === undefined ? '不可用' : metrics.outputTokensPerSecond.toFixed(1)],
-		['Output / 请求', metrics.requestCount ? formatNumber(Math.round(metrics.outputTokens / metrics.requestCount)) : '不可用']
+		['Output / 模型步骤', metrics.requestCount ? formatNumber(Math.round(metrics.outputTokens / metrics.requestCount)) : '不可用']
 	]
 
 	return <section className='mt-4 border-y border-border'>
@@ -30,6 +30,6 @@ export function PerformanceStats({ metrics }: { metrics: PerformanceMetrics }) {
 				<p className='mt-1 truncate text-sm font-semibold tabular-nums'>{value}</p>
 			</div>)}
 		</div>
-		<p className='text-secondary border-t border-border px-3 py-2 text-[10px] leading-4'>首响应是“用户消息到首条可见 assistant 消息”的日志近似值；端到端 Output/s 按完整回合墙钟时间计算，包含推理、工具执行和等待，并非模型纯生成 TPS。</p>
+		<p className='text-secondary border-t border-border px-3 py-2 text-[10px] leading-4'>首响应和回合耗时优先采用 task_complete 的直接记录，缺失时再关联日志时间戳；端到端 Output/s 包含推理、工具执行和等待，并非模型纯生成 TPS。</p>
 	</section>
 }

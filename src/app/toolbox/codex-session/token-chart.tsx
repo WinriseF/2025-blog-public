@@ -13,7 +13,7 @@ export default function TokenChart({ samples }: { samples: TokenUsageSample[] })
 					<CartesianGrid stroke='var(--color-border)' strokeDasharray='3 3' opacity={0.55} />
 					<XAxis dataKey='request' tick={{ fill: 'var(--color-secondary)', fontSize: 11 }} tickLine={false} axisLine={false} />
 					<YAxis tick={{ fill: 'var(--color-secondary)', fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
-					<Tooltip contentStyle={{ background: 'var(--color-article)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12 }} labelFormatter={label => `请求 ${label}`} />
+					<Tooltip contentStyle={{ background: 'var(--color-article)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12 }} labelFormatter={label => `模型步骤 ${label}`} />
 					<Area type='monotone' dataKey='freshInput' name='Fresh input' stackId='input' fill='var(--color-brand)' stroke='var(--color-brand)' fillOpacity={0.38} />
 					<Area type='monotone' dataKey='cachedInput' name='Cached input' stackId='input' fill='#22c55e' stroke='#22c55e' fillOpacity={0.3} />
 					<Area type='monotone' dataKey='output' name='Output' fill='#f59e0b' stroke='#f59e0b' fillOpacity={0.2} />

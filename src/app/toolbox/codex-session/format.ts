@@ -1,4 +1,4 @@
-import type { CommandCategory, EventStatus, FileChangeOperation, ParsedCommand, ProcessRun, ShellDialect } from '@/lib/codex-session/types'
+import type { CommandCategory, EventStatus, FileChangeOperation, ParsedCommand, ProcessRun, ShellDialect, ToolActivityCategory } from '@/lib/codex-session/types'
 
 export const categoryLabels: Record<CommandCategory, string> = {
 	git: 'Git',
@@ -10,6 +10,17 @@ export const categoryLabels: Record<CommandCategory, string> = {
 	file: '文件',
 	network: '网络',
 	system: '系统',
+	other: '其他'
+}
+
+export const toolCategoryLabels: Record<ToolActivityCategory, string> = {
+	shell: 'Shell',
+	file: '文件',
+	web: '联网',
+	mcp: 'MCP',
+	planning: '计划',
+	interaction: '用户交互',
+	collaboration: '协作',
 	other: '其他'
 }
 
@@ -45,6 +56,28 @@ export function formatBytes(value: number) {
 
 export function formatNumber(value: number | undefined) {
 	return value === undefined ? '不可用' : new Intl.NumberFormat('zh-CN').format(value)
+}
+
+export function formatCompactNumber(value: number | undefined) {
+	if (value === undefined) return '不可用'
+	const absolute = Math.abs(value)
+	const unit = absolute >= 999_500 ? { divisor: 1_000_000, suffix: 'M' } : absolute >= 1000 ? { divisor: 1000, suffix: 'K' } : undefined
+	if (!unit) return formatNumber(value)
+	const scaled = value / unit.divisor
+	const digits = Math.abs(scaled) < 10 ? 2 : Math.abs(scaled) < 100 ? 1 : 0
+	return `${Number(scaled.toFixed(digits))}${unit.suffix}`
+}
+
+export function formatPercent(value: number | undefined, digits = 1) {
+	return value === undefined ? '不可用' : `${(value * 100).toFixed(digits)}%`
+}
+
+export function formatDurationMs(value: number | undefined) {
+	if (value === undefined) return '不可用'
+	if (value < 1000) return `${Math.round(value)} ms`
+	if (value < 60_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)} s`
+	if (value < 3_600_000) return `${(value / 60_000).toFixed(1)} 分`
+	return `${(value / 3_600_000).toFixed(1)} 小时`
 }
 
 export function executionLabel(process: ProcessRun) {

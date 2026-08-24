@@ -4,7 +4,8 @@ import { useState, type DragEvent } from 'react'
 import { ArrowLeft, FileJson2, FilePlus2, FolderOpen, FolderSearch2, RotateCcw, Trash2, X } from 'lucide-react'
 import { isAuditCommand } from '@/lib/codex-session/command-semantics'
 import type { SessionParseResult } from '@/lib/codex-session/types'
-import { formatBytes, formatDate, formatNumber } from './format'
+import { formatBytes, formatCompactNumber, formatDate, formatNumber, formatPercent } from './format'
+import { MetricLabel } from './metric-help'
 
 type SessionImportProps = {
 	onFiles: (files: File[]) => void
@@ -106,18 +107,20 @@ type SessionOverviewProps = {
 }
 
 export function SessionOverview({ result, onClear, onFile, backToTimeline }: SessionOverviewProps) {
-	const tokenTotal = result.tokenUsage.status === 'available' ? formatNumber(result.tokenUsage.total?.total) : '不可用'
+	const tokenTotal = result.tokenUsage.status === 'available' ? formatCompactNumber(result.tokenUsage.total?.total) : '不可用'
 	const commands = result.processes.flatMap(process => (process.analysis?.commands ?? []).filter(isAuditCommand).map(command => ({ process, command })))
 	const auditedProcesses = [...new Map(commands.map(item => [item.process.id, item.process])).values()]
 	const successful = auditedProcesses.filter(process => process.status === 'completed').length
 	const failed = auditedProcesses.filter(process => process.status === 'failed' || process.status === 'interrupted').length
-	const stats = [
-		['关键命令', formatNumber(commands.length)],
-		['成功批次', formatNumber(successful)],
-		['失败 / 中断批次', formatNumber(failed)],
-		['读取文件', formatNumber(result.fileAudit.reads.length)],
-		['修改文件', formatNumber(result.fileAudit.changes.length)],
-		['Token', tokenTotal]
+	const stats: Array<{ label: string; value: string; help?: string }> = [
+		{ label: '关键命令', value: formatNumber(commands.length) },
+		{ label: '成功批次', value: formatNumber(successful) },
+		{ label: '失败 / 中断批次', value: formatNumber(failed) },
+		{ label: '读取文件', value: formatNumber(result.fileAudit.reads.length) },
+		{ label: '修改文件', value: formatNumber(result.fileAudit.changes.length) },
+		{ label: 'Token', value: tokenTotal, help: 'Session 记录的 Input 与 Output Token 总量；缓存 Input 已包含在 Input 中。' },
+		{ label: '推理 Token / Output', value: formatPercent(result.activity.metrics.reasoningShareOfOutput), help: 'Reasoning Output Token 占全部 Output Token 的比例；工具调用参数属于非推理 Output。' },
+		{ label: '工具耗时 / 回合耗时', value: formatPercent(result.activity.metrics.toolTimeShare), help: '可确认的工具执行时间区间并集，占 Session 累计回合耗时的比例。' }
 	]
 
 	return (
@@ -143,11 +146,11 @@ export function SessionOverview({ result, onClear, onFile, backToTimeline }: Ses
 				</div>
 			</div>
 
-			<div className='mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-3 lg:grid-cols-6'>
-				{stats.map(([label, value], index) => (
-					<div key={label} className={`min-w-0 px-3 py-3 ${index > 0 ? 'lg:border-l lg:border-border' : ''}`}>
-						<p className='text-secondary text-[11px]'>{label}</p>
-						<p className='mt-1 truncate text-base font-semibold'>{value}</p>
+			<div className='mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-4 lg:grid-cols-8'>
+				{stats.map((item, index) => (
+					<div key={item.label} className={`min-w-0 px-3 py-3 ${index > 0 ? 'lg:border-l lg:border-border' : ''}`}>
+						<p className='text-secondary text-[11px]'><MetricLabel label={item.label} help={item.help} /></p>
+						<p className='mt-1 truncate text-base font-semibold' title={item.label === 'Token' ? formatNumber(result.tokenUsage.total?.total) : undefined}>{item.value}</p>
 					</div>
 				))}
 			</div>

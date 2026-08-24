@@ -1,4 +1,5 @@
 import { summarizeSession } from './collection'
+import { buildSessionActivitySummary } from './activity-analysis'
 import type { RecordEnvelope } from './record-utils'
 import { collectSessionMetadata } from './session-metadata'
 import { buildSessionPerformance } from './performance'
@@ -20,11 +21,13 @@ export function parseCodexSessionSummary(key: string, relativePath: string | und
 	})
 	const tokenUsage = buildTokenUsage(envelopes, Boolean(collected.meta.isSubagent || collected.meta.forkedFromId), diagnostics)
 	const performance = buildSessionPerformance(envelopes, tokenUsage)
+	const activity = buildSessionActivitySummary(envelopes, tokenUsage, performance)
 
 	return summarizeSession(key, relativePath, {
 		source: { ...source, recordCount: envelopes.length },
 		meta: collected.meta,
 		tokenUsage,
+		activity,
 		performance,
 		diagnostics
 	})

@@ -1,6 +1,6 @@
-import stripAnsi from 'strip-ansi'
-import { asBoolean, asNumber, asObject, asString, extractText } from './record-utils'
-import type { EventStatus, ProcessRun, SourceRef } from './types'
+import { asObject, asString } from './record-utils'
+import { appendSourceRefs, ContinuationIndex, isCommandTool, isContinuationTool, parseToolResult, toolLeafName } from './tool-record'
+import type { ProcessRun, SourceRef } from './types'
 
 type ToolContext = {
 	sequence: number
@@ -13,19 +13,6 @@ type ToolContext = {
 }
 
 const MAX_OUTPUT_CHARS = 300_000
-const COMMAND_TOOLS = new Set(['exec_command', 'shell_command', 'local_shell_call'])
-
-function leafToolName(name: string) {
-	return name.toLowerCase().split(/__|[.:/]/).at(-1) ?? ''
-}
-
-export function isCommandTool(name: string) {
-	return COMMAND_TOOLS.has(leafToolName(name))
-}
-
-function asIdentifier(value: unknown) {
-	return typeof value === 'string' ? value : typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined
-}
 
 function displayArgument(value: string) {
 	if (value && !/[\s"'`;|&<>(){}\[\]]/.test(value)) return value
@@ -40,34 +27,8 @@ function commandInput(input: unknown) {
 		command: asString(rawCommand) ?? argv?.map(displayArgument).join(' '),
 		argv,
 		cwd: asString(object?.workdir) ?? asString(object?.cwd) ?? asString(object?.working_directory),
-		sessionId: asIdentifier(object?.session_id),
-		cellId: asIdentifier(object?.cell_id),
 		shell: asString(object?.shell)
 	}
-}
-
-function resultObjects(value: unknown) {
-	const root = asObject(value)
-	return [root, asObject(root?.output), asObject(root?.result), asObject(root?.data)].filter((item): item is Record<string, unknown> => Boolean(item))
-}
-
-export function parseToolResult(value: unknown) {
-	const objects = resultObjects(value)
-	const output = stripAnsi(extractText(value))
-	const explicitError = objects.map(item => asBoolean(item.is_error) ?? asBoolean(item.isError)).find(item => item !== undefined)
-	const success = objects.map(item => asBoolean(item.success)).find(item => item !== undefined)
-	const structuredExitCode = objects.map(item => asNumber(item.exit_code) ?? asNumber(item.exitCode)).find(item => item !== undefined)
-	const textExitCode = Number(output.match(/(?:exit[_ ]code|exited with code)["'=:\s]+(-?\d+)/i)?.[1] ?? Number.NaN)
-	const exitCode = structuredExitCode ?? (Number.isFinite(textExitCode) ? textExitCode : undefined)
-	const sessionId = objects.map(item => asIdentifier(item.session_id) ?? asIdentifier(item.sessionId)).find(Boolean) ?? output.match(/session[_ ]id["'=:\s]+([\w.-]+)/i)?.[1]
-	const cellId = objects.map(item => asIdentifier(item.cell_id) ?? asIdentifier(item.cellId)).find(Boolean) ?? output.match(/(?:cell[_ ]id["'=:\s]+|Script running with cell ID\s+)([\w.-]+)/i)?.[1]
-	const running = Boolean(sessionId || cellId || /process running|script running/i.test(output)) && exitCode === undefined
-	let status: EventStatus = 'unknown'
-	if (explicitError === true || success === false) status = 'failed'
-	else if (exitCode !== undefined) status = exitCode === 0 ? 'completed' : 'failed'
-	else if (running) status = 'running'
-	else if (success === true) status = 'completed'
-	return { output, exitCode, sessionId, cellId, status }
 }
 
 function appendOutput(current: string | undefined, next: string) {
@@ -76,19 +37,13 @@ function appendOutput(current: string | undefined, next: string) {
 	return value.length > MAX_OUTPUT_CHARS ? `${value.slice(0, MAX_OUTPUT_CHARS)}\n... 批次输出过长，已截断` : value
 }
 
-function pushRefs(target: SourceRef[], refs: SourceRef[]) {
-	for (const ref of refs) if (!target.some(item => item.line === ref.line && item.byteStart === ref.byteStart)) target.push(ref)
-}
-
 export class ProcessTracker {
 	private processes: ProcessRun[] = []
 	private callToProcess = new Map<string, ProcessRun>()
-	private sessionToProcess = new Map<string, ProcessRun>()
-	private cellToProcess = new Map<string, ProcessRun>()
+	private continuations = new ContinuationIndex<ProcessRun>()
 
 	addToolCall(name: string, input: unknown, context: ToolContext) {
-		const lowerName = name.toLowerCase()
-		const leafName = lowerName.split(/__|[.:/]/).at(-1)
+		const leafName = toolLeafName(name)
 		const parsed = commandInput(input)
 		if (isCommandTool(name) && parsed.command) {
 			const process: ProcessRun = {
@@ -110,19 +65,15 @@ export class ProcessTracker {
 			}
 			this.processes.push(process)
 			this.callToProcess.set(context.callId, process)
+			this.continuations.add(process)
 			return process
 		}
 
-		const continuation = lowerName === 'write_stdin' || lowerName === 'wait' || lowerName === 'poll' || /(?:__|\.)(?:write_stdin|wait|poll)$/.test(lowerName)
-		if (!continuation) return
-		let process = (parsed.sessionId && this.sessionToProcess.get(parsed.sessionId)) || (parsed.cellId && this.cellToProcess.get(parsed.cellId))
-		if (!process) {
-			const running = this.processes.filter(item => item.status === 'running' && (!context.turnId || item.turnId === context.turnId))
-			if (running.length === 1) process = running[0]
-		}
+		if (!isContinuationTool(name)) return
+		const process = this.continuations.resolve(input, context.turnId)
 		if (!process) return
 		process.continuationCallIds.push(context.callId)
-		pushRefs(process.sourceRefs, context.sourceRefs)
+		appendSourceRefs(process.sourceRefs, context.sourceRefs)
 		this.callToProcess.set(context.callId, process)
 	}
 
@@ -135,9 +86,8 @@ export class ProcessTracker {
 		process.exitCode = result.exitCode ?? process.exitCode
 		process.sessionId = result.sessionId ?? process.sessionId
 		process.cellId = result.cellId ?? process.cellId
-		pushRefs(process.sourceRefs, sourceRefs)
-		if (process.sessionId) this.sessionToProcess.set(process.sessionId, process)
-		if (process.cellId) this.cellToProcess.set(process.cellId, process)
+		appendSourceRefs(process.sourceRefs, sourceRefs)
+		this.continuations.remember(process, result)
 		return process
 	}
 
@@ -145,7 +95,7 @@ export class ProcessTracker {
 		const process = this.callToProcess.get(callId)
 		if (!process) return
 		if (process.status === 'pending' || process.status === 'running') process.status = 'unknown'
-		pushRefs(process.sourceRefs, sourceRefs)
+		appendSourceRefs(process.sourceRefs, sourceRefs)
 	}
 
 	markInterrupted() {

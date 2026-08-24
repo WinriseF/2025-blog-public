@@ -66,6 +66,17 @@ describe('parseCodexSession', () => {
 		expect(result.processes[0]).toMatchObject({ status: 'completed', exitCode: 0, cellId: 'cell-1', continuationCallIds: ['poll'] })
 	})
 
+	it('审计与活动视图共享显式失败状态', () => {
+		const result = parseCodexSession(source, [
+			record(1, 'session_meta', { id: 's1' }),
+			record(2, 'response_item', { type: 'function_call', name: 'exec_command', call_id: 'failed', arguments: '{"cmd":"bad-command"}' }),
+			record(3, 'response_item', { type: 'function_call_output', call_id: 'failed', output: { status: 'failed' } })
+		])
+
+		expect(result.processes[0]?.status).toBe('failed')
+		expect(result.activity.tools.find(tool => tool.callId === 'failed')?.status).toBe('failed')
+	})
+
 	it('保留缺失结果并生成诊断，而不是伪造成功', () => {
 		const result = parseCodexSession(source, [record(1, 'session_meta', { id: 's1' }), record(2, 'response_item', { type: 'function_call', name: 'exec_command', call_id: 'missing', arguments: '{"cmd":"git status"}' })])
 		expect(result.processes[0]?.status).toBe('unknown')

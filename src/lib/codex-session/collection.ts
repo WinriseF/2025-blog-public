@@ -3,6 +3,8 @@ import type {
 	SessionCollectionAnalytics,
 	SessionCollectionFilters,
 	SessionParseResult,
+	SessionActivityMetrics,
+	SessionActivitySummary,
 	SessionSummary,
 	TokenTimeBucket,
 	TokenUsageNumbers
@@ -10,6 +12,8 @@ import type {
 import { summarizePerformance } from './performance'
 
 export const UNKNOWN_PROJECT = '__unknown_project__'
+
+type SessionSummaryInput = Pick<SessionParseResult, 'source' | 'meta' | 'tokenUsage' | 'performance' | 'diagnostics'> & { activity: SessionActivitySummary }
 
 const emptyUsage = (): TokenUsageNumbers => ({
 	input: 0,
@@ -20,6 +24,29 @@ const emptyUsage = (): TokenUsageNumbers => ({
 	reasoningOutput: 0,
 	total: 0
 })
+
+const emptyActivity = (): SessionActivityMetrics => ({
+	requestCount: 0,
+	reasoningOutputTokens: 0,
+	visibleOutputTokens: 0,
+	toolRequestCount: 0,
+	logicalToolCallCount: 0,
+	toolExecutionCount: 0,
+	timedToolExecutionCount: 0,
+	toolDurationMs: 0,
+	observedDurationMs: 0,
+	nonToolDurationMs: 0
+})
+
+function finalizeActivity(activity: SessionActivityMetrics, timedToolDurationMs = activity.toolDurationMs) {
+	const output = activity.reasoningOutputTokens + activity.visibleOutputTokens
+	activity.reasoningShareOfOutput = output ? activity.reasoningOutputTokens / output : undefined
+	activity.toolRequestRate = activity.requestCount ? activity.toolRequestCount / activity.requestCount : undefined
+	activity.toolTimeCoverage = activity.toolExecutionCount ? activity.timedToolExecutionCount / activity.toolExecutionCount : undefined
+	activity.toolTimeShare = activity.observedDurationMs ? Math.min(timedToolDurationMs / activity.observedDurationMs, 1) : undefined
+	activity.nonToolDurationMs = Math.max(activity.observedDurationMs - timedToolDurationMs, 0)
+	return activity
+}
 
 function addUsage(target: TokenUsageNumbers, value: TokenUsageNumbers) {
 	target.input += value.input
@@ -42,7 +69,8 @@ export function projectLabel(key: string) {
 	return key.split('/').filter(Boolean).at(-1) ?? key
 }
 
-export function summarizeSession(key: string, relativePath: string | undefined, result: Pick<SessionParseResult, 'source' | 'meta' | 'tokenUsage' | 'performance' | 'diagnostics'>): SessionSummary {
+export function summarizeSession(key: string, relativePath: string | undefined, result: SessionSummaryInput): SessionSummary {
+	const requests = new Map(result.activity.requests.map(request => [request.tokenSampleId, request]))
 	const samples = result.tokenUsage.samples.map(sample => ({
 		input: sample.input,
 		freshInput: sample.freshInput,
@@ -54,7 +82,12 @@ export function summarizeSession(key: string, relativePath: string | undefined, 
 		timestamp: sample.timestamp,
 		turnId: sample.turnId,
 		cwd: sample.cwd,
-		model: sample.model
+		model: sample.model,
+		spanMs: requests.get(sample.id)?.spanMs,
+		toolCallCount: requests.get(sample.id)?.toolCallCount ?? 0,
+		toolExecutionCount: requests.get(sample.id)?.toolExecutionCount ?? 0,
+		timedToolExecutionCount: requests.get(sample.id)?.timedToolExecutionCount ?? 0,
+		toolDurationMs: requests.get(sample.id)?.toolDurationMs ?? 0
 	}))
 	let projectKeys = [...new Set([
 		...samples.map(sample => normalizeProjectKey(sample.cwd)),
@@ -74,6 +107,7 @@ export function summarizeSession(key: string, relativePath: string | undefined, 
 			samples
 		},
 		performance: result.performance,
+		activity: result.activity.metrics,
 		projectKeys,
 		requestCount: samples.length,
 		warningCount: result.diagnostics.filter(item => item.severity !== 'info').length
@@ -113,10 +147,12 @@ export function buildCollectionAnalytics(allSessions: SessionSummary[], filters:
 		return true
 	})
 	const total = emptyUsage()
+	const activity = emptyActivity()
 	let requestCount = 0
 	const daily = new Map<string, TokenTimeBucket & { sessionIds: Set<string> }>()
 	const projects = new Map<string, ProjectTokenBucket & { sessionIds: Set<string> }>()
 	let unallocatedTokens = 0
+	let toolShareDurationMs = 0
 	const performanceTurns = sessions.flatMap(session => session.performance.turns.filter(turn => {
 		if (!sampleMatchesDate(turn.startedAt ?? turn.endedAt, filters)) return false
 		if (filters.projectKey && normalizeProjectKey(turn.cwd ?? session.meta.cwd) !== filters.projectKey) return false
@@ -131,6 +167,18 @@ export function buildCollectionAnalytics(allSessions: SessionSummary[], filters:
 			if (!sampleMatchesDate(sample.timestamp, filters) || (filters.projectKey && projectKey !== filters.projectKey) || (filters.model && model !== filters.model)) continue
 			addUsage(total, sample)
 			requestCount++
+			activity.requestCount++
+			activity.reasoningOutputTokens += sample.reasoningOutput
+			activity.visibleOutputTokens += Math.max(sample.output - sample.reasoningOutput, 0)
+			if (sample.toolCallCount > 0) activity.toolRequestCount++
+			activity.logicalToolCallCount += sample.toolCallCount
+			activity.toolExecutionCount += sample.toolExecutionCount
+			activity.timedToolExecutionCount += sample.timedToolExecutionCount
+			activity.toolDurationMs += sample.toolDurationMs
+			if (sample.spanMs !== undefined) {
+				activity.observedDurationMs += sample.spanMs
+				toolShareDurationMs += sample.toolDurationMs
+			}
 
 			const dayKey = localDateKey(sample.timestamp)
 			if (dayKey) {
@@ -188,6 +236,7 @@ export function buildCollectionAnalytics(allSessions: SessionSummary[], filters:
 		bucket.sessionIds.add(session.key)
 		projects.set(projectKey, bucket)
 	}
+	finalizeActivity(activity, toolShareDurationMs)
 
 	return {
 		sessions,
@@ -196,6 +245,7 @@ export function buildCollectionAnalytics(allSessions: SessionSummary[], filters:
 		daily: [...daily.values()].map(({ sessionIds, ...bucket }) => ({ ...bucket, sessionCount: sessionIds.size })).sort((left, right) => left.key.localeCompare(right.key)),
 		projects: [...projects.values()].map(({ sessionIds, ...bucket }) => ({ ...bucket, sessionCount: sessionIds.size })).sort((left, right) => right.total - left.total || left.key.localeCompare(right.key)),
 		performance: summarizePerformance(performanceTurns),
+		activity,
 		unallocatedTokens,
 		activeDays: daily.size
 	}

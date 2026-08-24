@@ -40,4 +40,15 @@ describe('Codex Session performance', () => {
 		expect(metrics.firstResponseCount).toBe(0)
 		expect(metrics.firstResponseP50Ms).toBeUndefined()
 	})
+
+	it('优先采用 task_complete 直接记录的耗时', () => {
+		const records = [
+			record(1, 'event_msg', { type: 'task_started', turn_id: 'turn-1' }),
+			record(2, 'event_msg', { type: 'user_message' }),
+			record(9, 'event_msg', { type: 'task_complete', turn_id: 'turn-1', duration_ms: 4321, time_to_first_token_ms: 876 })
+		]
+		const performance = buildSessionPerformance(records, buildTokenUsage(records, false, []))
+		expect(performance.turns[0]).toMatchObject({ durationMs: 4321, durationSource: 'recorded', firstResponseLatencyMs: 876, firstResponseSource: 'recorded' })
+		expect(summarizePerformance(performance.turns)).toMatchObject({ averageTurnDurationMs: 4321, firstResponseP50Ms: 876 })
+	})
 })

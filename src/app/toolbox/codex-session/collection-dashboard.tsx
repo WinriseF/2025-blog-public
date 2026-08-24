@@ -6,7 +6,8 @@ import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import { buildCollectionAnalytics, localDateKey, projectLabel } from '@/lib/codex-session/collection'
 import type { SessionBatchFailure, SessionCollectionFilters, SessionSummary } from '@/lib/codex-session/types'
 import CollectionTokenChart from './collection-token-chart'
-import { formatDate, formatNumber } from './format'
+import { formatCompactNumber, formatDate, formatDurationMs, formatNumber, formatPercent } from './format'
+import { MetricLabel } from './metric-help'
 import { PerformanceStats } from './performance-stats'
 import ProjectTokenChart from './project-token-chart'
 import { VirtualList } from './virtual-list'
@@ -58,13 +59,18 @@ export function CollectionDashboard({ sessions, failures, ignoredFiles, onSelect
 			showDay: index === 0 || localDateKey(list[index - 1].meta.startedAt) !== localDateKey(session.meta.startedAt)
 		})), [analytics.sessions])
 	const issueCount = failures.length + ignoredFiles
-	const stats = [
-		['总 Token', formatNumber(analytics.total.total)],
-		['Session', formatNumber(analytics.sessions.length)],
-		['活跃天数', formatNumber(analytics.activeDays)],
-		['项目', formatNumber(analytics.projects.length)],
-		['请求', formatNumber(analytics.requestCount)],
-		['缓存率', analytics.total.input ? `${((analytics.total.cachedInput / analytics.total.input) * 100).toFixed(1)}%` : '不可用']
+	const partialToolTiming = analytics.activity.toolExecutionCount > 0 && (analytics.activity.toolTimeCoverage ?? 0) < 1
+	const stats: Array<{ label: string; value: string; help?: string }> = [
+		{ label: '总 Token', value: formatCompactNumber(analytics.total.total), help: '当前筛选范围内记录的 Input 与 Output Token 总量；缓存 Input 已包含在 Input 中，不会重复相加。' },
+		{ label: 'Session', value: formatNumber(analytics.sessions.length) },
+		{ label: '活跃天数', value: formatNumber(analytics.activeDays) },
+		{ label: '项目', value: formatNumber(analytics.projects.length) },
+		{ label: '模型步骤', value: formatNumber(analytics.requestCount), help: '有效 token_count 样本数，近似 Codex 调用模型生成一次结果的次数；一个用户回合通常包含多个模型步骤。' },
+		{ label: '缓存率', value: analytics.total.input ? `${((analytics.total.cachedInput / analytics.total.input) * 100).toFixed(1)}%` : '不可用', help: 'Cached Input Token 占全部 Input Token 的比例。' },
+		{ label: '推理 Token / Output', value: formatPercent(analytics.activity.reasoningShareOfOutput), help: 'Reasoning Output Token 占全部 Output Token 的比例。工具调用参数属于非推理 Output，不计入推理 Token。' },
+		{ label: '工具调用步骤率', value: formatPercent(analytics.activity.toolRequestRate), help: '产生至少一次逻辑工具调用的模型步骤，占全部有效模型步骤的比例；同一步骤调用多个工具仍只计一次。' },
+		{ label: '工具耗时 / 步骤墙钟', value: formatPercent(analytics.activity.toolTimeShare), help: '当前筛选命中的模型步骤中，可确认工具执行区间的并集占步骤墙钟时间的比例；分子和分母使用相同的日期、项目及模型筛选。' },
+		{ label: '累计工具墙钟', value: formatDurationMs(analytics.activity.toolDurationMs || undefined), help: '当前筛选范围内累计确认的工具执行墙钟时间，不是 CPU 时间、Token 成本或日历跨度。' }
 	]
 
 	const updateFilter = <K extends keyof SessionCollectionFilters,>(key: K, value: SessionCollectionFilters[K]) => onFiltersChange({ ...filters, [key]: value })
@@ -76,7 +82,7 @@ export function CollectionDashboard({ sessions, failures, ignoredFiles, onSelect
 					<div>
 						<p className='text-brand text-xs tracking-[0.2em] uppercase'>Codex Session Timeline</p>
 						<h1 className='mt-2 text-2xl font-semibold'>多 Session 时间线</h1>
-						<p className='text-secondary mt-2 text-sm'>按请求增量汇总 Token，并保留每次 Session 的完整审计下钻。</p>
+						<p className='text-secondary mt-2 text-sm'>按模型步骤增量汇总 Token，并保留每次 Session 的完整审计下钻。</p>
 					</div>
 					<div className='flex flex-wrap gap-2 text-xs'>
 						<label className='hover:border-brand/45 flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-2 transition'>
@@ -89,18 +95,19 @@ export function CollectionDashboard({ sessions, failures, ignoredFiles, onSelect
 					</div>
 				</div>
 
-				<div className='mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-3 lg:grid-cols-6'>
-					{stats.map(([label, value], index) => <div key={label} className={`min-w-0 px-3 py-3 ${index > 0 ? 'lg:border-l lg:border-border' : ''}`}>
-						<p className='text-secondary truncate text-[10px]'>{label}</p>
-						<p className='mt-1 truncate text-base font-semibold'>{value}</p>
+				<div className='mt-5 grid grid-cols-2 border-y border-border sm:grid-cols-5 xl:grid-cols-10'>
+					{stats.map((item, index) => <div key={item.label} className={`min-w-0 px-3 py-3 ${index > 0 ? 'lg:border-l lg:border-border' : ''}`}>
+						<p className='text-secondary text-[10px]'><MetricLabel label={item.label} help={item.help} /></p>
+						<p className='mt-1 truncate text-base font-semibold' title={item.label === '总 Token' ? formatNumber(analytics.total.total) : undefined}>{item.value}</p>
 					</div>)}
 				</div>
 				<PerformanceStats metrics={analytics.performance} />
 			</header>
 
-			{(issueCount > 0 || analytics.unallocatedTokens > 0) && <div className='mt-4 border-l-2 border-amber-400 bg-amber-400/5 px-4 py-3 text-xs leading-5 text-amber-700'>
+			{(issueCount > 0 || analytics.unallocatedTokens > 0 || partialToolTiming) && <div className='mt-4 border-l-2 border-amber-400 bg-amber-400/5 px-4 py-3 text-xs leading-5 text-amber-700'>
 				<div className='flex items-start gap-2'><AlertTriangle size={15} className='mt-0.5 shrink-0' /><div>
-					{analytics.unallocatedTokens > 0 && <p>其中 {formatNumber(analytics.unallocatedTokens)} Token 缺少请求级细分，已按 Session 的结束时间和最终项目计入分布。</p>}
+					{analytics.unallocatedTokens > 0 && <p>其中 {formatNumber(analytics.unallocatedTokens)} Token 缺少模型步骤级细分，已按 Session 的结束时间和最终项目计入分布。</p>}
+					{partialToolTiming && <p>工具耗时覆盖率为 {formatPercent(analytics.activity.toolTimeCoverage)}；工具耗时 / 步骤墙钟只统计能够确认时间区间的执行批次。</p>}
 					{issueCount > 0 && <p>{failures.length} 个文件失败、{ignoredFiles} 个非 JSONL 文件被忽略。</p>}
 				</div></div>
 				{failures.length > 0 && <details className='mt-2 pl-6'><summary className='cursor-pointer'>查看失败文件</summary><ul className='mt-2 space-y-1 font-mono text-[11px]'>{failures.map(file => <li key={file.key}>{file.relativePath ?? file.name}：{file.message}</li>)}</ul></details>}
@@ -135,9 +142,9 @@ export function CollectionDashboard({ sessions, failures, ignoredFiles, onSelect
 							<div className='flex min-w-0 items-start gap-3'>
 								<span className='text-brand mt-0.5 flex size-8 shrink-0 items-center justify-center'><FolderKanban size={16} /></span>
 								<div className='min-w-0 flex-1'>
-									<div className='flex flex-wrap items-center gap-x-3 gap-y-1'><p className='truncate font-medium'>{session.projectKeys.map(projectLabel).join(' / ')}</p><span className='text-brand ml-auto font-mono text-xs'>{formatNumber(sessionToken(session))} Token</span></div>
+									<div className='flex flex-wrap items-center gap-x-3 gap-y-1'><p className='truncate font-medium'>{session.projectKeys.map(projectLabel).join(' / ')}</p><span className='text-brand ml-auto font-mono text-xs' title={`${formatNumber(sessionToken(session))} Token`}>{formatCompactNumber(sessionToken(session))} Token</span></div>
 									<p className='text-secondary mt-1 truncate font-mono text-[10px]' title={session.relativePath ?? session.source.name}>{session.relativePath ?? session.source.name}</p>
-									<div className='text-secondary mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]'><span>{formatDate(session.meta.startedAt)}</span><span>{formatDuration(session.meta.startedAt, session.meta.endedAt)}</span><span>{session.meta.model ?? '未知模型'}</span><span>{session.requestCount} 个请求</span>{session.tokenUsage.scope === 'possibly-inherited' && <span className='text-amber-600'>fork / subagent</span>}{session.warningCount > 0 && <span className='text-rose-500'>{session.warningCount} 个警告</span>}</div>
+									<div className='text-secondary mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]'><span>{formatDate(session.meta.startedAt)}</span><span>{formatDuration(session.meta.startedAt, session.meta.endedAt)}</span><span>{session.meta.model ?? '未知模型'}</span><span>{session.requestCount} 个模型步骤</span><span>推理 {formatPercent(session.activity.reasoningShareOfOutput)}</span><span>工具步骤 {formatPercent(session.activity.toolRequestRate)}</span>{session.tokenUsage.scope === 'possibly-inherited' && <span className='text-amber-600'>fork / subagent</span>}{session.warningCount > 0 && <span className='text-rose-500'>{session.warningCount} 个警告</span>}</div>
 								</div>
 							</div>
 						</button>

@@ -174,11 +174,108 @@ export type SessionTokenUsage = {
 	samples: TokenUsageSample[]
 }
 
+export type MetricSource = 'recorded' | 'correlated' | 'estimated'
+export type ToolActivityCategory = 'shell' | 'file' | 'web' | 'mcp' | 'planning' | 'interaction' | 'collaboration' | 'other'
+export type ToolActivityOrigin = 'direct' | 'exec-nested' | 'event'
+
+export type ToolActivity = {
+	id: string
+	executionId: string
+	sequence: number
+	callId?: string
+	parentCallId?: string
+	turnId?: string
+	name: string
+	normalizedName: string
+	category: ToolActivityCategory
+	origin: ToolActivityOrigin
+	logical: boolean
+	status: EventStatus
+	startedAt?: string
+	endedAt?: string
+	durationMs?: number
+	durationSource?: MetricSource
+	sourceRefs: SourceRef[]
+}
+
+export type RequestActivity = {
+	id: string
+	tokenSampleId: string
+	sequence: number
+	timestamp?: string
+	startedAt?: string
+	turnId?: string
+	cwd?: string
+	model?: string
+	totalTokens: number
+	outputTokens: number
+	reasoningOutputTokens: number
+	visibleOutputTokens: number
+	reasoningShareOfOutput?: number
+	spanMs?: number
+	reasoningItemCount: number
+	assistantMessageCount: number
+	toolCallIds: string[]
+	toolCallCount: number
+	toolExecutionCount: number
+	timedToolExecutionCount: number
+	toolDurationMs: number
+	sourceRef: SourceRef
+}
+
+export type ToolCategoryMetrics = {
+	category: ToolActivityCategory
+	callCount: number
+	completedCount: number
+	failedCount: number
+	unknownCount: number
+	timedCallCount: number
+	durationMs: number
+}
+
+export type SessionActivityMetrics = {
+	requestCount: number
+	reasoningOutputTokens: number
+	visibleOutputTokens: number
+	reasoningShareOfOutput?: number
+	toolRequestCount: number
+	toolRequestRate?: number
+	logicalToolCallCount: number
+	toolExecutionCount: number
+	timedToolExecutionCount: number
+	toolDurationMs: number
+	toolTimeCoverage?: number
+	observedDurationMs: number
+	toolTimeShare?: number
+	nonToolDurationMs: number
+}
+
+export type SessionActivity = {
+	requests: RequestActivity[]
+	tools: ToolActivity[]
+	categories: ToolCategoryMetrics[]
+	metrics: SessionActivityMetrics
+}
+
+export type SessionActivityRequestSummary = Pick<RequestActivity,
+	'tokenSampleId' | 'sequence' | 'timestamp' | 'startedAt' | 'reasoningOutputTokens' | 'visibleOutputTokens' |
+	'toolCallCount' | 'toolExecutionCount' | 'timedToolExecutionCount' | 'toolDurationMs' | 'spanMs'
+>
+
+export type SessionActivitySummary = {
+	requests: SessionActivityRequestSummary[]
+	metrics: SessionActivityMetrics
+}
+
 export type TurnPerformance = {
 	id: string
 	startedAt?: string
 	firstResponseAt?: string
 	endedAt?: string
+	durationMs?: number
+	durationSource?: MetricSource
+	firstResponseLatencyMs?: number
+	firstResponseSource?: MetricSource
 	cwd?: string
 	model?: string
 	requestCount: number
@@ -208,6 +305,7 @@ export type SessionParseResult = {
 	processes: ProcessRun[]
 	fileAudit: FileAudit
 	tokenUsage: SessionTokenUsage
+	activity: SessionActivity
 	performance: SessionPerformance
 	diagnostics: ParseDiagnostic[]
 }
@@ -217,6 +315,11 @@ export type SessionSummaryTokenSample = TokenUsageNumbers & {
 	turnId?: string
 	cwd?: string
 	model?: string
+	spanMs?: number
+	toolCallCount: number
+	toolExecutionCount: number
+	timedToolExecutionCount: number
+	toolDurationMs: number
 }
 
 export type SessionSummary = {
@@ -231,6 +334,7 @@ export type SessionSummary = {
 		samples: SessionSummaryTokenSample[]
 	}
 	performance: SessionPerformance
+	activity: SessionActivityMetrics
 	projectKeys: string[]
 	requestCount: number
 	warningCount: number
@@ -282,6 +386,7 @@ export type SessionCollectionAnalytics = {
 	daily: TokenTimeBucket[]
 	projects: ProjectTokenBucket[]
 	performance: PerformanceMetrics
+	activity: SessionActivityMetrics
 	unallocatedTokens: number
 	activeDays: number
 }

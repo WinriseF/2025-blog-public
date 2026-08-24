@@ -13,7 +13,12 @@ function sample(total: number, timestamp: string, cwd: string): SessionSummaryTo
 		total,
 		timestamp,
 		cwd,
-		model: 'gpt-test'
+		model: 'gpt-test',
+		spanMs: 10_000,
+		toolCallCount: 0,
+		toolExecutionCount: 0,
+		timedToolExecutionCount: 0,
+		toolDurationMs: 0
 	}
 }
 
@@ -38,6 +43,18 @@ function summary(id: string, samples: SessionSummaryTokenSample[], inherited = f
 			samples
 		},
 		performance: { turns: [] },
+		activity: {
+			requestCount: samples.length,
+			reasoningOutputTokens: samples.reduce((total, item) => total + item.reasoningOutput, 0),
+			visibleOutputTokens: samples.reduce((total, item) => total + item.output - item.reasoningOutput, 0),
+			toolRequestCount: 0,
+			logicalToolCallCount: 0,
+			toolExecutionCount: 0,
+			timedToolExecutionCount: 0,
+			toolDurationMs: 0,
+			observedDurationMs: 0,
+			nonToolDurationMs: 0
+		},
 		projectKeys: [...new Set(samples.map(item => normalizeProjectKey(item.cwd)))],
 		requestCount: samples.length,
 		warningCount: 0
@@ -104,5 +121,50 @@ describe('session collection analytics', () => {
 		}]
 		const analytics = buildCollectionAnalytics([session], { projectKey: normalizeProjectKey('C:\\work\\alpha') })
 		expect(analytics.performance).toMatchObject({ firstResponseP50Ms: 2000, averageTurnDurationMs: 10000, outputTokensPerSecond: 2 })
+	})
+
+	it('按请求汇总思考比例和工具活动', () => {
+		const timedSample = sample(100, '2026-01-01T10:00:05', 'C:\\work\\alpha')
+		timedSample.toolCallCount = 2
+		timedSample.toolExecutionCount = 1
+		timedSample.timedToolExecutionCount = 1
+		timedSample.toolDurationMs = 2000
+		const session = summary('activity', [timedSample])
+		session.performance.turns = [{ id: 'turn-1', durationMs: 10_000, durationSource: 'recorded', requestCount: 1, outputTokens: 20 }]
+
+		const analytics = buildCollectionAnalytics([session], {})
+		expect(analytics.activity).toMatchObject({
+			reasoningShareOfOutput: 0.25,
+			toolRequestRate: 1,
+			logicalToolCallCount: 2,
+			toolTimeCoverage: 1,
+			toolTimeShare: 0.2
+		})
+	})
+
+	it('筛选工具占比时使用同一批模型步骤的墙钟分母', () => {
+		const previousDay = sample(100, '2026-01-01T23:59:00', 'C:\\work\\alpha')
+		previousDay.toolDurationMs = 1000
+		const selectedDay = sample(100, '2026-01-02T00:04:00', 'C:\\work\\beta')
+		selectedDay.spanMs = 300_000
+		selectedDay.toolCallCount = 1
+		selectedDay.toolExecutionCount = 1
+		selectedDay.timedToolExecutionCount = 1
+		selectedDay.toolDurationMs = 60_000
+		const session = summary('cross-day', [previousDay, selectedDay])
+		session.performance.turns = [{
+			id: 'turn-1',
+			startedAt: '2026-01-01T23:55:00',
+			endedAt: '2026-01-02T00:05:00',
+			durationMs: 600_000,
+			durationSource: 'recorded',
+			cwd: 'C:\\work\\alpha',
+			model: 'gpt-test',
+			requestCount: 2,
+			outputTokens: 40
+		}]
+
+		const analytics = buildCollectionAnalytics([session], { dateFrom: '2026-01-02', dateTo: '2026-01-02' })
+		expect(analytics.activity).toMatchObject({ observedDurationMs: 300_000, toolDurationMs: 60_000, toolTimeShare: 0.2 })
 	})
 })
