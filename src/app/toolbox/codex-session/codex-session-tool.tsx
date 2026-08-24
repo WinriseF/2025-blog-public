@@ -64,6 +64,7 @@ export function CodexSessionTool() {
 		return <SessionDetail
 			key={`${detail.state.result.meta.id ?? detail.state.file.name}-${detail.state.file.lastModified}`}
 			result={detail.state.result}
+			file={detail.state.file}
 			onExit={leaveDetail}
 			onFile={file => importFiles([file])}
 			backToTimeline={detailFromCollection}

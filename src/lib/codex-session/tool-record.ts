@@ -4,6 +4,8 @@ import type { EventStatus, SourceRef } from './types'
 
 const COMMAND_TOOLS = new Set(['exec_command', 'shell_command', 'local_shell_call'])
 const CONTINUATION_TOOLS = new Set(['wait', 'poll', 'write_stdin'])
+const RESPONSE_TOOL_CALL_TYPES = new Set(['function_call', 'custom_tool_call', 'local_shell_call'])
+const RESPONSE_TOOL_OUTPUT_TYPES = new Set(['function_call_output', 'custom_tool_call_output', 'local_shell_call_output'])
 
 function asIdentifier(value: unknown) {
 	return typeof value === 'string' ? value : typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined
@@ -32,6 +34,14 @@ export function isCommandTool(name: string) {
 
 export function isContinuationTool(name: string) {
 	return CONTINUATION_TOOLS.has(toolLeafName(name))
+}
+
+export function isResponseToolCallType(type?: string): type is string {
+	return Boolean(type && RESPONSE_TOOL_CALL_TYPES.has(type))
+}
+
+export function isResponseToolOutputType(type?: string): type is string {
+	return Boolean(type && RESPONSE_TOOL_OUTPUT_TYPES.has(type))
 }
 
 export function toolCallId(payload: Record<string, unknown>, sequence: number) {

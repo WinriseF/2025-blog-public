@@ -391,6 +391,102 @@ export type SessionCollectionAnalytics = {
 	activeDays: number
 }
 
+export type SessionCompressionRuleId =
+	| 'record'
+	| 'conversation-user'
+	| 'conversation-assistant'
+	| 'conversation-tools'
+	| 'compaction-history'
+	| 'reasoning'
+	| 'event-messages'
+	| 'runtime-snapshots'
+	| 'runtime-context'
+	| 'internal-metadata'
+	| 'duplicate-records'
+	| 'rate-limits'
+	| 'tool-outputs'
+	| 'inline-media'
+
+export type SessionCompressionRuleStat = {
+	id: SessionCompressionRuleId
+	affectedRecords: number
+	occurrences: number
+	candidateBytes: number
+}
+
+export type SessionCompressionScan = {
+	sourceBytes: number
+	recordCount: number
+	invalidRecords: number
+	rules: SessionCompressionRuleStat[]
+	turns: SessionCompressionTurn[]
+}
+
+export type SessionCompressionSelection = {
+	ruleId: SessionCompressionRuleId
+	sequence: number
+}
+
+export type SessionCompressionAction = {
+	id: string
+	label: string
+	description: string
+	candidateBytes: number
+	defaultSelected: boolean
+	dropsRecord: boolean
+	selection: SessionCompressionSelection
+}
+
+export type SessionCompressionRecordKind =
+	| 'system'
+	| 'developer'
+	| 'user'
+	| 'assistant'
+	| 'reasoning'
+	| 'tool-call'
+	| 'tool-result'
+	| 'context'
+	| 'token'
+	| 'event'
+	| 'metadata'
+	| 'compaction'
+	| 'unknown'
+	| 'invalid'
+
+export type SessionCompressionRecord = {
+	id: string
+	label: string
+	detail?: string
+	timestamp?: string
+	byteSize: number
+	kind: SessionCompressionRecordKind
+	recordType?: string
+	payloadType?: string
+	line?: number
+	actions: SessionCompressionAction[]
+}
+
+export type SessionCompressionTurn = {
+	id: string
+	label: string
+	detail?: string
+	timestamp?: string
+	recordCount: number
+	byteSize: number
+	records: SessionCompressionRecord[]
+}
+
+export type SessionCompressionReport = {
+	sourceBytes: number
+	outputBytes: number
+	sourceRecords: number
+	outputRecords: number
+	droppedRecords: number
+	rewrittenRecords: number
+	invalidRecords: number
+	rules: SessionCompressionRuleStat[]
+}
+
 export type ParserWorkerRequest =
 	| { type: 'parse'; id: number; file: File }
 	| { type: 'parse-batch'; id: number; sources: SessionBatchSource[] }
@@ -402,3 +498,17 @@ export type ParserWorkerResponse =
 	| { type: 'success'; id: number; result: SessionParseResult }
 	| { type: 'batch-success'; id: number; result: SessionBatchResult }
 	| { type: 'error'; id: number; message: string }
+
+export type SessionCompressionWorkerRequest =
+	| { type: 'scan-compression'; id: number; file: File }
+	| { type: 'compress-session'; id: number; file: File; selections: SessionCompressionSelection[] }
+	| { type: 'cancel'; id: number }
+
+export type SessionCompressionWorkerResponse =
+	| { type: 'compression-progress'; id: number; phase: 'scan' | 'compress'; bytesRead: number; records: number }
+	| { type: 'compression-scan-success'; id: number; scan: SessionCompressionScan }
+	| { type: 'compression-success'; id: number; blob: Blob; fileName: string; report: SessionCompressionReport }
+	| { type: 'error'; id: number; message: string }
+
+export type CodexSessionWorkerRequest = ParserWorkerRequest | SessionCompressionWorkerRequest
+export type CodexSessionWorkerResponse = ParserWorkerResponse | SessionCompressionWorkerResponse

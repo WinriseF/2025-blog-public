@@ -24,6 +24,17 @@ export const toolCategoryLabels: Record<ToolActivityCategory, string> = {
 	other: '其他'
 }
 
+export const toolCategoryColors: Record<ToolActivityCategory, string> = {
+	shell: '#0ea5e9',
+	file: '#22c55e',
+	web: '#f59e0b',
+	mcp: '#8b5cf6',
+	planning: '#ec4899',
+	interaction: '#14b8a6',
+	collaboration: '#6366f1',
+	other: '#94a3b8'
+}
+
 export const dialectLabels: Record<ShellDialect, string> = {
 	powershell: 'PowerShell',
 	bash: 'Bash',

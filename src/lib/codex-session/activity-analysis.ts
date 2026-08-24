@@ -5,6 +5,8 @@ import {
 	ContinuationIndex,
 	isCommandTool,
 	isContinuationTool,
+	isResponseToolCallType,
+	isResponseToolOutputType,
 	parseToolResult,
 	toolCallId,
 	toolCallInput,
@@ -39,9 +41,6 @@ type SummaryTool = MetricTool & {
 	category: ToolActivityCategory
 	status: EventStatus
 }
-
-const TOOL_CALL_TYPES = new Set(['function_call', 'custom_tool_call', 'local_shell_call'])
-const TOOL_OUTPUT_TYPES = new Set(['function_call_output', 'custom_tool_call_output', 'local_shell_call_output'])
 
 function timestampMs(value?: string) {
 	if (!value) return
@@ -493,8 +492,8 @@ export function buildSessionActivity(
 				else if (role === 'assistant') getSegment().assistantMessages++
 			} else if (itemType === 'reasoning') getSegment().reasoningItems++
 
-			if (itemType && TOOL_CALL_TYPES.has(itemType)) registerCall(envelope, payload, itemType)
-			else if (itemType && TOOL_OUTPUT_TYPES.has(itemType)) registerResult(envelope, payload)
+			if (isResponseToolCallType(itemType)) registerCall(envelope, payload, itemType)
+			else if (isResponseToolOutputType(itemType)) registerResult(envelope, payload)
 			else if (itemType === 'tool_search_call') {
 				registerCall(envelope, { ...payload, name: 'tool_search' }, itemType)
 			} else if (itemType === 'tool_search_output') registerResult(envelope, payload)
@@ -698,8 +697,8 @@ export function buildSessionActivitySummary(
 		}
 		if (record.type === 'response_item') {
 			if (itemType === 'message' && asString(payload.role) === 'user') segmentStarts.set(segmentKey(currentTurnId), record.timestamp)
-			if (itemType && TOOL_CALL_TYPES.has(itemType)) registerCall(envelope, payload, itemType)
-			else if (itemType && TOOL_OUTPUT_TYPES.has(itemType)) registerResult(envelope, payload)
+			if (isResponseToolCallType(itemType)) registerCall(envelope, payload, itemType)
+			else if (isResponseToolOutputType(itemType)) registerResult(envelope, payload)
 			else if (itemType === 'tool_search_call') registerCall(envelope, { ...payload, name: 'tool_search' }, itemType)
 			else if (itemType === 'tool_search_output') registerResult(envelope, payload)
 			else if (itemType === 'web_search_call') register({

@@ -1,8 +1,9 @@
 'use client'
 
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { GripVertical, RotateCcw } from 'lucide-react'
+import { memo, useEffect, useMemo, useState } from 'react'
+import { RotateCcw } from 'lucide-react'
 import type { TokenTimeBucket } from '@/lib/codex-session/types'
+import { TimelineBrush, type TimelineRange } from './timeline-brush'
 
 const COLORS = [
 	{ key: 'freshInput', label: 'Fresh input', color: 'var(--color-brand)' },
@@ -108,12 +109,6 @@ const MainBars = memo(function MainBars({ data, maximum, labelStride }: { data: 
 	</div>
 })
 
-const MiniBars = memo(function MiniBars({ data, maximum }: { data: TokenTimeBucket[]; maximum: number }) {
-	return <div className='pointer-events-none absolute inset-1 flex items-end'>
-		{data.map(item => <span key={item.key} className='min-w-0 flex-1 rounded-t-[1px] bg-brand/50' style={{ height: `${Math.max((item.total / maximum) * 100, item.total ? 3 : 0)}%` }} />)}
-	</div>
-})
-
 type RangeBrushProps = {
 	data: TokenTimeBucket[]
 	dateFrom?: string
@@ -124,8 +119,6 @@ type RangeBrushProps = {
 function RangeBrush({ data, dateFrom, dateTo, onChange }: RangeBrushProps) {
 	const dates = useMemo(() => data.map(item => item.key), [data])
 	const maximum = Math.max(...data.map(item => item.total), 1)
-	const rootRef = useRef<HTMLDivElement | null>(null)
-	const draggingRef = useRef<'start' | 'end' | null>(null)
 	const initialRange = useMemo(() => {
 		const foundStart = dateFrom ? dates.findIndex(date => date >= dateFrom) : 0
 		const start = foundStart < 0 ? dates.length - 1 : foundStart
@@ -133,92 +126,38 @@ function RangeBrush({ data, dateFrom, dateTo, onChange }: RangeBrushProps) {
 		return { start, end: Math.min(Math.max(last + 1, start + 1), dates.length) }
 	}, [dateFrom, dateTo, dates])
 	const [range, setRangeState] = useState(initialRange)
-	const rangeRef = useRef(initialRange)
 
 	useEffect(() => {
-		rangeRef.current = initialRange
 		setRangeState(initialRange)
 	}, [initialRange])
 
-	const setRange = (next: { start: number; end: number }) => {
-		rangeRef.current = next
-		setRangeState(next)
+	const snap = ([startRatio, endRatio]: TimelineRange) => {
+		const start = Math.min(Math.max(Math.round(startRatio * dates.length), 0), dates.length - 1)
+		const end = Math.min(Math.max(Math.round(endRatio * dates.length), start + 1), dates.length)
+		return { start, end }
 	}
-
-	const edgeAt = (clientX: number) => {
-		const bounds = rootRef.current?.getBoundingClientRect()
-		if (!bounds?.width) return 0
-		return Math.round(Math.min(Math.max((clientX - bounds.left) / bounds.width, 0), 1) * dates.length)
-	}
-
-	const move = (edge: 'start' | 'end', clientX: number) => {
-		const position = edgeAt(clientX)
-		const current = rangeRef.current
-		setRange(edge === 'start'
-			? { start: Math.min(position, current.end - 1), end: current.end }
-			: { start: current.start, end: Math.max(position, current.start + 1) })
-	}
-
-	const commit = () => {
-		const current = rangeRef.current
+	const update = (next: TimelineRange) => setRangeState(snap(next))
+	const commit = (next: TimelineRange) => {
+		const current = snap(next)
 		if (current.start === 0 && current.end === dates.length) onChange()
 		else onChange(dates[current.start], dates[current.end - 1])
 	}
-
-	const pointerDown = (edge: 'start' | 'end', event: PointerEvent<HTMLButtonElement>) => {
-		event.preventDefault()
-		draggingRef.current = edge
-		event.currentTarget.setPointerCapture(event.pointerId)
-	}
-
-	const pointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-		if (draggingRef.current) move(draggingRef.current, event.clientX)
-	}
-
-	const pointerUp = (event: PointerEvent<HTMLButtonElement>) => {
-		if (!draggingRef.current) return
-		move(draggingRef.current, event.clientX)
-		draggingRef.current = null
-		event.currentTarget.releasePointerCapture(event.pointerId)
-		commit()
-	}
-
-	const keyMove = (edge: 'start' | 'end', event: KeyboardEvent<HTMLButtonElement>) => {
-		if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-		event.preventDefault()
-		const amount = event.key === 'ArrowLeft' ? -1 : 1
-		const current = rangeRef.current
-		setRange(edge === 'start'
-			? { start: Math.min(Math.max(current.start + amount, 0), current.end - 1), end: current.end }
-			: { start: current.start, end: Math.max(Math.min(current.end + amount, dates.length), current.start + 1) })
-		commit()
-	}
-
-	const startPercent = (range.start / dates.length) * 100
-	const endPercent = (range.end / dates.length) * 100
-	return <div
-		ref={rootRef}
-		aria-label={`时间范围：${dates[range.start]} 至 ${dates[range.end - 1]}`}
-		className='relative h-12 rounded-md border border-border bg-background/25'
-	>
-			<MiniBars data={data} maximum={maximum} />
-			<div className='pointer-events-none absolute inset-y-0 left-0 rounded-l-lg bg-background/70' style={{ width: `${startPercent}%` }} />
-			<div className='pointer-events-none absolute inset-y-0 right-0 rounded-r-lg bg-background/70' style={{ width: `${100 - endPercent}%` }} />
-			<div className='pointer-events-none absolute inset-y-0 border-x border-brand/70 bg-brand/10' style={{ left: `${startPercent}%`, width: `${endPercent - startPercent}%` }} />
-			{(['start', 'end'] as const).map(edge => <button
-				key={edge}
-				type='button'
-				aria-label={edge === 'start' ? '拖动开始日期' : '拖动结束日期'}
-				onPointerDown={event => pointerDown(edge, event)}
-				onPointerMove={pointerMove}
-				onPointerUp={pointerUp}
-				onPointerCancel={() => { draggingRef.current = null; setRange(initialRange) }}
-				onKeyDown={event => keyMove(edge, event)}
-				className='absolute -inset-y-1 z-20 w-7 -translate-x-1/2 cursor-ew-resize touch-none outline-none focus-visible:ring-2 focus-visible:ring-brand'
-				style={{ left: `${edge === 'start' ? startPercent : endPercent}%` }}>
-				<span className='bg-brand absolute top-1/2 left-1/2 flex h-7 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md text-white shadow-sm'><GripVertical size={11} /></span>
-			</button>)}
-	</div>
+	const normalized: TimelineRange = [range.start / dates.length, range.end / dates.length]
+	const segments = data.map((item, index) => {
+		const height = Math.max((item.total / maximum) * 30, item.total ? 2 : 0)
+		return { id: item.key, x: index, width: 1, y: 34 - height, height, color: 'var(--color-brand)', opacity: 0.5 }
+	})
+	return <TimelineBrush
+		totalWidth={dates.length}
+		range={normalized}
+		segments={segments}
+		onChange={update}
+		onCommit={commit}
+		onCancel={() => setRangeState(initialRange)}
+		minimumSpan={1 / dates.length}
+		keyboardStep={1 / dates.length}
+		embedded
+	/>
 }
 
 type CollectionTokenChartProps = {

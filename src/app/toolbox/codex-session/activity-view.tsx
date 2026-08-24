@@ -3,19 +3,9 @@
 import { AlertTriangle } from 'lucide-react'
 import type { SessionActivity } from '@/lib/codex-session/types'
 import type { DetailSelection } from './detail-panel'
-import { formatDate, formatDurationMs, formatNumber, formatPercent, statusLabels, toolCategoryLabels } from './format'
+import { ActivityWaterfall } from './activity-waterfall'
+import { formatDate, formatDurationMs, formatNumber, formatPercent, statusLabels, toolCategoryColors, toolCategoryLabels } from './format'
 import { MetricLabel } from './metric-help'
-
-const CATEGORY_COLORS = {
-	shell: '#0ea5e9',
-	file: '#22c55e',
-	web: '#f59e0b',
-	mcp: '#8b5cf6',
-	planning: '#ec4899',
-	interaction: '#14b8a6',
-	collaboration: '#6366f1',
-	other: '#94a3b8'
-} as const
 
 export function ActivityView({ activity, onSelect }: { activity: SessionActivity; onSelect: (selection: DetailSelection) => void }) {
 	const { metrics } = activity
@@ -42,6 +32,8 @@ export function ActivityView({ activity, onSelect }: { activity: SessionActivity
 				<p className='mt-1 truncate text-base font-semibold tabular-nums'>{item.value}</p>
 			</div>)}
 		</div>
+
+		<ActivityWaterfall activity={activity} onTool={tool => onSelect({ type: 'tool-activity', value: tool })} />
 
 		{metrics.toolExecutionCount > 0 && metrics.toolTimeCoverage !== undefined && metrics.toolTimeCoverage < 0.8 && <div className='flex items-start gap-2 border-l-2 border-amber-400 bg-amber-400/5 px-4 py-3 text-xs leading-5 text-amber-700'>
 			<AlertTriangle size={15} className='mt-0.5 shrink-0' />
@@ -77,7 +69,7 @@ export function ActivityView({ activity, onSelect }: { activity: SessionActivity
 					const maximum = activity.categories[0]?.callCount || 1
 					return <div key={category.category} className='grid grid-cols-[76px_minmax(0,1fr)_auto] items-center gap-3 text-xs'>
 						<span>{toolCategoryLabels[category.category]}</span>
-						<span className='h-2 overflow-hidden rounded-full bg-border/50'><span className='block h-full rounded-full' style={{ width: `${(category.callCount / maximum) * 100}%`, background: CATEGORY_COLORS[category.category] }} /></span>
+						<span className='h-2 overflow-hidden rounded-full bg-border/50'><span className='block h-full rounded-full' style={{ width: `${(category.callCount / maximum) * 100}%`, background: toolCategoryColors[category.category] }} /></span>
 						<span className='text-secondary min-w-28 text-right tabular-nums'>{formatNumber(category.callCount)} 次 · {formatDurationMs(category.durationMs || undefined)}</span>
 					</div>
 				})}
@@ -107,7 +99,7 @@ export function ActivityView({ activity, onSelect }: { activity: SessionActivity
 			<div className='max-h-80 overflow-auto border-t border-border'>
 				{listedTools.map(tool => <button key={tool.id} type='button' onClick={() => onSelect({ type: 'tool-activity', value: tool })} className='hover:bg-background/25 grid w-full grid-cols-[minmax(0,1fr)_auto_auto] gap-3 border-b border-border px-3 py-3 text-left text-xs transition-colors'>
 					<span className='truncate font-mono'>{tool.name}</span>
-					<span style={{ color: CATEGORY_COLORS[tool.category] }}>{toolCategoryLabels[tool.category]}</span>
+					<span style={{ color: toolCategoryColors[tool.category] }}>{toolCategoryLabels[tool.category]}</span>
 					<span className='text-secondary tabular-nums'>{statusLabels[tool.status]} · {formatDurationMs(tool.durationMs)}</span>
 				</button>)}
 			</div>

@@ -52,7 +52,7 @@ export function useSessionParser() {
 				} else if (response.type === 'success') {
 					setState({ status: 'success', file, result: response.result })
 					stopWorker()
-				} else {
+				} else if (response.type === 'error') {
 					setState({ status: 'error', file, message: response.message })
 					stopWorker()
 				}
