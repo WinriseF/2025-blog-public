@@ -45,3 +45,5 @@ AGENTS.md
 .firecrawl
 .tmp
 .pnpm-store
+.agents
+skills-lock.json

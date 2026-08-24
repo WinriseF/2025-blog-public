@@ -2,7 +2,7 @@
 
 WinriseF 的个人站点仓库。
 
-架构概览和维护入口见 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+简要架构和维护入口见 [ARCHITECTURE.md](./ARCHITECTURE.md)；按主题拆分的项目知识库见 [`.project-wiki/INDEX.md`](./.project-wiki/INDEX.md)。
 
 ## Stack
 
@@ -20,11 +20,21 @@ WinriseF 的个人站点仓库。
 "packageManager": "pnpm@11.7.0"
 ```
 
-如果在 Vercel 部署，需要启用：
+## Deployment
+
+当前提交的部署配置是 [netlify.toml](./netlify.toml)，使用 Netlify Next plugin、Node 22 和 `pnpm run build`。
+
+如果单独部署到 Vercel，需要启用：
 
 ```txt
 ENABLE_EXPERIMENTAL_COREPACK=1
 ```
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md)：短架构入口和维护导航。
+- [`.project-wiki/INDEX.md`](./.project-wiki/INDEX.md)：项目文档路由入口。
+- [`.project-wiki/modules/`](./.project-wiki/modules/)：八个按实现边界拆分的维护模块文档。
 
 ## Content
 
