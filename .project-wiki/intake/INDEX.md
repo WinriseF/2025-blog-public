@@ -11,3 +11,4 @@ Do not read integrated, archived, superseded, or rejected intake documents durin
 ## Reviewed, Integrated, Archived, Superseded, Or Rejected Documents
 
 - [DOCIN-20260825-001](./documents/DOCIN-20260825-001/review.md) - Browser ZIP Compression Deep Research (`integrated`, source: `deep-research-report.md`)
+- [DOCIN-20260825-002](./documents/DOCIN-20260825-002/review.md) - ZIP Packer Follow-up Review (`integrated`, source: `pasted-text.txt`)

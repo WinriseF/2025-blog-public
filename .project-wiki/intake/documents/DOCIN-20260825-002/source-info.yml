@@ -1,0 +1,16 @@
+version: 1
+id: "DOCIN-20260825-002"
+type: intake-document
+status: integrated
+title: "ZIP Packer Follow-up Review"
+created: "2026-08-25T18:26:43+08:00"
+updated: "2026-08-25T18:52:00+08:00"
+source_path: "C:/Users/Flynn/.codex/attachments/57cc98fa-83e2-44c2-a420-2651ca112a0d/pasted-text.txt"
+source_filename: "pasted-text.txt"
+source_sha256: "39389e62962abeb6683aadd8532a9a42cd3dec708b339c9feec7780735210fcf"
+immutable_source: true
+file_type: "txt"
+copied_source_path: "E:/Project/PROJECT/2025-blog-public/.project-wiki/intake/documents/DOCIN-20260825-002/source.txt"
+word_count: 741
+chunk_count: 3
+confidence: confirmed

@@ -15,7 +15,9 @@ export type ZipNode = {
 	size: number
 	lastModified: number
 	suggestedExcluded: boolean
+	loaded?: boolean
 	handle?: FileSystemFileHandle
+	directoryHandle?: FileSystemDirectoryHandle
 	file?: File
 }
 
@@ -25,6 +27,12 @@ export type ZipScanResult = {
 	rootHandle?: FileSystemDirectoryHandle
 	nodes: ZipNode[]
 	totalBytes: number
+	unloadedDirectories: number
+}
+
+export type ZipSelectionAnalysis = {
+	states: Map<string, ZipSelectionState>
+	stats: { files: number; bytes: number }
 }
 
 export type ZipWriteProgress = {
@@ -61,73 +69,37 @@ const DEFAULT_EXCLUDES = new Set(['.git', '.svn', 'node_modules', '.next', '.nux
 const ALREADY_COMPRESSED = new Set([
 	'7z', 'aac', 'apk', 'avif', 'br', 'bz2', 'flac', 'gif', 'gz', 'heic', 'jpeg', 'jpg', 'm4a', 'm4v', 'mkv', 'mov', 'mp3', 'mp4', 'ogg', 'pdf', 'png', 'rar', 'webm', 'webp', 'woff', 'woff2', 'xz', 'zip'
 ])
+const SCAN_PROGRESS_INTERVAL = 100
 const ZIP_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.59/index-native.min.js'
 let zipRuntimePromise: Promise<ZipRuntime> | undefined
 
-export async function scanZipDirectory(directory: FileSystemDirectoryHandle, signal: AbortSignal, onProgress: (files: number, bytes: number) => void): Promise<ZipScanResult> {
-	const root = directory as DirectoryHandle
-	const nodes: ZipNode[] = []
+export async function scanZipDirectory(directory: FileSystemDirectoryHandle, signal: AbortSignal, onProgress: (files: number, bytes: number) => void = () => {}) {
+	const rootHandle = directory as DirectoryHandle
+	const root = createDirectoryNode(rootHandle, null, rootHandle.name, false, true)
+	const nodes = [root]
 	const fileNodes: ZipNode[] = []
 
-	const walk = async (handle: DirectoryHandle, parentId: string | null, path: string, inheritedExclude: boolean) => {
-		assertActive(signal)
-		const node: ZipNode = {
-			id: path,
-			parentId,
-			children: [],
-			name: handle.name,
-			path,
-			kind: 'directory',
-			size: 0,
-			lastModified: 0,
-			suggestedExcluded: inheritedExclude
-		}
-		nodes.push(node)
+	await scanDirectoryChildren(root, rootHandle, nodes, fileNodes, signal)
+	await readFileMetadata(fileNodes, signal, onProgress)
 
-		const entries: Array<[string, DirectoryHandle | FileSystemFileHandle]> = []
-		for await (const entry of handle.entries()) entries.push(entry)
-		entries.sort(([leftName, left], [rightName, right]) => left.kind === right.kind ? leftName.localeCompare(rightName, 'zh-CN', { numeric: true }) : left.kind === 'directory' ? -1 : 1)
+	return { ...buildScanResult(rootHandle.name, nodes), rootHandle: directory }
+}
 
-		for (const [name, child] of entries) {
-			assertActive(signal)
-			const childPath = `${path}/${name}`
-			const suggestedExcluded = inheritedExclude || DEFAULT_EXCLUDES.has(name)
-			node.children.push(childPath)
-			if (child.kind === 'directory') {
-				await walk(child as DirectoryHandle, path, childPath, suggestedExcluded)
-			} else {
-				const fileNode: ZipNode = {
-					id: childPath,
-					parentId: path,
-					children: [],
-					name,
-					path: childPath,
-					kind: 'file',
-					size: 0,
-					lastModified: 0,
-					suggestedExcluded,
-					handle: child as FileSystemFileHandle
-				}
-				nodes.push(fileNode)
-				fileNodes.push(fileNode)
-			}
-		}
-	}
+export async function loadZipDirectory(scan: ZipScanResult, directoryId: string, signal: AbortSignal, onProgress: (files: number, bytes: number) => void = () => {}) {
+	const index = scan.nodes.findIndex(node => node.id === directoryId)
+	const current = scan.nodes[index]
+	if (!current || current.kind !== 'directory') throw new Error('找不到待读取的目录')
+	if (current.loaded) return scan
+	if (!current.directoryHandle) throw new Error(`无法读取 ${current.path}`)
 
-	await walk(root, null, root.name, false)
-	let filesRead = 0
-	let bytesRead = 0
-	await mapLimit(fileNodes, 12, async node => {
-		assertActive(signal)
-		const file = await node.handle!.getFile()
-		node.size = file.size
-		node.lastModified = file.lastModified
-		filesRead += 1
-		bytesRead += file.size
-		onProgress(filesRead, bytesRead)
-	})
+	const nodes = scan.nodes.slice()
+	const directory = { ...current, children: [], loaded: true }
+	nodes[index] = directory
+	const fileNodes: ZipNode[] = []
+	await scanDirectoryChildren(directory, current.directoryHandle as DirectoryHandle, nodes, fileNodes, signal)
+	await readFileMetadata(fileNodes, signal, onProgress)
 
-	return { ...buildScanResult(root.name, nodes), rootHandle: directory }
+	return { ...buildScanResult(scan.rootName, nodes, scan.rootId), rootHandle: scan.rootHandle }
 }
 
 export function scanZipFiles(files: File[]): ZipScanResult {
@@ -151,18 +123,25 @@ export function initialZipSelection(nodes: ZipNode[]) {
 	return new Set(nodes.filter(node => !node.suggestedExcluded).map(node => node.id))
 }
 
-export function deriveZipSelection(nodes: ZipNode[], selected: Set<string>) {
+export function analyzeZipSelection(nodes: ZipNode[], selected: Set<string>): ZipSelectionAnalysis {
 	const states = new Map<string, ZipSelectionState>()
+	let files = 0
+	let bytes = 0
 	for (let index = nodes.length - 1; index >= 0; index -= 1) {
 		const node = nodes[index]
 		if (node.kind === 'file' || !node.children.length) {
-			states.set(node.id, selected.has(node.id) ? 'checked' : 'unchecked')
+			const state = selected.has(node.id) ? 'checked' : 'unchecked'
+			states.set(node.id, state)
+			if (node.kind === 'file' && state === 'checked') {
+				files += 1
+				bytes += node.size
+			}
 			continue
 		}
 		const childStates = node.children.map(id => states.get(id) || 'unchecked')
 		states.set(node.id, childStates.every(state => state === 'checked') ? 'checked' : childStates.every(state => state === 'unchecked') ? 'unchecked' : 'mixed')
 	}
-	return states
+	return { states, stats: { files, bytes } }
 }
 
 export function toggleZipSubtree(nodesById: Map<string, ZipNode>, selected: Set<string>, id: string, checked: boolean) {
@@ -183,17 +162,6 @@ export function selectedZipEntries(nodes: ZipNode[], states: Map<string, ZipSele
 	return new Set(nodes.filter(node => states.get(node.id) !== 'unchecked').map(node => node.id))
 }
 
-export function zipSelectionStats(nodes: ZipNode[], selected: Set<string>) {
-	let files = 0
-	let bytes = 0
-	for (const node of nodes) {
-		if (node.kind !== 'file' || !selected.has(node.id)) continue
-		files += 1
-		bytes += node.size
-	}
-	return { files, bytes }
-}
-
 export function suggestedZipName(name: string) {
 	const safe = name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').replace(/[. ]+$/g, '').trim() || 'archive'
 	return `${safe}.zip`
@@ -209,6 +177,7 @@ export async function writeZipArchive(options: {
 	onProgress: (progress: ZipWriteProgress) => void
 }) {
 	const { scan, selectedIds, compression, includeRoot, outputHandle, signal, onProgress } = options
+	if (scan.nodes.some(node => node.kind === 'directory' && !node.loaded && selectedIds.has(node.id))) throw new Error('仍有已选目录尚未读取完成')
 	const selectedFiles = scan.nodes.filter(node => node.kind === 'file' && selectedIds.has(node.id))
 	const totalBytes = selectedFiles.reduce((total, node) => total + node.size, 0)
 	if (scan.rootHandle) {
@@ -217,7 +186,6 @@ export async function writeZipArchive(options: {
 	}
 	const { BlobReader, ZipWriter, terminateWorkers } = await loadZipRuntime()
 	const output = await outputHandle.createWritable()
-	const outputWriter = output.getWriter()
 	const startedAt = performance.now()
 	let processedBytes = 0
 	let processedFiles = 0
@@ -231,12 +199,7 @@ export async function writeZipArchive(options: {
 	}
 
 	try {
-		const bridge = new WritableStream<Uint8Array>({
-			write: chunk => outputWriter.write(chunk),
-			close: () => outputWriter.close(),
-			abort: reason => outputWriter.abort(reason)
-		})
-		const writer = new ZipWriter(bridge, { keepOrder: true, useWebWorkers: true })
+		const writer = new ZipWriter(output, { keepOrder: true, useWebWorkers: true })
 		for (const node of scan.nodes) {
 			if (!selectedIds.has(node.id)) continue
 			assertActive(signal)
@@ -270,13 +233,90 @@ export async function writeZipArchive(options: {
 		return { outputBytes: result.size, elapsedMs: performance.now() - startedAt }
 	} catch (error) {
 		try {
-			await outputWriter.abort(error)
+			await output.abort(error)
 		} catch {
-			// The stream may already have propagated the abort.
+			// The stream may already be closed or aborted.
 		}
 		throw error
 	} finally {
 		void terminateWorkers()
+	}
+}
+
+export function preloadZipRuntime() {
+	void loadZipRuntime().catch(() => undefined)
+}
+
+async function scanDirectoryChildren(parent: ZipNode, directory: DirectoryHandle, nodes: ZipNode[], fileNodes: ZipNode[], signal: AbortSignal) {
+	assertActive(signal)
+	const entries: Array<[string, DirectoryHandle | FileSystemFileHandle]> = []
+	for await (const entry of directory.entries()) entries.push(entry)
+	entries.sort(([leftName, left], [rightName, right]) => left.kind === right.kind ? leftName.localeCompare(rightName, 'zh-CN', { numeric: true }) : left.kind === 'directory' ? -1 : 1)
+
+	for (const [name, child] of entries) {
+		assertActive(signal)
+		const childPath = `${parent.path}/${name}`
+		const suggestedExcluded = parent.suggestedExcluded || (child.kind === 'directory' && DEFAULT_EXCLUDES.has(name))
+		parent.children.push(childPath)
+		if (child.kind === 'directory') {
+			const childDirectory = createDirectoryNode(child as DirectoryHandle, parent.id, childPath, suggestedExcluded, !suggestedExcluded)
+			nodes.push(childDirectory)
+			if (childDirectory.loaded) await scanDirectoryChildren(childDirectory, child as DirectoryHandle, nodes, fileNodes, signal)
+			continue
+		}
+		const fileNode: ZipNode = {
+			id: childPath,
+			parentId: parent.id,
+			children: [],
+			name,
+			path: childPath,
+			kind: 'file',
+			size: 0,
+			lastModified: 0,
+			suggestedExcluded,
+			handle: child as FileSystemFileHandle
+		}
+		nodes.push(fileNode)
+		fileNodes.push(fileNode)
+	}
+}
+
+async function readFileMetadata(nodes: ZipNode[], signal: AbortSignal, onProgress: (files: number, bytes: number) => void) {
+	let filesRead = 0
+	let bytesRead = 0
+	let lastUpdate = 0
+	const report = (force = false) => {
+		const now = performance.now()
+		if (!force && now - lastUpdate < SCAN_PROGRESS_INTERVAL) return
+		lastUpdate = now
+		onProgress(filesRead, bytesRead)
+	}
+
+	await mapLimit(nodes, 12, async node => {
+		assertActive(signal)
+		const file = await node.handle!.getFile()
+		node.size = file.size
+		node.lastModified = file.lastModified
+		filesRead += 1
+		bytesRead += file.size
+		report()
+	})
+	report(true)
+}
+
+function createDirectoryNode(handle: DirectoryHandle, parentId: string | null, path: string, suggestedExcluded: boolean, loaded: boolean): ZipNode {
+	return {
+		id: path,
+		parentId,
+		children: [],
+		name: handle.name,
+		path,
+		kind: 'directory',
+		size: 0,
+		lastModified: 0,
+		suggestedExcluded,
+		loaded,
+		directoryHandle: handle
 	}
 }
 
@@ -290,14 +330,14 @@ async function loadZipRuntime() {
 	}
 }
 
-function buildScanResult(rootName: string, nodes: ZipNode[], rootId = rootName): ZipScanResult {
-	const files = nodes.filter(node => node.kind === 'file')
-	return {
-		rootId,
-		rootName,
-		nodes,
-		totalBytes: files.reduce((total, node) => total + node.size, 0)
+function buildScanResult(rootName: string, nodes: ZipNode[], rootId = rootName): Omit<ZipScanResult, 'rootHandle'> {
+	let totalBytes = 0
+	let unloadedDirectories = 0
+	for (const node of nodes) {
+		if (node.kind === 'file') totalBytes += node.size
+		if (node.kind === 'directory' && !node.loaded) unloadedDirectories += 1
 	}
+	return { rootId, rootName, nodes, totalBytes, unloadedDirectories }
 }
 
 function archiveEntryPath(path: string, rootName: string, includeRoot: boolean) {

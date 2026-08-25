@@ -1,0 +1,477 @@
+按“继续使用 CDN”这个前提重新检查后，我认为当前 ZIP 实现没有看到会必然导致 ZIP 损坏的核心错误，但有 2 个实际逻辑风险和 5 个比较明确的性能优化点。优先级如下。
+
+1. 需要修：默认排除规则会误伤同名普通文件
+
+现在是：
+
+```ts
+const suggestedExcluded =
+  inheritedExclude || DEFAULT_EXCLUDES.has(name)
+```
+
+而 `DEFAULT_EXCLUDES` 里有：
+
+```text
+.git
+node_modules
+dist
+build
+target
+.idea
+...
+```
+
+判断没有检查 `child.kind`。因此如果项目里存在一个普通文件：
+
+```text
+build
+target
+dist
+```
+
+它也会被默认取消勾选。比如 Unix 项目里名为 `build` 的构建脚本完全可能存在。
+
+建议改成只自动排除目录：
+
+```ts
+const suggestedExcluded =
+  inheritedExclude ||
+  (child.kind === 'directory' && DEFAULT_EXCLUDES.has(name))
+```
+
+这个属于真正的逻辑问题，我建议优先修。
+
+2. 最大性能问题：明明排除了 node_modules，扫描时仍然把它全部扫完
+
+当前流程实际是：
+
+```text
+选择项目
+ ↓
+遍历 src
+ ↓
+遍历 node_modules
+ ↓
+遍历 .git
+ ↓
+遍历 target
+ ↓
+建立全部节点
+ ↓
+再对所有文件 getFile()
+ ↓
+读取 size / lastModified
+```
+
+也就是说，“建议排除”目前只影响最终 checkbox，并不影响扫描。
+
+假设：
+
+```text
+项目本身        2,000 files
+node_modules   80,000 files
+.git           15,000 files
+```
+
+用户实际上只想压 2,000 个文件，但网页还是会处理接近 100,000 个文件。
+
+这很可能是当前最大的真实性能瓶颈，甚至比 DEFLATE 本身更明显。
+
+最好的方案是做“lazy excluded directory”：
+
+```text
+node_modules
+  已建议排除 · 尚未展开扫描
+
+用户勾选/展开
+ ↓
+此时才扫描内部
+```
+
+也就是默认排除目录先只保存：
+
+```ts
+{
+  name: 'node_modules',
+  kind: 'directory',
+  suggestedExcluded: true,
+  loaded: false
+}
+```
+
+不进去递归。
+
+这会让典型 Web 项目的“选择目录 → 出现文件树”速度提升非常明显。
+
+3. 扫描阶段存在 React 更新风暴
+
+这里：
+
+```ts
+onProgress(filesRead, bytesRead)
+```
+
+基本上每完成一个 `getFile()` 都回调一次。
+
+然后 UI：
+
+```ts
+setScanProgress({ files, bytes })
+```
+
+所以 100,000 文件理论上可能触发接近 100,000 次 state update。
+
+压缩阶段反而做对了，你已经有：
+
+```ts
+if (!force && now - lastUpdate < 120) return
+```
+
+也就是最多约 8 次/s 更新 UI。
+
+扫描阶段应该采用同样策略，例如 80~120ms 更新一次。
+
+这个修改很小，但对于数万文件目录非常值得。
+
+4. Checkbox 每点一次，目前会完整遍历文件树大约 3 次
+
+现在 `selected` 一变化，会触发：
+
+```ts
+deriveZipSelection(scan.nodes, selected)
+```
+
+完整 O(N)。
+
+然后：
+
+```ts
+selectedZipEntries(scan.nodes, selectionStates)
+```
+
+又 O(N)。
+
+再然后：
+
+```ts
+zipSelectionStats(scan.nodes, selected)
+```
+
+又 O(N)。
+
+所以一次勾选大致：
+
+```text
+100,000 nodes
+
+derive states      → 100,000
+selected entries   → 100,000
+stats              → 100,000
+
+≈ 300,000 次节点处理
+```
+
+虚拟列表只能解决 DOM 数量，解决不了这里的 JS CPU。
+
+最低成本的优化是先把：
+
+```ts
+selectedEntryIds
+```
+
+从 `useMemo` 删除。
+
+因为它实际上只有“点击开始压缩”的时候才需要。
+
+直接在：
+
+```ts
+startWriting()
+```
+
+内部计算：
+
+```ts
+const selectedEntryIds =
+  selectedZipEntries(scan.nodes, selectionStates)
+```
+
+这样普通 checkbox 操作立刻少一次全树遍历。
+
+第二步再考虑把：
+
+```text
+deriveZipSelection
+zipSelectionStats
+```
+
+合并成一次 traversal。
+
+这样从：
+
+```text
+3N
+```
+
+先降到：
+
+```text
+1N
+```
+
+已经足够明显。
+
+5. ZIP 写入目前多了一层不必要的 WritableStream bridge
+
+现在：
+
+```ts
+const output = await outputHandle.createWritable()
+const outputWriter = output.getWriter()
+
+const bridge = new WritableStream({
+  write: chunk => outputWriter.write(chunk),
+  close: () => outputWriter.close(),
+  abort: reason => outputWriter.abort(reason)
+})
+
+const writer = new ZipWriter(bridge, ...)
+```
+
+实际上 zip.js 官方直接支持：
+
+```ts
+new ZipWriter(writableStream)
+```
+
+官方示例就是把 WritableStream 直接传给 `ZipWriter`。([Gildas Lormeau][1])
+
+因此理论上可以直接：
+
+```ts
+const output = await outputHandle.createWritable()
+
+const writer = new ZipWriter(output, {
+  keepOrder: true,
+  useWebWorkers: true
+})
+```
+
+这可以去掉：
+
+```text
+zip.js
+ ↓
+bridge WritableStream
+ ↓
+write callback
+ ↓
+outputWriter.write
+ ↓
+FileSystemWritableFileStream
+```
+
+变成：
+
+```text
+zip.js
+ ↓
+FileSystemWritableFileStream
+```
+
+对于大 ZIP，这不是完全无意义的微优化。zip.js 默认 chunk 大小是 64 KiB；几十 GB 数据意味着可能存在几十万次 stream chunk 操作，少一层 JS Promise/write 转发是有价值的。([Gildas Lormeau][2])
+
+而且代码也会简单很多。
+
+6. 压缩阶段现在实际上没有利用“多文件并行”
+
+当前：
+
+```ts
+for (const node of scan.nodes) {
+    ...
+    await writer.add(...)
+}
+```
+
+所以是：
+
+```text
+file A 完成
+ ↓
+file B 完成
+ ↓
+file C 完成
+```
+
+zip.js 官方支持：
+
+```ts
+await Promise.all([
+  writer.add(...),
+  writer.add(...)
+])
+```
+
+进行多个 entry 并发压缩。([Gildas Lormeau][1])
+
+但是这里不能简单改成：
+
+```ts
+Promise.all(所有文件)
+```
+
+因为 zip.js 官方明确说明：多个 entry 并行时会自动启用 `bufferedWrite`，默认临时数据会进入内存缓冲。([Gildas Lormeau][3])
+
+所以我建议采用混合策略：
+
+```text
+小文件
+< 16~32 MB
+→ 最多 4 个并行
+
+中大文件
+→ 1~2 个
+
+超大文件
+→ 串行
+```
+
+或者后面正式接 OPFS：
+
+```text
+4 个 entry 并行
+       ↓
+zip.js worker
+       ↓
+OPFS temp
+       ↓
+最终 ZIP
+```
+
+优先级上，我反而不建议现在立刻上 OPFS。
+
+应该先完成：
+
+```text
+扫描优化
+→ UI O(N) 优化
+→ stream bridge 删除
+→ benchmark
+→ 再决定是否需要并行
+```
+
+因为对于大量源码小文件，前面的扫描和 UI 很可能才是现在的瓶颈。
+
+7. CDN 方案还有一个很容易做的“感知性能”优化
+
+当前 zip.js 是到真正点击压缩后才：
+
+```ts
+await loadZipRuntime()
+```
+
+然后才：
+
+```ts
+import(
+  'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.59/index-native.min.js'
+)
+```
+
+这意味着：
+
+```text
+用户选择保存位置
+ ↓
+点击压缩
+ ↓
+等待 CDN
+ ↓
+解析 JS
+ ↓
+开始压缩
+```
+
+可以在目录扫描完成后立即后台预热：
+
+```ts
+void preloadZipRuntime()
+```
+
+变成：
+
+```text
+用户选择文件
+ ↓
+浏览文件树 / 配置压缩参数
+ │
+ └── 同时 CDN 下载 zip.js
+ ↓
+点击压缩
+ ↓
+几乎立即开始
+```
+
+不改变 CDN 架构，也不会增加首屏 bundle。
+
+这很适合你们现在的模式。
+
+另外一个结论：`BlobReader(file)` 不需要改。
+
+我专门核对了你们固定版本 `v2.8.59` 的 zip.js 实现。`BlobReader.createReadable()` 在读取完整 Blob/File 时本身直接调用：
+
+```ts
+sourceBlob.stream()
+```
+
+所以当前：
+
+```ts
+new BlobReader(file)
+```
+
+本质上已经走原生 `File/Blob.stream()`，不存在“先整个读进内存”的问题。
+
+这部分保持不动即可。
+
+还有一个你们已经选对的地方是默认 `智能打包 = level 6`。
+
+zip.js 官方说明只有压缩等级 `6` 可以直接使用浏览器原生 `CompressionStream`；其他自定义等级比如 `9` 会切换到内置 Deflate 实现。([Gildas Lormeau][3])
+
+所以现在：
+
+```text
+智能打包 level 6
+```
+
+实际上就是性能非常好的默认路径。
+
+而：
+
+```text
+最大压缩 level 9
+```
+
+CPU 明显变高是正常现象，不需要优化成 9 默认。
+
+我会按这个顺序改：
+
+| 优先级 | 修改                                 | 预期收益              |
+| --- | ---------------------------------- | ----------------- |
+| P0  | 排除规则只匹配目录                          | 修真实逻辑错误           |
+| P0  | 默认排除目录不递归扫描，改 lazy                 | 极大改善大项目扫描         |
+| P1  | 扫描进度 100ms 节流                      | 明显减少 React 开销     |
+| P1  | Checkbox 从 3 次 O(N) 降到 1 次         | 明显改善大树操作          |
+| P1  | 直接把 `createWritable()` 给 ZipWriter | 降低大 ZIP stream 开销 |
+| P1  | 提前 CDN preload                     | 降低点击压缩后的等待        |
+| P2  | 小文件 2~4 entry 并行                   | 提高 CPU 利用率        |
+| P2  | OPFS temp + 有限并行                   | 面向几十 GB / 多核场景    |
+
+还有一个工程风险：当前 `package.json` 只有 `test:codex-session`，没有 ZIP 专项测试。也就是说 Vercel 构建成功只能说明 TypeScript/Next 构建没炸，不能证明目录选择、取消、Zip64、输出覆盖这些浏览器运行时路径正确。
+
+如果只让我挑最值得马上做的三个，我会选：**lazy 跳过 `node_modules/.git` 扫描、Checkbox 3N→1N、删除 WritableStream bridge**。这三个基本不改变产品行为，风险低，收益最大。
+
+[1]: https://gildas-lormeau.github.io/zip.js/api/index.html "@zip.js/zip.js"
+[2]: https://gildas-lormeau.github.io/zip.js/api/interfaces/Configuration.html?utm_source=chatgpt.com "Configuration | @zip.js/zip.js"
+[3]: https://gildas-lormeau.github.io/zip.js/api/interfaces/ZipWriterAddDataOptions.html?utm_source=chatgpt.com "ZipWriterAddDataOptions | @zip.js/zip.js"

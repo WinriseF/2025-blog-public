@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "id": "DOCIN-20260825-002",
+  "type": "intake-chunks",
+  "title": "ZIP Packer Follow-up Review",
+  "created": "2026-08-25T18:26:43+08:00",
+  "source": {
+    "path": "C:/Users/Flynn/.codex/attachments/57cc98fa-83e2-44c2-a420-2651ca112a0d/pasted-text.txt",
+    "filename": "pasted-text.txt",
+    "sha256": "39389e62962abeb6683aadd8532a9a42cd3dec708b339c9feec7780735210fcf"
+  },
+  "chunking": {
+    "max_words": 350,
+    "text_storage": "external-chunk-files",
+    "chunk_directory": "chunks/",
+    "inline_text": false,
+    "signals_file": null,
+    "note": "No separate signals.json is generated in V1. Lightweight extraction hints are stored per chunk. Full chunk text is always stored in chunks/ to avoid token-heavy manifests."
+  },
+  "chunks": [
+    {
+      "id": "DOCIN-20260825-002-CH-001",
+      "sequence": 1,
+      "heading": null,
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2852,
+      "hints": [],
+      "text_path": "chunks/CH-001.md",
+      "preview": "按“继续使用 CDN”这个前提重新检查后，我认为当前 ZIP 实现没有看到会必然导致 ZIP 损坏的核心错误，但有 2 个实际逻辑风险和 5 个比较明确的性能优化点。优先级如下。 1. 需要修：默认排除规则会误伤同名普通文件 现在是： ```ts const suggestedExcluded = inheritedExclude || DEFAULT_EXCLUDES.has(name) ``` 而 `DEFAULT_EXCLUDES` 里有： ```text .git node_modules dist build target .idea ......"
+    },
+    {
+      "id": "DOCIN-20260825-002-CH-002",
+      "sequence": 2,
+      "heading": null,
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2305,
+      "hints": [
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-002.md",
+      "preview": "}) ``` 这可以去掉： ```text zip.js ↓ bridge WritableStream ↓ write callback ↓ outputWriter.write ↓ FileSystemWritableFileStream ``` 变成： ```text zip.js ↓ FileSystemWritableFileStream ``` 对于大 ZIP，这不是完全无意义的微优化。zip.js 默认 chunk 大小是 64 KiB；几十 GB 数据意味着可能存在几十万次 stream chunk 操作，少一层 JS Promise/..."
+    },
+    {
+      "id": "DOCIN-20260825-002-CH-003",
+      "sequence": 3,
+      "heading": null,
+      "page_start": null,
+      "page_end": null,
+      "word_count": 41,
+      "char_count": 663,
+      "hints": [
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-003.md",
+      "preview": "| OPFS temp + 有限并行 | 面向几十 GB / 多核场景 | 还有一个工程风险：当前 `package.json` 只有 `test:codex-session`，没有 ZIP 专项测试。也就是说 Vercel 构建成功只能说明 TypeScript/Next 构建没炸，不能证明目录选择、取消、Zip64、输出覆盖这些浏览器运行时路径正确。 如果只让我挑最值得马上做的三个，我会选：**lazy 跳过 `node_modules/.git` 扫描、Checkbox 3N→1N、删除 WritableStream bridge**。这三个基本..."
+    }
+  ]
+}
