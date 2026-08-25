@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
+import { ArrowUpRight, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
@@ -19,6 +19,13 @@ const tools = [
 		desc: '图片 / 视频本地压缩',
 		tone: 'from-teal-400/20 via-cyan-300/10 to-transparent',
 		icon: ImageIcon
+	},
+	{
+		href: '/toolbox/zip',
+		label: 'ZIP 打包',
+		desc: '目录筛选 / 本地流式打包',
+		tone: 'from-amber-400/20 via-orange-300/10 to-transparent',
+		icon: FileArchive
 	},
 	{
 		href: '/toolbox/markdown',

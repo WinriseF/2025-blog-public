@@ -1,0 +1,16 @@
+version: 1
+id: "DOCIN-20260825-001"
+type: intake-document
+status: integrated
+title: "Browser ZIP Compression Deep Research"
+created: "2026-08-25T15:48:12+08:00"
+updated: "2026-08-25T16:05:00+08:00"
+source_path: "C:/Users/Flynn/Desktop/deep-research-report.md"
+source_filename: "deep-research-report.md"
+source_sha256: "e6d6bc8d7c61eba728dc4e2ad8a4774c6cf07517f615e29dffb70e8fd5c788b3"
+immutable_source: true
+file_type: "md"
+copied_source_path: null
+word_count: 3746
+chunk_count: 11
+confidence: confirmed

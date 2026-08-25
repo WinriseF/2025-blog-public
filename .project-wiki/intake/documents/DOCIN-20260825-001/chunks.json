@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "id": "DOCIN-20260825-001",
+  "type": "intake-chunks",
+  "title": "Browser ZIP Compression Deep Research",
+  "created": "2026-08-25T15:48:12+08:00",
+  "source": {
+    "path": "C:/Users/Flynn/Desktop/deep-research-report.md",
+    "filename": "deep-research-report.md",
+    "sha256": "e6d6bc8d7c61eba728dc4e2ad8a4774c6cf07517f615e29dffb70e8fd5c788b3"
+  },
+  "chunking": {
+    "max_words": 350,
+    "text_storage": "external-chunk-files",
+    "chunk_directory": "chunks/",
+    "inline_text": false,
+    "signals_file": null,
+    "note": "No separate signals.json is generated in V1. Lightweight extraction hints are stored per chunk. Full chunk text is always stored in chunks/ to avoid token-heavy manifests."
+  },
+  "chunks": [
+    {
+      "id": "DOCIN-20260825-001-CH-001",
+      "sequence": 1,
+      "heading": "浏览器端 ZIP 压缩项目深度技术调研：源码、流式架构、浏览器兼容与生产方案",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 3434,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-001.md",
+      "preview": "# 浏览器端 ZIP 压缩项目深度技术调研：源码、流式架构、浏览器兼容与生产方案 ## 执行摘要 这次调研的结论很明确：**如果目标是做一个“像 Bandizip，但压缩前可以递归展开目录、父子级复选/半选，并且几十 GB 文件不整体进内存”的纯浏览器工具，核心库首选 `zip.js`；文件系统访问采用 File System Access API 渐进增强；保存端优先 `showSaveFilePicker() → createWritable()`；并行压缩时显式配置 OPFS 临时流；Firefox/旧浏览器则退化为 `webkitdirecto..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-002",
+      "sequence": 2,
+      "heading": "本次实际执行环境",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 3490,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-002.md",
+      "preview": "\"showOpenFilePicker\": false, \"showSaveFilePicker\": false, \"fileStream\": true, \"readableStream\": true, \"writableStream\": true, \"transformStream\": true, \"compressionStream\": true, \"opfs\": false } ``` 这个结果**不能用来判断 Chromium 144 不支持 File System Access API**，因为这些 picker 本身要求安全上下文，而且 `..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-003",
+      "sequence": 3,
+      "heading": "各项目构建方式",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 1820,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-003.md",
+      "preview": "build cd ../fflate npm ci npm run build npm test cd ../client-zip npm ci npm run start npm test ``` ## 项目能力对比与 Demo 源码分析 ### 功能总表 符号说明： `D` = `showDirectoryPicker()`；`WD` = `<input webkitdirectory>`；`FS` = `File/Blob.stream()`；`CW` = `FileSystemFileHandle.createWritable()`；`WS`..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-004",
+      "sequence": 4,
+      "heading": "zip.js 的流式和 OPFS 机制值得重点理解",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 3314,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-004.md",
+      "preview": "zip.js 的流式和 OPFS 机制值得重点理解 普通串行模式下，可以直接： ```text File.stream() ↓ Deflate Worker ↓ ZipWriter ↓ FileSystemWritableFileStream ↓ 硬盘 xxx.zip ``` 这条路径不要求把整个 ZIP 放 RAM。官方示例本身就展示了 `Blob.stream() → ZipWriter` 的 Web Streams 写法，而 `ZipWriter` 也可以直接接受 WritableStream。citeturn13search6turn13..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-005",
+      "sequence": 5,
+      "heading": "实际 hands-on 测试结果",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2153,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-005.md",
+      "preview": "2 GB / 50 GB ``` **没有获得可用数值。** 当前实际状态是： | 浏览器 | 启动 | 本地 Demo | File System picker 实测 | ZIP 项目 benchmark | |---|---:|---:|---:|---:| | Chromium 144 | ✓ | ❌ localhost 被策略拦截 | ❌ 无法进入安全交互页面 | ❌ | | Edge | ❌ 未安装 | — | — | — | | Firefox | ❌ 未安装 | — | — | — | 因此以下四类数字本报告刻意不伪造： ```text..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-006",
+      "sequence": 6,
+      "heading": "真正应该怎么跑 50 MB / 2 GB / 50 GB",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2746,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-006.md",
+      "preview": "time output bytes browser process-tree peak RSS average / peak CPU worker count OPFS usage 最终 ZIP size compression ratio ``` 跨浏览器 RAM 最稳妥的比较方法不是只看 `performance.memory`，而是在一个干净 profile 中由外部 harness 统计浏览器根进程及其整个子进程树 RSS；否则 Chromium 的 renderer/utility/worker 多进程模型和 Firefox 进程模型很容易造..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-007",
+      "sequence": 7,
+      "heading": "Tree UI 应该成为产品核心能力",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2689,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-007.md",
+      "preview": "MB │ ├─ ☑ src │ ├─ ☐ target 298 MB │ └─ ☑ pom.xml │ ├─ ☐ .git 174 MB └─ ☑ README.md 已选择 437 files 将压缩 42.8 MB 已排除 2.38 GB [恢复建议排除] [开始压缩] ``` Tree 应有四个独立状态： ```ts type CheckState = | \"checked\" | \"unchecked\" | \"mixed\" | \"excluded\"; ``` 其中 `excluded` 和 `unchecked` 最好视觉上分开： ```text..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-008",
+      "sequence": 8,
+      "heading": "目录权限与递归遍历",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2727,
+      "hints": [
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-008.md",
+      "preview": "name; if (handle.kind === \"directory\") { nodes.push({ id: path, name, path, kind: \"directory\", handle, // 可改成 lazy loading；此处为了演示递归。 children: await walkDirectory(handle, path), }); } else { // 注意：这里若立刻 getFile() 会产生大量 metadata I/O。 nodes.push({ id: path, name, path, kind: \"file..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-009",
+      "sequence": 9,
+      "heading": "zip.js + WritableStream + OPFS",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2731,
+      "hints": [
+        "requirement-language",
+        "security-or-compliance",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-009.md",
+      "preview": "// 不要毫无限制 Promise.all 10 万个文件。 const pool = new TaskPool(4); await Promise.all( files.map((item) => pool.run(async () => { if (signal.aborted) { throw new DOMException(\"Cancelled\", \"AbortError\"); } const file = await item.handle.getFile(); let previous = 0; await writer.add( ite..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-010",
+      "sequence": 10,
+      "heading": "取消、错误和“恢复”",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 350,
+      "char_count": 2632,
+      "hints": [
+        "actor-mentioned",
+        "security-or-compliance"
+      ],
+      "text_path": "chunks/CH-010.md",
+      "preview": "以后若确实要做“跨刷新续写 ZIP”，再针对 zip.js 当前 append/offset 能力单独设计 archive journal，而不要和第一版低 RAM 流式写混在一起。 ### 进度展示 建议同时展示： ```text 正在压缩 backend/src/service/order.ts ████████████████░░░░ 78% 已处理 18.4 GB / 23.5 GB 文件 12,842 / 18,302 当前速度 164 MB/s 已用时间 01:48 预计剩余 00:31 [取消] ``` 速度用滑动窗口，不要： ```ts..."
+    },
+    {
+      "id": "DOCIN-20260825-001-CH-011",
+      "sequence": 11,
+      "heading": "压缩模式可以比 Bandizip 更聪明",
+      "page_start": null,
+      "page_end": null,
+      "word_count": 246,
+      "char_count": 2028,
+      "hints": [
+        "actor-mentioned",
+        "data-or-integration"
+      ],
+      "text_path": "chunks/CH-011.md",
+      "preview": "ZIP 容器实现：zip.js 智能模式： compressionMethod = STORE / DEFLATE 而不是： DEFLATE 用 zip.js STORE 又切 client-zip ``` client-zip 更适合作为性能 benchmark 和应急轻量实现，而不是第一版额外增加一套 archive state machine。 ### 加密选项 zip.js 支持 WinZIP AES 和 ZipCrypto，其中官方自己明确不建议 ZipCrypto，因为它容易被破解；生产 UI 应默认 AES，不要因为“兼容老软件”就默认..."
+    }
+  ]
+}
