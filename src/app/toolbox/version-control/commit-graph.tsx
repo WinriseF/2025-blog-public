@@ -263,7 +263,19 @@ const CommitRowGraph = memo(function CommitRowGraph({ row, selected, compare }: 
 	)
 })
 
-export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; onModeChange: (mode: RepositoryViewMode) => void }) {
+export function CommitGraph({
+	mode,
+	onModeChange,
+	onOpenSelection,
+	comparisonPicking,
+	onCancelComparison
+}: {
+	mode: RepositoryViewMode
+	onModeChange: (mode: RepositoryViewMode) => void
+	onOpenSelection: () => void
+	comparisonPicking: boolean
+	onCancelComparison: () => void
+}) {
 	const commits = useVersionControlStore(state => state.commits)
 	const overview = useVersionControlStore(state => state.overview)
 	const search = useVersionControlStore(state => state.search)
@@ -345,7 +357,16 @@ export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; 
 		if (element.scrollTop + element.clientHeight >= element.scrollHeight - ROW_HEIGHT * 8 && hasMore && !loading && commits.length > 0) void loadMore()
 	}, [commits.length, hasMore, loadMore, loading])
 
-	const select = useCallback((item: VersionSelection) => void selectVersion(item), [selectVersion])
+	const select = useCallback(
+		(item: VersionSelection) => {
+			if (comparisonPicking) {
+				if (sameSelection(selection, item)) return
+				void compareWith(item)
+			} else void selectVersion(item)
+			onOpenSelection()
+		},
+		[compareWith, comparisonPicking, onOpenSelection, selectVersion, selection]
+	)
 	const compare = useCallback(
 		(event: React.MouseEvent, item: VersionSelection) => {
 			event.preventDefault()
@@ -386,6 +407,14 @@ export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; 
 				placeholder={overview?.repositoryKind === 'svn' ? '消息、作者、revision' : '消息、作者、hash、ref'}
 				overview={overview}
 			/>
+			{comparisonPicking && (
+				<div className='border-brand/25 bg-brand/8 text-secondary hidden min-h-11 shrink-0 items-center gap-2 border-b px-3 text-xs max-lg:flex'>
+					<span className='min-w-0 flex-1 truncate'>选择另一个版本进行比较</span>
+					<button type='button' onClick={onCancelComparison} className='border-border bg-background/60 text-primary h-8 shrink-0 rounded-md border px-3 text-[11px]'>
+						取消
+					</button>
+				</div>
+			)}
 
 			<div ref={scrollRef} onScroll={handleScroll} className='relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto'>
 				{overview?.repositoryKind === 'svn' && !overview.svn?.historyConnected ? (
@@ -440,13 +469,20 @@ export function CommitGraph({ mode, onModeChange }: { mode: RepositoryViewMode; 
 					</div>
 				)}
 			</div>
-			<footer className='border-border text-secondary flex h-7 shrink-0 items-center border-t px-3 text-[10px]'>
+			<footer className='border-border text-secondary flex h-7 shrink-0 items-center border-t px-3 text-[10px] max-lg:h-[calc(2.25rem+env(safe-area-inset-bottom))] max-lg:pb-[env(safe-area-inset-bottom)]'>
 				<GitCommitHorizontal size={11} className='mr-1.5' />
-				{commits.length} 条已载入<span className='ml-auto'>右键比较</span>
+				{commits.length} 条已载入
+				<span className='ml-auto hidden lg:inline'>右键比较</span>
+				<span className='ml-auto lg:hidden'>点按查看</span>
 			</footer>
 			<CommitHoverCard anchorRect={hoverAnchor} commit={hoveredCommit} onMouseEnter={keepOpen} onMouseLeave={scheduleClose} />
 		</aside>
 	)
+}
+
+function sameSelection(left: VersionSelection | null, right: VersionSelection) {
+	if (!left || left.kind !== right.kind) return false
+	return left.kind === 'working-tree' || (right.kind === 'commit' && left.commit.hash === right.commit.hash)
 }
 
 function PanelState({ children }: { children: React.ReactNode }) {

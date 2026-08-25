@@ -3,7 +3,7 @@
 import { File as PierreFile, Virtualizer } from '@pierre/diffs/react'
 import type { FileContents } from '@pierre/diffs'
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import { useVersionControlStore } from '@/lib/version-control/store'
 import type { RepositoryFileContent, RepositoryTreeEntry } from '@/lib/version-control/types'
@@ -17,7 +17,7 @@ type FileState =
 	| { status: 'unavailable'; message: string }
 	| { status: 'error'; message: string }
 
-export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | null }) {
+export function RepositoryFileViewer({ entry, onMobileBack }: { entry: RepositoryTreeEntry | null; onMobileBack: () => void }) {
 	const repository = useVersionControlStore(state => state.repository)
 	const overview = useVersionControlStore(state => state.overview)
 	const { theme: siteTheme } = useTimeTheme()
@@ -122,7 +122,10 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 
 	return (
 		<section style={themeStyle} className='flex h-full min-w-0 flex-col overflow-hidden [background-color:var(--diff-background)] [color:var(--diff-foreground)]'>
-			<header className='flex h-12 shrink-0 items-center gap-2 border-b px-4 [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
+			<header className='flex h-12 shrink-0 items-center gap-2 border-b px-4 max-lg:px-2 [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
+				<button type='button' onClick={onMobileBack} aria-label='返回文件树' className='border-border flex size-9 shrink-0 items-center justify-center rounded-md border [color:var(--diff-muted)] lg:hidden'>
+					<ArrowLeft size={16} />
+				</button>
 				<FileCode2 size={15} className='text-brand shrink-0' />
 				<span title={entry.path} className='min-w-0 flex-1 truncate font-mono text-xs'>{entry.path}</span>
 				<span className='shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>{sourceLabel}</span>
@@ -137,7 +140,7 @@ export function RepositoryFileViewer({ entry }: { entry: RepositoryTreeEntry | n
 								})
 							}}
 							title='复制文件'
-							className='flex size-7 shrink-0 items-center justify-center rounded-md transition [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'>
+							className='flex size-7 shrink-0 items-center justify-center rounded-md transition max-lg:size-9 [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'>
 							{copied ? <Check size={13} className='text-emerald-400' /> : <Clipboard size={13} />}
 						</button>
 					</>

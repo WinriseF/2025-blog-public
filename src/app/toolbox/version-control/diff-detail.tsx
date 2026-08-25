@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, ArrowRight, ChevronDown, ChevronRight, ChevronUp, FileCode, FileDown, FileImage, Folder, FolderOpen, Shuffle } from 'lucide-react'
+import { AlertOctagon, ArrowLeft, ArrowRight, ChevronDown, ChevronRight, ChevronUp, FileCode, FileDown, FileImage, Folder, FolderOpen, GitCompareArrows, Shuffle, X } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useVersionControlStore, type VersionSelection } from '@/lib/version-control/store'
 import type { DiffFile, RepositoryKind, WorkingTreeGroup } from '@/lib/version-control/types'
@@ -19,10 +19,11 @@ const groups: Array<{ value: WorkingTreeGroup; label: string }> = [
 type StatusFilter = 'A' | 'M' | 'D' | 'R' | 'C' | 'U' | '!' | '~'
 const defaultStatusFilters = new Set<StatusFilter>(['A', 'M', 'D', 'R', 'C', 'U', '!', '~'])
 
-export function DiffDetail() {
+export function DiffDetail({ onMobileBack, onMobileCompare }: { onMobileBack: () => void; onMobileCompare: () => void }) {
 	const overview = useVersionControlStore(state => state.overview)
 	const selection = useVersionControlStore(state => state.selection)
 	const comparison = useVersionControlStore(state => state.comparison)
+	const clearComparison = useVersionControlStore(state => state.clearComparison)
 	const group = useVersionControlStore(state => state.group)
 	const setGroup = useVersionControlStore(state => state.setGroup)
 	const diff = useVersionControlStore(state => state.diff)
@@ -98,10 +99,26 @@ export function DiffDetail() {
 
 	return (
 		<section className='bg-background flex h-full min-w-0 flex-col overflow-hidden'>
-			<header className='border-border border-b px-4 py-3'>
-				<Header selection={selection} comparison={comparison} repositoryName={overview?.displayName || ''} />
+			<header className='border-border border-b px-4 py-3 max-lg:px-2'>
+				<div className='flex min-w-0 items-start gap-2'>
+					<button type='button' onClick={onMobileBack} className='border-border text-secondary flex h-9 shrink-0 items-center gap-1 rounded-md border px-2 text-xs lg:hidden' aria-label='返回历史列表'>
+						<ArrowLeft size={15} /> 历史
+					</button>
+					<div className='min-w-0 flex-1'>
+						<Header selection={selection} comparison={comparison} repositoryName={overview?.displayName || ''} />
+					</div>
+					{comparison ? (
+						<button type='button' onClick={() => void clearComparison()} className='border-border text-secondary hidden h-9 shrink-0 items-center gap-1 rounded-md border px-2 text-xs max-lg:flex'>
+							<X size={14} /> 结束
+						</button>
+					) : selection ? (
+						<button type='button' onClick={onMobileCompare} className='border-border text-secondary hidden h-9 shrink-0 items-center gap-1 rounded-md border px-2 text-xs max-lg:flex'>
+							<GitCompareArrows size={14} /> 比较
+						</button>
+					) : null}
+				</div>
 			</header>
-			<div className='border-border bg-article/45 flex flex-wrap items-center gap-1.5 border-b px-3 py-1.5'>
+			<div className='border-border bg-article/45 flex flex-wrap items-center gap-1.5 border-b px-3 py-1.5 max-lg:gap-2 max-lg:px-2 max-lg:py-2'>
 				<span className='text-secondary mr-auto text-[10px]'>
 					{loading
 						? '读取中…'
@@ -129,7 +146,7 @@ export function DiffDetail() {
 					onClick={toggleAllFolders}
 					disabled={!folderPaths.length}
 					title={allFoldersExpanded ? '收起全部文件夹' : '展开全部文件夹'}
-					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
+					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40 max-lg:min-h-8'>
 					{allFoldersExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
 					{allFoldersExpanded ? '收起' : '展开'}
 				</button>
@@ -137,7 +154,7 @@ export function DiffDetail() {
 					onClick={() => invertFiles(invertibleFileIds)}
 					disabled={!invertibleFileIds.length}
 					title='反选当前筛选结果'
-					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
+					className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40 max-lg:min-h-8'>
 					<Shuffle size={12} />
 					反选
 				</button>
@@ -145,19 +162,19 @@ export function DiffDetail() {
 					<button
 						onClick={() => setExportOpen(true)}
 						disabled={!selectedIds.size}
-						className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40'>
+						className='text-secondary hover:bg-article hover:text-primary flex items-center gap-1 rounded px-2 py-1 text-[10px] transition disabled:opacity-40 max-lg:min-h-8'>
 						<FileDown size={12} />
 						导出 {selectedIds.size}
 					</button>
 				)}
 			</div>
 			{selection?.kind === 'working-tree' && !comparison && (
-				<nav className='border-border flex gap-1 border-b px-3 py-1.5'>
+				<nav className='border-border flex shrink-0 gap-1 overflow-x-auto border-b px-3 py-1.5'>
 					{availableGroups.map(item => (
 						<button
 							key={item.value}
 							onClick={() => void setGroup(item.value)}
-							className={`rounded px-2.5 py-1 text-[11px] ${group === item.value ? 'bg-brand/12 text-brand font-medium' : 'text-secondary hover:bg-article hover:text-primary'}`}>
+							className={`shrink-0 rounded px-2.5 py-1 text-[11px] max-lg:min-h-8 ${group === item.value ? 'bg-brand/12 text-brand font-medium' : 'text-secondary hover:bg-article hover:text-primary'}`}>
 							{item.label}
 						</button>
 					))}
@@ -290,7 +307,7 @@ function StatusFilterPill({
 			aria-pressed={active}
 			title={`${active ? '隐藏' : '显示'} ${status} 状态文件`}
 			onClick={() => onToggle(status)}
-			className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition ${active ? statusTones[status] : 'border-border text-secondary/45 hover:text-secondary bg-transparent'}`}>
+			className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition max-lg:min-h-7 ${active ? statusTones[status] : 'border-border text-secondary/45 hover:text-secondary bg-transparent'}`}>
 			{status} {count}
 		</button>
 	)
@@ -363,7 +380,7 @@ function TreeNode({
 				<div
 					title={node.path}
 					onClick={() => toggleFolder(node.path)}
-					className='hover:bg-article/75 group flex w-full cursor-pointer items-center py-1 pr-2 text-sm opacity-70 transition hover:opacity-100'
+					className='hover:bg-article/75 group flex min-h-7 w-full cursor-pointer items-center py-1 pr-2 text-sm opacity-70 transition hover:opacity-100 max-lg:min-h-11'
 					style={{ paddingLeft: indent }}>
 					<input
 						ref={element => {
@@ -411,7 +428,7 @@ function TreeNode({
 		<div
 			title={file.path}
 			onClick={() => canOpen && openFile(file)}
-			className={`group flex w-full items-start py-1 pr-2 text-sm transition ${canOpen ? 'cursor-pointer' : 'cursor-default'} ${activeFileId === file.fileId ? 'bg-brand/10' : 'hover:bg-article/75'} ${disabled ? 'opacity-35' : 'opacity-70 hover:opacity-100'}`}
+			className={`group flex min-h-7 w-full items-start py-1 pr-2 text-sm transition max-lg:min-h-11 max-lg:items-center ${canOpen ? 'cursor-pointer' : 'cursor-default'} ${activeFileId === file.fileId ? 'bg-brand/10' : 'hover:bg-article/75'} ${disabled ? 'opacity-35' : 'opacity-70 hover:opacity-100'}`}
 			style={{ paddingLeft: indent }}>
 			<span className='size-5 shrink-0' />
 			<button

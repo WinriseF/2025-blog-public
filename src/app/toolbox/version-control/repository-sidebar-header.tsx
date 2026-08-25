@@ -36,7 +36,7 @@ export function RepositorySidebarHeader({
 					value={query}
 					onChange={event => onQueryChange(event.target.value)}
 					placeholder={placeholder}
-					className='border-border bg-article/55 placeholder:text-secondary/60 focus:ring-brand/20 h-8 w-full rounded-lg border pr-9 pl-8 text-xs outline-none focus:ring-2'
+					className='border-border bg-article/55 placeholder:text-secondary/60 focus:ring-brand/20 h-8 w-full rounded-lg border pr-9 pl-8 text-xs outline-none focus:ring-2 max-lg:h-10'
 				/>
 				{query && (
 					<button onClick={() => onQueryChange('')} aria-label='清空搜索' className='text-secondary hover:text-primary absolute top-1/2 right-2 -translate-y-1/2 rounded p-1'>
@@ -50,7 +50,7 @@ export function RepositorySidebarHeader({
 
 function BranchLabel({ overview }: { overview: RepositoryOverview | null }) {
 	return (
-		<div title={branchLabel(overview)} className='border-border bg-article/45 text-secondary flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2'>
+		<div title={branchLabel(overview)} className='border-border bg-article/45 text-secondary flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2 max-lg:h-9'>
 			{overview?.repositoryKind === 'svn' ? <Server size={11} className='shrink-0 text-orange-300' /> : <GitBranch size={11} className='text-brand shrink-0' />}
 			<span className='truncate font-mono text-[10px]'>{branchLabel(overview)}</span>
 		</div>
@@ -63,7 +63,7 @@ function ModeButton({ active, label, icon, onClick }: { active: boolean; label: 
 			type='button'
 			aria-pressed={active}
 			onClick={onClick}
-			className={`flex h-6 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition ${active ? 'bg-background text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}>
+			className={`flex h-6 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition max-lg:h-8 max-lg:px-3 ${active ? 'bg-background text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}>
 			{icon}
 			{label}
 		</button>

@@ -18,12 +18,12 @@ export function RepositoryBranchFilter() {
 		<details onToggle={event => event.currentTarget.open && void load()} className='group relative min-w-0 flex-1'>
 			<summary
 				aria-label='筛选提交分支'
-				className='border-border bg-article/45 text-secondary hover:text-primary flex h-7 cursor-pointer list-none items-center gap-1.5 rounded-lg border px-2 [&::-webkit-details-marker]:hidden'>
+				className='border-border bg-article/45 text-secondary hover:text-primary flex h-7 cursor-pointer list-none items-center gap-1.5 rounded-lg border px-2 max-lg:h-9 [&::-webkit-details-marker]:hidden'>
 				<GitBranch size={11} className='text-brand shrink-0' />
 				<span className='min-w-0 flex-1 truncate font-mono text-[10px]'>{filterLabel(branches, selected)}</span>
 				<ChevronDown size={11} className='shrink-0 transition-transform group-open:rotate-180' />
 			</summary>
-			<div className='border-border bg-bg absolute top-8 right-0 z-40 max-h-72 w-full min-w-56 overflow-y-auto overscroll-contain rounded-lg border p-1 shadow-2xl'>
+			<div className='border-border bg-bg absolute top-8 right-0 z-40 max-h-72 w-full min-w-56 overflow-y-auto overscroll-contain rounded-lg border p-1 shadow-2xl max-lg:top-10'>
 				<BranchOption label='全部分支' checked={!selected.length} onChange={() => setFilter([])} />
 				{loading ? (
 					<div className='text-secondary flex h-16 items-center justify-center gap-2 text-[10px]'>
@@ -74,7 +74,7 @@ function BranchGroup({
 
 function BranchOption({ label, checked, current, onChange }: { label: string; checked: boolean; current?: boolean; onChange: () => void }) {
 	return (
-		<label title={label} className='hover:bg-article flex h-7 min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 text-[10px]'>
+		<label title={label} className='hover:bg-article flex h-7 min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 text-[10px] max-lg:h-10'>
 			<input type='checkbox' checked={checked} onChange={onChange} className='accent-brand size-3 shrink-0' />
 			<span className='min-w-0 flex-1 truncate font-mono'>{label}</span>
 			{current && <span className='text-brand shrink-0 text-[9px]'>当前</span>}

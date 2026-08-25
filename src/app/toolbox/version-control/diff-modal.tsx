@@ -80,6 +80,9 @@ export function DiffModal() {
 	useEffect(() => {
 		if (defaultToPatch) setChangesOnly(true)
 	}, [activeFile?.fileId, defaultToPatch])
+	useEffect(() => {
+		if (activeFile && window.matchMedia('(max-width: 1023px)').matches) setSideBySide(false)
+	}, [activeFile])
 
 	useEffect(() => {
 		const current = ++request.current
@@ -146,17 +149,18 @@ export function DiffModal() {
 	}
 
 	return (
-		<div className='fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-5' onMouseDown={event => event.target === event.currentTarget && close(null)}>
+		<div className='fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-0 lg:p-5' onMouseDown={event => event.target === event.currentTarget && close(null)}>
 			<section
 				role='dialog'
 				aria-modal='true'
 				aria-label='文件差异'
 				style={themeStyle}
-				className='flex h-[min(900px,94dvh)] w-[min(1500px,96vw)] flex-col overflow-hidden rounded-xl border shadow-2xl transition-colors [background-color:var(--diff-background)] [border-color:var(--diff-border)] [color:var(--diff-foreground)]'>
-				<header className='flex min-h-12 items-center gap-2 border-b px-3 transition-colors [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
+				className='flex h-dvh w-screen flex-col overflow-hidden border-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-none transition-colors lg:h-[min(900px,94dvh)] lg:w-[min(1500px,96vw)] lg:rounded-xl lg:border lg:p-0 lg:shadow-2xl [background-color:var(--diff-background)] [border-color:var(--diff-border)] [color:var(--diff-foreground)]'>
+				<header className='grid min-h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b px-2 py-2 transition-colors lg:flex lg:px-3 lg:py-0 [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
 					<span className='mr-auto rounded-md border px-2 py-1 text-[10px] font-medium tracking-wide uppercase [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>
 						Read only
 					</span>
+					<div className='col-span-3 row-start-2 flex min-w-0 gap-2 overflow-x-auto lg:contents'>
 					{activeFile.hasConflictViews && (
 						<select
 							value={perspective}
@@ -204,23 +208,24 @@ export function DiffModal() {
 					<Segment>
 						<SegmentButton active={sideBySide} onClick={() => setSideBySide(true)} title='左右分栏'>
 							<Columns2 size={14} />
-							Split
+							<span className='max-lg:hidden'>Split</span>
 						</SegmentButton>
 						<SegmentButton active={!sideBySide} onClick={() => setSideBySide(false)} title='统一视图'>
 							<Rows3 size={14} />
-							Unified
+							<span className='max-lg:hidden'>Unified</span>
 						</SegmentButton>
 					</Segment>
+					</div>
 					<button
 						type='button'
 						onClick={() => void copy()}
 						disabled={!currentPreview || Boolean(unavailable || error)}
 						title={copyTitle}
 						aria-label={copyTitle}
-						className={iconButton()}>
+						className={iconButton('col-start-2 row-start-1')}>
 						{copied ? <Check size={15} /> : <Copy size={15} />}
 					</button>
-					<button type='button' onClick={() => close(null)} title='关闭' aria-label='关闭' className={iconButton()}>
+					<button type='button' onClick={() => close(null)} title='关闭' aria-label='关闭' className={iconButton('col-start-3 row-start-1')}>
 						<X size={17} />
 					</button>
 				</header>
@@ -244,7 +249,7 @@ export function DiffModal() {
 }
 
 function Segment({ children }: { children: ReactNode }) {
-	return <div className='flex h-8 items-center rounded-md border p-0.5 [background-color:var(--diff-subtle)] [border-color:var(--diff-border)]'>{children}</div>
+	return <div className='flex h-8 shrink-0 items-center rounded-md border p-0.5 [background-color:var(--diff-subtle)] [border-color:var(--diff-border)]'>{children}</div>
 }
 
 function SegmentButton({ active, children, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean }) {
@@ -273,8 +278,8 @@ function ModalState({ message, file }: { message: string; file: { additions: num
 	)
 }
 
-function iconButton() {
-	return 'flex size-8 items-center justify-center rounded-md border transition disabled:opacity-25 [border-color:var(--diff-border)] [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'
+function iconButton(className = '') {
+	return `flex size-8 items-center justify-center rounded-md border transition disabled:opacity-25 [border-color:var(--diff-border)] [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)] ${className}`
 }
 
 function previewKey(diffId: string, fileId: number, perspective: ConflictPerspective, mode: 'full' | 'patch') {

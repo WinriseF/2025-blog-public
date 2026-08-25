@@ -184,7 +184,7 @@ export function RepositoryTree({
 						)
 					))}
 			</div>
-			<footer className='border-border text-secondary flex h-7 shrink-0 items-center border-t px-3 text-[10px]'>
+			<footer className='border-border text-secondary flex h-7 shrink-0 items-center border-t px-3 text-[10px] max-lg:h-[calc(2.25rem+env(safe-area-inset-bottom))] max-lg:pb-[env(safe-area-inset-bottom)]'>
 				{fileCount} 个文件<span className='mx-1.5 opacity-40'>·</span>{folderCount} 个文件夹
 				<span className='ml-auto'>当前版本</span>
 			</footer>
@@ -213,7 +213,7 @@ function EntryRow({ entry, depth, active, expanded, loading, searchResult, onOpe
 			type='button'
 			title={entry.path}
 			onClick={onOpen}
-			className={`group flex h-8 w-full items-center border-l-2 pr-2 text-left text-xs transition ${active ? 'border-l-brand bg-brand/10 text-primary' : 'hover:bg-article/70 border-l-transparent'} ${entry.isBinary || entry.kind === 'symlink' ? 'text-secondary/65' : 'text-secondary hover:text-primary'}`}
+			className={`group flex h-8 w-full items-center border-l-2 pr-2 text-left text-xs transition max-lg:h-11 ${active ? 'border-l-brand bg-brand/10 text-primary' : 'hover:bg-article/70 border-l-transparent'} ${entry.isBinary || entry.kind === 'symlink' ? 'text-secondary/65' : 'text-secondary hover:text-primary'}`}
 			style={{ paddingLeft: searchResult ? 10 : depth * 14 + 8 }}>
 			<span className='flex size-4 shrink-0 items-center justify-center'>
 				{directory ? loading ? <Loader2 size={11} className='animate-spin' /> : expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} /> : null}
@@ -235,7 +235,7 @@ function EntryIcon({ entry, expanded }: { entry: RepositoryTreeEntry; expanded?:
 
 function DirectoryStatus({ row, onLoad }: { row: Extract<TreeRow, { type: 'status' }>; onLoad: () => void }) {
 	return (
-		<div className='text-secondary flex h-7 items-center text-[10px]' style={{ paddingLeft: row.depth * 14 + 28 }}>
+		<div className='text-secondary flex h-7 items-center text-[10px] max-lg:h-10' style={{ paddingLeft: row.depth * 14 + 28 }}>
 			{row.state.loading ? (
 				<><Loader2 size={11} className='mr-1.5 animate-spin' />读取中…</>
 			) : (

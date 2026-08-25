@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, FolderSync, GitBranch, Github, LockKeyhole, RefreshCw, Server, X } from 'lucide-react'
-import { motion, useMotionValue } from 'motion/react'
+import { motion, useMotionValue, type MotionStyle } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { useVersionControlStore } from '@/lib/version-control/store'
 import type { RepositoryTreeEntry } from '@/lib/version-control/types'
@@ -20,8 +20,10 @@ export function Workbench() {
 	const dragBounds = useRef<DOMRect | null>(null)
 	const dragFrame = useRef(0)
 	const pendingClientX = useRef(0)
-	const graphWidth = useMotionValue(300)
+	const graphWidth = useMotionValue('300px')
 	const [viewMode, setViewMode] = useState<RepositoryViewMode>('history')
+	const [mobilePanel, setMobilePanel] = useState<'browser' | 'detail'>('browser')
+	const [mobileComparePicking, setMobileComparePicking] = useState(false)
 	const [repositoryEntry, setRepositoryEntry] = useState<RepositoryTreeEntry | null>(null)
 	const repository = useVersionControlStore(state => state.repository)
 	const overview = useVersionControlStore(state => state.overview)
@@ -37,12 +39,24 @@ export function Workbench() {
 
 	useEffect(() => {
 		setViewMode('history')
+		setMobilePanel('browser')
+		setMobileComparePicking(false)
 		setRepositoryEntry(null)
 	}, [repository?.key])
 
 	const changeViewMode = (mode: RepositoryViewMode) => {
 		setViewMode(mode)
+		setMobilePanel('browser')
+		setMobileComparePicking(false)
 		if (mode === 'files') openDiffFile(null)
+	}
+	const openMobileDetail = () => {
+		setMobileComparePicking(false)
+		setMobilePanel('detail')
+	}
+	const selectRepositoryEntry = (entry: RepositoryTreeEntry) => {
+		setRepositoryEntry(entry)
+		openMobileDetail()
 	}
 
 	useEffect(() => {
@@ -58,7 +72,7 @@ export function Workbench() {
 			dragFrame.current = 0
 			const rect = dragBounds.current
 			if (!dragging.current || !rect) return
-			graphWidth.set(Math.max(200, Math.min(pendingClientX.current - rect.left, 460)))
+			graphWidth.set(`${Math.max(200, Math.min(pendingClientX.current - rect.left, 460))}px`)
 		}
 		const move = (event: MouseEvent) => {
 			if (!dragging.current) return
@@ -92,7 +106,7 @@ export function Workbench() {
 				<Link
 					href='/toolbox'
 					onClick={() => void closeRepository()}
-					className='border-border bg-article/70 text-secondary hover:border-brand/40 hover:text-primary flex h-8 items-center gap-2 rounded-lg border px-2.5 text-xs transition'>
+					className='border-border bg-article/70 text-secondary hover:border-brand/40 hover:text-primary flex h-8 items-center gap-2 rounded-lg border px-2.5 text-xs transition max-lg:h-10'>
 					<ArrowLeft size={14} />
 					<span className='hidden sm:inline'>工具箱</span>
 				</Link>
@@ -117,32 +131,40 @@ export function Workbench() {
 						onClick={() => void refresh()}
 						disabled={loading}
 						title='刷新仓库'
-						className='text-secondary hover:text-primary rounded p-2 disabled:opacity-40'>
+						className='text-secondary hover:text-primary flex size-10 items-center justify-center rounded p-2 disabled:opacity-40 lg:size-auto'>
 						<RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
 					</button>
 					<button
 						onClick={() => void (repository?.source === 'github-rest' ? closeRepository() : selectRepository())}
 						title={repository?.source === 'github-rest' ? '切换仓库' : '切换项目'}
-						className='text-secondary hover:text-primary rounded p-2'>
+						className='text-secondary hover:text-primary flex size-10 items-center justify-center rounded p-2 lg:size-auto'>
 						<FolderSync size={16} />
 					</button>
 					{viewMode === 'history' && comparison && (
 						<button
 							onClick={() => void clearComparison()}
 							title='退出比较'
-							className='bg-brand/10 text-brand ml-1 flex items-center gap-1 rounded px-2 py-1.5 text-[10px]'>
+							className='bg-brand/10 text-brand ml-1 hidden items-center gap-1 rounded px-2 py-1.5 text-[10px] lg:flex'>
 							<X size={12} />
 							退出比较
 						</button>
 					)}
 				</div>
 			</header>
-			<div ref={containerRef} className='flex min-h-0 overflow-hidden'>
-				<motion.div className='shrink-0 overflow-hidden' style={{ width: graphWidth }}>
+			<div ref={containerRef} className='relative flex min-h-0 overflow-hidden'>
+				<motion.div
+					className={`w-full shrink-0 overflow-hidden lg:w-[var(--graph-width)] max-lg:absolute max-lg:inset-0 max-lg:z-10 max-lg:transition-transform max-lg:duration-200 max-lg:ease-out motion-reduce:transition-none ${mobilePanel === 'detail' ? 'max-lg:pointer-events-none max-lg:-translate-x-full' : 'max-lg:translate-x-0'}`}
+					style={{ '--graph-width': graphWidth } as MotionStyle}>
 					{viewMode === 'history' ? (
-						<CommitGraph mode={viewMode} onModeChange={changeViewMode} />
+						<CommitGraph
+							mode={viewMode}
+							onModeChange={changeViewMode}
+							onOpenSelection={openMobileDetail}
+							comparisonPicking={mobileComparePicking}
+							onCancelComparison={() => setMobileComparePicking(false)}
+						/>
 					) : (
-						<RepositoryTree mode={viewMode} onModeChange={changeViewMode} selectedPath={repositoryEntry?.path || null} onSelect={setRepositoryEntry} />
+						<RepositoryTree mode={viewMode} onModeChange={changeViewMode} selectedPath={repositoryEntry?.path || null} onSelect={selectRepositoryEntry} />
 					)}
 				</motion.div>
 				<div
@@ -154,10 +176,21 @@ export function Workbench() {
 						document.body.style.userSelect = 'none'
 						document.body.style.cursor = 'col-resize'
 					}}
-					className='bg-border hover:bg-brand/50 active:bg-brand z-10 w-1 shrink-0 cursor-col-resize transition-colors'
+					className='bg-border hover:bg-brand/50 active:bg-brand z-10 hidden w-1 shrink-0 cursor-col-resize transition-colors lg:block'
 				/>
-				<div className='min-w-0 flex-1 overflow-hidden'>
-					{viewMode === 'history' ? <DiffDetail /> : <RepositoryFileViewer entry={repositoryEntry} />}
+				<div
+					className={`min-w-0 flex-1 overflow-hidden max-lg:absolute max-lg:inset-0 max-lg:z-20 max-lg:transition-transform max-lg:duration-200 max-lg:ease-out motion-reduce:transition-none ${mobilePanel === 'browser' ? 'max-lg:pointer-events-none max-lg:translate-x-full' : 'max-lg:translate-x-0'}`}>
+					{viewMode === 'history' ? (
+						<DiffDetail
+							onMobileBack={() => setMobilePanel('browser')}
+							onMobileCompare={() => {
+								setMobileComparePicking(true)
+								setMobilePanel('browser')
+							}}
+						/>
+					) : (
+						<RepositoryFileViewer entry={repositoryEntry} onMobileBack={() => setMobilePanel('browser')} />
+					)}
 				</div>
 			</div>
 			{error && (
