@@ -20,6 +20,8 @@ Owns the full-screen LAN chat/file workbench: invitations, Supabase signaling, W
 
 Host creates an invite; guests join a Supabase room using a locally hashed token. Host owns offers per connection generation. Peers use one reliable ordered V13 DataChannel for chat and normal files. Large-file/native acceleration can use the Agent, while signaling/control stays encrypted over WebRTC.
 
+The LAN workbench enters with a lightweight underlay/content fade only; avoid adding full-screen click-origin canvas effects to this transition.
+
 ## Pay Attention
 
 - V13 is breaking: stale sessions must refresh; do not add old-session compatibility branches.

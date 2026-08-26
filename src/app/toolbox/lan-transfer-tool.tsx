@@ -9,7 +9,6 @@ import { useLanScreenWakeLock, type LanScreenWakeLockState } from '@/hooks/use-l
 import { useLanNativeSpeedMode, type LanNativeSpeedModeState } from '@/hooks/use-lan-native-speed-mode'
 import { useLanConnectionBenchmark } from '@/hooks/use-lan-connection-benchmark'
 import { ChatComposer, DeviceAvatar, MessageList } from './lan-chat-ui'
-import { LanSessionWaterRipple } from './lan-session-water-ripple'
 import { LanSpeedModeToggle } from './lan-speed-mode-toggle'
 import { LanSpeedTestPage } from './lan-speed-test-page'
 import { LanWakeLockToggle } from './lan-wake-lock-toggle'
@@ -20,7 +19,6 @@ type LanTransferToolProps = {
 		roomId: string
 		token: string
 	} | null
-	entryOrigin?: { x: number; y: number } | null
 	onLeaveSession?: () => void
 	onSwitchRelay?: () => void
 }
@@ -460,7 +458,7 @@ function MobileShell({ controller, wakeLock, speedMode, benchmark, benchmarkOpen
 	)
 }
 
-export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
+export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
 	const controller = useLanTransferController({ initialInvite, onLeaveSession })
 	const wakeLock = useLanScreenWakeLock()
 	const speedMode = useLanNativeSpeedMode(controller.session?.localPeer.deviceId || '', controller.activeConnection?.remoteCapability?.nativeAgent || null)
@@ -526,7 +524,6 @@ export function LanTransferTool({ initialInvite = null, entryOrigin = null, onLe
 
 	const app = (
 		<div className='lan-session fixed inset-0 z-[999] h-[100dvh] overflow-hidden text-primary'>
-			<LanSessionWaterRipple origin={entryOrigin} />
 			<div className={cn('hidden h-full transition-[grid-template-columns] duration-300 ease-in-out lg:grid', sidebarCollapsed ? 'lg:grid-cols-[68px_minmax(0,1fr)]' : 'lg:grid-cols-[360px_minmax(0,1fr)]')}>
 				<DesktopSidebar controller={controller} wakeLock={wakeLock} speedMode={speedMode} onOpenBenchmark={() => setBenchmarkOpen(true)} onSwitchRelay={onSwitchRelay} qrOpen={qrOpen} onToggleQr={handleToggleQr} expandedPanel={expandedPanel} onTogglePanel={handleTogglePanel} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(value => !value)} />
 				{benchmarkOpen ? <LanSpeedTestPage connections={controller.connections} activePeerId={controller.activePeerId} webTransportSupported={speedMode.webTransport} benchmark={benchmark} onBack={closeBenchmark} /> : <ChatPane controller={controller} />}

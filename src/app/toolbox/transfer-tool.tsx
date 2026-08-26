@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ClipboardEvent, type MouseEvent } from 'react'
+import { useEffect, useState, type ClipboardEvent } from 'react'
 import { Copy, Download, Globe2, Image as ImageIcon, Link as LinkIcon, Network, QrCode, Send, UploadCloud, X } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
@@ -100,7 +100,6 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [openedFile, setOpenedFile] = useState<OpenedRelayFile | null>(null)
 	const [status, setStatus] = useState('')
 	const [busy, setBusy] = useState(false)
-	const [lanOrigin, setLanOrigin] = useState<{ x: number; y: number } | null>(null)
 	const isCodeEntry = Boolean(normalizeCode(initialCode))
 
 	useEffect(() => void cleanupLanTransferPersistentStorage(), [])
@@ -469,11 +468,6 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		</section>
 	)
 	const relaySections = isCodeEntry ? [receiveSection, sendSection] : [sendSection, receiveSection]
-	const openLanMode = (event: MouseEvent<HTMLButtonElement>) => {
-		const rect = event.currentTarget.getBoundingClientRect()
-		setLanOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
-		setMode('lan')
-	}
 	const continueEmbeddedLan = () => {
 		if (!embeddedInvite) return
 		setLanInvite(embeddedInvite.invite)
@@ -490,7 +484,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 					<Globe2 size={15} />
 					公网中转
 				</button>
-				<button onClick={openLanMode} className='text-secondary flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium hover:bg-brand/5'>
+				<button onClick={() => setMode('lan')} className='text-secondary flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium hover:bg-brand/5'>
 					<Network size={15} />
 					局域网互传
 				</button>
@@ -508,11 +502,7 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 			{relayView}
 			<LanTransferTool
 				initialInvite={lanInvite}
-				entryOrigin={lanOrigin}
-				onSwitchRelay={() => {
-					setMode('relay')
-					setLanOrigin(null)
-				}}
+				onSwitchRelay={() => setMode('relay')}
 				onLeaveSession={() => {
 					setLanInvite(null)
 					if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
