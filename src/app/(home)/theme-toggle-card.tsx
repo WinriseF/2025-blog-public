@@ -4,14 +4,12 @@ import { useEffect, useState } from 'react'
 import { useConfigStore } from './stores/config-store'
 import { useCenterStore } from '@/hooks/use-center'
 import { useSize } from '@/hooks/use-size'
-import { useTimeTheme } from '@/components/time-theme-provider'
-import { Moon, SunMedium, Sunrise, Sunset } from 'lucide-react'
+import { AppearanceControl } from '@/components/appearance-control'
 
 export default function ThemeToggleCard() {
 	const center = useCenterStore()
 	const { cardStyles } = useConfigStore()
 	const { maxSM } = useSize()
-	const { theme, cycleTheme } = useTimeTheme()
 	const styles = cardStyles.themeToggle
 	const hiCardStyles = cardStyles.hiCard
 	const clockCardStyles = cardStyles.clockCard
@@ -27,26 +25,14 @@ export default function ThemeToggleCard() {
 
 	const x = styles.offsetX !== null ? center.x + styles.offsetX : center.x + CARD_SPACING + hiCardStyles.width / 2
 	const y = styles.offsetY !== null ? center.y + styles.offsetY : center.y - clockCardStyles.offset - styles.height - CARD_SPACING / 2 - clockCardStyles.height
-	const ThemeIcon = {
-		dawn: Sunrise,
-		noon: SunMedium,
-		sunset: Sunset,
-		night: Moon
-	}[theme.name]
-
 	return (
 		<motion.div initial={{ left: x, top: y }} animate={{ left: x, top: y }} className='absolute'>
-			<motion.button
-				type='button'
-				initial={{ opacity: 0, scale: 0.6 }}
-				animate={{ opacity: 1, scale: 1 }}
-				whileHover={{ scale: 1.05 }}
-				whileTap={{ scale: 0.95 }}
-				onClick={cycleTheme}
-				className='bg-card flex h-10 w-10 items-center justify-center rounded-full border shadow backdrop-blur-md'
-				aria-label='切换时间主题'>
-				<ThemeIcon className='text-brand h-5 w-5' />
-			</motion.button>
+			<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+				<AppearanceControl
+					variant='home'
+					className='bg-card text-brand flex h-10 w-10 items-center justify-center rounded-full border shadow backdrop-blur-md'
+				/>
+			</motion.div>
 		</motion.div>
 	)
 }

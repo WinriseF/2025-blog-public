@@ -10,6 +10,7 @@ import { useSize, useSizeInit } from '@/hooks/use-size'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
 import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
+import { ClickEffectPreferenceProvider, useClickEffectPreference } from '@/components/click-effect-preference'
 import { TimeThemeProvider, useTimeTheme } from '@/components/time-theme-provider'
 import { usePathname } from 'next/navigation'
 import { useVersionControlStore } from '@/lib/version-control/store'
@@ -33,7 +34,9 @@ function getInitialHomeFitScale() {
 export default function Layout({ children }: PropsWithChildren) {
 	return (
 		<TimeThemeProvider>
-			<ThemedLayout>{children}</ThemedLayout>
+			<ClickEffectPreferenceProvider>
+				<ThemedLayout>{children}</ThemedLayout>
+			</ClickEffectPreferenceProvider>
 		</TimeThemeProvider>
 	)
 }
@@ -44,12 +47,13 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const { regenerateKey } = useConfigStore()
 	const { maxSM, init } = useSize()
 	const { theme: timeTheme } = useTimeTheme()
+	const clickEffectPreference = useClickEffectPreference()
 	const pathname = usePathname()
 	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
 	const isVersionControlCallback = pathname === '/toolbox/version-control/agent-return'
 	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.repository))
 	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock'
-	const clickEffectEnabled = atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
+	const clickEffectEnabled = clickEffectPreference.ready && clickEffectPreference.enabled && atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 	const [mounted, setMounted] = useState(false)

@@ -11,6 +11,7 @@ type TimeThemeContextValue = {
 	manual: boolean
 	transitioning: boolean
 	cycleTheme: () => void
+	setThemeName: (name: TimeThemeName) => void
 }
 
 type NativeViewTransition = {
@@ -32,7 +33,8 @@ const TimeThemeContext = createContext<TimeThemeContextValue>({
 	theme: getTimeTheme(),
 	manual: false,
 	transitioning: false,
-	cycleTheme: () => {}
+	cycleTheme: () => {},
+	setThemeName: () => {}
 })
 
 export function TimeThemeProvider({ children }: { children: React.ReactNode }) {
@@ -90,23 +92,28 @@ export function TimeThemeProvider({ children }: { children: React.ReactNode }) {
 		}
 	}, [applyTheme, manualThemeName])
 
+	const setThemeName = useCallback((name: TimeThemeName) => {
+		setManualThemeName(name)
+		applyTheme(timeThemes[name])
+	}, [applyTheme])
+
 	const cycleTheme = useCallback(() => {
 		const activeName = manualThemeName ?? theme.name ?? getTimeThemeName()
 		const activeIndex = themeCycle.indexOf(activeName)
 		const nextName = themeCycle[(activeIndex + 1) % themeCycle.length]
 
-		setManualThemeName(nextName)
-		applyTheme(timeThemes[nextName])
-	}, [applyTheme, manualThemeName, theme.name])
+		setThemeName(nextName)
+	}, [manualThemeName, setThemeName, theme.name])
 
 	const value = useMemo(
 		() => ({
 			theme,
 			manual: manualThemeName !== null,
 			transitioning,
-			cycleTheme
+			cycleTheme,
+			setThemeName
 		}),
-		[theme, manualThemeName, transitioning, cycleTheme]
+		[theme, manualThemeName, transitioning, cycleTheme, setThemeName]
 	)
 
 	return <TimeThemeContext.Provider value={value}>{children}</TimeThemeContext.Provider>

@@ -11,14 +11,15 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/app/layout.tsx` | Root metadata, CSS, theme variables, initial scripts. |
 | `src/layout/index.tsx` | Providers, atmosphere, global navigation, mobile scroll-top, homepage fitting. |
 | `src/layout/backgrounds/click-effect-layer.tsx` | Theme-aware, on-demand global click feedback. |
-| `src/components/nav-card.tsx` | Responsive navigation and theme control. |
+| `src/components/appearance-control.tsx` | Shared theme picker and click-effect switch. |
+| `src/components/nav-card.tsx` | Responsive navigation and appearance-control entrypoint. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
 | `src/app/(home)/` | Card homepage and configuration store. |
 | `src/app/calendar/` | Calendar state, data, grid, day panel, term track. |
 
 ## Main Flow
 
-`layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. Theme changes use View Transition when possible. Continuous visuals use the shared animation loop; the homepage WebGL core uses dynamic 50/60 FPS throttling and capped DPR, while click feedback uses a bounded on-demand Canvas loop that is idle when no effect is visible.
+`layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. The existing theme buttons open one shared card for direct theme selection and the persisted click-effect preference; theme changes continue to use the original View Transition flow. Continuous visuals use the shared animation loop; the homepage WebGL core uses dynamic 50/60 FPS throttling and capped DPR, while click feedback uses a bounded on-demand Canvas loop that is idle when no effect is visible.
 
 ## Pay Attention
 

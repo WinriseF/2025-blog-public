@@ -24,7 +24,7 @@ import { useSize } from '@/hooks/use-size'
 import { useConfigStore } from '@/app/(home)/stores/config-store'
 import { OptimizedImage } from '@/components/optimized-image'
 import { useTimeTheme } from '@/components/time-theme-provider'
-import { SunMoon } from 'lucide-react'
+import { AppearanceControl } from '@/components/appearance-control'
 
 const list = [
 	{
@@ -60,14 +60,8 @@ const list = [
 ]
 
 const extraSize = 8
-const themeLabels = {
-	dawn: '清晨',
-	noon: '正午',
-	sunset: '日落',
-	night: '夜晚'
-}
-const themeItem = { type: 'theme' as const, label: '切换时间主题' }
-const compactItems = [...list, themeItem]
+const appearanceItem = { type: 'appearance' as const, label: '外观设置' }
+const compactItems = [...list, appearanceItem]
 const avatarSize = 40
 const iconSize = 28
 const cardPadding = 24
@@ -84,7 +78,7 @@ export default function NavCard() {
 	const init = useSize(state => state.init)
 	const maxSM = useSize(state => state.maxSM)
 	const maxXS = useSize(state => state.maxXS)
-	const { theme, transitioning, cycleTheme } = useTimeTheme()
+	const { transitioning } = useTimeTheme()
 	const [isExpanded, setIsExpanded] = useState(false)
 	const navRef = useRef<HTMLDivElement>(null)
 	const pointerInsideRef = useRef(false)
@@ -313,17 +307,16 @@ export default function NavCard() {
 
 								{items.map((item, index) =>
 									'type' in item ? (
-										<button
+										<AppearanceControl
 											key={item.type}
-											type='button'
-											title={`切换时间主题（当前：${themeLabels[theme.name]}）`}
-											aria-label={`切换时间主题，当前：${themeLabels[theme.name]}`}
-											onClick={cycleTheme}
+											variant='nav'
 											onMouseEnter={() => setHoveredIndex(index)}
 											onFocus={() => setHoveredIndex(index)}
-											className='text-secondary text-md relative z-10 flex h-7 w-7 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand/50'>
-											<SunMoon strokeWidth={1.6} className={clsx('h-6 w-6', hoveredIndex === index && 'text-brand')} aria-hidden='true' />
-										</button>
+											className={cn(
+												'text-secondary text-md relative z-10 flex h-7 w-7 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+												hoveredIndex === index && 'text-brand'
+											)}
+										/>
 									) : (
 										<Link
 											key={item.href}
