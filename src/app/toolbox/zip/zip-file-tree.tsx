@@ -116,11 +116,20 @@ export function ZipFileTree({
 										{node.kind === 'directory' ? isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
 									</button>
 									<TreeCheckbox state={state} onChange={checked => onToggle(node.id, checked)} />
-									{node.kind === 'directory' ? isExpanded ? <FolderOpen size={16} className='ml-2 shrink-0 text-blue-400' /> : <Folder size={16} className='ml-2 shrink-0 text-blue-400' /> : <File size={15} className='ml-2 shrink-0 text-secondary' />}
-									<span className='ml-2 min-w-0 flex-1 truncate text-primary' title={node.path}>{row.searchResult ? node.path : node.name}</span>
-									{node.suggestedExcluded && <span className='mr-2 shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-700 dark:text-amber-300'>建议排除</span>}
-									{node.kind === 'directory' && !node.loaded && <span className='mr-2 shrink-0 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700 dark:text-blue-300'>{isLoading ? '正在读取' : '按需读取'}</span>}
-									{node.kind === 'file' && <span className='shrink-0 font-mono text-[10px] text-secondary'>{formatBytes(node.size)}</span>}
+									{node.kind === 'directory' ? (
+										<button type='button' onClick={() => toggleExpanded(node)} className='flex h-full min-w-0 flex-1 items-center text-left'>
+											{isExpanded ? <FolderOpen size={16} className='ml-2 shrink-0 text-blue-400' /> : <Folder size={16} className='ml-2 shrink-0 text-blue-400' />}
+											<span className='ml-2 min-w-0 flex-1 truncate text-primary' title={node.path}>{row.searchResult ? node.path : node.name}</span>
+											{node.suggestedExcluded && <span className='mr-2 shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-700 dark:text-amber-300'>建议排除</span>}
+											{!node.loaded && <span className='mr-2 shrink-0 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-700 dark:text-blue-300'>{isLoading ? '正在读取' : '按需读取'}</span>}
+										</button>
+									) : (
+										<>
+											<File size={15} className='ml-2 shrink-0 text-secondary' />
+											<span className='ml-2 min-w-0 flex-1 truncate text-primary' title={node.path}>{row.searchResult ? node.path : node.name}</span>
+											<span className='shrink-0 font-mono text-[10px] text-secondary'>{formatBytes(node.size)}</span>
+										</>
+									)}
 								</div>
 							</div>
 						)
