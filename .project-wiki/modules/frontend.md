@@ -10,6 +10,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | --- | --- |
 | `src/app/layout.tsx` | Root metadata, CSS, theme variables, initial scripts. |
 | `src/layout/index.tsx` | Providers, atmosphere, global navigation, mobile scroll-top, homepage fitting. |
+| `src/layout/backgrounds/click-effect-layer.tsx` | Theme-aware, on-demand global click feedback. |
 | `src/components/nav-card.tsx` | Responsive navigation and theme control. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
 | `src/app/(home)/` | Card homepage and configuration store. |
@@ -17,11 +18,14 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 
 ## Main Flow
 
-`layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. Theme changes use View Transition when possible. Continuous visuals use the shared animation loop.
+`layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. Theme changes use View Transition when possible. Continuous visuals use the shared animation loop; the homepage WebGL core uses dynamic 50/60 FPS throttling and capped DPR, while click feedback uses a bounded on-demand Canvas loop that is idle when no effect is visible.
 
 ## Pay Attention
 
 - Do not add idle frame loops, raw scroll work, or layout reads in pointer-move handlers.
+- Keep the homepage WebGL core at one static frame for reduced motion, 50 FPS while idle, 60 FPS during interaction, and no more than 1.25 DPR.
+- Keep the visible homepage art-card image eager and high priority because it is the LCP image; other `OptimizedImage` uses remain lazy by default.
+- Keep global click feedback capped, theme-aware, disabled for reduced motion, and inactive on game/world-clock or covered full-screen workbenches.
 - Keep game/world-clock exceptions: hidden or covered Canvas/WebGL work must stop/release resources.
 - Homepage card layout comes from JSON; do not introduce a browser editor by accident.
 - Preserve compact navigation touch behavior and reduced-motion behavior.

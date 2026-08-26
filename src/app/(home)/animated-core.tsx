@@ -52,10 +52,8 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 
 			const renderer = new THREE.WebGLRenderer({
 				alpha: true,
-				antialias: true,
-				powerPreference: 'high-performance'
+				antialias: true
 			})
-			renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 			renderer.outputColorSpace = THREE.SRGBColorSpace
 			renderer.domElement.style.display = 'block'
 			renderer.domElement.style.height = '100%'
@@ -289,6 +287,7 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 			const resize = () => {
 				const width = Math.max(container.clientWidth, 1)
 				const height = Math.max(container.clientHeight, 1)
+				renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 640 ? 1 : 1.25))
 				camera.aspect = width / height
 				camera.updateProjectionMatrix()
 				renderer.setSize(width, height, false)
@@ -298,8 +297,11 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 			resizeObserver.observe(container)
 			resize()
 
-			const renderFrame = (elapsedMs: number) => {
+			const renderFrame = (elapsedMs: number, deltaMs = 0) => {
 				const time = elapsedMs / 1000
+				const frameScale = deltaMs / (1000 / 60)
+				const positionEase = 1 - Math.pow(0.92, frameScale)
+				const rotationEase = 1 - Math.pow(0.97, frameScale)
 				const hover = hoverRef.current ? 1 : 0
 				const pointer = pointerRef.current
 				const activation = activationRef.current
@@ -307,35 +309,35 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				const lift = hover * 0.12 + activation * 0.18
 				const scale = pulse + hover * 0.045 + activation * 0.14
 
-				root.position.x += (pointer.x * 0.16 - root.position.x) * 0.08
-				root.position.y += (pointer.y * 0.12 + lift - root.position.y) * 0.08
+				root.position.x += (pointer.x * 0.16 - root.position.x) * positionEase
+				root.position.y += (pointer.y * 0.12 + lift - root.position.y) * positionEase
 				root.scale.setScalar(scale)
 
-				core.rotation.x += (pointer.y * 0.24 + time * 0.18 - core.rotation.x) * 0.03
-				core.rotation.y += reduceMotion ? 0.003 : 0.012 + hover * 0.006
-				shell.rotation.x -= reduceMotion ? 0.002 : 0.006
-				shell.rotation.y += reduceMotion ? 0.002 : 0.007
-				beam.rotation.y += reduceMotion ? 0.002 : 0.006
+				core.rotation.x += (pointer.y * 0.24 + time * 0.18 - core.rotation.x) * rotationEase
+				core.rotation.y += (0.012 + hover * 0.006) * frameScale
+				shell.rotation.x -= 0.006 * frameScale
+				shell.rotation.y += 0.007 * frameScale
+				beam.rotation.y += 0.006 * frameScale
 				beam.scale.set(1 + hover * 0.08 + activation * 0.24, 1 + activation * 0.18, 1 + hover * 0.08 + activation * 0.24)
-				innerCore.rotation.y -= reduceMotion ? 0.005 : 0.022
+				innerCore.rotation.y -= 0.022 * frameScale
 				edges.rotation.copy(core.rotation)
 				edges.scale.setScalar(1.015 + activation * 0.08)
 
-				rings[0].rotation.z += reduceMotion ? 0.003 : 0.012 + hover * 0.006
-				rings[1].rotation.x += reduceMotion ? 0.002 : 0.009
-				rings[2].rotation.y -= reduceMotion ? 0.002 : 0.007
+				rings[0].rotation.z += (0.012 + hover * 0.006) * frameScale
+				rings[1].rotation.x += 0.009 * frameScale
+				rings[2].rotation.y -= 0.007 * frameScale
 				rings.forEach((ring, index) => {
 					ring.scale.setScalar(1 + activation * (0.18 + index * 0.08))
 				})
 
-				baseRing.rotation.z -= reduceMotion ? 0.003 : 0.01
-				basePulse.rotation.z += reduceMotion ? 0.002 : 0.007
+				baseRing.rotation.z -= 0.01 * frameScale
+				basePulse.rotation.z += 0.007 * frameScale
 				basePulse.scale.set(1 + Math.sin(time * 2.6) * 0.06 + activation * 0.34, 0.2 + hover * 0.025, 1)
 				baseDisc.scale.set(1 + hover * 0.08 + activation * 0.22, 0.2 + hover * 0.02, 1)
 				halo.scale.setScalar(3.25 + hover * 0.32 + activation * 0.58 + Math.sin(time * 1.9) * 0.08)
 				halo.material.opacity = 0.42 + hover * 0.16 + activation * 0.22
 
-				particles.rotation.y -= reduceMotion ? 0.001 : 0.0035
+				particles.rotation.y -= 0.0035 * frameScale
 				particles.rotation.x = pointer.y * 0.06
 
 				nodes.forEach((node, index) => {
@@ -348,8 +350,8 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 					const angle = shard.userData.angle + time * shard.userData.speed
 					const radius = shard.userData.radius + activation * 0.34
 					shard.position.set(Math.cos(angle) * radius, Math.sin(angle * 1.7 + index) * 0.58, Math.sin(angle) * 0.72)
-					shard.rotation.x += reduceMotion ? 0.004 : 0.026 + index * 0.002
-					shard.rotation.y -= reduceMotion ? 0.003 : 0.018
+					shard.rotation.x += (0.026 + index * 0.002) * frameScale
+					shard.rotation.y -= 0.018 * frameScale
 					shard.scale.setScalar(1 + hover * 0.12 + activation * 0.55)
 				})
 
@@ -358,15 +360,21 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				edgeMaterial.opacity = 0.54 + hover * 0.16 + activation * 0.22
 				shell.material.opacity = 0.2 + hover * 0.12 + activation * 0.22
 				beam.material.opacity = 0.08 + hover * 0.08 + activation * 0.18
-				activationRef.current = Math.max(activation * 0.9 - 0.01, 0)
+				const activationDecay = Math.pow(0.9, frameScale)
+				activationRef.current = Math.max(activation * activationDecay - 0.1 * (1 - activationDecay), 0)
 
 				renderer.render(scene, camera)
 			}
 			renderFrame(0)
-			const animationLoop = startAnimationLoop(({ elapsedMs }) => renderFrame(elapsedMs), { element: container })
+			const animationLoop = reduceMotion
+				? null
+				: startAnimationLoop(({ deltaMs, elapsedMs }) => renderFrame(elapsedMs, deltaMs), {
+						element: container,
+						targetFps: () => hoverRef.current || activationRef.current > 0.01 ? 60 : 50
+					})
 
 			cleanupScene = () => {
-				animationLoop.destroy()
+				animationLoop?.destroy()
 				resizeObserver.disconnect()
 				scene.traverse(object => {
 					if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments || object instanceof THREE.Points) {

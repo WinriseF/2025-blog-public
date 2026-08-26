@@ -7,7 +7,7 @@ type AnimationLoopFrame = {
 type AnimationLoopOptions = {
 	element?: Element | null
 	maxDeltaMs?: number
-	targetFps?: number
+	targetFps?: number | (() => number)
 }
 
 type AnimationLoop = {
@@ -22,7 +22,10 @@ export function startAnimationLoop(
 	draw: (frame: AnimationLoopFrame) => void,
 	{ element, maxDeltaMs = 100, targetFps }: AnimationLoopOptions = {}
 ): AnimationLoop {
-	const frameInterval = targetFps ? 1000 / targetFps : 0
+	const getFrameInterval = () => {
+		const fps = typeof targetFps === 'function' ? targetFps() : targetFps
+		return fps ? 1000 / Math.max(1, fps) : 0
+	}
 	let animationFrame = 0
 	let wakeTimer = 0
 	let elapsedMs = 0
@@ -39,6 +42,7 @@ export function startAnimationLoop(
 
 	const schedule = () => {
 		if (animationFrame || wakeTimer || !canRun()) return
+		const frameInterval = getFrameInterval()
 		if (!frameInterval || !lastTimestamp) {
 			requestFrame()
 			return
@@ -53,6 +57,7 @@ export function startAnimationLoop(
 		animationFrame = 0
 		if (!canRun()) return
 
+		const frameInterval = getFrameInterval()
 		const fallbackDelta = frameInterval || 1000 / 60
 		const deltaLimit = frameInterval ? Math.max(maxDeltaMs, frameInterval) : maxDeltaMs
 		const deltaMs = lastTimestamp ? Math.min(timestamp - lastTimestamp, deltaLimit) : fallbackDelta

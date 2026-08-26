@@ -1,6 +1,7 @@
 'use client'
 import { PropsWithChildren, useEffect, useLayoutEffect, useState, type CSSProperties } from 'react'
 import { useCenterInit } from '@/hooks/use-center'
+import { ClickEffectLayer } from './backgrounds/click-effect-layer'
 import TimeAtmosphereBackground from './backgrounds/time-atmosphere-background'
 import NavCard from '@/components/nav-card'
 import { Toaster } from 'sonner'
@@ -48,6 +49,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const isVersionControlCallback = pathname === '/toolbox/version-control/agent-return'
 	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.repository))
 	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock'
+	const clickEffectEnabled = atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 	const [mounted, setMounted] = useState(false)
@@ -106,6 +108,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 				{children}
 				{!isVersionControlCallback && !(isVersionControlRoute && versionControlWorkbenchOpen) && <NavCard />}
 			</main>
+			<ClickEffectLayer enabled={clickEffectEnabled} theme={timeTheme} />
 
 			{!isVersionControlRoute && maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}
 		</MusicPlayerProvider>
