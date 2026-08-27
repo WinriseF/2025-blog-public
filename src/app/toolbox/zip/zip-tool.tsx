@@ -16,6 +16,7 @@ import {
 	type ZipCompressionOptions,
 	type ZipScanResult,
 	type ZipSelectionState,
+	type ZipSkippedEntry,
 	type ZipWriteProgress
 } from '@/lib/zip-packer'
 import { ZipFileTree } from './zip-file-tree'
@@ -33,7 +34,7 @@ const PRESETS: ZipPresetOption[] = [
 	{ id: 'store', label: '仅打包（不压缩）', description: '等级 0，不压缩任何文件。', level: 0, skipAlreadyCompressed: true }
 ]
 
-const EMPTY_PROGRESS: ZipWriteProgress = { currentFile: '', processedFiles: 0, totalFiles: 0, processedBytes: 0, totalBytes: 0, elapsedMs: 0 }
+const EMPTY_PROGRESS: ZipWriteProgress = { currentFile: '', processedFiles: 0, skippedFiles: 0, totalFiles: 0, processedBytes: 0, skippedBytes: 0, totalBytes: 0, elapsedMs: 0 }
 
 export function ZipTool() {
 	const [phase, setPhase] = useState<Phase>('idle')
@@ -46,7 +47,7 @@ export function ZipTool() {
 	const [mobileView, setMobileView] = useState<MobileView>('files')
 	const [scanProgress, setScanProgress] = useState({ files: 0, bytes: 0 })
 	const [writeProgress, setWriteProgress] = useState<ZipWriteProgress>(EMPTY_PROGRESS)
-	const [result, setResult] = useState<{ name: string; outputBytes: number; elapsedMs: number } | null>(null)
+	const [result, setResult] = useState<{ name: string; outputBytes: number; elapsedMs: number; skippedEntries: ZipSkippedEntry[] } | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const [supported, setSupported] = useState(true)
 	const [loadingDirectoryIds, setLoadingDirectoryIds] = useState<Set<string>>(() => new Set())
@@ -118,13 +119,13 @@ export function ZipTool() {
 			const nextScan = await loadZipDirectory(currentScan, id, controller.signal)
 			if (controller.signal.aborted || scanVersion.current !== version) return
 			const analysis = analyzeZipSelection(currentScan.nodes, selectedRef.current)
-			let nextSelected = selectedRef.current
+			const nextIds = new Set(nextScan.nodes.map(item => item.id))
+			const nextSelected = new Set([...selectedRef.current].filter(item => nextIds.has(item)))
 			if (analysis.states.get(id) === 'checked') {
-				nextSelected = new Set(selectedRef.current)
 				for (const item of nextScan.nodes) if (!knownIds.has(item.id)) nextSelected.add(item.id)
 			}
 			replaceScan(nextScan)
-			if (nextSelected !== selectedRef.current) replaceSelected(nextSelected)
+			replaceSelected(nextSelected)
 		})
 		lazyLoadTasks.current.set(id, task)
 		lazyLoadQueue.current = task.catch(() => undefined)
@@ -254,7 +255,7 @@ export function ZipTool() {
 			setWriteProgress({ ...EMPTY_PROGRESS, totalFiles: preparedSelection.stats.files, totalBytes: preparedSelection.stats.bytes })
 			setPhase('running')
 			const output = await writeZipArchive({ scan: preparedScan, selectedIds: selectedEntryIds, compression, includeRoot, outputHandle, signal: controller.signal, onProgress: setWriteProgress })
-			setResult({ name: outputHandle.name, ...output })
+			setResult({ name: outputHandle.name, ...output, skippedEntries: [...preparedScan.skippedEntries, ...output.skippedEntries] })
 			setPhase('done')
 		} catch (cause) {
 			if (isAbort(cause)) {
@@ -284,9 +285,10 @@ export function ZipTool() {
 	}
 
 	const cancel = () => activeController.current?.abort(new DOMException('用户取消任务', 'AbortError'))
-	const progressPercent = writeProgress.totalBytes ? Math.min(100, writeProgress.processedBytes / writeProgress.totalBytes * 100) : 0
+	const handledBytes = writeProgress.processedBytes + writeProgress.skippedBytes
+	const progressPercent = writeProgress.totalBytes ? Math.min(100, handledBytes / writeProgress.totalBytes * 100) : 0
 	const speed = writeProgress.elapsedMs > 0 ? writeProgress.processedBytes / (writeProgress.elapsedMs / 1000) : 0
-	const remaining = speed > 0 ? (writeProgress.totalBytes - writeProgress.processedBytes) / speed : null
+	const remaining = speed > 0 ? Math.max(0, writeProgress.totalBytes - handledBytes) / speed : null
 	const choosePreset = (option: ZipPresetOption) => {
 		setPreset(option.id)
 		setCompression({ level: option.level, skipAlreadyCompressed: option.skipAlreadyCompressed })
@@ -413,6 +415,7 @@ export function ZipTool() {
 								<Stat label='格式' value={stats.bytes >= 4 * 1024 ** 3 || stats.files > 65535 ? 'ZIP64' : 'ZIP'} />
 							</div>
 							{scan.unloadedDirectories > 0 && <p className='text-secondary mt-3 text-xs leading-5'>另有 {scan.unloadedDirectories.toLocaleString('zh-CN')} 个建议排除目录会在展开或勾选时读取。</p>}
+							{scan.skippedEntries.length > 0 && <p className='mt-3 text-xs leading-5 text-amber-700 dark:text-amber-300'>扫描时已自动跳过 {scan.skippedEntries.length.toLocaleString('zh-CN')} 个无法读取的条目。</p>}
 							<button type='button' disabled={!stats.files || !supported || loadingDirectoryIds.size > 0} onClick={() => void startWriting()} className='bg-brand mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 font-semibold text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-border disabled:text-secondary'>
 								<HardDriveDownload size={17} />选择位置并开始
 							</button>
@@ -430,8 +433,8 @@ export function ZipTool() {
 					</div>
 					<div className='mt-6 h-2.5 overflow-hidden rounded-full bg-border/60'><div className='bg-brand h-full rounded-full transition-[width] duration-200' style={{ width: `${progressPercent}%` }} /></div>
 					<div className='text-secondary mt-5 grid gap-3 text-xs sm:grid-cols-4'>
-						<span>{writeProgress.processedFiles} / {writeProgress.totalFiles} 个文件</span>
-						<span>{formatBytes(writeProgress.processedBytes)} / {formatBytes(writeProgress.totalBytes)}</span>
+						<span>已写入 {writeProgress.processedFiles} · 已跳过 {writeProgress.skippedFiles} / {writeProgress.totalFiles} 个文件</span>
+						<span>{formatBytes(handledBytes)} / {formatBytes(writeProgress.totalBytes)}</span>
 						<span>{speed ? `${formatBytes(speed)}/s` : '正在计算速度'}</span>
 						<span>剩余 {remaining === null ? '计算中' : formatDuration(remaining)}</span>
 					</div>
@@ -440,7 +443,7 @@ export function ZipTool() {
 			)}
 
 			{phase === 'done' && result && (
-				<ResultPanel icon={<CheckCircle2 size={34} className='text-emerald-500' />} title='ZIP 已保存' description={`${result.name} · ${formatBytes(result.outputBytes)} · ${formatDuration(result.elapsedMs / 1000)}`} onReset={reset} />
+				<ResultPanel icon={<CheckCircle2 size={34} className='text-emerald-500' />} title='ZIP 已保存' description={`${result.name} · ${formatBytes(result.outputBytes)} · ${formatDuration(result.elapsedMs / 1000)}`} skippedEntries={result.skippedEntries} onReset={reset} />
 			)}
 
 			{phase === 'canceled' && <ResultPanel icon={<Square size={30} className='text-secondary' />} title='任务已取消' description='未完成的输出已放弃，可以重新选择内容。' onReset={reset} />}
@@ -461,10 +464,18 @@ function Stat({ label, value }: { label: string; value: string }) {
 	return <div className='rounded-xl border border-border bg-background/25 p-3'><p className='text-[10px] text-secondary'>{label}</p><p className='mt-1 truncate font-semibold text-primary'>{value}</p></div>
 }
 
-function ResultPanel({ icon, title, description, onReset }: { icon: React.ReactNode; title: string; description: string; onReset: () => void }) {
+function ResultPanel({ icon, title, description, skippedEntries = [], onReset }: { icon: React.ReactNode; title: string; description: string; skippedEntries?: ZipSkippedEntry[]; onReset: () => void }) {
 	return (
 		<section className='flex min-h-80 flex-col items-center justify-center rounded-2xl border border-border bg-background/20 p-8 text-center'>
 			{icon}<h2 className='mt-5 text-lg font-semibold text-primary'>{title}</h2><p className='text-secondary mt-2 max-w-lg break-words'>{description}</p>
+			{skippedEntries.length > 0 && (
+				<details className='mt-5 w-full max-w-2xl rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-left text-xs'>
+					<summary className='cursor-pointer font-medium text-amber-700 dark:text-amber-300'>已自动跳过 {skippedEntries.length.toLocaleString('zh-CN')} 个无法读取的条目</summary>
+					<ul className='mt-3 max-h-44 space-y-2 overflow-auto break-all text-secondary'>
+						{skippedEntries.map((entry, index) => <li key={`${entry.phase}:${entry.path}:${index}`}><span className='text-primary'>{entry.path}</span> · {entry.phase === 'scan' ? '扫描' : '写入'}时 {entry.reason}</li>)}
+					</ul>
+				</details>
+			)}
 			<button type='button' onClick={onReset} className='mt-7 flex items-center gap-2 rounded-xl border border-border px-5 py-3 font-medium text-primary'><RotateCcw size={16} />打包其他内容</button>
 		</section>
 	)

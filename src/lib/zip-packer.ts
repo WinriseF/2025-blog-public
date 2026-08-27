@@ -28,6 +28,14 @@ export type ZipScanResult = {
 	nodes: ZipNode[]
 	totalBytes: number
 	unloadedDirectories: number
+	skippedEntries: ZipSkippedEntry[]
+}
+
+export type ZipSkippedEntry = {
+	path: string
+	kind: 'directory' | 'file'
+	phase: 'scan' | 'write'
+	reason: string
 }
 
 export type ZipSelectionAnalysis = {
@@ -38,8 +46,10 @@ export type ZipSelectionAnalysis = {
 export type ZipWriteProgress = {
 	currentFile: string
 	processedFiles: number
+	skippedFiles: number
 	totalFiles: number
 	processedBytes: number
+	skippedBytes: number
 	totalBytes: number
 	elapsedMs: number
 }
@@ -77,12 +87,12 @@ export async function scanZipDirectory(directory: FileSystemDirectoryHandle, sig
 	const rootHandle = directory as DirectoryHandle
 	const root = createDirectoryNode(rootHandle, null, rootHandle.name, false, true)
 	const nodes = [root]
-	const fileNodes: ZipNode[] = []
+	const skippedEntries: ZipSkippedEntry[] = []
 
-	await scanDirectoryChildren(root, rootHandle, nodes, fileNodes, signal)
-	await readFileMetadata(fileNodes, signal, onProgress)
+	await scanDirectoryChildren(root, rootHandle, nodes, skippedEntries, signal)
+	await readFileMetadata(nodes, nodes.filter(node => node.kind === 'file'), skippedEntries, signal, onProgress)
 
-	return { ...buildScanResult(rootHandle.name, nodes), rootHandle: directory }
+	return { ...buildScanResult(rootHandle.name, nodes, rootHandle.name, skippedEntries), rootHandle: directory }
 }
 
 export async function loadZipDirectory(scan: ZipScanResult, directoryId: string, signal: AbortSignal, onProgress: (files: number, bytes: number) => void = () => {}) {
@@ -95,11 +105,13 @@ export async function loadZipDirectory(scan: ZipScanResult, directoryId: string,
 	const nodes = scan.nodes.slice()
 	const directory = { ...current, children: [], loaded: true }
 	nodes[index] = directory
-	const fileNodes: ZipNode[] = []
-	await scanDirectoryChildren(directory, current.directoryHandle as DirectoryHandle, nodes, fileNodes, signal)
-	await readFileMetadata(fileNodes, signal, onProgress)
+	const knownNodeCount = nodes.length
+	const skippedEntries = scan.skippedEntries.slice()
+	const complete = await scanDirectoryChildren(directory, current.directoryHandle as DirectoryHandle, nodes, skippedEntries, signal)
+	if (!complete) removeZipSubtree(nodes, directory.id, true)
+	await readFileMetadata(nodes, nodes.slice(knownNodeCount).filter(node => node.kind === 'file'), skippedEntries, signal, onProgress)
 
-	return { ...buildScanResult(scan.rootName, nodes, scan.rootId), rootHandle: scan.rootHandle }
+	return { ...buildScanResult(scan.rootName, nodes, scan.rootId, skippedEntries), rootHandle: scan.rootHandle }
 }
 
 export function scanZipFiles(files: File[]): ZipScanResult {
@@ -189,13 +201,16 @@ export async function writeZipArchive(options: {
 	const startedAt = performance.now()
 	let processedBytes = 0
 	let processedFiles = 0
+	let skippedBytes = 0
+	let skippedFiles = 0
 	let lastUpdate = 0
+	const skippedEntries: ZipSkippedEntry[] = []
 
 	const report = (currentFile: string, force = false) => {
 		const now = performance.now()
 		if (!force && now - lastUpdate < 120) return
 		lastUpdate = now
-		onProgress({ currentFile, processedFiles, totalFiles: selectedFiles.length, processedBytes, totalBytes, elapsedMs: now - startedAt })
+		onProgress({ currentFile, processedFiles, skippedFiles, totalFiles: selectedFiles.length, processedBytes, skippedBytes, totalBytes, elapsedMs: now - startedAt })
 	}
 
 	try {
@@ -210,8 +225,24 @@ export async function writeZipArchive(options: {
 				continue
 			}
 
-			const file = node.handle ? await node.handle.getFile() : node.file
-			if (!file) throw new Error(`无法读取 ${node.path}`)
+			let file: File | undefined
+			try {
+				file = node.handle ? await node.handle.getFile() : node.file
+			} catch (error) {
+				rethrowIfAborted(error, signal)
+				skippedEntries.push(createSkippedEntry(node.path, 'file', 'write', error))
+				skippedFiles += 1
+				skippedBytes += node.size
+				report(node.path, true)
+				continue
+			}
+			if (!file) {
+				skippedEntries.push({ path: node.path, kind: 'file', phase: 'write', reason: '文件已不可用' })
+				skippedFiles += 1
+				skippedBytes += node.size
+				report(node.path, true)
+				continue
+			}
 			if (file.size !== node.size || file.lastModified !== node.lastModified) throw new Error(`${node.path} 在扫描后发生变化，请重新选择目录`)
 			let entryProgress = 0
 			await writer.add(entryPath, new BlobReader(file), {
@@ -230,7 +261,7 @@ export async function writeZipArchive(options: {
 		}
 		await writer.close()
 		const result = await outputHandle.getFile()
-		return { outputBytes: result.size, elapsedMs: performance.now() - startedAt }
+		return { outputBytes: result.size, elapsedMs: performance.now() - startedAt, skippedEntries }
 	} catch (error) {
 		try {
 			await output.abort(error)
@@ -247,10 +278,17 @@ export function preloadZipRuntime() {
 	void loadZipRuntime().catch(() => undefined)
 }
 
-async function scanDirectoryChildren(parent: ZipNode, directory: DirectoryHandle, nodes: ZipNode[], fileNodes: ZipNode[], signal: AbortSignal) {
+async function scanDirectoryChildren(parent: ZipNode, directory: DirectoryHandle, nodes: ZipNode[], skippedEntries: ZipSkippedEntry[], signal: AbortSignal) {
 	assertActive(signal)
 	const entries: Array<[string, DirectoryHandle | FileSystemFileHandle]> = []
-	for await (const entry of directory.entries()) entries.push(entry)
+	let complete = true
+	try {
+		for await (const entry of directory.entries()) entries.push(entry)
+	} catch (error) {
+		rethrowIfAborted(error, signal)
+		skippedEntries.push(createSkippedEntry(parent.path, 'directory', 'scan', error, '目录遍历未完成，已跳过其余内容'))
+		complete = false
+	}
 	entries.sort(([leftName, left], [rightName, right]) => left.kind === right.kind ? leftName.localeCompare(rightName, 'zh-CN', { numeric: true }) : left.kind === 'directory' ? -1 : 1)
 
 	for (const [name, child] of entries) {
@@ -261,7 +299,8 @@ async function scanDirectoryChildren(parent: ZipNode, directory: DirectoryHandle
 		if (child.kind === 'directory') {
 			const childDirectory = createDirectoryNode(child as DirectoryHandle, parent.id, childPath, suggestedExcluded, !suggestedExcluded)
 			nodes.push(childDirectory)
-			if (childDirectory.loaded) await scanDirectoryChildren(childDirectory, child as DirectoryHandle, nodes, fileNodes, signal)
+			const complete = !childDirectory.loaded || await scanDirectoryChildren(childDirectory, child as DirectoryHandle, nodes, skippedEntries, signal)
+			if (!complete) removeZipSubtree(nodes, childDirectory.id)
 			continue
 		}
 		const fileNode: ZipNode = {
@@ -277,11 +316,11 @@ async function scanDirectoryChildren(parent: ZipNode, directory: DirectoryHandle
 			handle: child as FileSystemFileHandle
 		}
 		nodes.push(fileNode)
-		fileNodes.push(fileNode)
 	}
+	return complete
 }
 
-async function readFileMetadata(nodes: ZipNode[], signal: AbortSignal, onProgress: (files: number, bytes: number) => void) {
+async function readFileMetadata(nodes: ZipNode[], fileNodes: ZipNode[], skippedEntries: ZipSkippedEntry[], signal: AbortSignal, onProgress: (files: number, bytes: number) => void) {
 	let filesRead = 0
 	let bytesRead = 0
 	let lastUpdate = 0
@@ -292,9 +331,17 @@ async function readFileMetadata(nodes: ZipNode[], signal: AbortSignal, onProgres
 		onProgress(filesRead, bytesRead)
 	}
 
-	await mapLimit(nodes, 12, async node => {
+	await mapLimit(fileNodes, 12, async node => {
 		assertActive(signal)
-		const file = await node.handle!.getFile()
+		let file: File
+		try {
+			file = await node.handle!.getFile()
+		} catch (error) {
+			rethrowIfAborted(error, signal)
+			skippedEntries.push(createSkippedEntry(node.path, 'file', 'scan', error))
+			removeZipSubtree(nodes, node.id)
+			return
+		}
 		node.size = file.size
 		node.lastModified = file.lastModified
 		filesRead += 1
@@ -330,14 +377,30 @@ async function loadZipRuntime() {
 	}
 }
 
-function buildScanResult(rootName: string, nodes: ZipNode[], rootId = rootName): Omit<ZipScanResult, 'rootHandle'> {
+function buildScanResult(rootName: string, nodes: ZipNode[], rootId = rootName, skippedEntries: ZipSkippedEntry[] = []): Omit<ZipScanResult, 'rootHandle'> {
 	let totalBytes = 0
 	let unloadedDirectories = 0
 	for (const node of nodes) {
 		if (node.kind === 'file') totalBytes += node.size
 		if (node.kind === 'directory' && !node.loaded) unloadedDirectories += 1
 	}
-	return { rootId, rootName, nodes, totalBytes, unloadedDirectories }
+	return { rootId, rootName, nodes, totalBytes, unloadedDirectories, skippedEntries }
+}
+
+function removeZipSubtree(nodes: ZipNode[], id: string, cloneParent = false) {
+	const node = nodes.find(item => item.id === id)
+	if (!node) return
+	if (node.parentId) {
+		const parentIndex = nodes.findIndex(item => item.id === node.parentId)
+		if (parentIndex >= 0) {
+			const parent = nodes[parentIndex]
+			const children = parent.children.filter(childId => childId !== id)
+			if (cloneParent) nodes[parentIndex] = { ...parent, children }
+			else parent.children = children
+		}
+	}
+	const prefix = `${id}/`
+	for (let index = nodes.length - 1; index >= 0; index -= 1) if (nodes[index].id === id || nodes[index].id.startsWith(prefix)) nodes.splice(index, 1)
 }
 
 function archiveEntryPath(path: string, rootName: string, includeRoot: boolean) {
@@ -356,6 +419,16 @@ function zipLevel(name: string, compression: ZipCompressionOptions) {
 
 function assertActive(signal: AbortSignal) {
 	if (signal.aborted) throw signal.reason || new DOMException('任务已取消', 'AbortError')
+}
+
+function rethrowIfAborted(error: unknown, signal: AbortSignal) {
+	if (signal.aborted) throw signal.reason || error
+	if (error instanceof DOMException && error.name === 'AbortError') throw error
+}
+
+function createSkippedEntry(path: string, kind: ZipSkippedEntry['kind'], phase: ZipSkippedEntry['phase'], error: unknown, fallback = '读取失败'): ZipSkippedEntry {
+	const reason = error instanceof DOMException ? error.name : error instanceof Error && error.message ? error.message : fallback
+	return { path, kind, phase, reason }
 }
 
 async function mapLimit<T>(items: T[], limit: number, task: (item: T) => Promise<void>) {

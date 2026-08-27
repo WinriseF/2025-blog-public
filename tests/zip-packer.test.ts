@@ -3,17 +3,21 @@ import { analyzeZipSelection, initialZipSelection, loadZipDirectory, scanZipDire
 
 type Entry = [string, FileSystemDirectoryHandle | FileSystemFileHandle]
 
-function file(name: string, size: number, lastModified = 1) {
-	const getFile = vi.fn(async () => ({ size, lastModified }) as File)
+function file(name: string, size: number, lastModified = 1, failure?: unknown) {
+	const getFile = vi.fn(async () => {
+		if (failure) throw failure
+		return { size, lastModified } as File
+	})
 	return { handle: { kind: 'file', name, getFile } as unknown as FileSystemFileHandle, getFile }
 }
 
-function directory(name: string, entries: Entry[]) {
+function directory(name: string, entries: Entry[], failure?: unknown) {
 	return {
 		kind: 'directory',
 		name,
 		async *entries() {
 			for (const entry of entries) yield entry
+			if (failure) throw failure
 		}
 	} as unknown as FileSystemDirectoryHandle
 }
@@ -67,5 +71,41 @@ describe('ZIP directory scanning', () => {
 		]
 
 		expect(initialZipSelection(nodes)).toEqual(new Set(['root']))
+	})
+
+	it('skips files whose metadata cannot be read', async () => {
+		const readable = file('readable.txt', 12)
+		const missing = file('missing.txt', 0, 1, new DOMException('Missing', 'NotFoundError'))
+		const root = directory('project', [['readable.txt', readable.handle], ['missing.txt', missing.handle]])
+
+		const scan = await scanZipDirectory(root, new AbortController().signal)
+
+		expect(scan.nodes.map(node => node.id)).toEqual(['project', 'project/readable.txt'])
+		expect(scan.skippedEntries).toEqual([{ path: 'project/missing.txt', kind: 'file', phase: 'scan', reason: 'NotFoundError' }])
+	})
+
+	it('skips an unreadable directory subtree and continues its siblings', async () => {
+		const kept = file('kept.txt', 12)
+		const nested = file('nested.txt', 24)
+		const broken = directory('broken', [['nested.txt', nested.handle]], new DOMException('Missing', 'NotFoundError'))
+		const root = directory('project', [['broken', broken], ['kept.txt', kept.handle]])
+
+		const scan = await scanZipDirectory(root, new AbortController().signal)
+
+		expect(scan.nodes.map(node => node.id)).toEqual(['project', 'project/kept.txt'])
+		expect(scan.skippedEntries).toEqual([{ path: 'project/broken', kind: 'directory', phase: 'scan', reason: 'NotFoundError' }])
+	})
+
+	it('drops an unreadable deferred directory without changing the prior scan', async () => {
+		const nested = file('nested.txt', 24)
+		const broken = directory('dist', [['nested.txt', nested.handle]], new DOMException('Missing', 'NotFoundError'))
+		const root = directory('project', [['dist', broken]])
+		const scan = await scanZipDirectory(root, new AbortController().signal)
+
+		const loaded = await loadZipDirectory(scan, 'project/dist', new AbortController().signal)
+
+		expect(scan.nodes.map(node => node.id)).toEqual(['project', 'project/dist'])
+		expect(loaded.nodes.map(node => node.id)).toEqual(['project'])
+		expect(loaded.skippedEntries).toEqual([{ path: 'project/dist', kind: 'directory', phase: 'scan', reason: 'NotFoundError' }])
 	})
 })
