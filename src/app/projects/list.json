@@ -20,9 +20,18 @@
 	{
 		"name": "苹果病虫害检测系统",
 		"year": 2024,
-		"description": "一个从 YOLOv8 基线迁移到 YOLO11 的苹果病虫害检测比赛项目，也是我们拿到全球人工智能算法精英大赛西南赛区一等奖的作品。项目主要识别苹果叶片上的常见病害区域，用检测框和置信度把结果标出来。源码没有公开，这里更适合放一篇复盘文章，记录数据标注、类别取舍、训练调参和比赛展示过程。",
+		"description": "一个从 YOLOv8 基线迁移到 YOLO11 的苹果病虫害检测比赛项目，也是我们拿到全球人工智能算法精英大赛西南赛区一等奖的作品。项目主要识别苹果叶片上的常见病害区域，用检测框和置信度把结果标出来。源码没有公开，但是文章记录了我们的整体项目流程。",
 		"image": "/images/project/yolo-apple-disease-detection.png",
 		"url": "/blog/yolo-apple-disease-detection",
 		"tags": ["YOLO11", "Computer Vision", "Object Detection", "Deep Learning", "Competition"]
+	},
+	{
+		"name": "2025 Blog",
+		"year": 2025,
+		"description": "就是你现在看到的这个博客本身。基于 Next.js 16 + React 19 + Tailwind CSS，以 Markdown 为内容源，承载文章、项目、工具箱、传输等模块。基础框架是YYsuni搭建，后面进行了大修大改，增加了工具箱等各个页面和模块，未来也会不断丰富，当然这肯定不是简单的个人博客了，已经逐渐融为全面工具库了，搭建过程中也遇到很多的难点、以及小工具的设计也是进行了取舍。",
+		"image": "/favicon.png",
+		"url": "/blog/2025-blog-public",
+		"tags": ["Next.js", "React", "TypeScript", "Tailwind CSS", "Personal Site"],
+		"github": "https://github.com/WinriseF/2025-blog-public"
 	}
 ]

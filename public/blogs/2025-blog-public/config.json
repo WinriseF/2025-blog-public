@@ -1,0 +1,7 @@
+{
+	"title": "2025 Blog：基于 Next.js 的个人博客搭建复盘",
+	"tags": ["Next.js", "React", "个人博客", "前端"],
+	"date": "2026-08-28",
+	"summary": "复盘这个博客本身的搭建过程：以 Markdown 为内容源，Next.js 16 + React 19 + Tailwind CSS 的选型与内容流、主题系统与部署细节。",
+	"cover": "/favicon.png"
+}
