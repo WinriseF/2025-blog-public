@@ -37,6 +37,7 @@
 		"next": "16.0.7",
 		"onnxruntime-web": "1.27.0",
 		"pathe": "^2.0.3",
+		"pdfjs-dist": "6.2.108",
 		"ppu-paddle-ocr": "6.3.0",
 		"qrcode": "^1.5.4",
 		"react": "19.2.1",

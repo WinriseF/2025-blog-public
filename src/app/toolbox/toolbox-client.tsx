@@ -43,8 +43,8 @@ const tools = [
 	},
 	{
 		href: '/toolbox/ocr',
-		label: 'OCR 文字识别',
-		desc: '图片转可编辑文字',
+		label: '文本提取',
+		desc: '图片 / PDF 转可编辑文字',
 		tone: 'from-cyan-400/20 via-amber-200/10 to-transparent',
 		icon: ScanText
 	},

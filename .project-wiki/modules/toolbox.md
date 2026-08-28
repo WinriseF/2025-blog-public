@@ -13,13 +13,13 @@ Groups browser-first tools and the portable Toolbox Agent capability center. Fil
 | Markdown preview | `src/app/toolbox/markdown/` |
 | Passwords | `password-generator-tool.tsx`, `src/lib/password-generator.ts` |
 | Face masking | `face-mask-*`, `src/lib/face-mask/` |
-| OCR | `ocr-*`, `src/lib/ocr/` |
+| Text extraction (PDF/OCR) | `ocr-*`, `pdf-source-panel.tsx`, `src/lib/pdf-text-extractor.ts`, `src/lib/ocr/` |
 | Shared preview | `src/components/image-preview-dialog.tsx` |
 | Agent center | `src/app/toolbox/agent/` |
 
 ## Main Flow
 
-Compression and OCR use Workers; face masking uses local Canvas; password generation uses browser cryptography; Markdown preview is local. The Agent center reports portable protocol-registration results and links to LAN/native acceleration and version control.
+Compression and OCR use Workers; face masking uses local Canvas; password generation uses browser cryptography; Markdown preview is local. Text extraction dynamically loads PDF.js when a PDF is selected, shares one document proxy between preview and extraction, reads native page text first, then renders short or empty text-layer pages sequentially and sends them through OCR. Each completed page is published immediately so earlier pages remain browseable and copyable while later pages continue; OCR pages retain their detected regions for the same selectable box overlay used by images, while native text-layer pages do not show boxes. A failed run retains completed pages and retries from the first missing page. Editing and full-document TXT export unlock after the run finishes. The Agent center reports portable protocol-registration results and links to LAN/native acceleration and version control.
 
 The standalone `/toolbox/zip` packer is separate from media compression. Chrome/Edge users select one directory or multiple files, filter a virtualized tri-state tree, choose Smart, Maximum, or Store-only packaging, then optionally customize the compression level (0–9) and whether already-compressed files are stored directly. The archive streams directly to a user-selected file. `zip-packer.ts` owns bounded metadata scanning, suggested exclusions, selection derivation, safe paths, source-change checks, progress, cancellation, and the `zip.js` writer. Default exclusions apply only to directories: those branches keep their handles but defer recursive enumeration and metadata reads until the user expands or selects them. A directory or file that the File System Access API cannot actually read is removed from the pending archive, recorded, and does not stop its readable siblings; the completed ZIP reports those skipped paths. The directory row, apart from its checkbox, also expands or collapses the branch. Selection totals intentionally describe only loaded nodes while deferred branches are present.
 
@@ -32,6 +32,7 @@ The standalone `/toolbox/zip` packer is separate from media compression. Chrome/
 - Never use a path-length threshold for ZIP exclusions. Preserve `AbortError`, output-stream failures, compression failures, and source-change checks as task failures; only per-entry File System Access read failures are automatically skipped.
 - Keep the ZIP UI surface intentionally small: only compression level and the skip-already-compressed policy are adjustable. ZIP64, Workers, streaming, metadata, encryption, split archives, and custom codecs remain automatic or out of scope.
 - OCR/model resources load only on explicit recognition. Keep external-WASM ONNX alias; default bundle exceeds Netlify file limits.
+- Keep PDF.js lazy and browser-only. Its core is a split client chunk, while the version-matched Worker, CMaps, standard fonts, and WASM load from the pinned jsDelivr package path. Process extraction pages sequentially; the comparison viewer may retain only its current rendered Canvas and must cancel superseded page renders.
 - Face/OCR/password data stays browser-local. Clipboard and File System Access require user gestures.
 - Password wordlists are fetched lazily and integrity-checked; offline modes must still work if fetch fails.
 - Agent center is not proof of a resident process. Native callback ownership stays with LAN/version-control routes.

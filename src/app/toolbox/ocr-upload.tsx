@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useId, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
-import { ImagePlus } from 'lucide-react'
+import { FileUp } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 
 type OcrUploadProps = {
@@ -65,26 +65,26 @@ export function OcrUpload({ onFile }: OcrUploadProps) {
 			whileHover={shouldReduceMotion || dragging ? undefined : { y: -2 }}
 			whileTap={shouldReduceMotion ? undefined : { scale: 0.995 }}
 			transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
-			className={`group flex min-h-[300px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background max-sm:min-h-[230px] max-sm:p-6 ${
+			className={`group focus-visible:ring-brand focus-visible:ring-offset-background flex min-h-[300px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 max-sm:min-h-[230px] max-sm:p-6 ${
 				dragging ? 'border-brand bg-brand/10' : 'border-brand/30 bg-background/25 hover:border-brand/55 hover:bg-brand/5'
 			}`}>
 			<input
 				ref={inputRef}
 				id={inputId}
 				type='file'
-				accept='image/png,image/jpeg,image/jpg,image/webp'
+				accept='image/png,image/jpeg,image/jpg,image/webp,application/pdf,.pdf'
 				className='hidden'
 				onChange={event => {
 					useFirstFile(event.currentTarget.files)
 					event.currentTarget.value = ''
 				}}
 			/>
-			<div className='flex size-20 items-center justify-center rounded-lg bg-brand/10 text-brand transition-colors duration-200 group-hover:bg-brand/15 max-sm:size-16'>
-				<ImagePlus size={36} strokeWidth={1.7} />
+			<div className='bg-brand/10 text-brand group-hover:bg-brand/15 flex size-20 items-center justify-center rounded-lg transition-colors duration-200 max-sm:size-16'>
+				<FileUp size={36} strokeWidth={1.7} />
 			</div>
 			<div className='mt-5'>
-				<p className='text-lg font-semibold text-primary max-sm:text-base'>点击、拖拽或粘贴图片</p>
-				<p className='mt-2 text-sm text-secondary'>支持 PNG / JPG / JPEG / WEBP</p>
+				<p className='text-primary text-lg font-semibold max-sm:text-base'>点击或拖拽图片 / PDF，也可粘贴图片</p>
+				<p className='text-secondary mt-2 text-sm'>支持 PNG / JPG / JPEG / WEBP / PDF</p>
 			</div>
 		</motion.label>
 	)

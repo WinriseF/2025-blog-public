@@ -24,8 +24,53 @@ type OcrPreviewProps = {
 	onClear: () => void
 }
 
+type OcrBoxesProps = {
+	items: OcrItem[]
+	width: number
+	height: number
+	selectedItemIndex: number | null
+	onSelectItem: (index: number) => void
+}
+
 function percent(value: number, total: number) {
 	return `${(value / total) * 100}%`
+}
+
+export function OcrBoxes({ items, width, height, selectedItemIndex, onSelectItem }: OcrBoxesProps) {
+	return (
+		<div className='absolute inset-0 z-10'>
+			{items.map((item, index) => {
+				const style: CSSProperties = {
+					left: percent(item.box.x, width),
+					top: percent(item.box.y, height),
+					width: percent(item.box.width, width),
+					height: percent(item.box.height, height)
+				}
+				const selected = selectedItemIndex === index
+
+				return (
+					<button
+						key={`${index}-${item.text}`}
+						type='button'
+						style={style}
+						onClick={event => {
+							event.stopPropagation()
+							onSelectItem(index)
+						}}
+						aria-pressed={selected}
+						aria-label={`选择文字区域 ${index + 1}：${item.text}`}
+						title={item.text}
+						className={`absolute outline-none transition-[border-color,background-color,box-shadow,opacity] duration-150 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-brand ${
+							selected
+								? 'z-20 border-2 border-brand bg-brand/20 ring-2 ring-brand ring-offset-1 ring-offset-background'
+								: selectedItemIndex === null
+									? 'border-2 border-brand/75 bg-brand/8 hover:bg-brand/16'
+									: 'border border-brand/55 bg-brand/5 opacity-45 hover:bg-brand/14 hover:opacity-90'
+						}`} />
+				)
+			})}
+		</div>
+	)
 }
 
 export function OcrPreview({ image, items, showBoxes, selectedItemIndex, onShowBoxesChange, onSelectItem, onOpenPreview, onReplace, onClear }: OcrPreviewProps) {
@@ -72,38 +117,7 @@ export function OcrPreview({ image, items, showBoxes, selectedItemIndex, onShowB
 					className='relative mx-auto block w-fit max-w-full overflow-hidden rounded-sm border border-border/70 bg-background shadow-sm'>
 					<img src={image.previewUrl} alt={image.name} className='block h-auto max-h-[62vh] max-w-full object-contain' />
 					{showBoxes && items.length > 0 && (
-						<div className='absolute inset-0 z-10'>
-							{items.map((item, index) => {
-								const style: CSSProperties = {
-									left: percent(item.box.x, image.width),
-									top: percent(item.box.y, image.height),
-									width: percent(item.box.width, image.width),
-									height: percent(item.box.height, image.height)
-								}
-								const selected = selectedItemIndex === index
-
-								return (
-									<button
-										key={`${index}-${item.text}`}
-										type='button'
-										style={style}
-										onClick={event => {
-											event.stopPropagation()
-											onSelectItem(index)
-										}}
-										aria-pressed={selected}
-										aria-label={`选择文字区域 ${index + 1}：${item.text}`}
-										title={item.text}
-										className={`absolute outline-none transition-[border-color,background-color,box-shadow,opacity] duration-150 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-brand ${
-											selected
-												? 'z-20 border-2 border-brand bg-brand/20 ring-2 ring-brand ring-offset-1 ring-offset-background'
-												: selectedItemIndex === null
-													? 'border-2 border-brand/75 bg-brand/8 hover:bg-brand/16'
-													: 'border border-brand/55 bg-brand/5 opacity-45 hover:bg-brand/14 hover:opacity-90'
-										}`} />
-								)
-							})}
-						</div>
+						<OcrBoxes items={items} width={image.width} height={image.height} selectedItemIndex={selectedItemIndex} onSelectItem={onSelectItem} />
 					)}
 					<button
 						type='button'

@@ -11,16 +11,22 @@ type OcrResultPanelProps = {
 	result: OcrResult | null
 	text: string
 	fileName: string
+	showConfidence?: boolean
+	subtitle?: string
+	downloadText?: string
+	downloadTitle?: string
+	downloadEnabled?: boolean
+	emptyMessage?: string
 	selectedItemIndex: number | null
 	selectionRequest: number
 	onTextChange: (text: string) => void
 }
 
 function getPlaceholder(phase: OcrPhase) {
-	if (phase === 'initializing') return '模型准备完成后，识别结果会显示在这里'
-	if (phase === 'recognizing') return '正在读取图片中的文字'
-	if (phase === 'error') return '识别失败，重试后结果会显示在这里'
-	return '识别结果会显示在这里'
+	if (phase === 'initializing') return '准备完成后，提取结果会显示在这里'
+	if (phase === 'recognizing') return '正在读取文件中的文字'
+	if (phase === 'error') return '提取失败，重试后结果会显示在这里'
+	return '提取结果会显示在这里'
 }
 
 function findItemRange(text: string, items: OcrItem[], selectedIndex: number) {
@@ -39,11 +45,28 @@ function findItemRange(text: string, items: OcrItem[], selectedIndex: number) {
 	return start < 0 ? null : { start, end: start + itemText.length }
 }
 
-export function OcrResultPanel({ phase, result, text, fileName, selectedItemIndex, selectionRequest, onTextChange }: OcrResultPanelProps) {
+export function OcrResultPanel({
+	phase,
+	result,
+	text,
+	fileName,
+	showConfidence = true,
+	subtitle,
+	downloadText,
+	downloadTitle = '下载 TXT',
+	downloadEnabled = true,
+	emptyMessage = '未提取到文字，可以更换文件或重新提取。',
+	selectedItemIndex,
+	selectionRequest,
+	onTextChange
+}: OcrResultPanelProps) {
 	const hasText = text.length > 0
+	const exportedText = downloadText ?? text
+	const hasDownload = downloadEnabled && exportedText.length > 0
+	const canInspect = phase === 'success' || result !== null
 	const emptyResult = phase === 'success' && !result?.text.trim() && !result?.items.length
 	const confidence = Math.round((result?.confidence ?? 0) * 100)
-	const selectedItem = selectedItemIndex === null ? null : result?.items[selectedItemIndex] ?? null
+	const selectedItem = selectedItemIndex === null ? null : (result?.items[selectedItemIndex] ?? null)
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 	const textRef = useRef(text)
 	const itemsRef = useRef(result?.items ?? [])
@@ -70,17 +93,17 @@ export function OcrResultPanel({ phase, result, text, fileName, selectedItemInde
 	const handleCopy = async () => {
 		try {
 			await navigator.clipboard.writeText(text)
-			toast.success('识别文字已复制')
+			toast.success('提取文字已复制')
 		} catch {
 			toast.error('复制失败，请手动选择文字')
 		}
 	}
 
 	const handleDownload = () => {
-		const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+		const url = URL.createObjectURL(new Blob([exportedText], { type: 'text/plain;charset=utf-8' }))
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `${fileName}.ocr.txt`
+		link.download = `${fileName.replace(/\.[^.]+$/, '') || 'extracted-text'}.txt`
 		document.body.appendChild(link)
 		link.click()
 		link.remove()
@@ -88,29 +111,35 @@ export function OcrResultPanel({ phase, result, text, fileName, selectedItemInde
 	}
 
 	return (
-		<section className='flex min-w-0 flex-col border-t border-border xl:border-t-0 xl:border-l'>
-			<div className='flex min-h-16 items-center justify-between gap-3 border-b border-border px-4 py-2.5 max-sm:px-3'>
+		<section className='border-border flex min-w-0 flex-col border-t xl:border-t-0 xl:border-l'>
+			<div className='border-border flex min-h-16 items-center justify-between gap-3 border-b px-4 py-2.5 max-sm:px-3'>
 				<div>
-					<label htmlFor='ocr-result-text' className='text-sm font-semibold text-primary'>识别结果</label>
-					{phase === 'success' && <p className='mt-1 text-xs text-secondary'>平均置信度 {confidence}%</p>}
+					<label htmlFor='ocr-result-text' className='text-primary text-sm font-semibold'>
+						提取结果
+					</label>
+					{subtitle ? (
+						<p className='text-secondary mt-1 text-xs'>{subtitle}</p>
+					) : (
+						phase === 'success' && showConfidence && <p className='text-secondary mt-1 text-xs'>平均置信度 {confidence}%</p>
+					)}
 				</div>
 				<div className='flex items-center gap-2'>
 					<button
 						type='button'
 						onClick={() => void handleCopy()}
 						disabled={!hasText}
-						aria-label='复制识别文字'
-						title='复制识别文字'
-						className='flex size-11 items-center justify-center rounded-lg border border-border bg-background/35 text-primary outline-none transition-colors duration-150 hover:border-brand/45 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:text-secondary/35'>
+						aria-label='复制提取文字'
+						title='复制提取文字'
+						className='border-border bg-background/35 text-primary hover:border-brand/45 hover:text-brand focus-visible:ring-brand disabled:text-secondary/35 flex size-11 items-center justify-center rounded-lg border transition-colors duration-150 outline-none focus-visible:ring-2 disabled:cursor-not-allowed'>
 						<Copy size={17} />
 					</button>
 					<button
 						type='button'
 						onClick={handleDownload}
-						disabled={!hasText}
-						aria-label='下载识别文字'
-						title='下载 TXT'
-						className='flex size-11 items-center justify-center rounded-lg border border-border bg-background/35 text-primary outline-none transition-colors duration-150 hover:border-brand/45 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:text-secondary/35'>
+						disabled={!hasDownload}
+						aria-label={downloadTitle}
+						title={downloadTitle}
+						className='border-border bg-background/35 text-primary hover:border-brand/45 hover:text-brand focus-visible:ring-brand disabled:text-secondary/35 flex size-11 items-center justify-center rounded-lg border transition-colors duration-150 outline-none focus-visible:ring-2 disabled:cursor-not-allowed'>
 						<Download size={17} />
 					</button>
 				</div>
@@ -118,16 +147,18 @@ export function OcrResultPanel({ phase, result, text, fileName, selectedItemInde
 
 			<div className='flex flex-1 flex-col p-4 max-sm:p-3'>
 				{result?.items.length ? (
-					<div className='mb-3 flex min-h-11 min-w-0 items-center gap-2 border-b border-border/70 pb-3' aria-live='polite' aria-atomic='true'>
-						<ScanLine size={16} className={selectedItem ? 'shrink-0 text-brand' : 'shrink-0 text-secondary/60'} />
+					<div className='border-border/70 mb-3 flex min-h-11 min-w-0 items-center gap-2 border-b pb-3' aria-live='polite' aria-atomic='true'>
+						<ScanLine size={16} className={selectedItem ? 'text-brand shrink-0' : 'text-secondary/60 shrink-0'} />
 						{selectedItem ? (
 							<>
-								<span className='shrink-0 text-xs font-semibold text-brand'>区域 {selectedItemIndex! + 1}</span>
-								<mark className='min-w-0 flex-1 truncate rounded-sm bg-brand/15 px-2 py-1 text-sm font-medium text-primary' title={selectedItem.text}>{selectedItem.text}</mark>
-								<span className='shrink-0 text-xs tabular-nums text-secondary'>{Math.round(selectedItem.confidence * 100)}%</span>
+								<span className='text-brand shrink-0 text-xs font-semibold'>区域 {selectedItemIndex! + 1}</span>
+								<mark className='bg-brand/15 text-primary min-w-0 flex-1 truncate rounded-sm px-2 py-1 text-sm font-medium' title={selectedItem.text}>
+									{selectedItem.text}
+								</mark>
+								<span className='text-secondary shrink-0 text-xs tabular-nums'>{Math.round(selectedItem.confidence * 100)}%</span>
 							</>
 						) : (
-							<span className='text-sm text-secondary'>未选择文字区域</span>
+							<span className='text-secondary text-sm'>未选择文字区域</span>
 						)}
 					</div>
 				) : null}
@@ -136,12 +167,17 @@ export function OcrResultPanel({ phase, result, text, fileName, selectedItemInde
 					id='ocr-result-text'
 					value={text}
 					onChange={event => onTextChange(event.currentTarget.value)}
-					disabled={phase !== 'success'}
+					disabled={!canInspect}
+					readOnly={phase !== 'success'}
 					placeholder={getPlaceholder(phase)}
 					aria-describedby={emptyResult ? 'ocr-empty-result' : undefined}
-					className='min-h-[410px] w-full flex-1 resize-y rounded-lg border border-border bg-card/35 p-4 text-base leading-7 tracking-normal text-primary outline-none transition-colors duration-150 selection:bg-brand/30 selection:text-primary placeholder:text-secondary/55 focus:border-brand/60 focus:ring-2 focus:ring-brand/20 disabled:cursor-default disabled:opacity-80 max-sm:min-h-[280px]'
+					className='border-border bg-card/35 text-primary selection:bg-brand/30 selection:text-primary placeholder:text-secondary/55 focus:border-brand/60 focus:ring-brand/20 min-h-[410px] w-full flex-1 resize-y rounded-lg border p-4 text-base leading-7 tracking-normal transition-colors duration-150 outline-none focus:ring-2 disabled:cursor-default disabled:opacity-80 max-sm:min-h-[280px]'
 				/>
-				{emptyResult && <p id='ocr-empty-result' className='mt-3 text-sm text-secondary'>未识别到文字，可以更换图片或重新识别。</p>}
+				{emptyResult && (
+					<p id='ocr-empty-result' className='text-secondary mt-3 text-sm'>
+						{emptyMessage}
+					</p>
+				)}
 			</div>
 		</section>
 	)
