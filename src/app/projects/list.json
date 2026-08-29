@@ -33,5 +33,13 @@
 		"url": "/blog/2025-blog-public",
 		"tags": ["Next.js", "React", "TypeScript", "Tailwind CSS", "Personal Site"],
 		"github": "https://github.com/WinriseF/2025-blog-public"
+	},
+	{
+		"name": "DB2026",
+		"year": 2026,
+		"description": "2026 年全国大学生计算机系统能力大赛·数据库管理系统设计赛国赛三等奖。基于中国人民大学 RMDB 框架（C++17 / CMake / flex·bison），在官方骨架上补全存储、Buffer Pool、B+ 树索引、SQL 执行与 2PL 事务等内核模块，面向 TPC-C 基准测试常用负载完成系统实现与比赛答辩。",
+		"image": "/blogs/db2026/cover.png",
+		"url": "/blog/db2026",
+		"tags": ["RMDB", "C++17", "TPC-C", "Database", "Competition"]
 	}
 ]

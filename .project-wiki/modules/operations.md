@@ -13,7 +13,7 @@ Contains the cross-module stack, repository map, build/deployment setup, externa
 | `netlify.toml` | Netlify build, Node version, plugin, cache headers. |
 | `edgeone.json` | Relay cleanup schedule. |
 | `supabase/`, `edge-functions/` | Likes and public relay backends. |
-| `scripts/`, `tests/` | Generated artifacts and focused tests. |
+| `scripts/`, `tests/`, `vitest.config.ts` | Generated artifacts and unified Vitest suites (`tests/**`). |
 
 ## Main Architecture
 
@@ -21,6 +21,7 @@ Next.js 16 + React 19 + TypeScript/Tailwind deliver the public site. Markdown/JS
 
 ## Pay Attention
 
+- Tests are unified under `vitest.config.ts:1` (`tests/**/*.test.*`, node, 20s timeout, `sequence.concurrent:false`). Use `pnpm test` only.
 - Do not run package scripts for verification unless explicitly requested.
 - `predev`/`prebuild` generate word cloud; `svg` regenerates SVG index. Treat generated output as non-primary source.
 - Netlify is the checked-in deployment path: Node 22, `pnpm run build`, `.next`, Next plugin; EdgeOne cleanup runs 02:00 Asia/Shanghai.

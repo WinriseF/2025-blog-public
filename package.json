@@ -11,7 +11,7 @@
 		"svg": "node scripts/gen-svgs-index.js",
 		"build": "node --require ./scripts/suppress-baseline-warning.cjs ./node_modules/next/dist/bin/next build --turbopack",
 		"start": "next start",
-		"test:codex-session": "vitest run tests/codex-session",
+		"test": "vitest run",
 		"format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\" \"tests/**/*.{ts,tsx,js,jsx,json}\" \"*.{ts,js,json}\""
 	},
 	"dependencies": {
@@ -69,6 +69,7 @@
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"@types/three": "^0.184.0",
+		"@vitest/coverage-v8": "^4.1.11",
 		"babel-plugin-react-compiler": "1.0.0",
 		"baseline-browser-mapping": "^2.10.25",
 		"prettier": "^3.6.2",

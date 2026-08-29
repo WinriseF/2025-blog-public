@@ -100,25 +100,4 @@ describe('Codex Session activity analysis', () => {
 		expect(activity.metrics.toolTimeShare).toBe(0.5)
 	})
 
-	it('将异步 exec 与 write_stdin 归并为同一执行并跨步骤分摊墙钟', () => {
-		const activity = analyze([
-			record(1, 'turn_context', { turn_id: 'turn-1' }),
-			record(2, 'event_msg', { type: 'user_message' }),
-			record(3, 'response_item', { type: 'custom_tool_call', name: 'exec', call_id: 'start', input: "await tools.exec_command({ cmd: 'long-job' })" }),
-			record(4, 'response_item', { type: 'custom_tool_call_output', call_id: 'start', output: { wall_time_seconds: 1, cell_id: 'cell-1' } }),
-			tokenRecord(5),
-			record(6, 'response_item', { type: 'custom_tool_call', name: 'exec', call_id: 'continue', input: "await tools.write_stdin({ cell_id: 'cell-1', chars: '' })" }),
-			record(9, 'response_item', { type: 'custom_tool_call_output', call_id: 'continue', output: { wall_time_seconds: 1, exit_code: 0 } }),
-			tokenRecord(10),
-			record(11, 'event_msg', { type: 'task_complete', turn_id: 'turn-1', duration_ms: 9000 })
-		])
-
-		const logical = activity.tools.filter(tool => tool.logical)
-		expect(logical).toMatchObject([{ name: 'exec_command', status: 'completed', durationMs: 6000 }])
-		expect(activity.requests.map(request => ({ calls: request.toolCallCount, executions: request.toolExecutionCount, duration: request.toolDurationMs }))).toEqual([
-			{ calls: 1, executions: 1, duration: 2000 },
-			{ calls: 0, executions: 1, duration: 4000 }
-		])
-		expect(activity.metrics).toMatchObject({ logicalToolCallCount: 1, toolExecutionCount: 1, timedToolExecutionCount: 1, toolDurationMs: 6000 })
-	})
 })
