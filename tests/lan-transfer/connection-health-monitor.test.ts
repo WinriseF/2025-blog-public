@@ -9,7 +9,7 @@ function stats(overrides: Record<string, unknown> = {}) {
 }
 
 function fixture(active = false) {
-  const transport = { id: 't', isOpen: vi.fn(() => true), bufferedAmount: 0, getHealthStats: vi.fn(), inspectRoute: vi.fn() } as any
+  const transport = { id: 't', isOpen: vi.fn(() => true), bufferedAmount: 0, probe: vi.fn(async () => true), getHealthStats: vi.fn(), inspectRoute: vi.fn() } as any
   const callbacks = { onHealthy: vi.fn(), onSlow: vi.fn(), onSuspect: vi.fn() }
   const monitor = new ConnectionHealthMonitor({ getTransport: () => transport, isTransferActive: () => active, ...callbacks })
   return { transport, callbacks, monitor }
@@ -53,5 +53,25 @@ describe('ConnectionHealthMonitor', () => {
     resolve(stats({ connectionState: 'failed' }))
     await check
     expect(callbacks.onSuspect).not.toHaveBeenCalled()
+  })
+
+  it('uses a data-channel round trip to verify a connection after wake', async () => {
+    const { monitor, transport, callbacks } = fixture()
+    transport.getHealthStats.mockResolvedValue(stats())
+    ;(monitor as any).verifyUntil = Date.now() + 8000
+    await (monitor as any).check(true)
+    expect(transport.probe).toHaveBeenCalledWith(1500)
+    expect(callbacks.onHealthy).toHaveBeenCalledWith(transport, true, false)
+  })
+
+  it('escalates a wake verification when the data-channel probe stays unanswered', async () => {
+    const { monitor, transport, callbacks } = fixture()
+    transport.getHealthStats.mockResolvedValue(stats())
+    transport.probe.mockResolvedValue(false)
+    ;(monitor as any).verifyUntil = Date.now() + 8000
+    await (monitor as any).check(true)
+    vi.setSystemTime(new Date(Date.now() + 11_000))
+    ;(monitor as any).evaluate(transport, stats(), false)
+    expect(callbacks.onSuspect).toHaveBeenCalledWith('网络路径无响应，正在恢复', true)
   })
 })

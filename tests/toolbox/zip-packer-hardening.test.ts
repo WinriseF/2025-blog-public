@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   analyzeZipSelection,
   scanZipFiles,
   suggestedZipName,
   toggleZipSubtree,
+  writeZipArchive,
   type ZipNode
 } from '../../src/lib/zip-packer'
 
@@ -47,5 +48,44 @@ describe('ZIP packer hardening', () => {
     const map = new Map(nodes.map(node => [node.id, node]))
     expect(toggleZipSubtree(map, new Set(), 'root', true)).toEqual(new Set(['root', 'root/a', 'root/b']))
     expect(toggleZipSubtree(map, new Set(['root', 'root/a', 'root/b']), 'root', false).size).toBe(0)
+  })
+
+  it('rejects a selected deferred directory before opening the output stream', async () => {
+    const outputHandle = { createWritable: vi.fn() } as unknown as FileSystemFileHandle
+    const scan = {
+      rootId: 'root', rootName: 'root', totalBytes: 0, unloadedDirectories: 1, skippedEntries: [],
+      nodes: [{ id: 'root', parentId: null, children: [], name: 'root', path: 'root', kind: 'directory', size: 0, lastModified: 0, suggestedExcluded: false, loaded: false }]
+    } as never
+
+    await expect(writeZipArchive({
+      scan,
+      selectedIds: new Set(['root']),
+      compression: { level: 6, skipAlreadyCompressed: true },
+      includeRoot: true,
+      outputHandle,
+      signal: new AbortController().signal,
+      onProgress: vi.fn()
+    })).rejects.toThrow('仍有已选目录尚未读取完成')
+    expect(outputHandle.createWritable).not.toHaveBeenCalled()
+  })
+
+  it('rejects using a selected input file as the output archive', async () => {
+    const outputHandle = { name: 'result.zip', createWritable: vi.fn() } as unknown as FileSystemFileHandle
+    const scan = {
+      rootId: 'root', rootName: 'root', totalBytes: 1, unloadedDirectories: 0, skippedEntries: [],
+      rootHandle: { resolve: vi.fn(async () => ['result.zip']) },
+      nodes: [{ id: 'root/result.zip', parentId: 'root', children: [], name: 'result.zip', path: 'root/result.zip', kind: 'file', size: 1, lastModified: 1, suggestedExcluded: false, file: new File(['x'], 'result.zip') }]
+    } as never
+
+    await expect(writeZipArchive({
+      scan,
+      selectedIds: new Set(['root/result.zip']),
+      compression: { level: 6, skipAlreadyCompressed: true },
+      includeRoot: true,
+      outputHandle,
+      signal: new AbortController().signal,
+      onProgress: vi.fn()
+    })).rejects.toThrow('输出 ZIP 不能同时作为输入文件')
+    expect(outputHandle.createWritable).not.toHaveBeenCalled()
   })
 })

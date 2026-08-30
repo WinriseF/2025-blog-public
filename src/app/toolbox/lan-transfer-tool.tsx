@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, Copy, MessageCircle, PanelLeftClose, QrCode, Sun, X, Zap } from 'lucide-react'
+import { ChevronLeft, Copy, MessageCircle, PanelLeftClose, QrCode, RotateCw, Sun, X, Zap } from 'lucide-react'
 import { formatLanConnectionRoute } from '@/lib/lan-transfer/transport-types'
 import { installLanDiagnosticCapture } from '@/lib/lan-transfer/connection-diagnostics'
 import { useLanScreenWakeLock, type LanScreenWakeLockState } from '@/hooks/use-lan-screen-wake-lock'
@@ -330,9 +330,16 @@ function ChatPane({
 						{!onBack && <p className='text-secondary truncate text-xs'>{headerStatus}</p>}
 					</div>
 				</div>
-				<button onClick={() => controller.closeConnection()} disabled={!activeConnection} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-40' aria-label='关闭当前会话'>
-					<X size={17} />
-				</button>
+				<div className='flex items-center gap-2'>
+					{activeConnection && !activeConnection.connected && (
+						<button onClick={() => controller.retryConnection()} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary' aria-label='立即重试连接' title='立即重试连接'>
+							<RotateCw size={16} />
+						</button>
+					)}
+					<button onClick={() => controller.closeConnection()} disabled={!activeConnection} className='text-secondary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition hover:border-brand/45 hover:text-primary disabled:opacity-40' aria-label='关闭当前会话'>
+						<X size={17} />
+					</button>
+				</div>
 			</header>
 			<div ref={scrollRef} className='min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6'>
 				{activeConnection && messages.length > 0 && (

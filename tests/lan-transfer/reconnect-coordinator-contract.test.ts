@@ -5,10 +5,12 @@ import { describe, expect, it } from 'vitest'
 const source = () => readFileSync(resolve(process.cwd(), 'src/lib/lan-transfer/reconnect-coordinator.ts'), 'utf8')
 
 describe('LAN reconnect coordinator contracts', () => {
-  it('uses bounded escalating backoff rather than an unbounded tight reconnect loop', () => {
+  it('uses a bounded automatic retry budget rather than an endless reconnect loop', () => {
     const text = source()
-    expect(text).toMatch(/backoffDelays\s*=\s*\[0,\s*1000,\s*2000,\s*4000,\s*8000\]/)
+    expect(text).toMatch(/backoffDelays\s*=\s*\[0,\s*750,\s*2000\]/)
     expect(text).toMatch(/backoffIndex/)
+    expect(text).toMatch(/retryExhausted/)
+    expect(text).toMatch(/automatic-retry-exhausted/)
   })
 
   it('distinguishes ICE restart from full rebuild with independent timeouts', () => {
@@ -29,5 +31,12 @@ describe('LAN reconnect coordinator contracts', () => {
     const text = source()
     expect(text).toMatch(/this\.clearTimers\(\)/)
     expect(text).toMatch(/this\.pendingCandidates\.clear\(\)/)
+  })
+
+  it('guards asynchronous continuations and timers with a reconnect attempt epoch', () => {
+    const text = source()
+    expect(text).toMatch(/attemptEpoch/)
+    expect(text).toMatch(/isCurrentAttempt/)
+    expect(text).toMatch(/attempt\s*!==\s*this\.attemptEpoch/)
   })
 })

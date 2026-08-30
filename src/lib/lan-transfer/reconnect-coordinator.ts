@@ -4,9 +4,9 @@ import type { LanConnectionRoute, LanReconnectTransport, LanTransportFactory, La
 import type { LanConnectionState, LanPeer, LanRole, LanSignalMessage, LanSignalSendDetails, LanSignalTarget, LanSignalType } from './types'
 
 const suspectGraceMs = 3000
-const iceRestartTimeoutMs = 7000
-const rebuildTimeoutMs = 10000
-const backoffDelays = [0, 1000, 2000, 4000, 8000]
+const iceRestartTimeoutMs = 5000
+const rebuildTimeoutMs = 7000
+const backoffDelays = [0, 750, 2000]
 
 export type ReconnectCoordinatorOptions = {
 	role: LanRole
@@ -41,14 +41,17 @@ export class ReconnectCoordinator {
 	private readyTransportId = ''
 	private attachedTransportId = ''
 	private backoffIndex = 0
+	private attemptEpoch = 0
 	private closed = false
 	private signalOnline = false
+	private remotePresent = true
 	private remoteClosedInstanceId = ''
 	private pendingCandidates = new Map<string, RTCIceCandidateInit[]>()
 	private attemptTimer: ReturnType<typeof setTimeout> | null = null
 	private suspectTimer: ReturnType<typeof setTimeout> | null = null
 	private backoffTimer: ReturnType<typeof setTimeout> | null = null
 	private hardRecoveryRequested = false
+	private retryExhausted = false
 	private readonly healthMonitor: ConnectionHealthMonitor
 
 	constructor(private readonly options: ReconnectCoordinatorOptions) {
@@ -77,9 +80,13 @@ export class ReconnectCoordinator {
 	updatePeer(peer: LanPeer) {
 		if (this.closed || peer.deviceId !== this.peer.deviceId) return
 		const instanceChanged = peer.instanceId !== this.peer.instanceId
+		const presenceRestored = !this.remotePresent
 		if (!instanceChanged && peer.joinedAt < this.peer.joinedAt) return
 		this.peer = peer
+		this.remotePresent = true
 		if (instanceChanged) {
+			this.invalidateAttempt()
+			this.resetRetryBudget()
 			this.hardRecoveryRequested = true
 			this.remoteClosedInstanceId = ''
 			this.clearTimers()
@@ -91,17 +98,62 @@ export class ReconnectCoordinator {
 			this.setState('discovered', '设备页面已更新，正在重新连接')
 		}
 		if (!instanceChanged && this.remoteClosedInstanceId === peer.instanceId) return
+		if (presenceRestored) {
+			this.resetRetryBudget()
+			const transport = this.transport
+			if (transport?.isOpen() && this.state === 'connected') {
+				this.setState('connected', '已连接，可以发送消息和文件', true)
+				this.healthMonitor.wake()
+				return
+			}
+		}
 		this.recover(instanceChanged ? '设备页面已恢复' : '发现设备')
+	}
+
+	setPeerPresent(peer: LanPeer, present: boolean) {
+		if (this.closed || peer.deviceId !== this.peer.deviceId || peer.instanceId !== this.peer.instanceId) return
+		if (present) {
+			if (this.remotePresent) return
+			this.remotePresent = true
+			this.resetRetryBudget()
+			const transport = this.transport
+			if (transport?.isOpen()) {
+				if (this.state === 'connected') {
+					this.setState('connected', '已连接，可以发送消息和文件', true)
+					this.healthMonitor.wake()
+				}
+				return
+			}
+			if (this.remoteClosedInstanceId !== peer.instanceId) this.recover('设备重新在线', true)
+			return
+		}
+		if (!this.remotePresent) return
+		this.remotePresent = false
+		const transport = this.transport
+		if (transport?.isOpen()) {
+			this.log('peer-presence-lost-transport-preserved')
+			if (this.state === 'connected') this.setState('connected', '直连正常，连接服务暂时离线', true)
+			return
+		}
+		this.invalidateAttempt()
+		this.clearTimers()
+		this.closeTransport('对方暂时离线，等待重新上线', 'backoff')
+		this.setState('backoff', '对方暂时离线，等待重新上线')
 	}
 
 	setSignalingOnline(online: boolean) {
 		if (this.closed) return
+		const restored = online && !this.signalOnline
 		this.signalOnline = online
 		this.log('signaling-state', { online })
 		if (!online) return
+		if (restored) this.resetRetryBudget()
 		const transport = this.transport
 		if (transport?.isOpen()) {
-			if (this.state !== 'connected') this.restoreConnected(transport)
+			if (this.state === 'connected') {
+				this.setState('connected', '已连接，可以发送消息和文件', true)
+				this.healthMonitor.wake()
+			}
 			return
 		}
 		this.recover('连接服务已恢复')
@@ -139,13 +191,15 @@ export class ReconnectCoordinator {
 			return
 		}
 		if (message.type === 'offer') {
-			if (this.options.role === 'guest' && message.description) void this.acceptOffer(message).catch(() => this.handleAttemptFailure())
+			if (this.options.role === 'guest' && message.description) void this.acceptOffer(message)
 			return
 		}
 		if (message.type === 'answer') {
 			if (this.options.role === 'host' && this.matchesCurrent(message) && message.description) {
 				this.remoteNegotiationSeq = Math.max(this.remoteNegotiationSeq, message.seq)
-				void this.transport?.acceptDescription(message.description).catch(() => this.handleAttemptFailure())
+				const transport = this.transport
+				const attempt = this.attemptEpoch
+				if (transport) void transport.acceptDescription(message.description, attempt).catch(() => this.handleAttemptFailure(attempt, transport))
 			} else {
 				this.log('signal-ignored', { type: message.type, reason: 'answer-not-current', messageGeneration: message.generation, messageNegotiation: shortConnectionId(message.negotiationId), hasDescription: Boolean(message.description) }, 'warn')
 			}
@@ -156,6 +210,7 @@ export class ReconnectCoordinator {
 
 	wake() {
 		if (this.closed) return
+		this.resetRetryBudget()
 		const transport = this.transport
 		if (!transport) return this.recover('页面已恢复')
 		if (transport.isOpen()) return this.healthMonitor.wake()
@@ -165,16 +220,33 @@ export class ReconnectCoordinator {
 	close() {
 		if (this.closed) return
 		this.closed = true
+		this.invalidateAttempt()
 		this.clearTimers()
 		this.pendingCandidates.clear()
 		this.closeTransport('连接已关闭', 'closed')
 		this.setState('closed', '连接已关闭')
 	}
 
+	retry() {
+		if (this.closed) return
+		if (this.remoteClosedInstanceId === this.peer.instanceId) return this.setState('backoff', '对方已离开，等待重新上线')
+		if (!this.remotePresent) return this.setState('backoff', '对方暂时离线，等待重新上线')
+		this.resetRetryBudget()
+		this.hardRecoveryRequested = true
+		this.invalidateAttempt()
+		this.clearTimers()
+		this.closeTransport('正在重新连接', 'backoff')
+		this.setState('backoff', '正在重新连接')
+		this.recover('手动重试', true)
+	}
+
 	private updatePeerWithoutRecovery(peer: LanPeer) {
 		if (peer.deviceId !== this.peer.deviceId || peer.joinedAt < this.peer.joinedAt) return
+		this.remotePresent = true
 		if (peer.instanceId !== this.peer.instanceId) {
 			this.peer = peer
+			this.invalidateAttempt()
+			this.resetRetryBudget()
 			this.remoteClosedInstanceId = ''
 			this.hardRecoveryRequested = true
 			this.clearTimers()
@@ -192,6 +264,11 @@ export class ReconnectCoordinator {
 	private recover(reason: string, force = false) {
 		if (this.closed) return
 		if (this.remoteClosedInstanceId === this.peer.instanceId) return this.setState('backoff', '对方已离开，等待重新连接')
+		if (!this.remotePresent) {
+			if (force) this.closeTransport('对方暂时离线，等待重新上线', 'backoff')
+			return this.setState('backoff', '对方暂时离线，等待重新上线')
+		}
+		if (this.retryExhausted) return this.setState('backoff', '自动重连未成功，请立即重试或切换公网传输')
 		if (this.state === 'connecting' || this.state === 'rebuilding' || this.state === 'ice-restarting') return
 		if (!force && this.transport?.isOpen()) return
 		this.pauseCurrent()
@@ -202,9 +279,12 @@ export class ReconnectCoordinator {
 			else void this.startIceRestart()
 			return
 		}
+		const attempt = this.beginAttempt()
+		const transport = this.transport
 		this.setState('connecting', '正在请求主机恢复连接')
-		void this.options.sendSignal('reconnect-request', this.target(), { generation: this.generation, negotiationId: this.negotiationId, reason, hardRecovery: this.hardRecoveryRequested }).catch(() => this.scheduleBackoff())
-		this.armAttempt(rebuildTimeoutMs, () => this.scheduleBackoff())
+		this.armAttempt(rebuildTimeoutMs, () => this.handleAttemptFailure(attempt, transport), attempt)
+		void this.options.sendSignal('reconnect-request', this.target(), { generation: this.generation, negotiationId: this.negotiationId, reason, hardRecovery: this.hardRecoveryRequested })
+			.catch(() => this.handleAttemptFailure(attempt, transport))
 	}
 
 	private async startRebuild(reason: string) {
@@ -214,34 +294,35 @@ export class ReconnectCoordinator {
 			return this.setState('backoff', '等待连接服务恢复')
 		}
 		if (this.state === 'rebuilding') return
-		this.clearAttempt()
-		this.clearSuspect()
+		const attempt = this.beginAttempt()
 		this.hardRecoveryRequested = false
 		this.closeTransport('正在重新建立连接', 'rebuilding')
 		this.generation += 1
 		this.negotiationId = randomId()
 		this.setState('rebuilding', '正在重新建立连接')
+		this.armAttempt(rebuildTimeoutMs, () => this.handleAttemptFailure(attempt), attempt)
 		try {
 			await this.options.sendSignal('rebuild', this.target(), { generation: this.generation, negotiationId: this.negotiationId, reason })
 		} catch {
-			return this.scheduleBackoff()
+			return this.scheduleBackoff(attempt)
 		}
+		if (!this.isCurrentAttempt(attempt, 'rebuilding')) return
 		const transport = this.createTransport(this.generation, this.negotiationId)
-		this.armAttempt(rebuildTimeoutMs, () => this.handleAttemptFailure())
-		void transport.start().catch(() => this.handleAttemptFailure())
+		void transport.start(attempt).catch(() => this.handleAttemptFailure(attempt, transport))
 	}
 
 	private acceptRebuild(message: LanSignalMessage) {
 		if (message.generation < this.generation) return
 		if (message.generation === this.generation && message.negotiationId === this.negotiationId && this.transport) return
-		this.clearTimers()
+		if (message.generation > this.generation) this.resetRetryBudget()
+		const attempt = this.beginAttempt()
 		this.hardRecoveryRequested = false
 		this.closeTransport('主机正在重新建立连接', 'rebuilding')
 		this.generation = message.generation
 		this.negotiationId = message.negotiationId
 		this.setState('rebuilding', '主机正在重新建立连接')
-		this.createTransport(this.generation, this.negotiationId)
-		this.armAttempt(rebuildTimeoutMs, () => this.scheduleBackoff())
+		const transport = this.createTransport(this.generation, this.negotiationId)
+		this.armAttempt(rebuildTimeoutMs, () => this.handleAttemptFailure(attempt, transport), attempt)
 	}
 
 	private async startIceRestart() {
@@ -252,56 +333,63 @@ export class ReconnectCoordinator {
 		}
 		if (!this.signalOnline) return void this.setState('backoff', '等待连接服务恢复')
 		if (this.state === 'ice-restarting' || this.state === 'rebuilding') return
-		this.healthMonitor.stop()
-		this.clearAttempt()
-		this.clearSuspect()
+		const attempt = this.beginAttempt()
 		this.negotiationId = randomId()
 		transport.setNegotiationId(this.negotiationId)
 		this.pauseCurrent()
 		this.setState('ice-restarting', '正在恢复网络路径')
+		this.armAttempt(iceRestartTimeoutMs, () => void this.startRebuild('网络路径恢复超时'), attempt)
 		try {
 			await this.options.sendSignal('ice-restart', this.target(), { generation: this.generation, negotiationId: this.negotiationId })
 		} catch {
-			return this.scheduleBackoff()
+			return this.scheduleBackoff(attempt)
 		}
-		this.armAttempt(iceRestartTimeoutMs, () => void this.startRebuild('网络路径恢复超时'))
-		void transport.restartIce(this.negotiationId).catch(() => void this.startRebuild('网络路径恢复失败'))
+		if (!this.isCurrentAttempt(attempt, 'ice-restarting') || this.transport !== transport) return
+		void transport.restartIce(this.negotiationId, attempt).catch(() => {
+			if (this.isCurrentAttempt(attempt, 'ice-restarting') && this.transport === transport) void this.startRebuild('网络路径恢复失败')
+		})
 	}
 
 	private acceptIceRestart(message: LanSignalMessage) {
 		if (message.generation !== this.generation || !this.transport) return
-		this.clearTimers()
+		const attempt = this.beginAttempt()
 		this.negotiationId = message.negotiationId
 		this.transport.setNegotiationId(message.negotiationId)
 		this.drainCandidates(this.transport, this.generation, this.negotiationId)
 		this.pauseCurrent()
 		this.setState('ice-restarting', '主机正在恢复网络路径')
-		this.armAttempt(iceRestartTimeoutMs, () => this.handleAttemptFailure())
+		this.armAttempt(iceRestartTimeoutMs, () => this.handleAttemptFailure(attempt, this.transport), attempt)
 	}
 
 	private async acceptOffer(message: LanSignalMessage) {
 		if (message.generation < this.generation || !message.description) return
 		this.clearBackoff()
+		let attempt = this.attemptEpoch
 		if (!this.transport || message.generation > this.generation) {
-			this.clearAttempt()
-			this.clearSuspect()
+			if (message.generation > this.generation) this.resetRetryBudget()
+			attempt = this.beginAttempt()
 			this.closeTransport('正在接受新连接', 'rebuilding')
 			this.generation = message.generation
 			this.negotiationId = message.negotiationId
 			this.setState('rebuilding', '正在接受新连接')
-			this.createTransport(this.generation, this.negotiationId)
-			this.armAttempt(rebuildTimeoutMs, () => this.scheduleBackoff())
+			const transport = this.createTransport(this.generation, this.negotiationId)
+			this.armAttempt(rebuildTimeoutMs, () => this.handleAttemptFailure(attempt, transport), attempt)
 		} else if (message.negotiationId !== this.negotiationId) {
-			this.clearAttempt()
-			this.clearSuspect()
+			attempt = this.beginAttempt()
 			this.negotiationId = message.negotiationId
 			this.transport.setNegotiationId(message.negotiationId)
 			this.drainCandidates(this.transport, this.generation, this.negotiationId)
 			this.pauseCurrent()
 			this.setState('ice-restarting', '主机正在恢复网络路径')
-			this.armAttempt(iceRestartTimeoutMs, () => this.handleAttemptFailure())
+			this.armAttempt(iceRestartTimeoutMs, () => this.handleAttemptFailure(attempt, this.transport), attempt)
 		}
-		await this.transport?.acceptDescription(message.description)
+		const transport = this.transport
+		if (!transport) return
+		try {
+			await transport.acceptDescription(message.description, attempt)
+		} catch {
+			this.handleAttemptFailure(attempt, transport)
+		}
 	}
 
 	private createTransport(generation: number, negotiationId: string) {
@@ -310,10 +398,13 @@ export class ReconnectCoordinator {
 			role: this.options.role,
 			generation,
 			negotiationId,
-			onDescription: description => {
-				if (this.transport !== transport) return
+			onDescription: (description, descriptionNegotiationId, descriptionAttempt) => {
+				if (this.transport !== transport || !this.isCurrentAttempt(descriptionAttempt) || descriptionNegotiationId !== this.negotiationId || descriptionNegotiationId !== transport.negotiationId) {
+					this.log('description-ignored', { reason: 'stale-attempt', descriptionAttempt, descriptionNegotiation: shortConnectionId(descriptionNegotiationId) }, 'warn')
+					return
+				}
 				const type = description.type === 'offer' ? 'offer' : 'answer'
-				void this.options.sendSignal(type, this.target(), { generation, negotiationId: transport.negotiationId, description }).catch(() => this.handleAttemptFailure())
+				void this.options.sendSignal(type, this.target(), { generation, negotiationId: descriptionNegotiationId, description }).catch(() => this.handleAttemptFailure(descriptionAttempt, transport))
 			},
 			onCandidate: candidate => {
 				if (candidate && this.transport === transport) void this.options.sendSignal('candidate', this.target(), { generation, negotiationId: transport.negotiationId, candidate }).catch(() => {})
@@ -412,8 +503,9 @@ export class ReconnectCoordinator {
 
 	private restoreConnected(transport: LanReconnectTransport) {
 		if (this.closed || this.transport !== transport || !transport.isOpen()) return
+		this.invalidateAttempt()
 		this.clearTimers()
-		this.backoffIndex = 0
+		this.resetRetryBudget()
 		this.hardRecoveryRequested = false
 		if (this.attachedTransportId === transport.id) {
 			this.options.onResume(this.peer, transport.id)
@@ -447,6 +539,7 @@ export class ReconnectCoordinator {
 			}
 			return
 		}
+		const attempt = this.beginAttempt()
 		this.healthMonitor.stop()
 		this.pauseCurrent()
 		this.setState('suspect', status)
@@ -454,12 +547,12 @@ export class ReconnectCoordinator {
 		if (immediate) return this.recover(status, true)
 		this.suspectTimer = setTimeout(() => {
 			this.suspectTimer = null
-			this.recover('连接没有自然恢复', true)
+			if (this.attemptEpoch === attempt) this.recover('连接没有自然恢复', true)
 		}, suspectGraceMs)
 	}
 
-	private handleAttemptFailure() {
-		if (this.closed) return
+	private handleAttemptFailure(attempt = this.attemptEpoch, transport?: LanReconnectTransport | null) {
+		if (this.closed || attempt !== this.attemptEpoch || transport && this.transport !== transport) return
 		this.log('connection-attempt-failed', { state: this.state }, 'warn')
 		if (this.state === 'ice-restarting') {
 			this.hardRecoveryRequested = true
@@ -470,25 +563,32 @@ export class ReconnectCoordinator {
 		}
 		this.hardRecoveryRequested = true
 		this.closeTransport('连接失败，稍后重试', 'backoff')
-		this.scheduleBackoff()
+		this.scheduleBackoff(attempt)
 	}
 
-	private scheduleBackoff() {
-		if (this.closed) return
-		this.clearAttempt()
+	private scheduleBackoff(attempt = this.attemptEpoch) {
+		if (this.closed || attempt !== this.attemptEpoch) return
+		const backoffAttempt = this.beginAttempt()
 		this.setState('backoff', '连接失败，稍后自动重试')
+		if (this.backoffIndex >= backoffDelays.length) {
+			this.retryExhausted = true
+			this.log('automatic-retry-exhausted', { attempts: this.backoffIndex }, 'warn')
+			return this.setState('backoff', '自动重连未成功，请立即重试或切换公网传输')
+		}
 		if (!visible()) return
-		const delay = backoffDelays[Math.min(this.backoffIndex, backoffDelays.length - 1)]
+		const delay = backoffDelays[this.backoffIndex]
 		this.backoffIndex += 1
 		this.log('retry-scheduled', { delayMs: delay, attempt: this.backoffIndex }, 'warn')
 		this.clearBackoff()
 		this.backoffTimer = setTimeout(() => {
 			this.backoffTimer = null
-			this.recover('自动重试', true)
+			if (this.attemptEpoch === backoffAttempt) this.recover('自动重试', true)
 		}, delay)
 	}
 
 	private handleRemoteLeft() {
+		this.remotePresent = false
+		this.invalidateAttempt()
 		this.remoteClosedInstanceId = this.peer.instanceId
 		this.clearTimers()
 		this.pendingCandidates.clear()
@@ -532,17 +632,37 @@ export class ReconnectCoordinator {
 		this.options.onState(this.peer, state, status, connected)
 	}
 
-	private armAttempt(timeoutMs: number, callback: () => void) {
+	private armAttempt(timeoutMs: number, callback: () => void, attempt = this.attemptEpoch) {
 		this.clearAttempt()
 		this.log('attempt-timeout-armed', { timeoutMs, state: this.state })
 		this.attemptTimer = setTimeout(() => {
 			this.attemptTimer = null
+			if (attempt !== this.attemptEpoch) return
 			if (visible()) {
 				this.log('attempt-timeout-fired', { timeoutMs, state: this.state }, 'warn')
 				callback()
 			}
 			else this.setState('backoff', '页面恢复后将继续连接')
 		}, timeoutMs)
+	}
+
+	private beginAttempt() {
+		this.invalidateAttempt()
+		this.clearTimers()
+		return this.attemptEpoch
+	}
+
+	private invalidateAttempt() {
+		this.attemptEpoch += 1
+	}
+
+	private isCurrentAttempt(attempt: number, state?: LanConnectionState) {
+		return !this.closed && attempt === this.attemptEpoch && (!state || this.state === state)
+	}
+
+	private resetRetryBudget() {
+		this.backoffIndex = 0
+		this.retryExhausted = false
 	}
 
 	private log(event: string, details: Record<string, unknown> = {}, level: 'info' | 'warn' | 'error' = 'info') {
@@ -552,6 +672,9 @@ export class ReconnectCoordinator {
 			instance: shortConnectionId(this.peer.instanceId),
 			generation: this.generation,
 			negotiation: shortConnectionId(this.negotiationId),
+			attemptEpoch: this.attemptEpoch,
+			retryAttempt: this.backoffIndex,
+			remotePresent: this.remotePresent,
 			...details,
 		}, level)
 	}

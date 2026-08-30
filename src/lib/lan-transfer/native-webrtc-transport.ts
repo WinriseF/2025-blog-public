@@ -14,7 +14,7 @@ export const lanRtcConfig: RTCConfiguration = {
 	iceCandidatePoolSize: 2,
 }
 
-type TransportControl = { type: 'hello'; generation: number } | { type: 'frame-probe-ack'; generation: number; id: string }
+type TransportControl = { type: 'hello'; generation: number } | { type: 'health-ping' | 'health-pong' | 'frame-probe-ack'; generation: number; id: string }
 type CandidatePairStats = RTCStats & {
 	localCandidateId?: string
 	remoteCandidateId?: string
@@ -95,7 +95,7 @@ function parseTransportControl(value: string): TransportControl | null {
 	if (!value.startsWith(transportControlPrefix)) return null
 	try {
 		const message = JSON.parse(value.slice(transportControlPrefix.length)) as TransportControl
-		if (!message || typeof message !== 'object' || !['hello', 'frame-probe-ack'].includes(message.type) || typeof message.generation !== 'number') return null
+		if (!message || typeof message !== 'object' || !['hello', 'health-ping', 'health-pong', 'frame-probe-ack'].includes(message.type) || typeof message.generation !== 'number') return null
 		if (message.type !== 'hello' && typeof message.id !== 'string') return null
 		return message
 	} catch {
@@ -302,7 +302,8 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private chunkNegotiation: Promise<number> | null = null
 	private reportedChunkSize: number | null = null
 	private currentNegotiationId: string
-	private makingOffer = false
+	private negotiationAttemptToken = 0
+	private offerQueue: Promise<void> = Promise.resolve()
 	private ready = false
 	private closed = false
 	private lastState: LanTransportState | null = null
@@ -394,10 +395,28 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		return this.waitForBufferedAmount(highWatermark, lowWatermark, timeoutMs, signal)
 	}
 
-	async start() {
+	probe(timeoutMs = 1500) {
+		if (!this.isOpen()) return Promise.resolve(false)
+		const id = randomId()
+		return new Promise<boolean>(resolve => {
+			const timer = setTimeout(() => {
+				this.pendingProbes.delete(id)
+				resolve(false)
+			}, timeoutMs)
+			this.pendingProbes.set(id, { resolve, timer })
+			if (!this.sendControl({ type: 'health-ping', generation: this.generation, id })) {
+				clearTimeout(timer)
+				this.pendingProbes.delete(id)
+				resolve(false)
+			}
+		})
+	}
+
+	async start(attemptToken: number) {
+		this.negotiationAttemptToken = attemptToken
 		if (this.options.role === 'host') {
 			this.log('start-offer')
-			await this.createOffer(false)
+			await this.createOffer(false, this.currentNegotiationId, attemptToken)
 		}
 	}
 
@@ -405,35 +424,43 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		if (this.currentNegotiationId === negotiationId) return
 		this.log('negotiation-changed', { nextNegotiation: shortConnectionId(negotiationId) })
 		this.currentNegotiationId = negotiationId
+		this.negotiationAttemptToken = 0
 		this.pendingCandidates = []
 		this.remoteDescriptionNegotiationId = ''
 	}
 
-	async restartIce(negotiationId: string) {
+	async restartIce(negotiationId: string, attemptToken: number) {
 		if (this.options.role !== 'host' || this.closed) return
 		this.setNegotiationId(negotiationId)
+		this.negotiationAttemptToken = attemptToken
 		this.log('ice-restart-requested')
 		this.cancelIceDiagnostics()
 		this.pc.restartIce()
-		await this.createOffer(false)
+		await this.createOffer(true, negotiationId, attemptToken)
 	}
 
-	async acceptDescription(description: RTCSessionDescriptionInit) {
+	async acceptDescription(description: RTCSessionDescriptionInit, attemptToken: number) {
 		if (this.closed) return
+		const negotiationId = this.currentNegotiationId
+		this.negotiationAttemptToken = attemptToken
 		this.log('remote-description-received', summarizeDescription(description))
 		await this.pc.setRemoteDescription(description)
+		if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
 		this.log('remote-description-applied', {
 			...summarizeDescription(this.pc.remoteDescription),
 			canTrickleIceCandidates: this.pc.canTrickleIceCandidates,
 		})
 		this.remoteDescriptionNegotiationId = this.currentNegotiationId
-		await this.flushCandidates()
+		await this.flushCandidates(negotiationId, attemptToken)
+		if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
 		if (this.pc.iceConnectionState === 'checking' && !this.iceDiagnosticTimers.size) this.startIceDiagnostics('remote-description-applied')
 		if (description.type !== 'offer') return
 		const answer = await this.pc.createAnswer()
+		if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
 		await this.pc.setLocalDescription(answer)
+		if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
 		this.log('local-description-created', summarizeDescription(this.pc.localDescription))
-		if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON())
+		if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON(), negotiationId, attemptToken)
 	}
 
 	async addRemoteCandidate(candidate: RTCIceCandidateInit | null) {
@@ -500,20 +527,27 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		this.emitState('closed')
 	}
 
-	private async createOffer(iceRestart: boolean) {
-		if (this.closed || this.makingOffer) return
-		this.makingOffer = true
-		try {
-			const offer = await this.pc.createOffer({ iceRestart })
-			await this.pc.setLocalDescription(offer)
-			this.log('local-description-created', { ...summarizeDescription(this.pc.localDescription), iceRestart })
-			if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON())
-		} catch (error) {
-			this.log('offer-creation-failed', { error: error instanceof Error ? error.message : String(error) }, 'error')
-			throw error
-		} finally {
-			this.makingOffer = false
-		}
+	private createOffer(iceRestart: boolean, negotiationId: string, attemptToken: number) {
+		const task = this.offerQueue.then(async () => {
+			if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
+			try {
+				const offer = await this.pc.createOffer({ iceRestart })
+				if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
+				await this.pc.setLocalDescription(offer)
+				if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
+				this.log('local-description-created', { ...summarizeDescription(this.pc.localDescription), iceRestart })
+				if (this.pc.localDescription) this.options.onDescription(this.pc.localDescription.toJSON(), negotiationId, attemptToken)
+			} catch (error) {
+				this.log('offer-creation-failed', { error: error instanceof Error ? error.message : String(error) }, 'error')
+				throw error
+			}
+		})
+		this.offerQueue = task.catch(() => {})
+		return task
+	}
+
+	private isCurrentNegotiation(negotiationId: string, attemptToken: number) {
+		return !this.closed && this.currentNegotiationId === negotiationId && this.negotiationAttemptToken === attemptToken
 	}
 
 	private bindChannel(channel: RTCDataChannel) {
@@ -578,6 +612,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			}
 			return
 		}
+		if (message.type === 'health-ping') return void this.sendControl({ type: 'health-pong', generation: this.generation, id: message.id })
 		const probe = this.pendingProbes.get(message.id)
 		if (!probe) return
 		clearTimeout(probe.timer)
@@ -640,11 +675,14 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		})
 	}
 
-	private async flushCandidates() {
+	private async flushCandidates(negotiationId: string, attemptToken: number) {
 		const candidates = this.pendingCandidates
 		this.pendingCandidates = []
 		if (candidates.length) this.log('remote-candidate-flush-started', { count: candidates.length })
-		for (const candidate of candidates) await this.addCandidate(candidate)
+		for (const candidate of candidates) {
+			if (!this.isCurrentNegotiation(negotiationId, attemptToken)) return
+			await this.addCandidate(candidate)
+		}
 		if (candidates.length) this.log('remote-candidate-flush-completed', { count: candidates.length })
 	}
 

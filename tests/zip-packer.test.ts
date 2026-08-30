@@ -108,4 +108,27 @@ describe('ZIP directory scanning', () => {
 		expect(loaded.nodes.map(node => node.id)).toEqual(['project'])
 		expect(loaded.skippedEntries).toEqual([{ path: 'project/dist', kind: 'directory', phase: 'scan', reason: 'NotFoundError' }])
 	})
+
+	it('scans a path beyond the Windows legacy limit without treating it as a local filesystem path', async () => {
+		const nestedFile = file('result.txt', 7)
+		let child = directory('leaf-folder', [['result.txt', nestedFile.handle]])
+		for (let index = 0; index < 30; index += 1) {
+			const parent = directory(`segment-${String(index).padStart(2, '0')}`, [[child.name, child]])
+			child = parent
+		}
+		const root = directory('project', [[child.name, child]])
+
+		const scan = await scanZipDirectory(root, new AbortController().signal)
+		const result = scan.nodes.find(node => node.name === 'result.txt')
+
+		expect(result?.path.length).toBeGreaterThan(260)
+		expect(result?.size).toBe(7)
+		expect(scan.skippedEntries).toEqual([])
+	})
+
+	it('preserves AbortError instead of reporting cancellation as a skipped directory', async () => {
+		const root = directory('project', [], new DOMException('Canceled', 'AbortError'))
+
+		await expect(scanZipDirectory(root, new AbortController().signal)).rejects.toMatchObject({ name: 'AbortError' })
+	})
 })

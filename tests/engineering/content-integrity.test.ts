@@ -15,7 +15,9 @@ describe('blog content integrity', () => {
       const slug = row.slug || row.id || row.name
       expect(typeof slug).toBe('string')
       expect(existsSync(resolve(root, 'public/blogs', slug, 'config.json'))).toBe(true)
-      expect(existsSync(resolve(root, 'public/blogs', slug, 'index.md'))).toBe(true)
+      const markdownPath = resolve(root, 'public/blogs', slug, 'index.md')
+      expect(existsSync(markdownPath)).toBe(true)
+      expect(readFileSync(markdownPath, 'utf8').trim().length, `${slug}: markdown`).toBeGreaterThan(0)
     }
   })
 
@@ -38,5 +40,19 @@ describe('blog content integrity', () => {
     const rows: any[] = Array.isArray(data) ? data : data.blogs || []
     const slugs = rows.map(row => row.slug || row.id || row.name).filter(Boolean)
     expect(new Set(slugs).size).toBe(slugs.length)
+  })
+
+  it('keeps public index metadata synchronized with each article config', () => {
+    const data = JSON.parse(readFileSync(resolve(root, 'public/blogs/index.json'), 'utf8')) as any
+    const rows: any[] = Array.isArray(data) ? data : data.blogs || []
+    for (const row of rows) {
+      const slug = row.slug || row.id || row.name
+      const config = JSON.parse(readFileSync(resolve(root, 'public/blogs', slug, 'config.json'), 'utf8')) as any
+      expect(row.title, `${slug}: title`).toBe(config.title)
+      expect(row.date, `${slug}: date`).toBe(config.date)
+      expect(row.summary, `${slug}: summary`).toBe(config.summary)
+      expect(row.tags, `${slug}: tags`).toEqual(config.tags)
+      expect(row.cover, `${slug}: cover`).toBe(config.cover)
+    }
   })
 })

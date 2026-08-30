@@ -21,7 +21,8 @@ Next.js 16 + React 19 + TypeScript/Tailwind deliver the public site. Markdown/JS
 
 ## Pay Attention
 
-- Tests are unified under `vitest.config.ts:1` (`tests/**/*.test.*`, node, 20s timeout, `sequence.concurrent:false`). Use `pnpm test` only.
+- Unit and contract tests are unified under `vitest.config.ts:1` (`tests/**/*.test.*`, node, 20s timeout, `sequence.concurrent:false`). Use `pnpm test`; use `pnpm test:coverage` only when an explicit coverage report is needed.
+- `tests/e2e/*.spec.ts` are Playwright-shaped browser scenarios but are not collected by Vitest and do not yet have a checked-in Playwright runner. Do not count them as executed coverage until that runner is configured.
 - Do not run package scripts for verification unless explicitly requested.
 - `predev`/`prebuild` generate word cloud; `svg` regenerates SVG index. Treat generated output as non-primary source.
 - Netlify is the checked-in deployment path: Node 22, `pnpm run build`, `.next`, Next plugin; EdgeOne cleanup runs 02:00 Asia/Shanghai.

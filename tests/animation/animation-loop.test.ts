@@ -28,4 +28,37 @@ describe('animation loop lifecycle', () => {
     loop.destroy()
     expect(h.document.removeEventListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
   })
+
+  it('cancels work while hidden and restarts with reset frame timing when visible again', () => {
+    const h = harness(false); const draw = vi.fn()
+    const loop = startAnimationLoop(draw, { targetFps: 50 })
+    h.run(1000)
+    h.document.hidden = true
+    h.listeners.get('visibilitychange')?.()
+    expect(h.window.clearTimeout).toHaveBeenCalled()
+
+    h.document.hidden = false
+    h.listeners.get('visibilitychange')?.()
+    h.run(5000)
+    expect(draw.mock.calls.map(([frame]) => frame.deltaMs)).toEqual([20, 20])
+    loop.destroy()
+  })
+
+  it('observes an optional element and releases the observer on destroy', () => {
+    const observe = vi.fn(); const disconnect = vi.fn()
+    let notify: ((entries: Array<{ isIntersecting: boolean }>) => void) | undefined
+    vi.stubGlobal('IntersectionObserver', vi.fn((callback: typeof notify) => {
+      notify = callback
+      return { observe, disconnect }
+    }))
+    const element = {} as Element
+    const h = harness(false)
+
+    const loop = startAnimationLoop(() => {}, { element })
+    expect(observe).toHaveBeenCalledWith(element)
+    notify?.([{ isIntersecting: false }])
+    expect(h.window.cancelAnimationFrame).toHaveBeenCalled()
+    loop.destroy()
+    expect(disconnect).toHaveBeenCalledTimes(1)
+  })
 })

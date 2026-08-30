@@ -67,6 +67,43 @@ describe('NativeWebRtcTransport', () => {
     expect(await transport.getHealthStats()).toMatchObject({ candidatePairId: 'pair', bytesSent: 10, bytesReceived: 20, consentRequestsSent: 3, responsesReceived: 4 })
   })
 
+  it('verifies liveness with a small data-channel ping/pong round trip', async () => {
+    const { transport, pc } = setup()
+    const result = transport.probe()
+    const prefix = '__winrisef_lan_v13__:'
+    const request = JSON.parse(String(pc.channel.sent.at(-1)).slice(prefix.length))
+    expect(request).toMatchObject({ type: 'health-ping', generation: 2 })
+    pc.channel.onmessage({ data: `${prefix}${JSON.stringify({ type: 'health-pong', generation: 2, id: request.id })}` })
+    await expect(result).resolves.toBe(true)
+  })
+
+  it('answers a peer health probe without forwarding it to the connection runtime', () => {
+    const { pc, options } = setup()
+    const prefix = '__winrisef_lan_v13__:'
+    pc.channel.onmessage({ data: `${prefix}${JSON.stringify({ type: 'health-ping', generation: 2, id: 'probe-1' })}` })
+    expect(pc.channel.sent.at(-1)).toBe(`${prefix}${JSON.stringify({ type: 'health-pong', generation: 2, id: 'probe-1' })}`)
+    expect(options.onData).not.toHaveBeenCalled()
+  })
+
+  it('drops an in-flight stale offer and emits only the latest negotiation attempt', async () => {
+    const { transport, pc, options } = setup()
+    let release!: (value: any) => void
+    pc.createOffer
+      .mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+      .mockResolvedValueOnce({ type: 'offer', sdp: 'v=0\r\na=ice-ufrag:new' })
+    const initial = transport.start(1)
+    await Promise.resolve()
+    const restart = transport.restartIce('next-negotiation', 2)
+    release({ type: 'offer', sdp: 'v=0\r\na=ice-ufrag:old' })
+    await Promise.all([initial, restart])
+    expect(pc.restartIce).toHaveBeenCalledTimes(1)
+    expect(pc.createOffer).toHaveBeenCalledTimes(2)
+    expect(pc.createOffer).toHaveBeenLastCalledWith({ iceRestart: true })
+    expect(pc.setLocalDescription).toHaveBeenCalledTimes(1)
+    expect(options.onDescription).toHaveBeenCalledTimes(1)
+    expect(options.onDescription).toHaveBeenCalledWith(expect.objectContaining({ sdp: 'v=0\r\na=ice-ufrag:new' }), 'next-negotiation', 2)
+  })
+
   it('rejects a relay-selected route instead of silently using TURN', async () => {
     const { transport, pc } = setup()
     pc.reports.set('transport', { id: 'transport', type: 'transport', selectedCandidatePairId: 'pair' })

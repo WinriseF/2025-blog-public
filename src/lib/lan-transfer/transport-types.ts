@@ -41,7 +41,7 @@ export type LanTransportCreateOptions = {
 	role: LanRole
 	generation: number
 	negotiationId: string
-	onDescription: (description: RTCSessionDescriptionInit) => void
+	onDescription: (description: RTCSessionDescriptionInit, negotiationId: string, attemptToken: number) => void
 	onCandidate: (candidate: RTCIceCandidateInit | null) => void
 	onData: (data: unknown) => void
 	onState: (state: LanTransportState) => void
@@ -50,11 +50,12 @@ export type LanTransportCreateOptions = {
 
 export interface LanReconnectTransport extends LanConnectionTransport {
 	readonly negotiationId: string
-	start(): Promise<void>
+	start(attemptToken: number): Promise<void>
 	setNegotiationId(negotiationId: string): void
-	restartIce(negotiationId: string): Promise<void>
-	acceptDescription(description: RTCSessionDescriptionInit): Promise<void>
+	restartIce(negotiationId: string, attemptToken: number): Promise<void>
+	acceptDescription(description: RTCSessionDescriptionInit, attemptToken: number): Promise<void>
 	addRemoteCandidate(candidate: RTCIceCandidateInit | null): Promise<void>
+	probe(timeoutMs?: number): Promise<boolean>
 	getHealthStats(): Promise<LanTransportHealthStats>
 	inspectRoute(): Promise<LanConnectionRoute>
 	close(): void

@@ -140,10 +140,14 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			},
 			error => setStatus(error.message),
 			() => coordinatorRef.current.forEach(coordinator => coordinator.wake()),
+			(peer, present) => {
+				if (present) ensureCoordinator(peer)?.setPeerPresent(peer, true)
+				else coordinatorRef.current.get(peer.deviceId)?.setPeerPresent(peer, false)
+			},
 		)
 		signalClientRef.current = client
 		await client.ready
-	}, [handleSignalMessage, stopSignaling])
+	}, [ensureCoordinator, handleSignalMessage, stopSignaling])
 
 	const setSessionNow = (next: LanSession) => {
 		sessionRef.current = next
@@ -239,6 +243,11 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		setStatus(engine.connections.length > 1 ? '已关闭当前会话' : '已关闭会话，等待设备连接')
 	}
 
+	const retryConnection = (deviceId = engine.activePeerId) => {
+		if (!deviceId) return
+		coordinatorRef.current.get(deviceId)?.retry()
+	}
+
 	const setNativeAgentAdvertisement = useCallback((advertisement: LanNativeAgentAdvertisement | null) => {
 		const current = localCapabilityRef.current
 		if (!current) return
@@ -289,6 +298,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		requestNativeAgentTicket: engine.requestNativeAgentTicket,
 		runWebRtcBenchmark: engine.runWebRtcBenchmark,
 		reserveBenchmark: engine.reserveBenchmark,
+		retryConnection,
 		closeConnection,
 		leaveSession,
 		downloadAttachment: engine.downloadAttachment,

@@ -7,6 +7,7 @@ const disconnectedStallMs = 3000
 const activeStallMs = 10000
 const wakeVerificationMs = 8000
 const wakeStallMs = 10000
+const healthProbeTimeoutMs = 1500
 
 type HealthMonitorOptions = {
 	getTransport: () => LanReconnectTransport | null
@@ -75,6 +76,16 @@ export class ConnectionHealthMonitor {
 		try {
 			const stats = await transport.getHealthStats()
 			if (epoch !== this.epoch || this.options.getTransport() !== transport) return
+			const verifying = force || Date.now() < this.verifyUntil
+			if (verifying && !connectionFailed(stats) && !connectionDisconnected(stats)) {
+				const alive = await transport.probe(healthProbeTimeoutMs).catch(() => false)
+				if (epoch !== this.epoch || this.options.getTransport() !== transport) return
+				if (alive) {
+					this.previous = stats
+					return this.markHealthy(transport, true, true, this.options.isTransferActive() ? activeIntervalMs : idleIntervalMs)
+				}
+				this.stalledSince ||= Date.now()
+			}
 			this.evaluate(transport, stats, force)
 		} catch {
 			if (epoch === this.epoch && this.options.getTransport() === transport) this.start(suspectIntervalMs)
