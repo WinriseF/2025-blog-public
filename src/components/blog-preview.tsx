@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { motion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
@@ -16,13 +16,15 @@ type BlogPreviewProps = {
 	summary?: string
 	cover?: string
 	slug?: string
+	audioUrl?: string
 }
 
-export function BlogPreview({ markdown, title, tags, date, summary, cover, slug }: BlogPreviewProps) {
+export function BlogPreview({ markdown, title, tags, date, summary, cover, slug, audioUrl }: BlogPreviewProps) {
 	const { maxSM: isMobile } = useSize()
 	const { content, toc, loading } = useMarkdownRender(markdown)
 	const articleRef = useRef<HTMLElement>(null)
 	const copyTimersRef = useRef(new Map<HTMLButtonElement, number>())
+	const [readyAudioUrl, setReadyAudioUrl] = useState('')
 	useCodeBlockContainment(articleRef, content)
 
 	useEffect(() => {
@@ -83,6 +85,17 @@ export function BlogPreview({ markdown, title, tags, date, summary, cover, slug 
 					</div>
 
 					<div className='text-secondary mt-3 text-center text-sm'>{date}</div>
+					{audioUrl && (
+						<audio
+							controls
+							preload='metadata'
+							src={audioUrl}
+							aria-label={`${title} 音频播报`}
+							onLoadedMetadata={() => setReadyAudioUrl(audioUrl)}
+							onError={() => setReadyAudioUrl('')}
+							className={`mx-auto mt-4 h-10 w-full max-w-md ${readyAudioUrl === audioUrl ? 'block' : 'hidden'}`}
+						/>
+					)}
 					<div className='prose mt-6 max-w-none cursor-text'>{content}</div>
 				</div>
 			</motion.article>

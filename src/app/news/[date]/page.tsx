@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { BlogPreview } from '@/components/blog-preview'
 import { ReadingProgressBar } from '@/components/reading-progress-bar'
+import { getAssetUrl } from '@/lib/asset-url'
 
 type NewsArticle = {
 	date: string
@@ -122,6 +123,7 @@ export default function NewsDetailPage() {
 				date={formatNewsDate(article.date)}
 				summary={article.summary}
 				slug={`news-${article.date}`}
+				audioUrl={getAssetUrl(`/news/bili/audio/${article.date}.mp3`)}
 			/>
 
 			<div className='news-panel-enter absolute top-4 right-6 flex gap-3 max-sm:hidden'>
