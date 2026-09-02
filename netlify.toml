@@ -22,4 +22,4 @@
 [[headers]]
   for = "/blogs/*"
   [headers.values]
-    Cache-Control = "public, max-age=300, stale-while-revalidate=86400"
+    Cache-Control = "public, max-age=600, s-maxage=600, must-revalidate"
