@@ -8,7 +8,7 @@ import MusicCard from '@/app/(home)/music-card'
 import SocialButtons from '@/app/(home)/social-buttons'
 import ShareCard from '@/app/(home)/share-card'
 import AritcleCard from '@/app/(home)/aritcle-card'
-import ThemeToggleCard from '@/app/(home)/theme-toggle-card'
+import QuickControlsCard from '@/app/(home)/quick-controls-card'
 import LikePosition from './like-position'
 import { useSize } from '@/hooks/use-size'
 import { useConfigStore } from './stores/config-store'
@@ -27,7 +27,7 @@ export default function Home() {
 			{cardStyles.socialButtons?.enabled !== false && <SocialButtons />}
 			{!maxSM && cardStyles.shareCard?.enabled !== false && <ShareCard />}
 			{cardStyles.articleCard?.enabled !== false && <AritcleCard />}
-			{!maxSM && cardStyles.themeToggle?.enabled !== false && <ThemeToggleCard />}
+			{!maxSM && cardStyles.quickControls?.enabled !== false && <QuickControlsCard />}
 			{cardStyles.likePosition?.enabled !== false && <LikePosition />}
 		</div>
 	)

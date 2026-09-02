@@ -20,7 +20,7 @@ Owns repository-managed pages: blog Markdown, article metadata, images, Markdown
 
 ## Main Flow
 
-The index fetches `index.json`; an article fetches its paired JSON/Markdown files. Markdown normally renders in a Worker, then becomes TOC, Shiki code blocks, Mermaid placeholders, safe links, and shared image preview. News handlers normalize remote sources. Dated news detail pages probe `/news/bili/audio/<date>.mp3` through metadata loading and show the player below the date only when the asset exists. Likes call the external Supabase function.
+The index fetches `index.json`; an article fetches its paired JSON/Markdown files. Markdown normally renders in a Worker, then becomes TOC, Shiki code blocks, Mermaid placeholders, safe links, and shared image preview. News handlers normalize remote sources. The NewsNow focus card is collapsed by default and loads its live feed only when opened. Dated news detail pages probe `/news/bili/audio/<date>.mp3` through metadata loading and show the player below the date only when the asset exists. Likes call the external Supabase function.
 
 ## Pay Attention
 

@@ -7,6 +7,28 @@
 		"intro": "我是",
 		"outro": "欢迎来到我的博客！"
 	},
+	"siteSwitcher": {
+		"sites": [
+			{
+				"id": "e",
+				"shortLabel": "E",
+				"label": "EdgeOne",
+				"url": "https://e.winrisef.top"
+			},
+			{
+				"id": "v",
+				"shortLabel": "V",
+				"label": "Vercel",
+				"url": "https://v.winrisef.top"
+			},
+			{
+				"id": "n",
+				"shortLabel": "N",
+				"label": "Netlify",
+				"url": "https://n.winrisef.top"
+			}
+		]
+	},
 	"theme": {
 		"colorBrand": "#DC4AEE",
 		"colorPrimary": "#334f52",

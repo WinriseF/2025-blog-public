@@ -10,7 +10,7 @@
 		"prebuild": "pnpm generate:word-cloud",
 		"svg": "node scripts/gen-svgs-index.js",
 		"build": "node --require ./scripts/suppress-baseline-warning.cjs ./node_modules/next/dist/bin/next build --turbopack",
-		"start": "next start",
+		"start": "next start -p 2025",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",
 		"format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\" \"tests/**/*.{ts,tsx,js,jsx,json}\" \"*.{ts,js,json}\""

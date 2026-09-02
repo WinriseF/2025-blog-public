@@ -13,13 +13,15 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/layout/backgrounds/click-effect-layer.tsx` | Theme-aware, on-demand global click feedback. |
 | `src/components/appearance-control.tsx` | Shared theme picker and click-effect switch. |
 | `src/components/nav-card.tsx` | Responsive navigation and appearance-control entrypoint. |
+| `src/app/(home)/quick-controls-card.tsx` | Homepage's animated theme, click-effect, and E/V/N deployment switcher. |
+| `src/config/site-content.json` | Site content plus the configured deployment-switcher targets. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
 | `src/app/(home)/` | Card homepage and configuration store. |
 | `src/app/calendar/` | Calendar state, data, grid, day panel, term track. |
 
 ## Main Flow
 
-`layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. The existing theme buttons open one shared card for direct theme selection and the persisted click-effect preference; theme changes continue to use the original View Transition flow. Continuous visuals use the shared animation loop; the homepage WebGL core uses dynamic 50/60 FPS throttling and capped DPR, while click feedback uses a bounded on-demand Canvas loop that is idle when no effect is visible.
+`layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. Navigation keeps the compact appearance picker; the homepage uses one animated quick-controls card for direct theme selection, the persisted click-effect preference, and E/V/N deployment navigation from `site-content.json`. Theme changes continue to use the original View Transition flow. Continuous visuals use the shared animation loop; the homepage WebGL core uses dynamic 50/60 FPS throttling and capped DPR, while click feedback uses a bounded on-demand Canvas loop that is idle when no effect is visible.
 
 ## Pay Attention
 
@@ -30,4 +32,5 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 - Keep game/world-clock exceptions: hidden or covered Canvas/WebGL work must stop/release resources.
 - Homepage card layout comes from JSON; do not introduce a browser editor by accident.
 - Preserve compact navigation touch behavior and reduced-motion behavior.
+- The homepage quick-controls card must not add an idle animation loop; it marks the active deployment by matching `window.location.hostname` against the configured URLs.
 - Blog-reading performance rules belong in [content](./content.md).

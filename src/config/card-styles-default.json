@@ -65,9 +65,9 @@
 		"offsetY": null,
 		"enabled": true
 	},
-	"themeToggle": {
-		"height": 42,
-		"width": 42,
+	"quickControls": {
+		"height": 54,
+		"width": 104,
 		"order": 8,
 		"offsetX": null,
 		"offsetY": null,
