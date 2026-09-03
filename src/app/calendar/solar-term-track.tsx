@@ -43,7 +43,7 @@ export function SolarTermTrack({ context }: SolarTermTrackProps) {
 					<motion.div
 						key={`${term.name}-${term.date.year()}`}
 						className={styles.solarTermNode}
-						data-active={index === context.activeIndex}
+						data-active={index <= context.activeIndex}
 						style={{ left: nodePositions[index].left, top: `${nodePositions[index].curveY / 16 - 0.3}rem` }}
 						initial={{ opacity: 0, y: 8 }}
 						animate={{ opacity: 1, y: 0 }}

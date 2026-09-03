@@ -1,6 +1,8 @@
 import Link from 'next/link'
-import { ArrowRight, CalendarDays, ExternalLink, Newspaper, PlayCircle } from 'lucide-react'
+import { CalendarDays, ExternalLink, Newspaper, PlayCircle } from 'lucide-react'
+import { getEnglishReadingIndex } from '@/lib/english-reading'
 import { formatNewsDate, getNewsIndex, type NewsDay } from '@/lib/news'
+import { NewsEntryDeck } from './news-entry-deck'
 import { NewsNowLiveSection } from './newsnow-live-section'
 
 export const revalidate = 300
@@ -18,15 +20,6 @@ function NewsState({ title, message }: { title: string; message: string }) {
 				<h1 className='text-xl font-semibold'>{title}</h1>
 				<p className='news-muted text-sm'>{message}</p>
 			</div>
-		</div>
-	)
-}
-
-function NewsStat({ label, value }: { label: string; value: string | number }) {
-	return (
-		<div className='news-stat px-4 first:border-l-0 max-sm:border-l-0 max-sm:px-0 max-sm:py-3 max-sm:first:border-t-0'>
-			<div className='news-muted text-xs'>{label}</div>
-			<div className='mt-1 text-lg font-semibold leading-none max-sm:text-base'>{value}</div>
 		</div>
 	)
 }
@@ -117,7 +110,7 @@ function NewsDateIndex({ days }: { days: NewsDay[] }) {
 }
 
 export default async function NewsPage() {
-	const result = await getNewsIndex()
+	const [result, englishReadingResult] = await Promise.all([getNewsIndex(), getEnglishReadingIndex()])
 
 	if (!result.ok) {
 		return <NewsState title='每日内容与热点' message={result.error} />
@@ -133,36 +126,17 @@ export default async function NewsPage() {
 
 	return (
 		<div className='news-page mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-6 pt-32 pb-12 max-sm:px-4 max-sm:pt-24'>
-			<section className='news-card news-panel-enter relative w-full overflow-hidden p-6 max-sm:p-5'>
-				<div className='grid grid-cols-[minmax(0,1fr)_auto] gap-8 max-sm:grid-cols-1 max-sm:gap-5'>
-					<div className='flex min-w-0 items-center gap-4'>
-						<div className='news-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl'>
-							<Newspaper className='size-7' />
-						</div>
-						<div className='min-w-0'>
-							<div className='news-muted text-xs tracking-[0.22em] uppercase'>Daily Intel Digest</div>
-							<h1 className='mt-1 truncate text-2xl font-semibold max-sm:text-xl'>{title}</h1>
-							<p className='news-muted mt-2 text-sm leading-6'>
-								汇总 B 站 UP 内容与 NewsNow 午间热点摘要
-								{updatedAt ? <span className='block'>更新时间：{updatedAt}</span> : null}
-							</p>
-						</div>
-					</div>
-
-					{latestDay && (
-						<Link href={`/news/${latestDay.date}`} prefetch={false} className='news-primary-action flex h-fit shrink-0 items-center gap-2 self-center rounded-xl px-4 py-2 text-sm font-medium transition-transform duration-200 hover:-translate-y-0.5 max-sm:w-full max-sm:justify-center'>
-							查看最新
-							<ArrowRight className='size-4' />
-						</Link>
-					)}
-				</div>
-
-				<div className='news-stat-panel mt-6 grid grid-cols-3 rounded-2xl py-4 max-sm:grid-cols-1 max-sm:px-4 max-sm:py-0'>
-					<NewsStat label='收录天数' value={days.length} />
-					<NewsStat label='B站视频' value={totalVideos} />
-					<NewsStat label='最新日期' value={latestDay?.date || '-'} />
-				</div>
-			</section>
+			<NewsEntryDeck
+				daily={{
+					title,
+					updatedAt,
+					latestHref: `/news/${latestDay.date}`,
+					dayCount: days.length,
+					videoCount: totalVideos,
+					latestDate: latestDay.date
+				}}
+				englishReading={englishReadingResult.ok ? englishReadingResult.data.items[0] : undefined}
+			/>
 
 			<NewsNowLiveSection />
 
