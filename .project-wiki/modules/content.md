@@ -27,7 +27,7 @@ The index fetches `index.json`; an article fetches its paired JSON/Markdown file
 
 - Keep article JSON, Markdown, index, generated word cloud, and image paths in sync. The article index uses one HTTP cache policy: 10 minutes, then mandatory revalidation; do not add client-side persistent caching for it.
 - Blog detail is client-rendered; do not assume server-rendered article HTML.
-- Sidebar must remain native sticky; progress must use cached scroll range; code containment needs measured height.
+- Sidebar must remain native sticky; progress must use cached scroll range and observe the actual content wrapper so async rendering can invalidate it; code containment needs measured height.
 - Source images belong in sibling `2025-blog-img`, not newly under this repo's `public/`.
 - Do not manually edit generated `word-cloud.json`; use its script when generation is requested.
 - `sitemap.xml` and `robots.txt` directories are not implemented routes.

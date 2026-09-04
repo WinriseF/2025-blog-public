@@ -6,7 +6,6 @@ import dayjs from 'dayjs'
 import { BlogPreview } from '@/components/blog-preview'
 import { loadBlog, type LoadedBlog } from '@/lib/load-blog'
 import { useReadArticles } from '@/hooks/use-read-articles'
-import { ReadingProgressBar } from '@/components/reading-progress-bar'
 
 export default function Page() {
 	const { id: slug } = useParams<{ id: string }>()
@@ -55,18 +54,5 @@ export default function Page() {
 	const { title, tags, summary } = blog.config
 	const date = dayjs(blog.config.date).format('YYYY年 M月 D日')
 
-	return (
-		<>
-			<ReadingProgressBar />
-			<BlogPreview
-				markdown={blog.markdown}
-				title={title}
-				tags={tags}
-				date={date}
-				summary={summary}
-				cover={blog.cover}
-				slug={slug}
-			/>
-		</>
-	)
+	return <BlogPreview markdown={blog.markdown} title={title} tags={tags} date={date} summary={summary} cover={blog.cover} slug={slug} />
 }

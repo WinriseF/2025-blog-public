@@ -7,6 +7,7 @@ import { useMarkdownRender } from '@/hooks/use-markdown-render'
 import { useCodeBlockContainment } from '@/hooks/use-code-block-containment'
 import { useSize } from '@/hooks/use-size'
 import { BlogSidebar } from '@/components/blog-sidebar'
+import { ReadingProgressBar } from '@/components/reading-progress-bar'
 
 type BlogPreviewProps = {
 	markdown: string
@@ -22,6 +23,7 @@ type BlogPreviewProps = {
 export function BlogPreview({ markdown, title, tags, date, summary, cover, slug, audioUrl }: BlogPreviewProps) {
 	const { maxSM: isMobile } = useSize()
 	const { content, toc, loading } = useMarkdownRender(markdown)
+	const contentRef = useRef<HTMLDivElement>(null)
 	const articleRef = useRef<HTMLElement>(null)
 	const copyTimersRef = useRef(new Map<HTMLButtonElement, number>())
 	const [readyAudioUrl, setReadyAudioUrl] = useState('')
@@ -66,41 +68,44 @@ export function BlogPreview({ markdown, title, tags, date, summary, cover, slug,
 	}
 
 	return (
-		<div className='mx-auto flex max-w-[1140px] justify-center gap-6 px-6 pt-28 pb-12 max-sm:px-0'>
-			<motion.article
-				ref={articleRef}
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				transition={{ delay: INIT_DELAY }}
-				onClick={handleArticleClick}
-				className='article-card relative min-w-0 flex-1 overflow-clip rounded-xl p-8'>
-				<div className='article-card-backdrop' aria-hidden='true' />
-				<div className='relative z-[1]'>
-					<div className='text-center text-2xl font-semibold'>{title}</div>
+		<>
+			<ReadingProgressBar contentRef={contentRef} />
+			<div ref={contentRef} className='mx-auto flex max-w-[1140px] justify-center gap-6 px-6 pt-28 pb-12 max-sm:px-0'>
+				<motion.article
+					ref={articleRef}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					transition={{ delay: INIT_DELAY }}
+					onClick={handleArticleClick}
+					className='article-card relative min-w-0 flex-1 overflow-clip rounded-xl p-8'>
+					<div className='article-card-backdrop' aria-hidden='true' />
+					<div className='relative z-[1]'>
+						<div className='text-center text-2xl font-semibold'>{title}</div>
 
-					<div className='text-secondary mt-4 flex flex-wrap items-center justify-center gap-3 px-8 text-center text-sm'>
-						{tags.map(t => (
-							<span key={t}>#{t}</span>
-						))}
+						<div className='text-secondary mt-4 flex flex-wrap items-center justify-center gap-3 px-8 text-center text-sm'>
+							{tags.map(t => (
+								<span key={t}>#{t}</span>
+							))}
+						</div>
+
+						<div className='text-secondary mt-3 text-center text-sm'>{date}</div>
+						{audioUrl && (
+							<audio
+								controls
+								preload='metadata'
+								src={audioUrl}
+								aria-label={`${title} 音频播报`}
+								onLoadedMetadata={() => setReadyAudioUrl(audioUrl)}
+								onError={() => setReadyAudioUrl('')}
+								className={`mx-auto mt-4 h-10 w-full max-w-md ${readyAudioUrl === audioUrl ? 'block' : 'hidden'}`}
+							/>
+						)}
+						<div className='prose mt-6 max-w-none cursor-text'>{content}</div>
 					</div>
+				</motion.article>
 
-					<div className='text-secondary mt-3 text-center text-sm'>{date}</div>
-					{audioUrl && (
-						<audio
-							controls
-							preload='metadata'
-							src={audioUrl}
-							aria-label={`${title} 音频播报`}
-							onLoadedMetadata={() => setReadyAudioUrl(audioUrl)}
-							onError={() => setReadyAudioUrl('')}
-							className={`mx-auto mt-4 h-10 w-full max-w-md ${readyAudioUrl === audioUrl ? 'block' : 'hidden'}`}
-						/>
-					)}
-					<div className='prose mt-6 max-w-none cursor-text'>{content}</div>
-				</div>
-			</motion.article>
-
-			{!isMobile && <BlogSidebar cover={cover} summary={summary} toc={toc} slug={slug} />}
-		</div>
+				{!isMobile && <BlogSidebar cover={cover} summary={summary} toc={toc} slug={slug} />}
+			</div>
+		</>
 	)
 }

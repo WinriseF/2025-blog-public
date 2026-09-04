@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { BlogPreview } from '@/components/blog-preview'
-import { ReadingProgressBar } from '@/components/reading-progress-bar'
 import { getAssetUrl } from '@/lib/asset-url'
 import { getEnglishReadingArticle } from '@/lib/english-reading'
 
@@ -33,7 +32,6 @@ export default async function EnglishReadingDetailPage({ params }: EnglishReadin
 	const article = result.data
 	return (
 		<>
-			<ReadingProgressBar />
 			<BlogPreview
 				markdown={article.markdown}
 				title={article.title}

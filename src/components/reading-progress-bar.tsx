@@ -5,12 +5,13 @@ import { SCROLL_PROGRESS_MAX, useScrollProgress } from '@/hooks/use-scroll-progr
 
 type ReadingProgressBarProps = {
 	scrollContainerRef?: { current: HTMLElement | null }
+	contentRef?: { current: HTMLElement | null }
 	embedded?: boolean
 	className?: string
 }
 
-export function ReadingProgressBar({ scrollContainerRef, embedded = false, className = '' }: ReadingProgressBarProps) {
-	const { rootRef, inputRef, scrollToProgress } = useScrollProgress(scrollContainerRef)
+export function ReadingProgressBar({ scrollContainerRef, contentRef, embedded = false, className = '' }: ReadingProgressBarProps) {
+	const { rootRef, inputRef, scrollToProgress } = useScrollProgress(scrollContainerRef, contentRef)
 
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
 		scrollToProgress(Number(event.currentTarget.value) / SCROLL_PROGRESS_MAX)

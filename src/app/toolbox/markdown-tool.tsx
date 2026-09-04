@@ -29,6 +29,7 @@ export function MarkdownTool() {
 	const [fileName, setFileName] = useState('preview.md')
 	const [isPreviewExpanded, setPreviewExpanded] = useState(false)
 	const previewScrollRef = useRef<HTMLDivElement | null>(null)
+	const previewContentRef = useRef<HTMLDivElement | null>(null)
 	const deferredMarkdown = useDeferredValue(markdown)
 	const { content, loading } = useMarkdownRender(deferredMarkdown, markdownRenderOptions)
 
@@ -126,8 +127,10 @@ export function MarkdownTool() {
 					</motion.button>
 				</div>
 				<div ref={previewScrollRef} className='relative mt-5 min-h-0 flex-1 overflow-y-auto max-sm:overflow-visible'>
-					<ReadingProgressBar scrollContainerRef={previewScrollRef} embedded className='max-lg:hidden' />
-					<div className='pt-3'>{previewContent}</div>
+					<ReadingProgressBar scrollContainerRef={previewScrollRef} contentRef={previewContentRef} embedded className='max-lg:hidden' />
+					<div ref={previewContentRef} className='pt-3'>
+						{previewContent}
+					</div>
 				</div>
 			</section>
 		</motion.div>

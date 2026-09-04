@@ -28,7 +28,7 @@ function getMaxScroll(scrollContainer?: HTMLElement | null) {
 	return Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
 }
 
-export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
+export function useScrollProgress(scrollContainerRef?: ScrollContainerRef, contentRef?: ScrollContainerRef) {
 	const rootRef = useRef<HTMLDivElement | null>(null)
 	const inputRef = useRef<HTMLInputElement | null>(null)
 	const frameRef = useRef<number | null>(null)
@@ -95,6 +95,7 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 			resizeObserver = new ResizeObserver(() => scheduleProgressUpdate(true))
 			resizeObserver.observe(scrollContainer ?? document.documentElement)
 			if (!scrollContainer && document.body) resizeObserver.observe(document.body)
+			if (contentRef?.current) resizeObserver.observe(contentRef.current)
 		}
 
 		const handleScroll = () => scheduleProgressUpdate()
@@ -115,7 +116,7 @@ export function useScrollProgress(scrollContainerRef?: ScrollContainerRef) {
 				frameRef.current = null
 			}
 		}
-	}, [measureMaxScroll, scrollContainerRef, updateProgress])
+	}, [contentRef, measureMaxScroll, scrollContainerRef, updateProgress])
 
 	const scrollToProgress = useCallback((nextProgress: number) => {
 		const targetProgress = clampProgress(nextProgress)
