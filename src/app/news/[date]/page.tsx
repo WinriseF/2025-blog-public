@@ -1,37 +1,14 @@
-'use client'
-
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { BlogPreview } from '@/components/blog-preview'
 import { ReadingProgressBar } from '@/components/reading-progress-bar'
 import { getAssetUrl } from '@/lib/asset-url'
+import { formatNewsDate, getNewsArticle, isValidNewsDate } from '@/lib/news'
 
-type NewsArticle = {
-	date: string
-	title: string
-	markdown: string
-	sourceUrl: string
-	tags: string[]
-	summary: string
-}
-
-const NEWS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
-function isValidNewsDate(date: string): boolean {
-	if (!NEWS_DATE_RE.test(date)) return false
-
-	const [year, month, day] = date.split('-').map(Number)
-	const parsed = new Date(Date.UTC(year, month - 1, day))
-
-	return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day
-}
-
-function formatNewsDate(date: string): string {
-	if (!isValidNewsDate(date)) return date
-	const [year, month, day] = date.split('-')
-	return `${year}年 ${Number(month)}月 ${Number(day)}日`
+type NewsDetailPageProps = {
+	params: Promise<{
+		date: string
+	}>
 }
 
 function NewsDetailState({ title, message }: { title: string; message: string }) {
@@ -49,70 +26,16 @@ function NewsDetailState({ title, message }: { title: string; message: string })
 	)
 }
 
-export default function NewsDetailPage() {
-	const { date } = useParams<{ date: string }>()
-	const [article, setArticle] = useState<NewsArticle | null>(null)
-	const [error, setError] = useState<string | null>(null)
-	const [loading, setLoading] = useState(true)
+export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
+	const { date } = await params
+	const displayDate = formatNewsDate(date)
+	const result = await getNewsArticle(date)
 
-	useEffect(() => {
-		let cancelled = false
-
-		async function run() {
-			if (!isValidNewsDate(date)) {
-				setArticle(null)
-				setError('请使用 YYYY-MM-DD 格式访问新闻日报。')
-				setLoading(false)
-				return
-			}
-
-			try {
-				setLoading(true)
-				setError(null)
-				const res = await fetch(`/api/news/${encodeURIComponent(date)}`)
-				const data = await res.json().catch(() => ({}))
-
-				if (!res.ok) {
-					throw new Error(data?.error || '新闻数据加载失败')
-				}
-
-				if (!cancelled) {
-					setArticle(data as NewsArticle)
-				}
-			} catch (error) {
-				if (!cancelled) {
-					setArticle(null)
-					setError(error instanceof Error ? error.message : '新闻数据加载失败')
-				}
-			} finally {
-				if (!cancelled) {
-					setLoading(false)
-				}
-			}
-		}
-
-		void run()
-
-		return () => {
-			cancelled = true
-		}
-	}, [date])
-
-	const displayDate = useMemo(() => formatNewsDate(date), [date])
-
-	if (loading) {
-		return <div className='text-secondary flex h-full items-center justify-center text-sm'>加载中...</div>
+	if (!result.ok) {
+		return <NewsDetailState title={isValidNewsDate(date) ? displayDate : '新闻日期无效'} message={result.error} />
 	}
 
-	if (error) {
-		const title = isValidNewsDate(date) ? displayDate : '新闻日期无效'
-		return <NewsDetailState title={title} message={error} />
-	}
-
-	if (!article) {
-		return <NewsDetailState title={displayDate} message='新闻日报不存在。' />
-	}
-
+	const article = result.data
 	return (
 		<>
 			<ReadingProgressBar />
@@ -127,9 +50,7 @@ export default function NewsDetailPage() {
 			/>
 
 			<div className='news-panel-enter absolute top-4 right-6 flex gap-3 max-sm:hidden'>
-				<Link
-					href='/news'
-					className='flex items-center gap-2 rounded-xl border bg-white/60 px-4 py-2 text-sm backdrop-blur-sm transition-transform duration-200 hover:-translate-y-0.5 hover:bg-white/80'>
+				<Link href='/news' className='flex items-center gap-2 rounded-xl border bg-white/60 px-4 py-2 text-sm backdrop-blur-sm transition-transform duration-200 hover:-translate-y-0.5 hover:bg-white/80'>
 					<ArrowLeft className='size-4' />
 					新闻列表
 				</Link>

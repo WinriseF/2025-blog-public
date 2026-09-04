@@ -11,8 +11,10 @@ describe('API/route contracts', () => {
     expect(existsSync(resolve(root, 'src/app/healthz/route.ts'))).toBe(true)
     expect(read('src/app/healthz/route.ts')).toMatch(/Response|NextResponse/)
   })
-  it('news date route validates the date instead of interpolating arbitrary paths', () => {
-    expect(read('src/app/api/news/[date]/route.ts')).toMatch(/isValidNewsDate|getNewsArticle/)
+  it('news detail loads through the shared server-side news module without an internal API loop', () => {
+    const page = read('src/app/news/[date]/page.tsx')
+    expect(page).toMatch(/getNewsArticle/)
+    expect(page).not.toMatch(/fetch\(\s*[`'"]\/api\/news/)
   })
   it.skipIf(!existsSync(resolve(root, edgeTransfer)))('public transfer endpoints do not accept state-changing GET methods when EdgeOne source is present', () => {
     const text = read(edgeTransfer)

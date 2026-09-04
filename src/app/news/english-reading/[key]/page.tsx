@@ -41,7 +41,7 @@ export default async function EnglishReadingDetailPage({ params }: EnglishReadin
 				date='英语精读'
 				summary={article.summary}
 				slug={`english-reading-${article.key}`}
-				audioUrl={getAssetUrl(`/news/english-reading/audio/${encodeURIComponent(article.key)}.mp3`)}
+				audioUrl={article.hasAudio ? getAssetUrl(`/news/english-reading/audio/${encodeURIComponent(article.key)}.mp3`) : undefined}
 			/>
 
 			<div className='news-panel-enter absolute top-4 right-6 flex gap-3 max-sm:hidden'>

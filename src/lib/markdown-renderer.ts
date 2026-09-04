@@ -1,6 +1,5 @@
 import { marked } from 'marked'
 import type { Tokens } from 'marked'
-import { codeToHtml } from 'shiki'
 
 export type TocItem = { id: string; text: string; level: number }
 
@@ -42,6 +41,7 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 	// Pre-process code blocks with Shiki
 	const codeBlockMap = new Map<string, { html: string; original: string }>()
 	const tokens = marked.lexer(markdown)
+	let codeToHtml: typeof import('shiki').codeToHtml | undefined
 
 	for (const token of tokens) {
 		if (token.type === 'code') {
@@ -50,6 +50,7 @@ export async function renderMarkdown(markdown: string): Promise<MarkdownRenderRe
 
 			const originalCode = codeToken.text
 			try {
+				codeToHtml ||= (await import('shiki')).codeToHtml
 				const html = await codeToHtml(originalCode, {
 					lang: codeToken.lang || 'text',
 					themes: {

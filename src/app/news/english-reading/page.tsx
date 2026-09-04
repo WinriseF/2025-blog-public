@@ -4,8 +4,22 @@ import { getEnglishReadingIndex } from '@/lib/english-reading'
 
 export const revalidate = 300
 
-export default async function EnglishReadingPage() {
-	const result = await getEnglishReadingIndex()
+const ENGLISH_READING_PAGE_SIZE = 30
+const ENTER_ANIMATION_LIMIT = 6
+
+type EnglishReadingPageProps = {
+	searchParams: Promise<{
+		page?: string | string[]
+	}>
+}
+
+function parsePage(value?: string | string[]) {
+	const page = Number(Array.isArray(value) ? value[0] : value)
+	return Number.isInteger(page) && page > 0 ? page : 1
+}
+
+export default async function EnglishReadingPage({ searchParams }: EnglishReadingPageProps) {
+	const [result, params] = await Promise.all([getEnglishReadingIndex(), searchParams])
 
 	if (!result.ok) {
 		return (
@@ -17,6 +31,11 @@ export default async function EnglishReadingPage() {
 			</div>
 		)
 	}
+
+	const totalPages = Math.max(Math.ceil(result.data.items.length / ENGLISH_READING_PAGE_SIZE), 1)
+	const currentPage = Math.min(parsePage(params.page), totalPages)
+	const pageStart = (currentPage - 1) * ENGLISH_READING_PAGE_SIZE
+	const visibleItems = result.data.items.slice(pageStart, pageStart + ENGLISH_READING_PAGE_SIZE)
 
 	return (
 		<div className='news-page mx-auto flex w-full max-w-[920px] flex-col gap-5 px-6 pt-32 pb-12 max-sm:px-4 max-sm:pt-24'>
@@ -33,15 +52,15 @@ export default async function EnglishReadingPage() {
 				</div>
 			</section>
 
-			{result.data.items.length > 0 ? (
+			{visibleItems.length > 0 ? (
 				<div className='space-y-3'>
-					{result.data.items.map((item, index) => (
+					{visibleItems.map((item, index) => (
 						<Link
 							key={item.key}
 							href={`/news/english-reading/${encodeURIComponent(item.key)}`}
 							prefetch={false}
 							className='news-card news-panel-enter group flex min-h-28 items-center gap-4 rounded-[28px] p-5 transition-transform duration-200 hover:-translate-y-0.5 max-sm:items-start max-sm:p-4'
-							style={{ animationDelay: `${120 + index * 55}ms` }}>
+							style={{ animationDelay: `${120 + Math.min(index, ENTER_ANIMATION_LIMIT) * 55}ms` }}>
 							<div className='news-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl'>
 								{item.hasAudio ? <Headphones className='size-5' /> : <BookOpenText className='size-5' />}
 							</div>
@@ -55,6 +74,22 @@ export default async function EnglishReadingPage() {
 				</div>
 			) : (
 				<div className='news-card news-muted rounded-[28px] p-8 text-center text-sm'>暂无英语精读内容</div>
+			)}
+
+			{totalPages > 1 && (
+				<nav aria-label='英语精读分页' className='news-panel-enter flex items-center justify-center gap-3'>
+					{currentPage > 1 && (
+						<Link href={currentPage === 2 ? '/news/english-reading' : `/news/english-reading?page=${currentPage - 1}`} className='news-card rounded-full px-4 py-2 text-sm font-medium'>
+							上一页
+						</Link>
+					)}
+					<span className='news-muted text-sm'>第 {currentPage} / {totalPages} 页</span>
+					{currentPage < totalPages && (
+						<Link href={`/news/english-reading?page=${currentPage + 1}`} className='news-card rounded-full px-4 py-2 text-sm font-medium'>
+							下一页
+						</Link>
+					)}
+				</nav>
 			)}
 		</div>
 	)

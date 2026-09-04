@@ -9,6 +9,19 @@ export const revalidate = 300
 
 const NEWS_PREVIEW_LIMIT = 4
 const NEWS_INDEX_LIMIT = 10
+const NEWS_PAGE_SIZE = 30
+const ENTER_ANIMATION_LIMIT = 6
+
+type NewsPageProps = {
+	searchParams: Promise<{
+		page?: string | string[]
+	}>
+}
+
+function parsePage(value?: string | string[]) {
+	const page = Number(Array.isArray(value) ? value[0] : value)
+	return Number.isInteger(page) && page > 0 ? page : 1
+}
 
 function NewsState({ title, message }: { title: string; message: string }) {
 	return (
@@ -51,7 +64,7 @@ function NewsDaySection({ day, index }: { day: NewsDay; index: number }) {
 		<section
 			id={`day-${day.date}`}
 			className='news-panel-enter news-card news-day-section scroll-mt-28 rounded-[28px] px-5 py-4 max-sm:px-4'
-			style={{ animationDelay: `${120 + index * 70}ms` }}>
+			style={{ animationDelay: `${120 + Math.min(index, ENTER_ANIMATION_LIMIT) * 70}ms` }}>
 			<div className='news-divider flex items-start justify-between gap-4 border-b pb-4 max-sm:flex-col'>
 				<Link
 					href={`/news/${day.date}`}
@@ -74,9 +87,8 @@ function NewsDaySection({ day, index }: { day: NewsDay; index: number }) {
 	)
 }
 
-function NewsDateIndex({ days }: { days: NewsDay[] }) {
+function NewsDateIndex({ days, currentPage, totalPages }: { days: NewsDay[]; currentPage: number; totalPages: number }) {
 	const visibleDays = days.slice(0, NEWS_INDEX_LIMIT)
-	const remainingCount = Math.max(days.length - visibleDays.length, 0)
 
 	return (
 		<aside className='news-panel-enter sticky top-24 h-fit max-lg:static'>
@@ -87,7 +99,7 @@ function NewsDateIndex({ days }: { days: NewsDay[] }) {
 					</div>
 					<div>
 						<div className='text-sm font-semibold'>日期索引</div>
-						<div className='news-muted text-xs'>最近 {visibleDays.length} 天</div>
+						<div className='news-muted text-xs'>第 {currentPage}/{totalPages} 页 · 本页 {days.length} 天</div>
 					</div>
 				</div>
 
@@ -103,14 +115,34 @@ function NewsDateIndex({ days }: { days: NewsDay[] }) {
 					))}
 				</nav>
 
-				{remainingCount > 0 && <div className='news-divider news-muted border-t pt-3 text-xs'>下方还有 {remainingCount} 天日报</div>}
+				{days.length > visibleDays.length && <div className='news-divider news-muted border-t pt-3 text-xs'>下方还有 {days.length - visibleDays.length} 天日报</div>}
 			</div>
 		</aside>
 	)
 }
 
-export default async function NewsPage() {
-	const [result, englishReadingResult] = await Promise.all([getNewsIndex(), getEnglishReadingIndex()])
+function NewsPagination({ currentPage, totalPages }: { currentPage: number; totalPages: number }) {
+	if (totalPages <= 1) return null
+
+	return (
+		<nav aria-label='新闻分页' className='news-panel-enter flex items-center justify-center gap-3'>
+			{currentPage > 1 && (
+				<Link href={currentPage === 2 ? '/news' : `/news?page=${currentPage - 1}`} className='news-card rounded-full px-4 py-2 text-sm font-medium'>
+					上一页
+				</Link>
+			)}
+			<span className='news-muted text-sm'>第 {currentPage} / {totalPages} 页</span>
+			{currentPage < totalPages && (
+				<Link href={`/news?page=${currentPage + 1}`} className='news-card rounded-full px-4 py-2 text-sm font-medium'>
+					下一页
+				</Link>
+			)}
+		</nav>
+	)
+}
+
+export default async function NewsPage({ searchParams }: NewsPageProps) {
+	const [result, englishReadingResult, params] = await Promise.all([getNewsIndex(), getEnglishReadingIndex(), searchParams])
 
 	if (!result.ok) {
 		return <NewsState title='每日内容与热点' message={result.error} />
@@ -123,6 +155,11 @@ export default async function NewsPage() {
 	if (days.length === 0) {
 		return <NewsState title={title} message='暂无日报内容' />
 	}
+
+	const totalPages = Math.ceil(days.length / NEWS_PAGE_SIZE)
+	const currentPage = Math.min(parsePage(params.page), totalPages)
+	const pageStart = (currentPage - 1) * NEWS_PAGE_SIZE
+	const visibleDays = days.slice(pageStart, pageStart + NEWS_PAGE_SIZE)
 
 	return (
 		<div className='news-page mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-6 pt-32 pb-12 max-sm:px-4 max-sm:pt-24'>
@@ -141,13 +178,15 @@ export default async function NewsPage() {
 			<NewsNowLiveSection />
 
 			<div className='grid grid-cols-[220px_minmax(0,1fr)] gap-6 max-lg:grid-cols-1'>
-				<NewsDateIndex days={days} />
+				<NewsDateIndex days={visibleDays} currentPage={currentPage} totalPages={totalPages} />
 				<div className='space-y-4'>
-					{days.map((day, index) => (
+					{visibleDays.map((day, index) => (
 						<NewsDaySection key={day.date} day={day} index={index} />
 					))}
 				</div>
 			</div>
+
+			<NewsPagination currentPage={currentPage} totalPages={totalPages} />
 		</div>
 	)
 }

@@ -45,7 +45,7 @@ function readString(value: unknown): string | undefined {
 }
 
 function isValidKey(key: string): boolean {
-	return Boolean(key) && key.length <= 180 && !/[\\/\u0000]/.test(key)
+	return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,179}$/.test(key)
 }
 
 function normalizeItem(value: unknown): EnglishReadingItem | null {
@@ -62,15 +62,27 @@ function normalizeItem(value: unknown): EnglishReadingItem | null {
 	}
 }
 
-function extractArticle(markdown: string, key: string): Pick<EnglishReadingArticle, 'title' | 'markdown' | 'summary'> {
+export function parseEnglishReadingIndex(text: string): EnglishReadingIndex {
+	const value: unknown = JSON.parse(text)
+	const items = isRecord(value) && Array.isArray(value.items) ? value.items.map(normalizeItem).filter((item): item is EnglishReadingItem => Boolean(item)) : []
+	return { items }
+}
+
+export function parseEnglishReadingArticle(markdown: string, item: EnglishReadingItem, sourceUrl: string): EnglishReadingArticle {
 	const lines = markdown.split(/\r?\n/)
 	const titleIndex = lines.findIndex(line => Boolean(line.trim()))
-	const rawTitle = titleIndex >= 0 ? lines[titleIndex].trim() : ''
-	const title = rawTitle.replace(/^#{1,6}\s+/, '') || key
-	const content = titleIndex >= 0 ? lines.slice(titleIndex + 1).join('\n').trimStart() : markdown
+	const firstLine = titleIndex >= 0 ? lines[titleIndex].trim() : ''
+	const markdownTitle = /^\uFEFF?#{1,6}\s+(.+)$/.exec(firstLine)?.[1]?.trim()
+	const hasLeadingTitle = Boolean(markdownTitle) || firstLine === item.title
+	const content = hasLeadingTitle && titleIndex >= 0 ? lines.slice(titleIndex + 1).join('\n').trimStart() : markdown.trimStart()
 	const summary = content.split(/\r?\n/).find(line => Boolean(line.trim()))?.trim() || '英文原文精读与音频听读。'
 
-	return { title, markdown: content, summary }
+	return {
+		...item,
+		markdown: content,
+		sourceUrl,
+		summary
+	}
 }
 
 const fetchEnglishReadingText = cache(async function fetchEnglishReadingText(path: string): Promise<EnglishReadingResult<{ text: string; url: string }>> {
@@ -112,9 +124,7 @@ export async function getEnglishReadingIndex(): Promise<EnglishReadingResult<Eng
 	if (!result.ok) return result
 
 	try {
-		const value: unknown = JSON.parse(result.data.text)
-		const items = isRecord(value) && Array.isArray(value.items) ? value.items.map(normalizeItem).filter((item): item is EnglishReadingItem => Boolean(item)) : []
-		return { ok: true, data: { items } }
+		return { ok: true, data: parseEnglishReadingIndex(result.data.text) }
 	} catch {
 		return { ok: false, error: '英语精读索引格式异常' }
 	}
@@ -123,17 +133,12 @@ export async function getEnglishReadingIndex(): Promise<EnglishReadingResult<Eng
 export async function getEnglishReadingArticle(key: string): Promise<EnglishReadingResult<EnglishReadingArticle>> {
 	if (!isValidKey(key)) return { ok: false, error: '英语精读标识无效' }
 
-	const result = await fetchEnglishReadingText(`${encodeURIComponent(key)}.md`)
-	if (!result.ok) return result
+	const [articleResult, indexResult] = await Promise.all([fetchEnglishReadingText(`${encodeURIComponent(key)}.md`), getEnglishReadingIndex()])
+	if (!indexResult.ok) return indexResult
 
-	const article = extractArticle(result.data.text, key)
-	return {
-		ok: true,
-		data: {
-			key,
-			hasAudio: true,
-			sourceUrl: result.data.url,
-			...article
-		}
-	}
+	const item = indexResult.data.items.find(candidate => candidate.key === key)
+	if (!item) return { ok: false, error: '英语精读不存在', status: 404 }
+	if (!articleResult.ok) return articleResult
+
+	return { ok: true, data: parseEnglishReadingArticle(articleResult.data.text, item, articleResult.data.url) }
 }
