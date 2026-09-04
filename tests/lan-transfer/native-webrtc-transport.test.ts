@@ -27,10 +27,10 @@ class FakePC {
   close = vi.fn(() => { this.connectionState = 'closed' })
 }
 
-function setup(role: 'host' | 'guest' = 'host') {
+function setup(role: 'offerer' | 'answerer' = 'offerer') {
   let pc!: FakePC
   vi.stubGlobal('RTCPeerConnection', class extends FakePC { constructor() { super(); pc = this } })
-  const options = { role, generation: 2, negotiationId: 'n', onDescription: vi.fn(), onCandidate: vi.fn(), onData: vi.fn(), onState: vi.fn(), onReady: vi.fn() }
+  const options = { role, negotiationId: 'n', onDescription: vi.fn(), onCandidate: vi.fn(), onData: vi.fn(), onState: vi.fn(), onReady: vi.fn() }
   const transport = new NativeWebRtcTransport(options as any)
   return { transport, pc, options }
 }
@@ -44,9 +44,9 @@ describe('NativeWebRtcTransport', () => {
     expect(urls.some(url => /^stun:/i.test(url))).toBe(true)
   })
 
-  it('host creates an ordered data channel and can send only while open', () => {
-    const { transport, pc } = setup('host')
-    expect(pc.createDataChannel).toHaveBeenCalledWith('lan-session-v13', { ordered: true })
+  it('the offerer creates an ordered data channel and can send only while open', () => {
+    const { transport, pc } = setup('offerer')
+    expect(pc.createDataChannel).toHaveBeenCalledWith('lan-session-v14', { ordered: true })
     expect(transport.isOpen()).toBe(true)
     expect(transport.send(new Uint8Array([1, 2]))).toBe(true)
     expect(pc.channel.send).toHaveBeenCalledTimes(1)
@@ -60,28 +60,21 @@ describe('NativeWebRtcTransport', () => {
     await expect(transport.negotiateChunkSize(LAN_LIMITS.dataChannelFallbackChunkSize)).resolves.toBe(LAN_LIMITS.dataChannelFallbackChunkSize)
   })
 
-  it('reports selected candidate-pair health statistics', async () => {
-    const { transport, pc } = setup()
-    pc.reports.set('transport', { id: 'transport', type: 'transport', selectedCandidatePairId: 'pair' })
-    pc.reports.set('pair', { id: 'pair', type: 'candidate-pair', state: 'succeeded', bytesSent: 10, bytesReceived: 20, consentRequestsSent: 3, responsesReceived: 4, localCandidateId: 'l', remoteCandidateId: 'r' })
-    expect(await transport.getHealthStats()).toMatchObject({ candidatePairId: 'pair', bytesSent: 10, bytesReceived: 20, consentRequestsSent: 3, responsesReceived: 4 })
-  })
-
   it('verifies liveness with a small data-channel ping/pong round trip', async () => {
     const { transport, pc } = setup()
     const result = transport.probe()
-    const prefix = '__winrisef_lan_v13__:'
+    const prefix = '__winrisef_lan_v14__:'
     const request = JSON.parse(String(pc.channel.sent.at(-1)).slice(prefix.length))
-    expect(request).toMatchObject({ type: 'health-ping', generation: 2 })
-    pc.channel.onmessage({ data: `${prefix}${JSON.stringify({ type: 'health-pong', generation: 2, id: request.id })}` })
+    expect(request).toMatchObject({ type: 'health-ping' })
+    pc.channel.onmessage({ data: `${prefix}${JSON.stringify({ type: 'health-pong', id: request.id })}` })
     await expect(result).resolves.toBe(true)
   })
 
   it('answers a peer health probe without forwarding it to the connection runtime', () => {
     const { pc, options } = setup()
-    const prefix = '__winrisef_lan_v13__:'
-    pc.channel.onmessage({ data: `${prefix}${JSON.stringify({ type: 'health-ping', generation: 2, id: 'probe-1' })}` })
-    expect(pc.channel.sent.at(-1)).toBe(`${prefix}${JSON.stringify({ type: 'health-pong', generation: 2, id: 'probe-1' })}`)
+    const prefix = '__winrisef_lan_v14__:'
+    pc.channel.onmessage({ data: `${prefix}${JSON.stringify({ type: 'health-ping', id: 'probe-1' })}` })
+    expect(pc.channel.sent.at(-1)).toBe(`${prefix}${JSON.stringify({ type: 'health-pong', id: 'probe-1' })}`)
     expect(options.onData).not.toHaveBeenCalled()
   })
 

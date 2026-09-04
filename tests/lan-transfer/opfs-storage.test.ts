@@ -78,6 +78,13 @@ describe('OpfsStorageEngine', () => {
     expect(after.receivedChunks).toBe(before!.receivedChunks)
   })
 
+  it('reopens a compatible manifest without deleting received ranges', async () => {
+    setup(); const first = new OpfsStorageEngine(); await first.prepare(meta)
+    await first.writeChunk(meta, 0, new Uint8Array([1, 2])); await first.checkpoint(meta)
+    const restored = new OpfsStorageEngine(); await restored.prepare(meta)
+    expect(await restored.getManifest('f')).toMatchObject({ receivedBytes: 2, receivedChunks: 1, receivedRanges: [[0, 0]] })
+  })
+
   it('rejects finalize when persisted data length does not match metadata', async () => {
     setup(); const engine = new OpfsStorageEngine(); await engine.prepare({ ...meta, size: 8 })
     await engine.writeChunk({ ...meta, size: 8 }, 2, new Uint8Array([5, 6]))

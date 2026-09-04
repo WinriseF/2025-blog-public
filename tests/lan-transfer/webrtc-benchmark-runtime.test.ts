@@ -25,7 +25,7 @@ describe('WebRTC benchmark runtime', () => {
 
   it('rejects an incoming request with an unsupported chunk tier', () => {
     const { runtime, callbacks } = fixture()
-    runtime.handleRequest({ type: 'webrtc-benchmark-request', protocolVersion: 13, peerId: 'p', seq: 1, createdAt: 1, benchmarkId: 'x', direction: 'requester-to-peer', totalBytes: 1024, chunkSize: 123 } as any)
+    runtime.handleRequest({ type: 'webrtc-benchmark-request', protocolVersion: 14, peerId: 'p', seq: 1, createdAt: 1, benchmarkId: 'x', direction: 'requester-to-peer', totalBytes: 1024, chunkSize: 123 } as any)
     expect(callbacks.sendReady).toHaveBeenCalledWith({ benchmarkId: 'x', accepted: false, error: 'WebRTC 测速参数无效' })
     expect(runtime.isActive()).toBe(false)
   })
@@ -33,7 +33,7 @@ describe('WebRTC benchmark runtime', () => {
   it('accepts a valid receiver benchmark and rejects out-of-order frames', () => {
     const { runtime, callbacks } = fixture()
     const chunkSize = LAN_LIMITS.dataChannelFallbackChunkSize
-    runtime.handleRequest({ type: 'webrtc-benchmark-request', protocolVersion: 13, peerId: 'p', seq: 1, createdAt: 1, benchmarkId: 'x', direction: 'requester-to-peer', totalBytes: chunkSize * 2, chunkSize } as any)
+    runtime.handleRequest({ type: 'webrtc-benchmark-request', protocolVersion: 14, peerId: 'p', seq: 1, createdAt: 1, benchmarkId: 'x', direction: 'requester-to-peer', totalBytes: chunkSize * 2, chunkSize } as any)
     expect(runtime.isActive()).toBe(true)
     runtime.handleFrame('x', 1, new Uint8Array(chunkSize))
     expect(callbacks.sendCancel).toHaveBeenCalledWith({ benchmarkId: 'x', reason: 'WebRTC 测速数据顺序或大小不一致' })
@@ -43,7 +43,7 @@ describe('WebRTC benchmark runtime', () => {
   it('completes an exact receiver stream and sends measured result', () => {
     const { runtime, callbacks } = fixture()
     const chunkSize = LAN_LIMITS.dataChannelFallbackChunkSize
-    runtime.handleRequest({ type: 'webrtc-benchmark-request', protocolVersion: 13, peerId: 'p', seq: 1, createdAt: 1, benchmarkId: 'x', direction: 'requester-to-peer', totalBytes: chunkSize + 10, chunkSize } as any)
+    runtime.handleRequest({ type: 'webrtc-benchmark-request', protocolVersion: 14, peerId: 'p', seq: 1, createdAt: 1, benchmarkId: 'x', direction: 'requester-to-peer', totalBytes: chunkSize + 10, chunkSize } as any)
     runtime.handleFrame('x', 0, new Uint8Array(chunkSize))
     vi.spyOn(performance, 'now').mockReturnValue(1100)
     runtime.handleFrame('x', 1, new Uint8Array(10))

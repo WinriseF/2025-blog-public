@@ -1,9 +1,9 @@
 import { LAN_CHUNK_TIERS, LAN_LIMITS } from './types'
 import { logLanConnection, shortConnectionId, summarizeIceCandidate, summarizeNetworkAddress } from './connection-diagnostics'
-import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportHealthStats, LanTransportState } from './transport-types'
+import type { LanConnectionRoute, LanReconnectTransport, LanTransportCreateOptions, LanTransportState } from './transport-types'
 import { ipAddressKind } from './native-agent/endpoint-validation'
 
-const transportControlPrefix = '__winrisef_lan_v13__:'
+const transportControlPrefix = '__winrisef_lan_v14__:'
 const TRANSPORT_FRAME_PROBE = 0xff
 const ICE_DIAGNOSTIC_SAMPLE_DELAYS = [0, 100, 250, 500, 1000, 2000, 3500, 5000, 7000, 9000] as const
 const encoder = new TextEncoder()
@@ -14,7 +14,7 @@ export const lanRtcConfig: RTCConfiguration = {
 	iceCandidatePoolSize: 2,
 }
 
-type TransportControl = { type: 'hello'; generation: number } | { type: 'health-ping' | 'health-pong' | 'frame-probe-ack'; generation: number; id: string }
+type TransportControl = { type: 'hello' } | { type: 'health-ping' | 'health-pong' | 'frame-probe-ack'; id: string }
 type CandidatePairStats = RTCStats & {
 	localCandidateId?: string
 	remoteCandidateId?: string
@@ -95,7 +95,7 @@ function parseTransportControl(value: string): TransportControl | null {
 	if (!value.startsWith(transportControlPrefix)) return null
 	try {
 		const message = JSON.parse(value.slice(transportControlPrefix.length)) as TransportControl
-		if (!message || typeof message !== 'object' || !['hello', 'health-ping', 'health-pong', 'frame-probe-ack'].includes(message.type) || typeof message.generation !== 'number') return null
+		if (!message || typeof message !== 'object' || !['hello', 'health-ping', 'health-pong', 'frame-probe-ack'].includes(message.type)) return null
 		if (message.type !== 'hello' && typeof message.id !== 'string') return null
 		return message
 	} catch {
@@ -292,7 +292,6 @@ function routeFromPair(stats: RTCStatsReport, pair: CandidatePairStats): LanConn
 
 export class NativeWebRtcTransport implements LanReconnectTransport {
 	readonly id = randomId()
-	readonly generation: number
 	private readonly pc = new RTCPeerConnection(lanRtcConfig)
 	private channel: RTCDataChannel | null = null
 	private pendingCandidates: RTCIceCandidateInit[] = []
@@ -312,7 +311,6 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	private iceDiagnosticTimers = new Set<ReturnType<typeof setTimeout>>()
 
 	constructor(private readonly options: LanTransportCreateOptions) {
-		this.generation = options.generation
 		this.currentNegotiationId = options.negotiationId
 		this.log('transport-created', {
 			iceServers: lanRtcConfig.iceServers?.map(server => ({ urls: server.urls })),
@@ -342,7 +340,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			this.updateIceDiagnostics(`ice-${this.pc.iceConnectionState}`)
 			this.emitConnectionState()
 		}
-		if (options.role === 'host') this.bindChannel(this.pc.createDataChannel('lan-session-v13', { ordered: true }))
+		if (options.role === 'offerer') this.bindChannel(this.pc.createDataChannel('lan-session-v14', { ordered: true }))
 		else this.pc.ondatachannel = event => this.bindChannel(event.channel)
 		this.emitState('connecting')
 	}
@@ -404,7 +402,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 				resolve(false)
 			}, timeoutMs)
 			this.pendingProbes.set(id, { resolve, timer })
-			if (!this.sendControl({ type: 'health-ping', generation: this.generation, id })) {
+			if (!this.sendControl({ type: 'health-ping', id })) {
 				clearTimeout(timer)
 				this.pendingProbes.delete(id)
 				resolve(false)
@@ -414,7 +412,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 
 	async start(attemptToken: number) {
 		this.negotiationAttemptToken = attemptToken
-		if (this.options.role === 'host') {
+		if (this.options.role === 'offerer') {
 			this.log('start-offer')
 			await this.createOffer(false, this.currentNegotiationId, attemptToken)
 		}
@@ -430,7 +428,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 	}
 
 	async restartIce(negotiationId: string, attemptToken: number) {
-		if (this.options.role !== 'host' || this.closed) return
+		if (this.closed) return
 		this.setNegotiationId(negotiationId)
 		this.negotiationAttemptToken = attemptToken
 		this.log('ice-restart-requested')
@@ -472,20 +470,6 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			return
 		}
 		await this.addCandidate(candidate)
-	}
-
-	async getHealthStats(): Promise<LanTransportHealthStats> {
-		const stats = await this.pc.getStats()
-		const pair = selectedCandidatePair(stats)
-		return {
-			connectionState: this.pc.connectionState,
-			iceConnectionState: this.pc.iceConnectionState,
-			candidatePairId: pair?.id || '',
-			bytesSent: pair?.bytesSent || 0,
-			bytesReceived: pair?.bytesReceived || 0,
-			consentRequestsSent: typeof pair?.consentRequestsSent === 'number' ? pair.consentRequestsSent : null,
-			responsesReceived: typeof pair?.responsesReceived === 'number' ? pair.responsesReceived : null,
-		}
 	}
 
 	async inspectRoute(): Promise<LanConnectionRoute> {
@@ -567,7 +551,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		channel.binaryType = 'arraybuffer'
 		channel.onopen = () => {
 			this.log('data-channel-open')
-			this.sendControl({ type: 'hello', generation: this.generation })
+			this.sendControl({ type: 'hello' })
 		}
 		channel.onclose = () => {
 			this.log('data-channel-closed', {}, 'warn')
@@ -598,12 +582,11 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		const idLength = bytes[1]
 		if (!idLength || bytes.byteLength < idLength + 2) return true
 		const id = decoder.decode(bytes.subarray(2, 2 + idLength))
-		this.sendControl({ type: 'frame-probe-ack', generation: this.generation, id })
+		this.sendControl({ type: 'frame-probe-ack', id })
 		return true
 	}
 
 	private handleControl(message: TransportControl) {
-		if (message.generation !== this.generation) return
 		if (message.type === 'hello') {
 			if (!this.ready) {
 				this.ready = true
@@ -612,7 +595,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 			}
 			return
 		}
-		if (message.type === 'health-ping') return void this.sendControl({ type: 'health-pong', generation: this.generation, id: message.id })
+		if (message.type === 'health-ping') return void this.sendControl({ type: 'health-pong', id: message.id })
 		const probe = this.pendingProbes.get(message.id)
 		if (!probe) return
 		clearTimeout(probe.timer)
@@ -810,7 +793,6 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		logLanConnection('RTC', event, {
 			transport: shortConnectionId(this.id),
 			role: this.options.role,
-			generation: this.generation,
 			negotiation: shortConnectionId(this.currentNegotiationId),
 			...details,
 		}, level)

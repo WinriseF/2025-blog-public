@@ -46,6 +46,14 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 	}
 }
 
+function matchesMeta(manifest: TransferManifest, meta: TransferFileMeta) {
+	return manifest.version === 3
+		&& manifest.size === meta.size
+		&& manifest.chunkSize === meta.chunkSize
+		&& manifest.chunkCount === meta.chunkCount
+		&& manifest.name === meta.name
+}
+
 async function rootDirectory() {
 	if (!navigator.storage || !('getDirectory' in navigator.storage)) throw new Error('当前设备不支持接收大文件')
 	const root = await navigator.storage.getDirectory()
@@ -175,13 +183,22 @@ export class OpfsStorageEngine implements LanStorageEngine {
 
 	async prepare(meta: TransferFileMeta) {
 		const root = await rootDirectory()
-		await root.removeEntry(meta.id, { recursive: true }).catch(() => {})
 		const dir = await fileDirectory(root, meta.id)
-		const dataHandle = await dir.getFileHandle('data.part', { create: true })
+		const existing = await readJsonFile<TransferManifest>(dir, 'manifest.json')
+		if (existing && matchesMeta(existing, meta)) {
+			this.manifests.set(meta.id, existing)
+			await this.ensureActive(meta)
+			return
+		}
+		if (existing) {
+			await this.cleanup(meta.id)
+		}
+		const nextDir = await fileDirectory(root, meta.id)
+		const dataHandle = await nextDir.getFileHandle('data.part', { create: true })
 		const manifest = manifestFor(meta)
 		const writable = await openWritable(dataHandle, false)
 		const active: ActiveOpfsFile = {
-			dir,
+			dir: nextDir,
 			dataHandle,
 			writable,
 			manifest,
@@ -193,7 +210,7 @@ export class OpfsStorageEngine implements LanStorageEngine {
 		}
 		this.manifests.set(meta.id, manifest)
 		this.activeFiles.set(meta.id, active)
-		await writeJsonFile(dir, 'manifest.json', manifest)
+		await writeJsonFile(nextDir, 'manifest.json', manifest)
 	}
 
 	async writeChunk(meta: TransferFileMeta, chunkIndex: number, data: Uint8Array) {

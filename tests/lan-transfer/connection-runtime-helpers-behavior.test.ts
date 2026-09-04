@@ -18,7 +18,7 @@ import { LAN_LIMITS, type LanCapability, type LanChatMessage } from '../../src/l
 function capability(overrides: Partial<LanCapability> = {}): LanCapability {
   return {
     type: 'capability',
-    protocolVersion: 13,
+    protocolVersion: 14,
     peerId: 'peer',
     platform: 'desktop',
     browser: 'chrome',
@@ -43,7 +43,7 @@ const manifest = {
 } as const
 
 const offer = {
-  type: 'attachment-offer', protocolVersion: 13, peerId: 'p', createdAt: 1, messageId: 'msg-1',
+  type: 'attachment-offer', protocolVersion: 14, peerId: 'p', createdAt: 1, messageId: 'msg-1',
   attachment: { ...manifest, file: undefined, messageId: undefined }
 } as any
 

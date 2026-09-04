@@ -1,33 +1,57 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/lib/lan-transfer/storage/indexeddb-storage', () => ({
-  closeLanIndexedDb: vi.fn().mockResolvedValue(undefined),
-  LAN_INDEXEDDB_NAME: 'lan-test-db'
+const mocks = vi.hoisted(() => ({
+  load: vi.fn(), remove: vi.fn(), removeRoom: vi.fn(), cleanup: vi.fn(),
 }))
-vi.mock('../../src/lib/lan-transfer/storage/opfs-storage', () => ({ LAN_OPFS_DIRECTORY_NAME: 'lan-opfs' }))
 
-import { cleanupLanTransferPersistentStorage } from '../../src/lib/lan-transfer/storage/persistent-cleanup'
+vi.mock('../../src/lib/lan-transfer/runtime-store', () => ({
+  loadAbandonedIncomingTransfers: mocks.load,
+  removePersistentIncomingRecord: mocks.remove,
+  removeRoomTransfers: mocks.removeRoom,
+}))
+vi.mock('../../src/lib/lan-transfer/storage/storage-manager', () => ({
+  createStorageEngine: () => ({ cleanup: mocks.cleanup }),
+}))
 
-afterEach(() => vi.unstubAllGlobals())
+import { cleanupLanTransferPersistentStorage, LAN_COMPLETED_TRANSFER_TTL_MS, LAN_RECEIVING_TRANSFER_TTL_MS } from '../../src/lib/lan-transfer/storage/persistent-cleanup'
 
-describe('LAN persistent cleanup', () => {
-  it('is safe when browser persistence APIs are unavailable', async () => {
-    vi.stubGlobal('indexedDB', undefined)
-    vi.stubGlobal('navigator', {})
-    await expect(cleanupLanTransferPersistentStorage()).resolves.toBeUndefined()
+const base = {
+  key: 'key', id: 'file', roomId: 'room', localDeviceId: 'local', remoteDeviceId: 'remote',
+  offer: {}, storage: 'opfs',
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.load.mockResolvedValue([])
+  mocks.remove.mockResolvedValue(undefined)
+  mocks.removeRoom.mockResolvedValue([])
+  mocks.cleanup.mockResolvedValue(undefined)
+})
+
+describe('LAN abandoned transfer cleanup', () => {
+  it('does not delete active or recently updated transfers', async () => {
+    const now = 10 * LAN_RECEIVING_TRANSFER_TTL_MS
+    mocks.load.mockResolvedValue([{ ...base, state: 'receiving', updatedAt: now - LAN_RECEIVING_TRANSFER_TTL_MS + 1 }])
+    await cleanupLanTransferPersistentStorage({ now })
+    expect(mocks.cleanup).not.toHaveBeenCalled()
+    expect(mocks.remove).not.toHaveBeenCalled()
   })
 
-  it('attempts both IndexedDB and OPFS cleanup without failing if one side errors', async () => {
-    const deleteDatabase = vi.fn(() => {
-      const req: any = {}
-      queueMicrotask(() => req.onerror?.())
-      return req
-    })
-    const removeEntry = vi.fn().mockRejectedValue(new Error('gone'))
-    vi.stubGlobal('indexedDB', { deleteDatabase })
-    vi.stubGlobal('navigator', { storage: { getDirectory: vi.fn().mockResolvedValue({ removeEntry }) } })
-    await expect(cleanupLanTransferPersistentStorage()).resolves.toBeUndefined()
-    expect(deleteDatabase).toHaveBeenCalledWith('lan-test-db')
-    expect(removeEntry).toHaveBeenCalledWith('lan-opfs', { recursive: true })
+  it('expires completed data sooner than an interrupted transfer', async () => {
+    const now = 10 * LAN_RECEIVING_TRANSFER_TTL_MS
+    const completed = { ...base, state: 'complete', updatedAt: now - LAN_COMPLETED_TRANSFER_TTL_MS }
+    const receiving = { ...base, key: 'receiving', id: 'receiving', state: 'receiving', updatedAt: now - LAN_RECEIVING_TRANSFER_TTL_MS }
+    mocks.load.mockResolvedValue([completed, receiving])
+    await cleanupLanTransferPersistentStorage({ now })
+    expect(mocks.cleanup).toHaveBeenCalledTimes(2)
+    expect(mocks.remove).toHaveBeenCalledTimes(2)
+  })
+
+  it('never collects records belonging to the active room', async () => {
+    const now = 10 * LAN_RECEIVING_TRANSFER_TTL_MS
+    mocks.load.mockResolvedValue([{ ...base, state: 'receiving', updatedAt: 1 }])
+    await cleanupLanTransferPersistentStorage({ now, activeRoomId: 'room' })
+    expect(mocks.cleanup).not.toHaveBeenCalled()
+    expect(mocks.remove).not.toHaveBeenCalled()
   })
 })

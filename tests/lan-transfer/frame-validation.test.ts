@@ -24,7 +24,7 @@ describe('LAN frame codec', () => {
   it('round-trips a control frame', () => {
     const message = {
       type: 'chat-message',
-      protocolVersion: 13,
+      protocolVersion: 14,
       peerId: 'peer',
       seq: 1,
       createdAt: 1,

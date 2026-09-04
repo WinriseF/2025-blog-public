@@ -13,14 +13,14 @@ function prepared(id: string, size: number, kind: 'file' | 'image' = 'file'): Pr
 
 function transport() {
   return {
-    id: 't', generation: 1, bufferedAmount: 0,
+    id: 't', bufferedAmount: 0,
     isOpen: vi.fn(() => true), send: vi.fn(() => true), negotiateChunkSize: vi.fn(), waitUntilWritable: vi.fn(async () => {})
   } as any
 }
 
 function callbacks() {
   return {
-    createCompleteMessage: vi.fn((file: PreparedLanAttachment) => ({ type: 'attachment-complete', protocolVersion: 13, id: file.id, messageId: file.messageId, sent: file.size, chunkCount: file.chunkCount } as any)),
+    createCompleteMessage: vi.fn((file: PreparedLanAttachment) => ({ type: 'attachment-complete', protocolVersion: 14, id: file.id, messageId: file.messageId, sent: file.size, chunkCount: file.chunkCount } as any)),
     onTaskStarted: vi.fn(), onTaskConfirming: vi.fn(), onTaskError: vi.fn(), onTransportStalled: vi.fn()
   }
 }

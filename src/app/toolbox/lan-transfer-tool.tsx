@@ -15,10 +15,7 @@ import { LanWakeLockToggle } from './lan-wake-lock-toggle'
 import { useLanTransferController } from './use-lan-transfer-controller'
 
 type LanTransferToolProps = {
-	initialInvite?: {
-		roomId: string
-		token: string
-	} | null
+	initialRoomId?: string | null
 	onLeaveSession?: () => void
 	onSwitchRelay?: () => void
 }
@@ -31,15 +28,10 @@ function cn(...classes: Array<string | false | null | undefined>) {
 }
 
 const connectionLabel = {
-	idle: '未连接',
-	discovered: '找到设备',
 	connecting: '连接中',
 	connected: '已连接',
-	suspect: '检测连接',
-	'ice-restarting': '恢复网络',
-	rebuilding: '重新连接',
-	backoff: '等待重试',
-	closed: '已关闭',
+	reconnecting: '重新连接',
+	offline: '离线',
 }
 
 function connectionStatusText(connection: LanConnectionItem) {
@@ -222,7 +214,7 @@ function WaitingConnectionCard({ controller, onToggleQr }: { controller: LanCont
 			<DeviceAvatar active={false} />
 			<div className='min-w-0 flex-1'>
 				<p className='truncate text-sm font-semibold'>等待另一台设备</p>
-				<p className='text-secondary mt-1 truncate text-xs'>{controller.session ? controller.roomStatus : '创建二维码，让另一台设备扫码'}</p>
+				<p className='text-secondary mt-1 truncate text-xs'>{controller.roomStatus}</p>
 			</div>
 		</button>
 	)
@@ -465,8 +457,8 @@ function MobileShell({ controller, wakeLock, speedMode, benchmark, benchmarkOpen
 	)
 }
 
-export function LanTransferTool({ initialInvite = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
-	const controller = useLanTransferController({ initialInvite, onLeaveSession })
+export function LanTransferTool({ initialRoomId = null, onLeaveSession, onSwitchRelay }: LanTransferToolProps) {
+	const controller = useLanTransferController({ initialRoomId, onLeaveSession })
 	const wakeLock = useLanScreenWakeLock()
 	const speedMode = useLanNativeSpeedMode(controller.session?.localPeer.deviceId || '', controller.activeConnection?.remoteCapability?.nativeAgent || null)
 	const benchmark = useLanConnectionBenchmark({

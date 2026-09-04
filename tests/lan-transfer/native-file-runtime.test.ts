@@ -3,7 +3,7 @@ import { LAN_NATIVE_FILE_MIN_BYTES, LanNativeFileRuntime } from '../../src/lib/l
 
 function capability(nativeAgent?: any) {
   return {
-    type: 'capability', protocolVersion: 13, peerId: 'p', platform: 'desktop', browser: 'chrome', isEmbeddedBrowser: false, webTransport: true,
+    type: 'capability', protocolVersion: 14, peerId: 'p', platform: 'desktop', browser: 'chrome', isEmbeddedBrowser: false, webTransport: true,
     nativeAgent, storage: { memory: true, opfs: true, indexedDB: true, fileSystemAccess: true },
     limits: { maxRecommendedFileSize: 1e12, maxExperimentalFileSize: 1e12, recommendedChunkSize: 262144, recommendedStorage: 'file' }, notes: []
   } as any
@@ -11,7 +11,7 @@ function capability(nativeAgent?: any) {
 
 function host(context: any = null) {
   return {
-    context: vi.fn(() => context), peerBulk: { upload: vi.fn(), download: vi.fn() }, controlBase: vi.fn((type: string) => ({ type, protocolVersion: 13, peerId: 'p', seq: 1, createdAt: 1 })),
+    context: vi.fn(() => context), peerBulk: { upload: vi.fn(), download: vi.fn() }, controlBase: vi.fn((type: string) => ({ type, protocolVersion: 14, peerId: 'p', seq: 1, createdAt: 1 })),
     sendControl: vi.fn(() => true), prepareStorage: vi.fn(), createAttachment: vi.fn(), patchAttachment: vi.fn(), patchFile: vi.fn(),
     downloadReady: vi.fn(), status: vi.fn(), fallbackBrowserFile: vi.fn()
   } as any
@@ -45,8 +45,8 @@ describe('LanNativeFileRuntime', () => {
     const h = host({ remoteCapability: capability(nativeAdvertisement()), localCapability: capability(), localDeviceId: 'local', peerDeviceId: 'remote', localPort: null })
     const runtime = new LanNativeFileRuntime(h)
     const base = { id: 'f', kind: 'file', name: 'x.bin', mime: 'application/octet-stream', size: LAN_NATIVE_FILE_MIN_BYTES, lastModified: 1, chunkSize: 1, chunkCount: 1, suggestedStorage: 'file' }
-    expect(runtime.handleOffer({ type: 'attachment-offer', protocolVersion: 13, peerId: 'p', seq: 1, createdAt: 1, messageId: 'm', attachment: { ...base, dataPlane: 'webrtc' } } as any)).toBe(false)
-    expect(runtime.handleOffer({ type: 'attachment-offer', protocolVersion: 13, peerId: 'p', seq: 1, createdAt: 1, messageId: 'm', attachment: { ...base, dataPlane: 'native-lna-http' } } as any)).toBe(true)
+    expect(runtime.handleOffer({ type: 'attachment-offer', protocolVersion: 14, peerId: 'p', seq: 1, createdAt: 1, messageId: 'm', attachment: { ...base, dataPlane: 'webrtc' } } as any)).toBe(false)
+    expect(runtime.handleOffer({ type: 'attachment-offer', protocolVersion: 14, peerId: 'p', seq: 1, createdAt: 1, messageId: 'm', attachment: { ...base, dataPlane: 'native-lna-http' } } as any)).toBe(true)
     expect(h.createAttachment).toHaveBeenCalledTimes(1)
     expect(runtime.hasActiveTransfer()).toBe(true)
   })

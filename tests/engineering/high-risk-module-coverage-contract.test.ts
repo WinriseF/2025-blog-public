@@ -7,7 +7,7 @@ const highRisk = [
   ['src/lib/lan-transfer/native-webrtc-transport.ts', 'tests/lan-transfer/native-webrtc-transport.test.ts'],
   ['src/lib/lan-transfer/native-file-runtime.ts', 'tests/lan-transfer/native-file-runtime.test.ts'],
   ['src/lib/lan-transfer/attachment-send-scheduler.ts', 'tests/lan-transfer/attachment-send-scheduler.test.ts'],
-  ['src/lib/lan-transfer/reconnect-coordinator.ts', 'tests/lan-transfer/reconnect-coordinator.test.ts'],
+  ['src/lib/lan-transfer/peer-connection-manager.ts', 'tests/lan-transfer/peer-connection-manager.test.ts'],
   ['src/lib/lan-transfer/signal-client.ts', 'tests/lan-transfer/signal-client-recovery.test.ts'],
   ['src/lib/version-control/store.ts', 'tests/version-control/store-behavior.test.ts'],
   ['src/lib/version-control/bridge.ts', 'tests/version-control/bridge-behavior.test.ts'],

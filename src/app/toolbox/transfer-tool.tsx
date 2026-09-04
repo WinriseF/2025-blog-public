@@ -4,9 +4,7 @@ import { useEffect, useState, type ClipboardEvent } from 'react'
 import { Copy, Download, Globe2, Image as ImageIcon, Link as LinkIcon, Network, QrCode, Send, UploadCloud, X } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
-import { EmbeddedBrowserInviteDialog } from './embedded-browser-invite-dialog'
 import { LanTransferTool } from './lan-transfer-tool'
-import { cleanupLanTransferPersistentStorage } from '@/lib/lan-transfer/storage/persistent-cleanup'
 import { createRelayTransfer, openRelayTransfer, type OpenedRelayFile } from '@/lib/transfer-relay'
 import {
 	TRANSFER_CODE_PATTERN,
@@ -20,8 +18,6 @@ type TransferToolProps = {
 }
 
 type Mode = 'relay' | 'lan'
-type LanInvite = { roomId: string; token: string }
-type EmbeddedInvite = { browser: '微信' | 'QQ'; url: string; invite: LanInvite }
 
 const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 	dateStyle: 'short',
@@ -31,7 +27,6 @@ const expireFormatter = new Intl.DateTimeFormat('zh-CN', {
 const transferApiBase = (process.env.NEXT_PUBLIC_TRANSFER_API_BASE || '').replace(/\/+$/, '')
 const contentLimitLabel = '4MB'
 const fileLimitLabel = '200MB'
-const LAN_INVITE_STORAGE_KEY = 'winrisef-lan-invite-v13'
 
 function normalizeCode(value: string) {
 	return value.trim().toUpperCase()
@@ -92,8 +87,6 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [openPassword, setOpenPassword] = useState('')
 	const [result, setResult] = useState<TransferCreateResponse | null>(null)
 	const [resultPassword, setResultPassword] = useState('')
-	const [lanInvite, setLanInvite] = useState<LanInvite | null>(null)
-	const [embeddedInvite, setEmbeddedInvite] = useState<EmbeddedInvite | null>(null)
 	const [qrDataUrl, setQrDataUrl] = useState('')
 	const [qrError, setQrError] = useState('')
 	const [openedText, setOpenedText] = useState('')
@@ -101,8 +94,6 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const [status, setStatus] = useState('')
 	const [busy, setBusy] = useState(false)
 	const isCodeEntry = Boolean(normalizeCode(initialCode))
-
-	useEffect(() => void cleanupLanTransferPersistentStorage(), [])
 
 	useEffect(() => {
 		const code = normalizeCode(initialCode)
@@ -114,47 +105,12 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	useEffect(() => {
 		if (typeof window === 'undefined') return
 		const hash = window.location.hash.replace(/^#/, '')
-		if (hash) {
-			const params = new URLSearchParams(hash)
-			if (params.get('mode') === 'lan') {
-				const roomId = params.get('room') || ''
-				const token = params.get('token') || ''
-				if (roomId && token) {
-					const invite = { roomId, token }
-					const userAgent = navigator.userAgent.toLowerCase()
-					const browser = /micromessenger/.test(userAgent) ? '微信' : /qq\//.test(userAgent) || /mqqbrowser/.test(userAgent) ? 'QQ' : null
-					if (browser) {
-						setEmbeddedInvite({ browser, url: window.location.href, invite })
-						return
-					}
-					setMode('lan')
-					setLanInvite(invite)
-					sessionStorage.setItem(LAN_INVITE_STORAGE_KEY, JSON.stringify(invite))
-					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-					return
-				}
-			}
-			const hashPassword = params.get('p')
-			if (!hashPassword) return
-			setMode('relay')
-			setOpenPassword(hashPassword)
-			window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-			return
-		}
-
-		if (normalizeCode(initialCode)) return
-
-		const savedInvite = sessionStorage.getItem(LAN_INVITE_STORAGE_KEY)
-		if (!savedInvite) return
-		try {
-			const invite = JSON.parse(savedInvite) as { roomId?: unknown; token?: unknown }
-			if (typeof invite.roomId === 'string' && typeof invite.token === 'string' && invite.roomId && invite.token) {
-				setMode('lan')
-				setLanInvite({ roomId: invite.roomId, token: invite.token })
-			}
-		} catch {
-			sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
-		}
+		if (!hash) return
+		const hashPassword = new URLSearchParams(hash).get('p')
+		if (!hashPassword) return
+		setMode('relay')
+		setOpenPassword(hashPassword)
+		window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
 	}, [initialCode])
 
 	useEffect(() => {
@@ -468,17 +424,8 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		</section>
 	)
 	const relaySections = isCodeEntry ? [receiveSection, sendSection] : [sendSection, receiveSection]
-	const continueEmbeddedLan = () => {
-		if (!embeddedInvite) return
-		setLanInvite(embeddedInvite.invite)
-		setEmbeddedInvite(null)
-		setMode('lan')
-		sessionStorage.setItem(LAN_INVITE_STORAGE_KEY, JSON.stringify(embeddedInvite.invite))
-		window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-	}
 	const relayView = (
 		<div aria-hidden={mode === 'lan'} className={`space-y-5 max-sm:px-4 ${mode === 'lan' ? 'lan-session-underlay' : ''}`}>
-			{embeddedInvite && <EmbeddedBrowserInviteDialog browser={embeddedInvite.browser} url={embeddedInvite.url} onContinue={continueEmbeddedLan} />}
 			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
 				<button onClick={() => setMode('relay')} className='flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-xs font-medium text-primary'>
 					<Globe2 size={15} />
@@ -501,11 +448,13 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		<>
 			{relayView}
 			<LanTransferTool
-				initialInvite={lanInvite}
-				onSwitchRelay={() => setMode('relay')}
+				onSwitchRelay={() => {
+					setMode('relay')
+					if (typeof window !== 'undefined') window.history.replaceState(null, '', '/t')
+				}}
 				onLeaveSession={() => {
-					setLanInvite(null)
-					if (typeof window !== 'undefined') sessionStorage.removeItem(LAN_INVITE_STORAGE_KEY)
+					setMode('relay')
+					if (typeof window !== 'undefined') window.history.replaceState(null, '', '/t')
 				}}
 			/>
 		</>

@@ -32,6 +32,14 @@ function manifestFor(meta: TransferFileMeta): TransferManifest {
 	}
 }
 
+function matchesMeta(manifest: TransferManifest, meta: TransferFileMeta) {
+	return manifest.version === 3
+		&& manifest.size === meta.size
+		&& manifest.chunkSize === meta.chunkSize
+		&& manifest.chunkCount === meta.chunkCount
+		&& manifest.name === meta.name
+}
+
 function requestToPromise<T>(request: IDBRequest<T>) {
 	return new Promise<T>((resolve, reject) => {
 		request.onsuccess = () => resolve(request.result)
@@ -80,7 +88,8 @@ export class IndexedDbStorageEngine implements LanStorageEngine {
 	async prepare(meta: TransferFileMeta) {
 		const db = await openDb()
 		const existing = await this.getManifest(meta.id)
-		if (existing) return
+		if (existing && matchesMeta(existing, meta)) return
+		if (existing) await this.cleanup(meta.id)
 		const tx = db.transaction(MANIFESTS, 'readwrite')
 		tx.objectStore(MANIFESTS).put(manifestFor(meta))
 		await transactionDone(tx)

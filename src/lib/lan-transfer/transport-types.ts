@@ -1,5 +1,3 @@
-import type { LanRole } from './types'
-
 export type LanConnectionRoute = {
 	family: 'ipv4' | 'ipv6' | 'unknown'
 	kind: 'lan' | 'nat' | 'direct' | 'unknown'
@@ -17,7 +15,6 @@ export function formatLanConnectionRoute(route: LanConnectionRoute | null) {
 
 export interface LanConnectionTransport {
 	readonly id: string
-	readonly generation: number
 	readonly bufferedAmount: number
 	isOpen(): boolean
 	send(data: Uint8Array): boolean
@@ -25,21 +22,11 @@ export interface LanConnectionTransport {
 	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal): Promise<void>
 }
 
-export type LanTransportHealthStats = {
-	connectionState: RTCPeerConnectionState
-	iceConnectionState: RTCIceConnectionState
-	candidatePairId: string
-	bytesSent: number
-	bytesReceived: number
-	consentRequestsSent: number | null
-	responsesReceived: number | null
-}
-
 export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'channel-closed' | 'closed'
+export type LanTransportRole = 'offerer' | 'answerer'
 
 export type LanTransportCreateOptions = {
-	role: LanRole
-	generation: number
+	role: LanTransportRole
 	negotiationId: string
 	onDescription: (description: RTCSessionDescriptionInit, negotiationId: string, attemptToken: number) => void
 	onCandidate: (candidate: RTCIceCandidateInit | null) => void
@@ -56,7 +43,6 @@ export interface LanReconnectTransport extends LanConnectionTransport {
 	acceptDescription(description: RTCSessionDescriptionInit, attemptToken: number): Promise<void>
 	addRemoteCandidate(candidate: RTCIceCandidateInit | null): Promise<void>
 	probe(timeoutMs?: number): Promise<boolean>
-	getHealthStats(): Promise<LanTransportHealthStats>
 	inspectRoute(): Promise<LanConnectionRoute>
 	close(): void
 }

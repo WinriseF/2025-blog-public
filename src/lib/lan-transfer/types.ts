@@ -1,7 +1,7 @@
 import type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 export type { LanNativeAgentAdvertisement, LanNativeAgentTicket, LanNativeTransferGrant } from './native-agent/types'
 
-export const LAN_PROTOCOL_VERSION = 13
+export const LAN_PROTOCOL_VERSION = 14
 export const LAN_FILE_IO_BATCH_BYTES = 4 * 1024 * 1024
 
 export const LAN_CHUNK_TIERS = [
@@ -41,9 +41,9 @@ export const LAN_LIMITS = {
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
-export type LanSignalType = 'announce' | 'reconnect-request' | 'rebuild' | 'ice-restart' | 'offer' | 'answer' | 'candidate' | 'signal-ack' | 'peer-left'
+export type LanSignalType = 'description' | 'candidate'
 export type LanSignalState = 'connecting' | 'online' | 'retrying' | 'offline' | 'closed'
-export type LanConnectionState = 'idle' | 'discovered' | 'connecting' | 'connected' | 'suspect' | 'ice-restarting' | 'rebuilding' | 'backoff' | 'closed'
+export type LanConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 export type LanStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
 export type LanBrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari' | 'wechat' | 'qq' | 'unknown'
 export type LanPlatformKind = 'desktop' | 'android' | 'ios' | 'unknown'
@@ -61,52 +61,40 @@ export type LanPeer = {
 	name: string
 	deviceType: LanDeviceType
 	avatarSeed: string
-	joinedAt: number
+	startedAt: number
 }
 
 export type LanSession = {
 	roomId: string
-	token: string
-	tokenHash: string
+	secret: string
+	channelKey: string
 	role: LanRole
 	instanceId: string
 	localPeer: LanPeer
-	pairExpiresAt: number
-	sessionExpiresAt: number
 }
 
 export type LanSignalMessage = {
 	type: LanSignalType
 	protocolVersion: typeof LAN_PROTOCOL_VERSION
-	roomId: string
-	tokenHash: string
 	fromDeviceId: string
 	fromInstanceId: string
 	toDeviceId: string
 	toInstanceId: string
-	messageId: string
-	seq: number
 	ts: number
-	generation: number
-	negotiationId: string
-	peer?: LanPeer
+	connectionId: string
+	exchangeId: string
 	description?: RTCSessionDescriptionInit
 	candidate?: RTCIceCandidateInit | null
-	ackFor?: string
-	reason?: string
-	hardRecovery?: boolean
 }
 
 export type LanPresencePayload = {
+	protocolVersion: typeof LAN_PROTOCOL_VERSION
 	instanceId: string
-	role: LanRole
 	peer: LanPeer
-	tokenHash: string
-	joinedAt: number
 }
 
 export type LanSignalTarget = Pick<LanPeer, 'deviceId' | 'instanceId'>
-export type LanSignalSendDetails = Partial<Pick<LanSignalMessage, 'generation' | 'negotiationId' | 'description' | 'candidate' | 'ackFor' | 'reason' | 'hardRecovery'>>
+export type LanSignalSendDetails = Pick<LanSignalMessage, 'connectionId' | 'exchangeId'> & Partial<Pick<LanSignalMessage, 'description' | 'candidate'>>
 
 export type LanCapability = {
 	type: 'capability'
@@ -410,8 +398,6 @@ export type LanResumeQuery = {
 	seq: number
 	createdAt: number
 	resumeId: string
-	transportGeneration: number
-	transportEpoch: number
 	ids: string[]
 }
 
@@ -422,8 +408,6 @@ export type LanResumeState = {
 	seq: number
 	createdAt: number
 	resumeId: string
-	transportGeneration: number
-	transportEpoch: number
 	attachments: Array<{
 		id: string
 		messageId?: string

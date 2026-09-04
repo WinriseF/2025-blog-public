@@ -7,28 +7,34 @@ import { useLanTransferEngine } from './use-lan-transfer-engine'
 import { detectLanCapability } from '@/lib/lan-transfer/capability'
 import { fileFromBlob } from '@/lib/lan-transfer/file-transfer'
 import { createNativeWebRtcTransport } from '@/lib/lan-transfer/native-webrtc-transport'
-import { ReconnectCoordinator } from '@/lib/lan-transfer/reconnect-coordinator'
-import { createLanSession, joinLanSession, LanSignalingClient } from '@/lib/lan-transfer/signal-client'
+import { PeerConnectionManager } from '@/lib/lan-transfer/peer-connection-manager'
+import { createLanSession, forgetLanRoom, inviteSecretFromHash, joinLanSession, lanInviteLink, restoreLanSession } from '@/lib/lan-transfer/session-store'
+import { LanSignalingClient } from '@/lib/lan-transfer/signal-client'
+import { cleanupLanRoomPersistentStorage, cleanupLanTransferPersistentStorage } from '@/lib/lan-transfer/storage/persistent-cleanup'
 import { LAN_PROTOCOL_VERSION, type LanAttachmentKind, type LanCapability, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
 import type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
 import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 
-type LanTransferControllerOptions = { initialInvite?: { roomId: string; token: string } | null; onLeaveSession?: () => void }
+type LanTransferControllerOptions = { initialRoomId?: string | null; onLeaveSession?: () => void }
 
-export function useLanTransferController({ initialInvite = null, onLeaveSession }: LanTransferControllerOptions) {
+function newerPeer(current: LanPeer | undefined, candidate: LanPeer) {
+	if (!current || candidate.startedAt !== current.startedAt) return !current || candidate.startedAt > current.startedAt
+	return candidate.instanceId > current.instanceId
+}
+
+export function useLanTransferController({ initialRoomId = null, onLeaveSession }: LanTransferControllerOptions) {
 	const recorder = useLanRecorder()
 	const [session, setSession] = useState<LanSession | null>(null)
-	const [status, setStatus] = useState('创建二维码，让另一台设备扫码')
-	const [busy, setBusy] = useState(false)
+	const [status, setStatus] = useState(initialRoomId ? '正在恢复房间' : '创建二维码，让另一台设备扫码')
+	const [busy, setBusy] = useState(Boolean(initialRoomId))
 	const [localCapability, setLocalCapability] = useState<LanCapability | null>(null)
-	const coordinatorRef = useRef(new Map<string, ReconnectCoordinator>())
-	const knownDevicesRef = useRef(new Map<string, LanPeer>())
+	const managersRef = useRef(new Map<string, PeerConnectionManager>())
+	const earlySignalsRef = useRef(new Map<string, LanSignalMessage[]>())
 	const closedDeviceIdsRef = useRef(new Set<string>())
 	const signalClientRef = useRef<LanSignalingClient | null>(null)
 	const signalingOnlineRef = useRef(false)
 	const sessionRef = useRef<LanSession | null>(null)
 	const localCapabilityRef = useRef<LanCapability | null>(null)
-	const handledInviteRef = useRef<typeof initialInvite>(null)
 	const nativeTicketIssuerRef = useRef<((peerDeviceId: string) => Promise<LanNativeAgentTicket>) | null>(null)
 	const nativeLocalAgentPortRef = useRef<LanNativeLocalAgentPort | null>(null)
 
@@ -37,7 +43,7 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 
 	const inviteLink = useMemo(() => {
 		if (!session || session.role !== 'host' || typeof window === 'undefined') return ''
-		return `${window.location.origin}/t#mode=lan&room=${encodeURIComponent(session.roomId)}&token=${encodeURIComponent(session.token)}`
+		return lanInviteLink(session, window.location.origin)
 	}, [session])
 	const qrDataUrl = useLanInviteQrCode(inviteLink)
 
@@ -55,33 +61,22 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const engineRef = useRef(engine)
 	useEffect(() => void (engineRef.current = engine), [engine])
 
-	const rememberPeer = useCallback((peer: LanPeer) => {
-		const current = knownDevicesRef.current.get(peer.deviceId)
-		if (current && current.instanceId !== peer.instanceId && current.joinedAt > peer.joinedAt) return false
-		if (current && current.instanceId !== peer.instanceId) signalClientRef.current?.discardPendingForReplacedInstance(peer.deviceId, peer.instanceId)
-		knownDevicesRef.current.set(peer.deviceId, peer)
-		return true
-	}, [])
-
-	const ensureCoordinator = useCallback((peer: LanPeer) => {
+	const ensureManager = useCallback((peer: LanPeer) => {
 		const current = sessionRef.current
-		if (!current || peer.deviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(peer.deviceId)) return null
-		if (current.role === peer.role || !rememberPeer(peer)) return null
-		const existing = coordinatorRef.current.get(peer.deviceId)
+		if (!current || peer.deviceId === current.localPeer.deviceId || current.role === peer.role || closedDeviceIdsRef.current.has(peer.deviceId)) return null
+		const existing = managersRef.current.get(peer.deviceId)
 		if (existing) {
 			existing.updatePeer(peer)
 			return existing
 		}
-		engineRef.current.ensureConnection(peer, { connectionState: 'discovered', status: '找到设备，正在连接' })
-		const coordinator = new ReconnectCoordinator({
-			role: current.role,
+		engineRef.current.ensureConnection(peer, { connectionState: 'connecting', status: '找到设备，正在连接' })
+		const manager = new PeerConnectionManager({
+			localDeviceId: current.localPeer.deviceId,
 			remotePeer: peer,
 			createTransport: createNativeWebRtcTransport,
-			isTransferActive: () => engineRef.current.isTransferActive(peer.deviceId),
 			sendSignal: (type, target, details) => {
 				const client = signalClientRef.current
-				if (!client) return Promise.reject(new Error('连接服务尚未就绪'))
-				return client.sendSignal(type, target, details)
+				return client ? client.sendSignal(type, target, details) : Promise.reject(new Error('连接服务尚未就绪'))
 			},
 			onState: (remotePeer, connectionState, message, connected) => {
 				engineRef.current.ensureConnection(remotePeer, { connected, connectionState, ...(connected ? {} : { connectionRoute: null }), status: message })
@@ -93,32 +88,61 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 			},
 			onPause: (remotePeer, transportId) => engineRef.current.pauseTransport(remotePeer.deviceId, transportId),
 			onResume: (remotePeer, transportId) => engineRef.current.resumeTransport(remotePeer.deviceId, transportId),
-			onRoute: (remotePeer, transportId, route) => engineRef.current.updateConnectionRoute(remotePeer.deviceId, transportId, route),
-			onDetach: (remotePeer, transportId, connectionState, message) => {
-				engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || '')
-			},
+			onDetach: (remotePeer, transportId, connectionState, message) => engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || ''),
 			onData: (remotePeer, transportId, data) => engineRef.current.handlePeerData(remotePeer.deviceId, transportId, data),
 		})
-		coordinatorRef.current.set(peer.deviceId, coordinator)
-		coordinator.setSignalingOnline(signalingOnlineRef.current)
-		return coordinator
-	}, [rememberPeer])
+		managersRef.current.set(peer.deviceId, manager)
+		manager.setSignalingOnline(signalingOnlineRef.current)
+		const queued = earlySignalsRef.current.get(peer.deviceId) || []
+		earlySignalsRef.current.delete(peer.deviceId)
+		for (const message of queued) manager.handleSignal(message)
+		return manager
+	}, [])
 
 	const handleSignalMessage = useCallback((message: LanSignalMessage) => {
 		const current = sessionRef.current
 		if (!current || message.fromDeviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(message.fromDeviceId)) return
-		const peer = message.peer || knownDevicesRef.current.get(message.fromDeviceId)
-		if (!peer) return
-		if (message.type === 'peer-left') signalClientRef.current?.discardPendingForDevice(message.fromDeviceId)
-		ensureCoordinator(peer)?.handleSignal(message)
-	}, [ensureCoordinator])
-
-	const closeCoordinators = useCallback((resetRuntime: boolean) => {
-		coordinatorRef.current.forEach(coordinator => coordinator.close())
-		coordinatorRef.current.clear()
-		knownDevicesRef.current.clear()
-		if (resetRuntime) engineRef.current.resetAll()
+		const manager = managersRef.current.get(message.fromDeviceId)
+		if (manager) return manager.handleSignal(message)
+		const messages = earlySignalsRef.current.get(message.fromDeviceId) || []
+		messages.push(message)
+		earlySignalsRef.current.set(message.fromDeviceId, messages.slice(-64))
 	}, [])
+
+	const handlePresence = useCallback((peers: LanPeer[]) => {
+		const current = sessionRef.current
+		if (!current) return
+		const localReplacement = peers.filter(peer => peer.deviceId === current.localPeer.deviceId).sort((a, b) => b.startedAt - a.startedAt || b.instanceId.localeCompare(a.instanceId))[0]
+		if (localReplacement && newerPeer(current.localPeer, localReplacement)) {
+			setStatus('此房间已在新页面接管')
+			managersRef.current.forEach(manager => manager.close())
+			managersRef.current.clear()
+			void signalClientRef.current?.close()
+			return
+		}
+
+		const latest = new Map<string, LanPeer>()
+		for (const peer of peers) {
+			if (peer.deviceId === current.localPeer.deviceId || peer.role === current.role) continue
+			if (newerPeer(latest.get(peer.deviceId), peer)) latest.set(peer.deviceId, peer)
+		}
+		for (const [deviceId, manager] of managersRef.current) {
+			const peer = latest.get(deviceId)
+			if (peer) {
+				manager.updatePeer(peer)
+				manager.setPeerPresent(peer, true)
+			} else manager.setPeerPresent(manager.remotePeer, false)
+		}
+		for (const peer of latest.values()) if (!managersRef.current.has(peer.deviceId)) ensureManager(peer)?.setPeerPresent(peer, true)
+	}, [ensureManager])
+
+	const closeManagers = useCallback((resetRuntime: boolean, cleanupPersistent = false) => {
+		managersRef.current.forEach(manager => manager.close())
+		managersRef.current.clear()
+		earlySignalsRef.current.clear()
+		if (resetRuntime) engineRef.current.resetAll(cleanupPersistent)
+	}, [])
+
 	const stopSignaling = useCallback(() => {
 		const client = signalClientRef.current
 		signalClientRef.current = null
@@ -126,48 +150,63 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		return client?.close().catch(() => {})
 	}, [])
 
-	const startSignaling = useCallback(async (next: LanSession) => {
-		await stopSignaling()
+	const detectCapabilityInBackground = useCallback((next: LanSession) => {
+		void detectLanCapability(next.localPeer.deviceId).then(capability => {
+			if (sessionRef.current?.instanceId !== next.instanceId) return
+			localCapabilityRef.current = capability
+			setLocalCapability(capability)
+			engineRef.current.updateLocalCapability(capability)
+		}).catch(() => {})
+	}, [])
+
+	const startSignaling = useCallback((next: LanSession) => {
+		void stopSignaling()
 		const client = new LanSignalingClient(
 			next,
-			handleSignalMessage,
+			message => {
+				if (sessionRef.current?.instanceId === next.instanceId) handleSignalMessage(message)
+			},
 			realtimeState => {
+				if (sessionRef.current?.instanceId !== next.instanceId) return
 				const online = realtimeState === 'online'
 				signalingOnlineRef.current = online
-				coordinatorRef.current.forEach(coordinator => coordinator.setSignalingOnline(online))
-				if (online) setStatus(next.role === 'host' ? '二维码已创建，等待扫码' : '正在连接')
-				else if (realtimeState !== 'closed') setStatus('连接服务正在恢复')
+				managersRef.current.forEach(manager => manager.setSignalingOnline(online))
+				if (online && !managersRef.current.size) setStatus(next.role === 'host' ? '房间已恢复，等待设备连接' : '房间已恢复，正在查找设备')
+				else if (!online && realtimeState !== 'closed') setStatus('连接服务正在恢复')
 			},
-			error => setStatus(error.message),
-			() => coordinatorRef.current.forEach(coordinator => coordinator.wake()),
-			(peer, present) => {
-				if (present) ensureCoordinator(peer)?.setPeerPresent(peer, true)
-				else coordinatorRef.current.get(peer.deviceId)?.setPeerPresent(peer, false)
+			error => {
+				if (sessionRef.current?.instanceId === next.instanceId) setStatus(error.message)
+			},
+			() => {
+				if (sessionRef.current?.instanceId === next.instanceId) managersRef.current.forEach(manager => manager.wake())
+			},
+			peers => {
+				if (sessionRef.current?.instanceId === next.instanceId) handlePresence(peers)
 			},
 		)
 		signalClientRef.current = client
-		await client.ready
-	}, [ensureCoordinator, handleSignalMessage, stopSignaling])
+		void client.ready.catch(() => {})
+	}, [handlePresence, handleSignalMessage, stopSignaling])
 
-	const setSessionNow = (next: LanSession) => {
+	const activateSession = useCallback((next: LanSession) => {
 		sessionRef.current = next
 		setSession(next)
-	}
+		setLocalCapability(null)
+		localCapabilityRef.current = null
+		closedDeviceIdsRef.current.clear()
+		startSignaling(next)
+		detectCapabilityInBackground(next)
+		void cleanupLanTransferPersistentStorage({ activeRoomId: next.roomId })
+	}, [detectCapabilityInBackground, startSignaling])
 
 	const handleCreateRoom = useCallback(async () => {
 		setBusy(true)
 		await stopSignaling()
-		closeCoordinators(true)
-		closedDeviceIdsRef.current.clear()
-		setLocalCapability(null)
-		localCapabilityRef.current = null
+		closeManagers(true, true)
 		try {
 			const next = await createLanSession()
-			setSessionNow(next)
-			const capability = await detectLanCapability(next.instanceId)
-			localCapabilityRef.current = capability
-			setLocalCapability(capability)
-			await startSignaling(next)
+			if (typeof window !== 'undefined') window.history.replaceState(null, '', `/t/lan/${encodeURIComponent(next.roomId)}`)
+			activateSession(next)
 			return true
 		} catch (error) {
 			setStatus(error instanceof Error ? error.message : '创建失败')
@@ -175,38 +214,32 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 		} finally {
 			setBusy(false)
 		}
-	}, [closeCoordinators, startSignaling, stopSignaling])
-
-	const handleJoinRoom = useCallback(async (roomId: string, token: string) => {
-		setBusy(true)
-		await stopSignaling()
-		const current = sessionRef.current
-		const sameInvite = Boolean(current && current.role === 'guest' && current.roomId === roomId && current.token === token)
-		closedDeviceIdsRef.current.clear()
-		closeCoordinators(!sameInvite)
-		if (!sameInvite) {
-			setLocalCapability(null)
-			localCapabilityRef.current = null
-		}
-		try {
-			const next = await joinLanSession(roomId, token)
-			setSessionNow(next)
-			const capability = localCapabilityRef.current || await detectLanCapability(next.instanceId)
-			localCapabilityRef.current = capability
-			setLocalCapability(capability)
-			await startSignaling(next)
-		} catch (error) {
-			setStatus(error instanceof Error ? error.message : '连接失败')
-		} finally {
-			setBusy(false)
-		}
-	}, [closeCoordinators, startSignaling, stopSignaling])
+	}, [activateSession, closeManagers, stopSignaling])
 
 	useEffect(() => {
-		if (!initialInvite?.roomId || !initialInvite.token || handledInviteRef.current === initialInvite) return
-		handledInviteRef.current = initialInvite
-		void handleJoinRoom(initialInvite.roomId, initialInvite.token)
-	}, [handleJoinRoom, initialInvite])
+		if (!initialRoomId) return
+		let cancelled = false
+		void (async () => {
+			try {
+				const secret = typeof window === 'undefined' ? '' : inviteSecretFromHash(window.location.hash)
+				const next = secret ? await joinLanSession(initialRoomId, secret) : await restoreLanSession(initialRoomId)
+				if (cancelled) return
+				if (!next) {
+					setStatus('此设备没有该房间的邀请密钥，请重新打开完整邀请链接')
+					return
+				}
+				if (secret) window.history.replaceState(null, '', `/t/lan/${encodeURIComponent(initialRoomId)}`)
+				activateSession(next)
+			} catch (error) {
+				if (!cancelled) setStatus(error instanceof Error ? error.message : '房间恢复失败')
+			} finally {
+				if (!cancelled) setBusy(false)
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [activateSession, initialRoomId])
 
 	const stopRecordingAndSend = async () => {
 		const result = await recorder.stop()
@@ -221,9 +254,14 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	}
 
 	const leaveSession = () => {
+		const current = sessionRef.current
 		void stopSignaling()
-		closeCoordinators(true)
-		closedDeviceIdsRef.current.clear()
+		closeManagers(true, true)
+		if (current) {
+			forgetLanRoom(current.roomId)
+			void cleanupLanRoomPersistentStorage(current.roomId, current.localPeer.deviceId)
+		}
+		sessionRef.current = null
 		setSession(null)
 		setLocalCapability(null)
 		localCapabilityRef.current = null
@@ -233,25 +271,20 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 	const closeConnection = (deviceId = engine.activePeerId) => {
 		if (!deviceId) return
 		closedDeviceIdsRef.current.add(deviceId)
-		const peer = knownDevicesRef.current.get(deviceId)
-		if (peer) void signalClientRef.current?.sendPeerLeft({ deviceId, instanceId: peer.instanceId }).catch(() => {})
-		signalClientRef.current?.discardPendingForDevice(deviceId)
-		coordinatorRef.current.get(deviceId)?.close()
-		coordinatorRef.current.delete(deviceId)
-		knownDevicesRef.current.delete(deviceId)
+		managersRef.current.get(deviceId)?.close()
+		managersRef.current.delete(deviceId)
 		engine.removeConnection(deviceId)
 		setStatus(engine.connections.length > 1 ? '已关闭当前会话' : '已关闭会话，等待设备连接')
 	}
 
 	const retryConnection = (deviceId = engine.activePeerId) => {
 		if (!deviceId) return
-		coordinatorRef.current.get(deviceId)?.retry()
+		managersRef.current.get(deviceId)?.retry()
 	}
 
 	const setNativeAgentAdvertisement = useCallback((advertisement: LanNativeAgentAdvertisement | null) => {
 		const current = localCapabilityRef.current
-		if (!current) return
-		if (current.nativeAgent === (advertisement || undefined)) return
+		if (!current || current.nativeAgent === (advertisement || undefined)) return
 		const next = { ...current, nativeAgent: advertisement || undefined }
 		localCapabilityRef.current = next
 		setLocalCapability(next)
@@ -268,8 +301,8 @@ export function useLanTransferController({ initialInvite = null, onLeaveSession 
 
 	useEffect(() => () => {
 		void stopSignaling()
-		coordinatorRef.current.forEach(coordinator => coordinator.close())
-		coordinatorRef.current.clear()
+		managersRef.current.forEach(manager => manager.close())
+		managersRef.current.clear()
 	}, [stopSignaling])
 
 	return {

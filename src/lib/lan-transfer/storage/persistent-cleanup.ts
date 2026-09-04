@@ -1,25 +1,21 @@
-import { closeLanIndexedDb, LAN_INDEXEDDB_NAME } from './indexeddb-storage'
-import { LAN_OPFS_DIRECTORY_NAME } from './opfs-storage'
+import { loadAbandonedIncomingTransfers, removePersistentIncomingRecord, removeRoomTransfers } from '../runtime-store'
+import { createStorageEngine } from './storage-manager'
 
-function deleteIndexedDb(name: string) {
-	if (typeof indexedDB === 'undefined') return Promise.resolve()
-	return new Promise<void>((resolve) => {
-		const request = indexedDB.deleteDatabase(name)
-		request.onsuccess = () => resolve()
-		request.onerror = () => resolve()
-		request.onblocked = () => resolve()
-	})
+export const LAN_RECEIVING_TRANSFER_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const LAN_COMPLETED_TRANSFER_TTL_MS = 24 * 60 * 60 * 1000
+
+export async function cleanupLanTransferPersistentStorage({ now = Date.now(), activeRoomId = '' }: { now?: number; activeRoomId?: string } = {}) {
+	const records = await loadAbandonedIncomingTransfers(now - LAN_COMPLETED_TRANSFER_TTL_MS).catch(() => [])
+	await Promise.allSettled(records.map(async record => {
+		if (record.roomId === activeRoomId) return
+		const ttl = record.state === 'complete' ? LAN_COMPLETED_TRANSFER_TTL_MS : LAN_RECEIVING_TRANSFER_TTL_MS
+		if (now - record.updatedAt < ttl) return
+		await createStorageEngine(record.storage).cleanup(record.id).catch(() => {})
+		await removePersistentIncomingRecord(record).catch(() => {})
+	}))
 }
 
-async function cleanupOpfsDirectory() {
-	if (typeof navigator === 'undefined' || !navigator.storage || !('getDirectory' in navigator.storage)) return
-	const root = await navigator.storage.getDirectory()
-	await root.removeEntry(LAN_OPFS_DIRECTORY_NAME, { recursive: true }).catch(() => {})
-}
-
-export async function cleanupLanTransferPersistentStorage() {
-	await Promise.allSettled([
-		closeLanIndexedDb().then(() => deleteIndexedDb(LAN_INDEXEDDB_NAME)),
-		cleanupOpfsDirectory(),
-	])
+export async function cleanupLanRoomPersistentStorage(roomId: string, localDeviceId: string) {
+	const records = await removeRoomTransfers(roomId, localDeviceId).catch(() => [])
+	await Promise.allSettled(records.map(record => createStorageEngine(record.storage).cleanup(record.id)))
 }

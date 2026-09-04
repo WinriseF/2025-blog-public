@@ -75,7 +75,7 @@ function connectionReducer(state: ConnectionStateRecord[], action: ConnectionAct
 				peerId: connectionId,
 				peer: action.peer,
 				connected: false,
-				connectionState: 'discovered',
+				connectionState: 'connecting',
 				connectionRoute: null,
 				status: '找到设备，正在连接',
 				remoteCapability: null,
@@ -138,7 +138,12 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		const connectionId = connectionIdForPeer(peer)
 		let entry = managedRef.current.get(connectionId)
 		if (!entry) {
-			const runtime = new LanConnectionRuntime(nativePeerBulkRef.current)
+			const session = optionsRef.current.sessionRef.current
+			const runtime = new LanConnectionRuntime(nativePeerBulkRef.current, session ? {
+				roomId: session.roomId,
+				localDeviceId: session.localPeer.deviceId,
+				remoteDeviceId: peer.deviceId,
+			} : undefined)
 			const unsubscribe = runtime.subscribe(event => {
 				const current = managedRef.current.get(connectionId)
 				if (event.type === 'message-upsert') dispatch({ type: 'chat', peerId: connectionId, action: { type: 'upsert-message', message: event.message } })
@@ -194,12 +199,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		setActivePeerId(current => current || connectionId)
 	}, [ensureConnection])
 
-	const updateConnectionRoute = useCallback((peerId: string, transportId: string, route: LanConnectionRoute) => {
-		const entry = managedRef.current.get(peerId)
-		if (entry?.transportId === transportId) dispatch({ type: 'patch', peerId, patch: { connectionRoute: route } })
-	}, [])
-
-	const detachPeer = useCallback((peerId: string, status = '连接断了，正在恢复', state: LanConnectionState = 'suspect', transportId = '') => {
+	const detachPeer = useCallback((peerId: string, status = '连接断了，正在恢复', state: LanConnectionState = 'reconnecting', transportId = '') => {
 		const entry = managedRef.current.get(peerId)
 		if (transportId && entry?.transportId && entry.transportId !== transportId) return
 		entry?.runtime.detachTransport()
@@ -211,16 +211,16 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const removeConnection = useCallback((peerId: string) => {
 		const entry = managedRef.current.get(peerId)
 		entry?.unsubscribe()
-		entry?.runtime.destroy()
+		entry?.runtime.destroy(false)
 		managedRef.current.delete(peerId)
 		dispatch({ type: 'remove', peerId })
 		setActivePeerId(current => current === peerId ? null : current)
 	}, [])
 
-	const resetAll = useCallback(() => {
+	const resetAll = useCallback((cleanupPersistent = false) => {
 		managedRef.current.forEach(entry => {
 			entry.unsubscribe()
-			entry.runtime.destroy()
+			entry.runtime.destroy(cleanupPersistent)
 		})
 		managedRef.current.clear()
 		dispatch({ type: 'reset' })
@@ -245,10 +245,6 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	const resumeTransport = useCallback((peerId: string, transportId: string) => {
 		const entry = managedRef.current.get(peerId)
 		if (entry?.transportId === transportId) entry.runtime.resumeTransport()
-	}, [])
-
-	const isTransferActive = useCallback((peerId: string) => {
-		return managedRef.current.get(peerId)?.runtime.hasActiveTransfer() || false
 	}, [])
 
 	const updateLocalCapability = useCallback((capability: LanCapability) => {
@@ -302,7 +298,7 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 	}, [getActiveRuntime])
 
 	useEffect(() => () => {
-		managedRef.current.forEach(entry => entry.runtime.destroy())
+		managedRef.current.forEach(entry => entry.runtime.destroy(false))
 		managedRef.current.clear()
 	}, [])
 
@@ -316,14 +312,12 @@ export function useLanTransferEngine(options: UseLanTransferEngineOptions) {
 		ensureConnection,
 		patchConnection,
 		attachTransport,
-		updateConnectionRoute,
 		pauseTransport,
 		resumeTransport,
 		detachPeer,
 		removeConnection,
 		resetAll,
 		handlePeerData,
-		isTransferActive,
 		updateLocalCapability,
 		requestNativeAgentTicket,
 		runWebRtcBenchmark,

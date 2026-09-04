@@ -14,7 +14,7 @@ This file is intentionally a **short maintenance entrypoint**. Detailed implemen
 | Understand runtime, theme, navigation, homepage, or performance | [Frontend](./.project-wiki/modules/frontend.md) |
 | Work on articles, Markdown, images, news, likes, or content data | [Content](./.project-wiki/modules/content.md) |
 | Work on encrypted public relay or EdgeOne transfer API | [Public transfer](./.project-wiki/modules/public-transfer.md) |
-| Work on LAN V13, native Agent transfer, benchmarks, or recovery | [LAN transfer](./.project-wiki/modules/lan-transfer.md) |
+| Work on LAN V14, native Agent transfer, benchmarks, or recovery | [LAN transfer](./.project-wiki/modules/lan-transfer.md) |
 | Work on compression, preview, password, face masking, OCR, or Agent center | [Toolbox](./.project-wiki/modules/toolbox.md) |
 | Work on Codex rollout parsing and audit | [Codex Session](./.project-wiki/modules/codex-session.md) |
 | Work on GitHub, local Git, or SVN review | [Version control](./.project-wiki/modules/version-control.md) |

@@ -5,7 +5,7 @@ import type { LanCapability } from '../../src/lib/lan-transfer/types'
 function capability(overrides: Partial<LanCapability> = {}): LanCapability {
   return {
     type: 'capability',
-    protocolVersion: 13,
+    protocolVersion: 14,
     peerId: 'peer',
     platform: 'desktop',
     browser: 'chrome',
