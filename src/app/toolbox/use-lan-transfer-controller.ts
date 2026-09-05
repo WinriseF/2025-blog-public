@@ -10,17 +10,13 @@ import { createNativeWebRtcTransport } from '@/lib/lan-transfer/native-webrtc-tr
 import { PeerConnectionManager } from '@/lib/lan-transfer/peer-connection-manager'
 import { createLanSession, forgetLanRoom, inviteSecretFromHash, joinLanSession, lanInviteLink, restoreLanSession } from '@/lib/lan-transfer/session-store'
 import { LanSignalingClient } from '@/lib/lan-transfer/signal-client'
+import { LanSignalInbox, newerLanPeer } from '@/lib/lan-transfer/signal-inbox'
 import { cleanupLanRoomPersistentStorage, cleanupLanTransferPersistentStorage } from '@/lib/lan-transfer/storage/persistent-cleanup'
 import { LAN_PROTOCOL_VERSION, type LanAttachmentKind, type LanCapability, type LanPeer, type LanSession, type LanSignalMessage } from '@/lib/lan-transfer/types'
 import type { LanNativeAgentAdvertisement, LanNativeAgentTicket } from '@/lib/lan-transfer/native-agent/types'
 import type { LanNativeLocalAgentPort } from '@/lib/lan-transfer/native-agent/ports'
 
 type LanTransferControllerOptions = { initialRoomId?: string | null; onLeaveSession?: () => void }
-
-function newerPeer(current: LanPeer | undefined, candidate: LanPeer) {
-	if (!current || candidate.startedAt !== current.startedAt) return !current || candidate.startedAt > current.startedAt
-	return candidate.instanceId > current.instanceId
-}
 
 export function useLanTransferController({ initialRoomId = null, onLeaveSession }: LanTransferControllerOptions) {
 	const recorder = useLanRecorder()
@@ -29,7 +25,7 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 	const [busy, setBusy] = useState(Boolean(initialRoomId))
 	const [localCapability, setLocalCapability] = useState<LanCapability | null>(null)
 	const managersRef = useRef(new Map<string, PeerConnectionManager>())
-	const earlySignalsRef = useRef(new Map<string, LanSignalMessage[]>())
+	const earlySignalsRef = useRef(new LanSignalInbox())
 	const closedDeviceIdsRef = useRef(new Set<string>())
 	const signalClientRef = useRef<LanSignalingClient | null>(null)
 	const signalingOnlineRef = useRef(false)
@@ -64,14 +60,16 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 	const ensureManager = useCallback((peer: LanPeer) => {
 		const current = sessionRef.current
 		if (!current || peer.deviceId === current.localPeer.deviceId || current.role === peer.role || closedDeviceIdsRef.current.has(peer.deviceId)) return null
+		if (!earlySignalsRef.current.confirm(peer)) return null
 		const existing = managersRef.current.get(peer.deviceId)
 		if (existing) {
 			existing.updatePeer(peer)
+			for (const message of earlySignalsRef.current.take(peer)) existing.handleSignal(message)
 			return existing
 		}
 		engineRef.current.ensureConnection(peer, { connectionState: 'connecting', status: '找到设备，正在连接' })
 		const manager = new PeerConnectionManager({
-			localDeviceId: current.localPeer.deviceId,
+			localRole: current.role,
 			remotePeer: peer,
 			createTransport: createNativeWebRtcTransport,
 			sendSignal: (type, target, details) => {
@@ -86,6 +84,7 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 				engineRef.current.attachTransport(transport, remotePeer, route)
 				setStatus('已连接，可以发送消息和文件')
 			},
+			onRoute: (remotePeer, route) => engineRef.current.patchConnection(remotePeer.deviceId, { connectionRoute: route }),
 			onPause: (remotePeer, transportId) => engineRef.current.pauseTransport(remotePeer.deviceId, transportId),
 			onResume: (remotePeer, transportId) => engineRef.current.resumeTransport(remotePeer.deviceId, transportId),
 			onDetach: (remotePeer, transportId, connectionState, message) => engineRef.current.detachPeer(remotePeer.deviceId, message, connectionState, transportId || ''),
@@ -93,9 +92,7 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 		})
 		managersRef.current.set(peer.deviceId, manager)
 		manager.setSignalingOnline(signalingOnlineRef.current)
-		const queued = earlySignalsRef.current.get(peer.deviceId) || []
-		earlySignalsRef.current.delete(peer.deviceId)
-		for (const message of queued) manager.handleSignal(message)
+		for (const message of earlySignalsRef.current.take(peer)) manager.handleSignal(message)
 		return manager
 	}, [])
 
@@ -103,17 +100,15 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 		const current = sessionRef.current
 		if (!current || message.fromDeviceId === current.localPeer.deviceId || closedDeviceIdsRef.current.has(message.fromDeviceId)) return
 		const manager = managersRef.current.get(message.fromDeviceId)
-		if (manager) return manager.handleSignal(message)
-		const messages = earlySignalsRef.current.get(message.fromDeviceId) || []
-		messages.push(message)
-		earlySignalsRef.current.set(message.fromDeviceId, messages.slice(-64))
+		if (manager?.remotePeer.instanceId === message.fromInstanceId) return manager.handleSignal(message)
+		earlySignalsRef.current.push(message)
 	}, [])
 
 	const handlePresence = useCallback((peers: LanPeer[]) => {
 		const current = sessionRef.current
 		if (!current) return
 		const localReplacement = peers.filter(peer => peer.deviceId === current.localPeer.deviceId).sort((a, b) => b.startedAt - a.startedAt || b.instanceId.localeCompare(a.instanceId))[0]
-		if (localReplacement && newerPeer(current.localPeer, localReplacement)) {
+		if (localReplacement && newerLanPeer(current.localPeer, localReplacement)) {
 			setStatus('此房间已在新页面接管')
 			managersRef.current.forEach(manager => manager.close())
 			managersRef.current.clear()
@@ -124,16 +119,12 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 		const latest = new Map<string, LanPeer>()
 		for (const peer of peers) {
 			if (peer.deviceId === current.localPeer.deviceId || peer.role === current.role) continue
-			if (newerPeer(latest.get(peer.deviceId), peer)) latest.set(peer.deviceId, peer)
+			if (newerLanPeer(latest.get(peer.deviceId), peer)) latest.set(peer.deviceId, peer)
 		}
 		for (const [deviceId, manager] of managersRef.current) {
-			const peer = latest.get(deviceId)
-			if (peer) {
-				manager.updatePeer(peer)
-				manager.setPeerPresent(peer, true)
-			} else manager.setPeerPresent(manager.remotePeer, false)
+			if (!latest.has(deviceId)) manager.setPeerPresent(manager.remotePeer, false)
 		}
-		for (const peer of latest.values()) if (!managersRef.current.has(peer.deviceId)) ensureManager(peer)?.setPeerPresent(peer, true)
+		for (const peer of latest.values()) ensureManager(peer)?.setPeerPresent(peer, true)
 	}, [ensureManager])
 
 	const closeManagers = useCallback((resetRuntime: boolean, cleanupPersistent = false) => {
@@ -172,7 +163,7 @@ export function useLanTransferController({ initialRoomId = null, onLeaveSession 
 				signalingOnlineRef.current = online
 				managersRef.current.forEach(manager => manager.setSignalingOnline(online))
 				if (online && !managersRef.current.size) setStatus(next.role === 'host' ? '房间已恢复，等待设备连接' : '房间已恢复，正在查找设备')
-				else if (!online && realtimeState !== 'closed') setStatus('连接服务正在恢复')
+				else if (!online && realtimeState !== 'closed') setStatus(engineRef.current.connections.some(connection => connection.connected) ? '直连可用，连接服务正在恢复' : '连接服务正在恢复')
 			},
 			error => {
 				if (sessionRef.current?.instanceId === next.instanceId) setStatus(error.message)

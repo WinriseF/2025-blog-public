@@ -685,6 +685,7 @@ export class NativeWebRtcTransport implements LanReconnectTransport {
 		if (this.closed) return
 		const state = this.pc.connectionState
 		const ice = this.pc.iceConnectionState
+		if (ice === 'failed' && this.channel?.readyState !== 'closed') return this.emitState('ice-failed')
 		if (state === 'failed' || ice === 'failed') return this.emitState('failed')
 		if (state === 'closed' || ice === 'closed') return this.emitState('closed')
 		if (state === 'disconnected' || ice === 'disconnected') return this.emitState('disconnected')

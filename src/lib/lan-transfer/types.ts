@@ -41,7 +41,8 @@ export const LAN_LIMITS = {
 
 export type LanRole = 'host' | 'guest'
 export type LanDeviceType = 'desktop' | 'phone' | 'tablet' | 'unknown'
-export type LanSignalType = 'description' | 'candidate'
+export type LanSignalType = 'description' | 'candidate' | 'connect-request'
+export type LanConnectReason = 'connect' | 'network' | 'fresh' | 'retry'
 export type LanSignalState = 'connecting' | 'online' | 'retrying' | 'offline' | 'closed'
 export type LanConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline'
 export type LanStorageKind = 'memory' | 'file' | 'opfs' | 'indexeddb'
@@ -85,6 +86,7 @@ export type LanSignalMessage = {
 	exchangeId: string
 	description?: RTCSessionDescriptionInit
 	candidate?: RTCIceCandidateInit | null
+	reason?: LanConnectReason
 }
 
 export type LanPresencePayload = {
@@ -94,7 +96,7 @@ export type LanPresencePayload = {
 }
 
 export type LanSignalTarget = Pick<LanPeer, 'deviceId' | 'instanceId'>
-export type LanSignalSendDetails = Pick<LanSignalMessage, 'connectionId' | 'exchangeId'> & Partial<Pick<LanSignalMessage, 'description' | 'candidate'>>
+export type LanSignalSendDetails = Pick<LanSignalMessage, 'connectionId' | 'exchangeId'> & Partial<Pick<LanSignalMessage, 'description' | 'candidate' | 'reason'>>
 
 export type LanCapability = {
 	type: 'capability'

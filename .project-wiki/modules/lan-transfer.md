@@ -1,4 +1,4 @@
-# LAN Transfer V14
+# LAN Transfer V14.1
 
 ## Purpose
 
@@ -22,7 +22,7 @@ The stable route is `/t/lan/<roomId>`. An invitation is `/t/lan/<roomId>#k=<secr
 | --- | --- |
 | `src/app/t/lan/[roomId]/` | Stable LAN room route and refresh entrypoint. |
 | `src/lib/lan-transfer/session-store.ts` | Room membership, device identity, instance creation, invite URL. |
-| `src/lib/lan-transfer/signal-client.ts` | Realtime subscribe, Presence snapshots, SDP/candidate Broadcast. |
+| `src/lib/lan-transfer/signal-client.ts`, `signal-inbox.ts` | Realtime subscribe, Presence snapshots, targeted signals, and early-instance buffering. |
 | `src/lib/lan-transfer/peer-connection-manager.ts` | Four-state transport lifecycle and bounded network recovery. |
 | `native-webrtc-transport.ts` | Peer connection, ordered DataChannel, ICE, frame probing, route inspection. |
 | `connection-runtime.ts`, `attachment-send-scheduler.ts` | Chat/file state, resume exchange, and the only WebRTC attachment writer. |
@@ -31,11 +31,17 @@ The stable route is `/t/lan/<roomId>`. An invitation is `/t/lan/<roomId>#k=<secr
 
 ## Connection Flow
 
-Room restoration starts signaling immediately; capability detection and abandoned-transfer cleanup run in the background. Presence is used only for discovery, online state, and selecting the newest page instance for a device. Broadcast carries only `description` and `candidate` envelopes targeted to an exact device and instance.
+Room restoration starts signaling immediately; capability detection and abandoned-transfer cleanup run in the background. Presence discovers devices and confirms the newest page instance. Broadcast carries `description`, `candidate`, and Guest `connect-request` envelopes targeted to an exact device and instance. The wire/storage version remains 14; there is no legacy offerer-election path.
 
-The deterministic device leader creates a fresh PeerConnection and offer. A new remote instance immediately replaces the old transport. The DataChannel opening attaches the existing runtime, which exchanges capability/history and runs `resume-query` / `resume-state` without wire-level reconnect generations.
+The Host is the sole offerer, including ICE restarts; Guests only answer or request a connection. Requests reference the observed connection/exchange and distinguish discovery, network recovery, fresh transport, and explicit retry. Duplicate and retired requests must not replace a newer connection. Existing connection/exchange IDs and local operation tokens reject stale work; no additional recovery handshake or wire generation is used.
 
-For same-instance network disruption, the manager waits two seconds for natural recovery, tries at most one ICE restart, then creates a fresh PeerConnection with bounded `0 / 1s / 3s` retries. A healthy DataChannel remains usable when Supabase or Presence is temporarily unavailable. Page wake uses one small ping/pong rather than a continuous stats health loop.
+A confirmed new remote instance immediately replaces the old transport. Signals arriving before that instance's Presence are buffered by device and instance, even when an older manager already exists. The inbox retains at most 32 queues of 64 messages for 10 seconds measured locally, discards known retired instances, and rejects older Presence snapshots.
+
+After SDP application and the DataChannel hello, the manager synchronously attaches the existing runtime and marks the connection usable. Route inspection runs in the background and only patches route metadata for the current transport/exchange. It must never delay attachment, trigger a second attachment, or discard early capability/resume frames. Runtime hydration and `resume-query` / `resume-state` retain their existing persistence boundary.
+
+For same-instance disruption, wait two seconds for natural recovery, try one ICE restart with a 4.5-second deadline, then use a fresh PC. Explicit ICE failure skips the grace period; a closed channel or non-ICE terminal failure requires a fresh PC. Fresh negotiations and Guest request waits have 7-second deadlines. Failures share bounded additional `0 / 1s / 3s` retries, reset only by successful recovery, a new instance, or explicit retry. Repeated Presence snapshots and signaling reconnects do not replenish this budget.
+
+Signaling or Presence loss suspends negotiation/recovery timers and preserves a viable PC. A healthy P2P connection remains usable; a disconnected PC waits for natural recovery or signaling/Presence restoration before resuming recovery. Closed channels can be disposed immediately. Page wake events are coalesced; only one current-transport probe may run, and probes are skipped while local file data is buffered. Waking during an active negotiation does not rebuild it.
 
 ## Persistence
 
@@ -50,9 +56,9 @@ For same-instance network disruption, the manager waits two seconds for natural 
 ## Pay Attention
 
 - V14 is intentionally incompatible with V13; do not add dual-protocol branches.
-- Do not add discovery or recovery commands to Broadcast. SDP offers already express connection creation and ICE restart.
+- Keep `connect-request` as the only Guest recovery request; do not add offerer election, rebuild handshakes, or a second recovery protocol.
 - Keep one candidate queue scoped to the current connection/exchange and reject stale instance traffic.
-- Do not let Presence loss close an open DataChannel.
+- Do not let Presence/signaling loss destroy a viable PC, including while ICE is disconnected or a recovery deadline is pending.
 - Keep runtime persistence logic outside `connection-runtime.ts`; that file is already near the project size limit.
 - No TURN/WebSocket relay exists. Some address-family or network combinations cannot establish a direct path.
 - Never expose room secrets, derived channel keys, native tickets, or raw network addresses in logs or diagnostics.

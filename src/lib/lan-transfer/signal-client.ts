@@ -45,15 +45,17 @@ function isPresencePayload(value: unknown): value is LanPresencePayload {
 
 function isSignalPayload(value: unknown): value is LanSignalMessage {
 	if (!isRecord(value) || value.protocolVersion !== LAN_PROTOCOL_VERSION) return false
-	if (value.type !== 'description' && value.type !== 'candidate') return false
+	if (value.type !== 'description' && value.type !== 'candidate' && value.type !== 'connect-request') return false
 	const envelopeValid = typeof value.fromDeviceId === 'string'
 		&& typeof value.fromInstanceId === 'string'
 		&& typeof value.toDeviceId === 'string'
 		&& typeof value.toInstanceId === 'string'
 		&& typeof value.ts === 'number'
-		&& typeof value.connectionId === 'string' && value.connectionId.length > 0 && value.connectionId.length <= 128
-		&& typeof value.exchangeId === 'string' && value.exchangeId.length > 0 && value.exchangeId.length <= 128
+		&& typeof value.connectionId === 'string' && value.connectionId.length <= 128
+		&& typeof value.exchangeId === 'string' && value.exchangeId.length <= 128
 	if (!envelopeValid) return false
+	if (value.type === 'connect-request') return ['connect', 'network', 'fresh', 'retry'].includes(value.reason as string)
+	if (!value.connectionId || !value.exchangeId) return false
 	if (value.type === 'description') return isRecord(value.description) && (value.description.type === 'offer' || value.description.type === 'answer')
 	return value.candidate === null || isRecord(value.candidate)
 }
@@ -65,6 +67,7 @@ export class LanSignalingClient {
 	private retryTimer: ReturnType<typeof setTimeout> | null = null
 	private removeWakeListeners: (() => void) | null = null
 	private readySettled = false
+	private lastWakeAt = -Infinity
 	private resolveReady!: () => void
 	readonly ready: Promise<void>
 
@@ -169,14 +172,17 @@ export class LanSignalingClient {
 		if (payload.fromInstanceId === this.session.instanceId) return
 		if (payload.toDeviceId !== this.session.localPeer.deviceId || payload.toInstanceId !== this.session.instanceId) return
 		if (payload.type === 'candidate') this.log('candidate-received', { connection: shortConnectionId(payload.connectionId), exchange: shortConnectionId(payload.exchangeId), ...summarizeIceCandidate(payload.candidate || null) })
-		else this.log('description-received', { connection: shortConnectionId(payload.connectionId), exchange: shortConnectionId(payload.exchangeId), descriptionType: payload.description?.type })
+		else this.log(`${payload.type}-received`, { connection: shortConnectionId(payload.connectionId), exchange: shortConnectionId(payload.exchangeId), descriptionType: payload.description?.type, reason: payload.reason })
 		this.onMessage(payload)
 	}
 
 	async sendSignal(type: LanSignalType, target: LanSignalTarget, details: LanSignalSendDetails) {
 		if (this.closed) throw new Error('连接服务已关闭')
 		const channel = this.channel
-		if (!this.subscribed || !channel || channel.state !== 'joined' || !getSupabase().realtime.isConnected()) throw new Error('连接服务暂时离线')
+		if (!this.subscribed || !channel || channel.state !== 'joined' || !getSupabase().realtime.isConnected()) {
+			if (channel) this.recreateChannel(channel)
+			throw new Error('连接服务暂时离线')
+		}
 		const message: LanSignalMessage = {
 			type,
 			protocolVersion: LAN_PROTOCOL_VERSION,
@@ -189,13 +195,20 @@ export class LanSignalingClient {
 			exchangeId: details.exchangeId,
 			description: details.description,
 			candidate: details.candidate,
+			reason: details.reason,
 		}
-		const result = await channel.send({ type: 'broadcast', event: 'signal', payload: message })
-		if (result !== 'ok') throw new Error('连接消息发送失败')
+		try {
+			const result = await channel.send({ type: 'broadcast', event: 'signal', payload: message })
+			if (result !== 'ok') throw new Error('连接消息发送失败')
+		} catch (error) {
+			this.recreateChannel(channel)
+			throw error
+		}
 	}
 
 	wake() {
-		if (this.closed) return
+		if (this.closed || Date.now() - this.lastWakeAt < 500) return
+		this.lastWakeAt = Date.now()
 		const realtime = getSupabase().realtime
 		if (!this.channel) this.scheduleRetry()
 		if (!this.subscribed && !realtime.isConnected()) realtime.connect()

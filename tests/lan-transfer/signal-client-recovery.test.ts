@@ -46,6 +46,7 @@ beforeEach(() => {
   fake.channels.length = 0
   fake.client.channel.mockClear()
   fake.client.removeChannel.mockClear()
+  fake.realtime.isConnected.mockReturnValue(true)
 })
 afterEach(() => vi.useRealTimers())
 
@@ -79,7 +80,7 @@ describe('LanSignalingClient V14', () => {
     await client.close()
   })
 
-  it('broadcasts only targeted description/candidate envelopes', async () => {
+  it('broadcasts targeted description envelopes', async () => {
     const client = new LanSignalingClient(session, vi.fn())
     await client.ready
     const target = { deviceId: remotePeer.deviceId, instanceId: remotePeer.instanceId }
@@ -88,6 +89,59 @@ describe('LanSignalingClient V14', () => {
       type: 'broadcast', event: 'signal',
       payload: expect.objectContaining({ type: 'description', connectionId: 'connection', exchangeId: 'exchange', toInstanceId: remotePeer.instanceId }),
     }))
+    await client.close()
+  })
+
+  it('accepts targeted Guest recovery requests and rejects malformed or misdirected requests', async () => {
+    const onMessage = vi.fn()
+    const client = new LanSignalingClient(session, onMessage)
+    await client.ready
+    const channel = fake.channels[0]
+    const request = {
+      type: 'connect-request', protocolVersion: LAN_PROTOCOL_VERSION,
+      fromDeviceId: remotePeer.deviceId, fromInstanceId: remotePeer.instanceId,
+      toDeviceId: localPeer.deviceId, toInstanceId: localPeer.instanceId,
+      ts: Date.now(), connectionId: '', exchangeId: '', reason: 'connect',
+    }
+    channel.emit('broadcast', 'signal', { payload: request })
+    expect(onMessage).toHaveBeenCalledWith(request)
+    channel.emit('broadcast', 'signal', { payload: { ...request, reason: 'unknown' } })
+    channel.emit('broadcast', 'signal', { payload: { ...request, toInstanceId: 'old-page' } })
+    channel.emit('broadcast', 'signal', { payload: { ...request, type: 'description', description: { type: 'offer' } } })
+    expect(onMessage).toHaveBeenCalledTimes(1)
+    await client.sendSignal('connect-request', { deviceId: remotePeer.deviceId, instanceId: remotePeer.instanceId }, {
+      connectionId: 'pc', exchangeId: 'exchange', reason: 'fresh',
+    })
+    expect(channel.send).toHaveBeenCalledWith(expect.objectContaining({ payload: expect.objectContaining({ reason: 'fresh', connectionId: 'pc' }) }))
+    await client.close()
+  })
+
+  it('announces signaling loss before rejecting a failed send', async () => {
+    const statuses: string[] = []
+    const client = new LanSignalingClient(session, vi.fn(), status => statuses.push(status))
+    await client.ready
+    fake.channels[0].send.mockResolvedValueOnce('error')
+    await expect(client.sendSignal('description', { deviceId: remotePeer.deviceId, instanceId: remotePeer.instanceId }, {
+      connectionId: 'pc', exchangeId: 'exchange', description: { type: 'offer', sdp: 'v=0' },
+    })).rejects.toThrow('连接消息发送失败')
+    expect(statuses.at(-1)).toBe('retrying')
+    expect(fake.client.removeChannel).toHaveBeenCalledTimes(1)
+    await client.close()
+  })
+
+  it('coalesces focus, visibility and network wake notifications', async () => {
+    const onWake = vi.fn()
+    const client = new LanSignalingClient(session, vi.fn(), undefined, undefined, onWake)
+    await client.ready
+    fake.channels[0].track.mockClear()
+    client.wake()
+    client.wake()
+    client.wake()
+    expect(onWake).toHaveBeenCalledTimes(1)
+    expect(fake.channels[0].track).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(500)
+    client.wake()
+    expect(onWake).toHaveBeenCalledTimes(2)
     await client.close()
   })
 })

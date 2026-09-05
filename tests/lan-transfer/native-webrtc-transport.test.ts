@@ -38,6 +38,19 @@ function setup(role: 'offerer' | 'answerer' = 'offerer') {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('NativeWebRtcTransport', () => {
+  it('reports recoverable ICE failure separately from a failed connection', () => {
+    const { transport, pc, options } = setup()
+    pc.connectionState = 'failed'
+    pc.iceConnectionState = 'failed'
+    pc.onconnectionstatechange()
+    expect(options.onState).toHaveBeenLastCalledWith('ice-failed')
+    expect(pc.close).not.toHaveBeenCalled()
+    pc.channel.readyState = 'closed'
+    pc.onconnectionstatechange()
+    expect(options.onState).toHaveBeenLastCalledWith('failed')
+    transport.close()
+  })
+
   it('uses STUN only and never configures a TURN relay', () => {
     const urls = (lanRtcConfig.iceServers || []).flatMap(server => typeof server.urls === 'string' ? [server.urls] : server.urls)
     expect(urls.some(url => /^turns?:/i.test(url))).toBe(false)

@@ -22,7 +22,7 @@ export interface LanConnectionTransport {
 	waitUntilWritable(highWatermark: number, lowWatermark: number, timeoutMs: number, signal?: AbortSignal): Promise<void>
 }
 
-export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'channel-closed' | 'closed'
+export type LanTransportState = 'connecting' | 'connected' | 'disconnected' | 'ice-failed' | 'failed' | 'channel-closed' | 'closed'
 export type LanTransportRole = 'offerer' | 'answerer'
 
 export type LanTransportCreateOptions = {
