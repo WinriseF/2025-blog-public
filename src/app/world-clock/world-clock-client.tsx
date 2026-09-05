@@ -19,8 +19,10 @@ import { getAssetUrl } from '@/lib/asset-url'
 import { startAnimationLoop } from '@/lib/animation-loop'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import type { TimeThemeName } from '@/lib/time-theme'
+import styles from './world-clock.module.css'
 
 const EARTH_RADIUS = 2.2
+const CAMERA_DISTANCE = 7.4
 const SURFACE_MARKER_OFFSET = 0.008
 const SUBSOLAR_TRACK_OFFSET = 0.012
 const DAY_MS = 86_400_000
@@ -371,7 +373,7 @@ export default function WorldClockClient() {
 
 		const scene = new THREE.Scene()
 		const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100)
-		camera.position.copy(toThreeVector(INITIAL_VIEW, 6.2))
+		camera.position.copy(toThreeVector(INITIAL_VIEW, CAMERA_DISTANCE))
 		camera.lookAt(0, 0, 0)
 		cameraRef.current = camera
 
@@ -426,11 +428,11 @@ export default function WorldClockClient() {
 		scene.add(createStarField())
 
 		const atmosphere = new THREE.Mesh(
-			new THREE.SphereGeometry(EARTH_RADIUS + 0.09, 128, 80),
+			new THREE.SphereGeometry(EARTH_RADIUS + 0.035, 128, 80),
 			new THREE.MeshBasicMaterial({
 				color: 0x8ed7ff,
 				transparent: true,
-				opacity: 0.16,
+				opacity: 0.1,
 				side: THREE.BackSide,
 				blending: THREE.AdditiveBlending,
 				depthWrite: false
@@ -497,6 +499,11 @@ export default function WorldClockClient() {
 			renderWidth = nextWidth
 			renderHeight = nextHeight
 			camera.aspect = renderWidth / renderHeight
+			// Preserve the globe's framing when the stage becomes taller than it is wide.
+			camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(21)) / Math.min(camera.aspect, 1)))
+			// Leave room for the reading panel without clipping the scene to a smaller canvas.
+			if (window.innerWidth > 960) camera.setViewOffset(renderWidth, renderHeight, Math.min(120, renderWidth * 0.09), 0, renderWidth, renderHeight)
+			else camera.clearViewOffset()
 			camera.updateProjectionMatrix()
 			renderer.setSize(renderWidth, renderHeight, false)
 		}
@@ -665,7 +672,7 @@ export default function WorldClockClient() {
 	const resetView = () => {
 		const camera = cameraRef.current
 		if (!camera) return
-		camera.position.copy(toThreeVector(INITIAL_VIEW, 6.2))
+		camera.position.copy(toThreeVector(INITIAL_VIEW, CAMERA_DISTANCE))
 		camera.lookAt(0, 0, 0)
 		controlsRef.current?.target.set(0, 0, 0)
 		controlsRef.current?.update()
@@ -678,193 +685,147 @@ export default function WorldClockClient() {
 	}
 
 	return (
-		<div className={`relative h-dvh overflow-hidden text-white ${scenePalette.root}`}>
-			<div ref={containerRef} className='absolute inset-0' />
-			<div className={`pointer-events-none absolute inset-0 ${scenePalette.vignette}`} />
-			<div className={`pointer-events-none absolute inset-x-0 top-0 h-32 ${scenePalette.topShade}`} />
-			<div className={`pointer-events-none absolute top-0 left-0 h-36 w-[580px] max-w-full ${scenePalette.navBackplate}`} />
-			<div className='pointer-events-none absolute inset-0 z-10'>
-				{solarTerms
-					.filter(term => visibleSolarTermLabels.has(term.name))
-					.map(term => (
-						<div
-							key={term.name}
-							ref={node => {
-								solarTermLabelRefs.current[term.name] = node
-							}}
-							className={`absolute top-0 left-0 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap shadow-[0_10px_24px_-18px_rgba(0,0,0,0.8)] backdrop-blur-md transition-[opacity,background-color,border-color,color] ${
-								activeSolarTerm?.name === term.name
-									? 'border-[#ffd36a]/60 bg-[#ffd36a]/22 text-white'
-									: term.kind === 'season-start'
-										? 'border-[#8ff6d2]/32 bg-[#071623]/48 text-[#bffbe9]'
-										: 'border-[#ffd36a]/32 bg-[#071623]/48 text-[#ffe2a3]'
-							}`}
-							style={{ opacity: 0 }}>
-							{term.name}
-						</div>
-					))}
-			</div>
+		<div className={`${styles.page} ${scenePalette.root}`} data-theme={theme.name}>
+			<div className={`pointer-events-none absolute inset-0 -z-10 ${scenePalette.vignette}`} />
+			<div className={`pointer-events-none absolute inset-x-0 top-0 -z-10 h-40 ${scenePalette.topShade}`} />
+			<div className={`pointer-events-none absolute top-0 left-0 -z-10 h-36 w-[580px] max-w-full ${scenePalette.navBackplate}`} />
 
-			<div className='absolute top-24 right-6 z-20 flex items-center gap-3 max-sm:top-22 max-sm:right-4'>
-				<Link
-					href='/'
-					title='返回首页'
-					aria-label='返回首页'
-					className='flex h-11 w-11 items-center justify-center rounded-full border border-white/18 bg-white/12 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md transition-colors hover:bg-white/20'>
-					<ChevronLeft className='h-5 w-5' />
-				</Link>
-				<button
-					type='button'
-					title='重置视角'
-					aria-label='重置视角'
-					onClick={resetView}
-					className='flex h-11 w-11 items-center justify-center rounded-full border border-white/18 bg-white/12 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md transition-colors hover:bg-white/20'>
-					<RotateCcw className='h-4.5 w-4.5' />
-				</button>
-			</div>
-
-			<div className='absolute top-24 left-6 z-20 flex rounded-full border border-white/16 bg-[#071623]/46 p-1 text-xs font-medium text-white/68 shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md max-sm:top-22 max-sm:left-4'>
-				{BASE_MAPS.map(item => (
-					<button
-						key={item.key}
-						type='button'
-						onClick={() => {
-							baseMapTouchedRef.current = true
-							setBaseMapKey(item.key)
-						}}
-						className={`rounded-full px-3.5 py-2 transition-colors ${baseMapKey === item.key ? 'bg-white/20 text-white' : 'hover:bg-white/10 hover:text-white'}`}>
-						{item.label}
-					</button>
-				))}
-			</div>
-
-			<section className='absolute top-24 left-1/2 z-10 w-[min(520px,calc(100%-2rem))] -translate-x-1/2 text-center max-sm:top-22'>
-				<h1 className='text-3xl leading-none font-semibold tracking-normal text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.38)] max-sm:text-2xl'>世界时钟</h1>
-				<div className='mt-3 text-sm text-white/68'>标准时间 / 太阳时</div>
-			</section>
-
-			<div className='absolute bottom-4 left-5 z-20 w-[min(320px,calc(100%-2rem))] rounded-xl border border-white/12 bg-[#071623]/52 px-3 py-2.5 text-white shadow-[0_18px_40px_-26px_rgba(0,0,0,0.7)] backdrop-blur-md max-lg:bottom-[220px] max-sm:bottom-[210px] max-sm:left-4 max-sm:w-[min(300px,calc(100%-2rem))]'>
-				<div className='flex items-center justify-between gap-3'>
-					<div>
-						<div className='text-xs font-medium text-white/58'>地表太阳标注</div>
-						<div className='mt-1 text-[10px] leading-relaxed text-white/46'>
-							<span className='text-[#ffd36a]'>黄线/蓝圈</span> 为直射轨迹，
-							<span className='text-[#8ff6d2]'>节气点</span> 标在地表
-						</div>
+			<header className={styles.header}>
+				<div>
+					<div className={styles.titleRow}>
+						<h1>世界时钟</h1>
+						<p className={styles.subtitle}>标准时间 / 真太阳时</p>
 					</div>
-					<button
-						type='button'
-						title={trackPlaying ? '暂停' : '播放'}
-						aria-label={trackPlaying ? '暂停太阳直射点年度动画' : '播放太阳直射点年度动画'}
-						onClick={() => setTrackPlaying(value => !value)}
-						className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 transition-colors hover:bg-white/18'>
-						{trackPlaying ? <Pause className='h-4 w-4 text-[#ffd36a]' /> : <Play className='h-4 w-4 text-[#ffd36a]' />}
+				</div>
+				<div className={styles.actions}>
+					<Link href='/' title='返回首页' aria-label='返回首页' className={styles.iconButton}>
+						<ChevronLeft className='h-4 w-4' />
+					</Link>
+					<button type='button' title='重置视角' aria-label='重置视角' onClick={resetView} className={styles.iconButton}>
+						<RotateCcw className='h-4 w-4' />
 					</button>
 				</div>
-				<div className='mt-2.5 flex gap-1.5 text-[11px] font-medium'>
-					<button
-						type='button'
-						onClick={() => setShowSubsolar(value => !value)}
-						className={`rounded-full border px-2.5 py-1 transition-colors ${
-							showSubsolar ? 'border-[#ffd36a]/40 bg-[#ffd36a]/16 text-[#ffe2a3]' : 'border-white/12 bg-white/6 text-white/42 hover:bg-white/10 hover:text-white/68'
-						}`}>
-						直射点
-					</button>
-					<button
-						type='button'
-						onClick={() => setShowSolarTerms(value => !value)}
-						className={`rounded-full border px-2.5 py-1 transition-colors ${
-							showSolarTerms ? 'border-[#8ff6d2]/36 bg-[#8ff6d2]/14 text-[#bffbe9]' : 'border-white/12 bg-white/6 text-white/42 hover:bg-white/10 hover:text-white/68'
-						}`}>
-						节气
-					</button>
-				</div>
-				<div className='mt-2.5 flex items-center gap-2'>
-					<div className='w-13 shrink-0 text-[11px] font-medium text-white/70'>{activeTrackPoint ? formatTrackDate(activeTrackPoint.date) : ''}</div>
-					<input
-						type='range'
-						min={0}
-						max={Math.max(annualTrack.length - 1, 0)}
-						value={trackCursor}
-						aria-label='选择太阳直射点年度轨迹日期'
-						onChange={event => handleTrackCursorChange(Number(event.currentTarget.value))}
-						className='range-track min-w-0 flex-1'
-						style={{ '--range-progress': `${annualTrack.length > 1 ? (trackCursor / (annualTrack.length - 1)) * 100 : 0}%` } as React.CSSProperties}
-					/>
-				</div>
-				{activeTrackPoint && (
-					<div className='mt-1.5 text-[10px] leading-relaxed text-white/46'>
-						直射动画点 {formatCoordinate(activeTrackPoint.lat, 'N', 'S')} · {formatCoordinate(activeTrackPoint.lon, 'E', 'W')}
-						{activeSolarTerm && (
-							<>
-								<br />
-								最近节气 <span className='text-[#ffd36a]'>{activeSolarTerm.name}</span> · {formatSolarTermDate(activeSolarTerm.date)}
-							</>
-						)}
-					</div>
-				)}
-			</div>
+			</header>
 
-			<aside className='scrollbar-none absolute top-1/2 right-5 z-10 max-h-[calc(100dvh-8rem)] w-[220px] -translate-y-1/2 overflow-y-auto rounded-[20px] border border-white/18 bg-[#071623]/58 p-3 text-white shadow-[0_24px_60px_-34px_rgba(0,0,0,0.85)] backdrop-blur-xl max-lg:top-auto max-lg:right-4 max-lg:bottom-4 max-lg:max-h-[calc(100dvh-9rem)] max-lg:w-[min(260px,calc(100%-2rem))] max-lg:translate-y-0'>
-				<div className='flex items-start justify-between gap-3'>
-					<div>
-						<div className='text-xs font-medium text-white/54'>选中位置</div>
-						<div className='mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1 text-sm font-medium text-white'>
-							<span>{formatCoordinate(reading.coordinates.lat, 'N', 'S')}</span>
-							<span>{formatCoordinate(reading.coordinates.lon, 'E', 'W')}</span>
+			<div className={styles.workspace}>
+				<section className={styles.stage} aria-label='交互式地球'>
+					<div className={styles.mapPicker} role='group' aria-label='地球底图'>
+						{BASE_MAPS.map(item => (
+							<button
+								key={item.key}
+								type='button'
+								aria-pressed={baseMapKey === item.key}
+								onClick={() => {
+									baseMapTouchedRef.current = true
+									setBaseMapKey(item.key)
+								}}>
+								{item.label}
+							</button>
+						))}
+					</div>
+					<div className={styles.globe}>
+						<div ref={containerRef} className={styles.canvas} />
+						<div className={styles.labels}>
+							{solarTerms.filter(term => visibleSolarTermLabels.has(term.name)).map(term => (
+								<div
+									key={term.name}
+									ref={node => {
+										solarTermLabelRefs.current[term.name] = node
+									}}
+									className={`absolute top-0 left-0 rounded-md border px-2 py-1 text-[10px] font-medium whitespace-nowrap backdrop-blur-md ${
+										activeSolarTerm?.name === term.name
+											? 'border-[#ffd36a]/50 bg-[#25303a]/90 text-[#ffe2a3]'
+											: term.kind === 'season-start'
+												? 'border-[#8ff6d2]/24 bg-[#071623]/75 text-[#bffbe9]'
+												: 'border-[#ffd36a]/24 bg-[#071623]/75 text-[#ffe2a3]'
+									}`}
+									style={{ opacity: 0 }}>
+									{term.name}
+								</div>
+							))}
 						</div>
 					</div>
-					<div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10'>
-						<MapPin className='h-3.5 w-3.5 text-[#ff87a8]' />
-					</div>
-				</div>
+					<p className={styles.hint}>拖动旋转 · 滚轮或双指缩放 · 点击地表查看时间</p>
+				</section>
 
-				<div className='mt-3.5 space-y-3 border-t border-white/12 pt-3.5'>
-					<div>
-						<div className='flex items-center gap-2 text-xs font-medium text-white/56'>
-							<Clock3 className='h-4 w-4 text-[#86d7ff]' />
-							标准时间
+				<aside className={`${styles.panel} ${styles.reading}`} aria-label='选中位置的时间'>
+					<div className={styles.panelHeading}>
+						<h2 className={styles.label}><MapPin className='h-3.5 w-3.5 text-[#ff87a8]' />选中位置</h2>
+						{sceneReady && <span className={styles.live}>实时</span>}
+					</div>
+					<div className={styles.coordinate}>
+						<span>{formatCoordinate(reading.coordinates.lat, 'N', 'S')}</span>
+						<span>{formatCoordinate(reading.coordinates.lon, 'E', 'W')}</span>
+					</div>
+					<p className={styles.zone}>{reading.timeZone} · {reading.utcOffset}</p>
+
+					<div className={styles.clocks}>
+						<div className={styles.clock}>
+							<h3 className={styles.label}><Clock3 className='h-3.5 w-3.5 text-[#86d7ff]' />标准时间</h3>
+							<time className={styles.time}>{reading.standardTime}</time>
+							<p className={styles.date}>{reading.standardDate}</p>
 						</div>
-						<div className='mt-1.5 text-2xl leading-none font-semibold tracking-normal tabular-nums'>{reading.standardTime}</div>
-						<div className='mt-1.5 text-xs leading-relaxed text-white/58'>
-							{reading.standardDate} · {reading.utcOffset}
+						<div className={styles.clock}>
+							<h3 className={styles.label}><SunMedium className='h-3.5 w-3.5 text-[#f3cf91]' />真太阳时</h3>
+							<time className={`${styles.time} ${styles.solar}`}>{reading.solarTime}</time>
+							<p className={styles.date}>{reading.solarDate}<br />均时差 {formatSignedMinutes(reading.equationOfTimeMinutes)}</p>
 						</div>
 					</div>
 
-					<div className='border-t border-white/10 pt-3'>
-						<div className='flex items-center gap-2 text-xs font-medium text-white/56'>
-							<SunMedium className='h-4 w-4 text-[#ffd36a]' />
-							真太阳时
+					<dl className={styles.facts}>
+						<div className={styles.fact}>
+							<dt><span className={styles.label}><LocateFixed className='h-3.5 w-3.5' />日照状态</span></dt>
+							<dd>{reading.daylightLabel}<br /><small>太阳高度 {reading.sunAltitude.toFixed(1)}°</small></dd>
 						</div>
-						<div className='mt-1.5 text-2xl leading-none font-semibold tracking-normal text-[#ffd996] tabular-nums'>{reading.solarTime}</div>
-						<div className='mt-1.5 text-xs leading-relaxed text-white/58'>
-							{reading.solarDate} · 均时差 {formatSignedMinutes(reading.equationOfTimeMinutes)}
+						<div className={styles.fact}>
+							<dt>当前太阳直射点</dt>
+							<dd>{formatCoordinate(reading.subsolar.lat, 'N', 'S')}<br />{formatCoordinate(reading.subsolar.lon, 'E', 'W')}</dd>
 						</div>
-					</div>
-				</div>
+					</dl>
+					<p className={styles.note}>无国界自然影像 · 夜侧城市灯光</p>
+				</aside>
 
-				<div className='mt-3.5 grid gap-2 border-t border-white/12 pt-3.5'>
-					<div className='rounded-xl border border-white/12 bg-white/8 px-2.5 py-2.5'>
-						<div className='flex items-center gap-2 text-[11px] font-medium text-white/52'>
-							<LocateFixed className='h-3.5 w-3.5' />
-							日照
-						</div>
-						<div className='mt-1.5 text-sm font-medium'>{reading.daylightLabel}</div>
-						<div className='mt-1 text-xs text-white/50'>{reading.sunAltitude.toFixed(1)}°</div>
-					</div>
-					<div className='rounded-xl border border-white/12 bg-white/8 px-2.5 py-2.5'>
-						<div className='text-[11px] font-medium text-white/52'>太阳直射点</div>
-						<div className='mt-1.5 text-xs leading-relaxed text-white/76'>
-							{formatCoordinate(reading.subsolar.lat, 'N', 'S')}
-							<br />
-							{formatCoordinate(reading.subsolar.lon, 'E', 'W')}
+				<section className={`${styles.panel} ${styles.track}`} aria-labelledby='solar-track-title'>
+					<div className={styles.panelHeading}>
+						<h2 id='solar-track-title' className={styles.trackTitle}>太阳直射 · 年度轨迹</h2>
+						<div className={styles.legend} role='group' aria-label='地表标注图层'>
+							<button type='button' aria-pressed={showSubsolar} onClick={() => setShowSubsolar(value => !value)} className={styles.toggle}>
+								<span className={styles.swatch} />直射轨迹
+							</button>
+							<button type='button' aria-pressed={showSolarTerms} onClick={() => setShowSolarTerms(value => !value)} className={styles.toggle}>
+								<span className={`${styles.swatch} ${styles.seasonSwatch}`} />节气
+							</button>
 						</div>
 					</div>
-				</div>
-			</aside>
-
-			<div className='absolute right-5 bottom-4 z-10 max-w-[420px] rounded-2xl border border-white/12 bg-[#071623]/48 px-4 py-3 text-[11px] leading-relaxed text-white/52 backdrop-blur-md max-lg:hidden'>
-				无国界自然影像底图；夜侧使用城市灯光贴图，仅用于昼夜和时间交互展示。
+					<div className={styles.trackControls}>
+						<button
+							type='button'
+							title={trackPlaying ? '暂停' : '播放'}
+							aria-label={trackPlaying ? '暂停太阳直射点年度动画' : '播放太阳直射点年度动画'}
+							aria-pressed={trackPlaying}
+							onClick={() => setTrackPlaying(value => !value)}
+							className={`${styles.iconButton} ${styles.solar}`}>
+							{trackPlaying ? <Pause className='h-3.5 w-3.5' /> : <Play className='h-3.5 w-3.5' />}
+						</button>
+						<span className={styles.trackDate}>{activeTrackPoint ? formatTrackDate(activeTrackPoint.date) : ''}</span>
+						<input
+							type='range'
+							min={0}
+							max={Math.max(annualTrack.length - 1, 0)}
+							value={trackCursor}
+							aria-label='选择太阳直射点年度轨迹日期'
+							aria-valuetext={activeTrackPoint ? formatTrackDate(activeTrackPoint.date) : undefined}
+							onChange={event => handleTrackCursorChange(Number(event.currentTarget.value))}
+							className={styles.slider}
+						/>
+					</div>
+					{activeTrackPoint && (
+						<div className={styles.trackMeta}>
+							<span>轨迹点 <span className='text-[#86d7ff]'>○</span> {formatCoordinate(activeTrackPoint.lat, 'N', 'S')} · {formatCoordinate(activeTrackPoint.lon, 'E', 'W')}</span>
+							{activeSolarTerm && <span>最近节气 <strong>{activeSolarTerm.name}</strong> · {formatSolarTermDate(activeSolarTerm.date)}</span>}
+						</div>
+					)}
+				</section>
 			</div>
 		</div>
 	)

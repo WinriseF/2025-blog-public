@@ -1,0 +1,88 @@
+.page {
+	--ink: #203d4d;
+	--muted: #506978;
+	--line: rgb(255 255 255 / 12%);
+	position: relative;
+	isolation: isolate;
+	height: 100dvh;
+	min-height: 600px;
+	color: var(--ink);
+}
+.page[data-theme='night'] { --ink: #edf5fa; --muted: #9baebc; }
+.header { position: absolute; top: 28px; right: 24px; left: 24px; z-index: 3; display: flex; justify-content: center; }
+.titleRow { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.titleRow h1 { font-size: 25px; font-weight: 500; line-height: 1.25; letter-spacing: 0.08em; }
+.subtitle { color: var(--muted); font-size: 11px; letter-spacing: 0.06em; }
+.actions { position: absolute; right: 0; top: 0; display: flex; gap: 8px; }
+.iconButton { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 50%; background: rgb(255 255 255 / 6%); color: inherit; cursor: pointer; }
+.iconButton:hover { background: rgb(255 255 255 / 14%); }
+.page button:focus-visible, .page a:focus-visible, .page input:focus-visible { outline: 2px solid #86d7ff; outline-offset: 3px; }
+.workspace, .stage, .globe, .canvas, .labels { position: absolute; inset: 0; }
+.canvas { cursor: grab; }
+.canvas:active { cursor: grabbing; }
+.labels { pointer-events: none; overflow: hidden; }
+.mapPicker { position: absolute; top: 104px; left: 24px; z-index: 2; display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: rgb(7 22 35 / 66%); color: #a8bac7; backdrop-filter: blur(12px); }
+.mapPicker button { padding: 7px 10px; border-radius: 6px; font-size: 10px; cursor: pointer; }
+.mapPicker button:hover { color: white; }
+.mapPicker button[aria-pressed='true'] { background: rgb(255 255 255 / 12%); color: white; }
+.hint { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); color: var(--muted); font-size: 10px; white-space: nowrap; pointer-events: none; }
+.panel { position: absolute; z-index: 2; border: 1px solid var(--line); border-radius: 14px; background: rgb(7 22 35 / 68%); color: #f0f5f9; backdrop-filter: blur(16px); }
+.reading { top: 50%; right: 24px; width: 248px; padding: 18px; transform: translateY(-50%); }
+.panelHeading, .label, .coordinate, .legend, .trackControls { display: flex; align-items: center; }
+.panelHeading { justify-content: space-between; gap: 12px; }
+.label { gap: 6px; color: #a8bac7; font-size: 11px; font-weight: 400; }
+.live { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #a8bac7; }
+.live::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #8ccab7; }
+.coordinate { flex-wrap: wrap; gap: 6px 10px; margin-top: 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.zone { margin-top: 6px; color: #9aafbf; font-size: 10px; overflow-wrap: anywhere; }
+.clocks { margin-top: 16px; border-top: 1px solid var(--line); }
+.clock { padding: 16px 0; }
+.clock + .clock { border-top: 1px solid var(--line); }
+.time { display: block; margin-top: 9px; font-size: 32px; font-weight: 400; line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+.solar { color: #f3cf91; }
+.date { margin-top: 7px; color: #a8bac7; font-size: 10px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+.fact { font-size: 11px; }
+.fact dt { color: #a8bac7; font-size: 10px; }
+.fact dd { margin-top: 7px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.fact small { color: #a8bac7; font-size: 9px; }
+.note { margin-top: 14px; color: #91a5b4; font-size: 9px; line-height: 1.8; }
+.track { left: 24px; bottom: 24px; width: 308px; padding: 14px 16px; }
+.track .panelHeading { align-items: flex-start; flex-direction: column; gap: 10px; }
+.trackTitle { font-size: 11px; font-weight: 500; }
+.legend { gap: 6px; }
+.toggle { display: flex; align-items: center; gap: 6px; padding: 4px 7px; border: 1px solid transparent; border-radius: 5px; font-size: 10px; color: #a8bac7; cursor: pointer; }
+.toggle[aria-pressed='true'] { border-color: var(--line); background: rgb(255 255 255 / 5%); color: #edf5fa; }
+.swatch { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: #f3cf91; }
+.seasonSwatch { background: #8ff6d2; }
+.toggle[aria-pressed='false'] .swatch { opacity: 0.35; }
+.trackControls { gap: 10px; margin-top: 10px; }
+.trackControls .iconButton { width: 30px; height: 30px; }
+.trackDate { min-width: 54px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.slider { min-width: 0; width: 100%; height: 24px; accent-color: #f3cf91; cursor: pointer; }
+.trackMeta { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; color: #a8bac7; font-size: 9px; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.trackMeta strong { color: #f3cf91; font-weight: 400; }
+
+@media (max-width: 960px) {
+	.page { height: auto; min-height: 100dvh; padding: 168px 16px max(24px, env(safe-area-inset-bottom)); }
+	.header { top: 100px; left: 20px; right: 20px; justify-content: flex-start; }
+	.titleRow { align-items: flex-start; gap: 6px; }
+	.titleRow h1 { font-size: 22px; }
+	.subtitle { font-size: 10px; }
+	.workspace { position: relative; display: flex; flex-direction: column; gap: 14px; }
+	.stage { position: relative; inset: auto; height: clamp(320px, 52svh, 520px); margin: 0 -16px; }
+	.globe { inset: 0 0 28px; }
+	.mapPicker { top: 0; left: 20px; }
+	.hint { bottom: 4px; font-size: 9px; }
+	.panel { position: relative; inset: auto; width: 100%; transform: none; }
+	.reading { padding: 16px; }
+	.clocks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px; }
+	.clock { padding: 14px 0; }
+	.clock + .clock { border-top: 0; padding-left: 16px; }
+	.time { font-size: clamp(25px, 5vw, 32px); }
+	.facts { padding-top: 12px; }
+	.note { margin-top: 12px; }
+	.track { padding: 14px 16px; }
+	.track .panelHeading { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+	.trackMeta { flex-direction: row; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+}

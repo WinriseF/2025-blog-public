@@ -18,12 +18,16 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
 | `src/app/(home)/` | Card homepage and configuration store. |
 | `src/app/calendar/` | Calendar state, data, grid, day panel, term track. |
+| `src/app/world-clock/` | Interactive Earth, location time readings, annual solar track, and responsive scene layout. |
 
 ## Main Flow
 
 `layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. Navigation keeps the compact appearance picker; the homepage uses one animated quick-controls card for direct theme selection, the persisted click-effect preference, and E/V/N deployment navigation from `site-content.json`. Theme changes continue to use the original View Transition flow. Continuous visuals use the shared animation loop; the homepage WebGL core uses dynamic 50/60 FPS throttling and capped DPR, while click feedback uses a bounded on-demand Canvas loop that is idle when no effect is visible.
 
 ## Pay Attention
+
+- World clock keeps its immersive Earth view, natural imagery, day/night boundary, solar track, and four time-theme backgrounds. Route-local `world-clock.module.css` uses a full-viewport desktop canvas with a compact floating time panel and a small bottom-left track control. Do not turn these into a dashboard grid or a tall scrolling sidebar. At 960px and below, panels follow a dedicated globe stage in document flow. Header text adapts to the theme while data panels retain a translucent dark surface.
+- Keep the globe canvas and projected solar-term labels inside the same sized wrapper. The camera adjusts its field of view for portrait stages and uses a desktop view offset to leave room for the time panel without cropping the canvas. Initial and reset distance share `CAMERA_DISTANCE`. Layer and map buttons expose their selected state with `aria-pressed`.
 
 - Do not add idle frame loops, raw scroll work, or layout reads in pointer-move handlers.
 - Keep the homepage WebGL core at one static frame for reduced motion, 50 FPS while idle, 60 FPS during interaction, and no more than 1.25 DPR.
