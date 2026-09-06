@@ -70,7 +70,7 @@ export function ActivityWaterfall({ activity, onTool }: { activity: SessionActiv
 	const brushSegments = [
 		...layout.requests.map(({ request, start, end }) => {
 			const x = layout.x(start, request.sequence)
-			return { id: `request-${request.id}`, x, width: Math.max(layout.x(end, request.sequence) - x, 2), y: 11, height: 8, color: request.reasoningOutputTokens > 0 ? '#8b5cf6' : '#f59e0b', opacity: 0.7 }
+			return { id: `request-${request.id}`, x, width: Math.max(layout.x(end, request.sequence) - x, 2), y: 11, height: 8, color: request.reasoningOutputTokens > 0 ? '#8b5cf6' : '#f59e0b', opacity: 0.7, startDivider: true }
 		}),
 		...layout.tools.map(({ tool, start, end }) => {
 			const x = layout.x(start, tool.sequence)
@@ -99,7 +99,8 @@ export function ActivityWaterfall({ activity, onTool }: { activity: SessionActiv
 					const color = request.reasoningOutputTokens > 0 ? '#8b5cf6' : '#f59e0b'
 					return <g key={request.id}>
 						<rect x={startX} y={34} width={Math.max(Math.min(width, 4), 2)} height={14} rx={1} fill='#3b82f6'><title>{`模型步骤输入边界 · #${request.sequence}`}</title></rect>
-						<rect x={startX} y={58} width={width} height={14} rx={2} fill={color} fillOpacity={0.9}><title>{`Output ${formatNumber(request.outputTokens)} · 推理 ${formatNumber(request.reasoningOutputTokens)} · ${formatDurationMs(request.spanMs)}`}</title></rect>
+						<rect x={startX} y={58} width={width} height={14} rx={1} fill={color} fillOpacity={0.9}><title>{`Output ${formatNumber(request.outputTokens)} · 推理 ${formatNumber(request.reasoningOutputTokens)} · ${formatDurationMs(request.spanMs)}`}</title></rect>
+						<line x1={startX} x2={startX} y1={58} y2={72} stroke='currentColor' className='text-border' strokeWidth={1} strokeOpacity={0.9} vectorEffect='non-scaling-stroke' />
 					</g>
 				})}
 				{layout.tools.map(({ tool, start, end }) => {

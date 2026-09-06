@@ -1,7 +1,7 @@
 'use client'
 
 import { useDeferredValue, useMemo, useState } from 'react'
-import { Code2, Container, FileText, GitBranch, Hammer, Network, Package, Search, Settings2, Terminal, X } from 'lucide-react'
+import { Code2, Container, Download, FileText, GitBranch, Hammer, Network, Package, Search, Settings2, Terminal, X } from 'lucide-react'
 import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import { commandSignature, isAuditCommand } from '@/lib/codex-session/command-semantics'
 import type { CommandCategory, ParsedCommand, ProcessRun } from '@/lib/codex-session/types'
@@ -52,7 +52,20 @@ function matchesFilter(row: CommandRow, filter: CommandFilter) {
 	return row.command.category === filter
 }
 
-export function CommandsView({ processes, onSelect }: { processes: ProcessRun[]; onSelect: (selection: DetailSelection) => void }) {
+function exportCommands(processes: ProcessRun[], sourceName: string) {
+	const content = [...processes].sort((left, right) => left.sequence - right.sequence).map(process => process.command.trim()).filter(Boolean).join('\n\n')
+	const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
+	const anchor = document.createElement('a')
+	anchor.href = url
+	anchor.download = `${sourceName.replace(/\.jsonl$/i, '') || 'codex-session'}.commands.txt`
+	anchor.hidden = true
+	document.body.append(anchor)
+	anchor.click()
+	anchor.remove()
+	window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+export function CommandsView({ processes, sourceName, onSelect }: { processes: ProcessRun[]; sourceName: string; onSelect: (selection: DetailSelection) => void }) {
 	const [query, setQuery] = useState('')
 	const [filter, setFilter] = useState<CommandFilter>('all')
 	const [signatureFilter, setSignatureFilter] = useState('')
@@ -116,6 +129,9 @@ export function CommandsView({ processes, onSelect }: { processes: ProcessRun[];
 					{query && <button type='button' onClick={() => setQuery('')} aria-label='清除命令搜索' className='text-secondary hover:text-primary'><X size={14} /></button>}
 				</label>
 				<SelectMenu value={filter} options={COMMAND_FILTER_OPTIONS} onChange={setFilter} ariaLabel='筛选命令' className='min-w-40' />
+				<button type='button' disabled={!processes.length} onClick={() => exportCommands(processes, sourceName)} title='按执行顺序导出整个 Session 的原始命令，不受当前筛选影响' className='hover:border-brand/45 hover:text-brand flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-border bg-background/25 px-3 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40'>
+					<Download size={14} />导出全部命令
+				</button>
 			</div>
 			<p className='text-secondary mb-3 text-[11px]'>当前显示 <span className='font-semibold text-primary'>{formatNumber(items.length)}</span> 条关键命令，来自 <span className='font-semibold text-primary'>{formatNumber(visibleProcesses)}</span> 个{visibleBatchLabel}</p>
 

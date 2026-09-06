@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { GripVertical } from 'lucide-react'
 
 export type TimelineRange = [number, number]
-export type TimelineBrushSegment = { id: string; x: number; width: number; y?: number; height?: number; color: string; opacity?: number }
+export type TimelineBrushSegment = { id: string; x: number; width: number; y?: number; height?: number; color: string; opacity?: number; startDivider?: boolean }
 
 type DragMode = 'move' | 'start' | 'end'
 
@@ -80,7 +80,14 @@ export function TimelineBrush({ totalWidth, range, segments, onChange, onCommit,
 	return <div className={embedded ? undefined : 'border-t border-border px-3 py-3'}>
 		<div className={`${embedded ? 'h-12' : 'h-11'} relative touch-none select-none rounded-md border border-border bg-foreground/[0.018]`} onPointerDown={jump} onPointerMove={move} onPointerUp={finish} onPointerCancel={cancel}>
 			<svg viewBox={`0 0 ${Math.max(totalWidth, 1)} 36`} width='100%' height='100%' preserveAspectRatio='none' className='pointer-events-none absolute inset-0'>
-				{segments.map(segment => <rect key={segment.id} x={segment.x} y={segment.y ?? 8} width={Math.max(segment.width, 1)} height={segment.height ?? 20} fill={segment.color} fillOpacity={segment.opacity ?? 0.55} />)}
+				{segments.map(segment => {
+					const y = segment.y ?? 8
+					const height = segment.height ?? 20
+					return <g key={segment.id}>
+						<rect x={segment.x} y={y} width={Math.max(segment.width, 1)} height={height} fill={segment.color} fillOpacity={segment.opacity ?? 0.55} />
+						{segment.startDivider && <line x1={segment.x} x2={segment.x} y1={y} y2={y + height} stroke='var(--color-border)' strokeWidth={1} strokeOpacity={0.9} vectorEffect='non-scaling-stroke' />}
+					</g>
+				})}
 			</svg>
 			<div className='pointer-events-none absolute inset-y-0 left-0 bg-background/65' style={{ width: `${range[0] * 100}%` }} />
 			<div className='pointer-events-none absolute inset-y-0 right-0 bg-background/65' style={{ width: `${(1 - range[1]) * 100}%` }} />

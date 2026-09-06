@@ -59,7 +59,7 @@ export function SessionDetail({ result, file, onExit, onFile, backToTimeline }: 
 			<div className={selection ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.62fr)] lg:items-start lg:gap-5' : undefined}>
 				<section className='mt-5 min-w-0'>
 					{tab === 'activity' && <ActivityView activity={result.activity} onSelect={setSelection} />}
-					{tab === 'commands' && <CommandsView processes={result.processes} onSelect={setSelection} />}
+					{tab === 'commands' && <CommandsView processes={result.processes} sourceName={result.source.name} onSelect={setSelection} />}
 					{tab === 'files' && <FilesView audit={result.fileAudit} onSelect={setSelection} />}
 					{tab === 'token' && <TokenView usage={result.tokenUsage} performance={summarizePerformance(result.performance.turns)} onSelect={setSelection} />}
 					{compressionOpened && <div className={tab === 'compress' ? undefined : 'hidden'}><CompressionView file={file} /></div>}
