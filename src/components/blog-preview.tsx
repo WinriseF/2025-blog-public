@@ -8,6 +8,9 @@ import { useCodeBlockContainment } from '@/hooks/use-code-block-containment'
 import { useSize } from '@/hooks/use-size'
 import { BlogSidebar } from '@/components/blog-sidebar'
 import { ReadingProgressBar } from '@/components/reading-progress-bar'
+import dynamic from 'next/dynamic'
+
+const EnglishReadingBody = dynamic(() => import('@/components/english-reading/reader'))
 
 type BlogPreviewProps = {
 	markdown: string
@@ -18,11 +21,12 @@ type BlogPreviewProps = {
 	cover?: string
 	slug?: string
 	audioUrl?: string
+	enableTranslation?: boolean
 }
 
-export function BlogPreview({ markdown, title, tags, date, summary, cover, slug, audioUrl }: BlogPreviewProps) {
+export function BlogPreview({ markdown, title, tags, date, summary, cover, slug, audioUrl, enableTranslation = false }: BlogPreviewProps) {
 	const { maxSM: isMobile } = useSize()
-	const { content, toc, loading } = useMarkdownRender(markdown)
+	const { content, toc, loading } = useMarkdownRender(markdown, { readingText: enableTranslation })
 	const contentRef = useRef<HTMLDivElement>(null)
 	const articleRef = useRef<HTMLElement>(null)
 	const copyTimersRef = useRef(new Map<HTMLButtonElement, number>())
@@ -100,7 +104,7 @@ export function BlogPreview({ markdown, title, tags, date, summary, cover, slug,
 								className={`mx-auto mt-4 h-10 w-full max-w-md ${readyAudioUrl === audioUrl ? 'block' : 'hidden'}`}
 							/>
 						)}
-						<div className='prose mt-6 max-w-none cursor-text'>{content}</div>
+						{enableTranslation ? <EnglishReadingBody key={slug} title={title}>{content}</EnglishReadingBody> : <div className='prose mt-6 max-w-none cursor-text'>{content}</div>}
 					</div>
 				</motion.article>
 

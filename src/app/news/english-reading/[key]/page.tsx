@@ -33,6 +33,7 @@ export default async function EnglishReadingDetailPage({ params }: EnglishReadin
 	return (
 		<>
 			<BlogPreview
+				enableTranslation
 				markdown={article.markdown}
 				title={article.title}
 				tags={['英语', '精读', '听读']}

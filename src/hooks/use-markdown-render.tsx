@@ -4,6 +4,7 @@ import type { MarkdownRenderResult as RawMarkdownRenderResult, TocItem } from '@
 import { MarkdownImage } from '@/components/markdown-image'
 import { CodeBlock } from '@/components/code-block'
 import { MermaidDiagram } from '@/components/mermaid-diagram'
+import { parseReadingHtml } from '@/lib/reading-translation/reading-html'
 
 type MarkdownRenderResult = {
 	content: ReactElement | null
@@ -13,6 +14,7 @@ type MarkdownRenderResult = {
 
 type MarkdownRenderOptions = {
 	worker?: boolean
+	readingText?: boolean
 }
 
 type WorkerResponse =
@@ -87,6 +89,7 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 	const workerRef = useRef<Worker | null>(null)
 	const requestIdRef = useRef(0)
 	const useWorker = options?.worker !== false
+	const readingText = options?.readingText === true
 	const canUseWorker = useMemo(() => useWorker && typeof window !== 'undefined' && typeof Worker !== 'undefined', [useWorker])
 
 	useEffect(() => {
@@ -99,7 +102,7 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 				const { renderMarkdown } = await import('@/lib/markdown-renderer')
 				const { html, toc } = await renderMarkdown(markdown)
 				if (!cancelled) {
-					const reactContent = parseMarkdownHtml(html)
+					const reactContent = readingText ? parseReadingHtml(html) : parseMarkdownHtml(html)
 					setContent(reactContent)
 					setToc(toc)
 				}
@@ -128,7 +131,7 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 
 					if (event.data.type === 'SUCCESS') {
 						const { html, toc } = event.data.payload
-						setContent(parseMarkdownHtml(html))
+						setContent(readingText ? parseReadingHtml(html) : parseMarkdownHtml(html))
 						setToc(toc)
 						setLoading(false)
 						return
@@ -163,7 +166,7 @@ export function useMarkdownRender(markdown: string, options?: MarkdownRenderOpti
 			workerRef.current?.terminate()
 			workerRef.current = null
 		}
-	}, [canUseWorker, markdown])
+	}, [canUseWorker, markdown, readingText])
 
 	return { content, toc, loading }
 }

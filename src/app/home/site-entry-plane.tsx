@@ -11,11 +11,6 @@ interface Tile {
 	entry: SiteEntry
 	x: number
 	y: number
-	rotateX: number
-	rotateY: number
-	scale: number
-	opacity: number
-	zIndex: number
 }
 
 const CARD_TINTS = [
@@ -151,16 +146,15 @@ const SiteLogo = memo(function SiteLogo({ url }: { url: string }) {
 	return <OptimizedImage src={src} alt='' width={38} height={38} draggable={false} referrerPolicy='no-referrer' className='rounded-lg max-sm:h-8 max-sm:w-8' />
 })
 
-export default function SiteEntrySphere() {
+export default function SiteEntryPlane() {
 	const { maxSM, init } = useSize()
 	const entries = siteEntries
-	const [mounted, setMounted] = useState(false)
+	const [viewport, setViewport] = useState({ width: 0, height: 0 })
 	const [renderOffset, setRenderOffset] = useState({ x: 0, y: 0 })
 	const offsetRef = useRef({ x: 0, y: 0 })
 	const velocityRef = useRef({ x: 0, y: 0 })
 	const dragRef = useRef({
 		active: false,
-		moved: false,
 		targetUrl: '',
 		startX: 0,
 		startY: 0,
@@ -173,7 +167,10 @@ export default function SiteEntrySphere() {
 	const renderFrameRef = useRef<number | null>(null)
 
 	useEffect(() => {
-		setMounted(true)
+		const syncViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight })
+		syncViewport()
+		window.addEventListener('resize', syncViewport)
+		return () => window.removeEventListener('resize', syncViewport)
 	}, [])
 
 	const queueRender = useCallback(() => {
@@ -230,54 +227,40 @@ export default function SiteEntrySphere() {
 	const geometry = useMemo(() => {
 		const mobile = maxSM && init
 		return {
-			cols: mobile ? 8 : 14,
-			rows: mobile ? 12 : 10,
 			tileWidth: mobile ? 220 : 318,
 			tileHeight: mobile ? 138 : 186,
 			colStep: mobile ? 226 : 324,
-			rowStep: mobile ? 144 : 192,
-			radius: mobile ? 1320 : 1960
+			rowStep: mobile ? 144 : 192
 		}
 	}, [maxSM, init])
 
 	const tiles = useMemo<Tile[]>(() => {
-		if (!mounted) return []
+		if (!viewport.width || !viewport.height) return []
 
 		const tiles: Tile[] = []
 		const centerWorldCol = Math.floor(renderOffset.x / geometry.colStep)
 		const centerWorldRow = Math.floor(renderOffset.y / geometry.rowStep)
-		const halfCols = Math.ceil(geometry.cols / 2)
-		const halfRows = Math.ceil(geometry.rows / 2)
+		const halfCols = Math.ceil(viewport.width / geometry.colStep / 2) + 1
+		const halfRows = Math.ceil(viewport.height / geometry.rowStep / 2) + 1
 
 		for (let worldRow = centerWorldRow - halfRows; worldRow <= centerWorldRow + halfRows; worldRow++) {
 			for (let worldCol = centerWorldCol - halfCols; worldCol <= centerWorldCol + halfCols; worldCol++) {
 				const stagger = worldRow % 2 === 0 ? 0 : geometry.colStep / 2
 				const localX = worldCol * geometry.colStep + stagger - renderOffset.x
 				const localY = worldRow * geometry.rowStep - renderOffset.y
-				const theta = localX / geometry.radius
-				const phi = localY / geometry.radius
-				const z = Math.cos(theta) * Math.cos(phi)
 				const entryIndex = positiveModulo(worldRow * 7 + worldCol * 5, entries.length)
-				const edgeFalloff = clamp((z - 0.74) / 0.24, 0, 1)
-
-				if (edgeFalloff <= 0.02) continue
 
 				tiles.push({
 					key: `${worldRow}-${worldCol}`,
 					entry: entries[entryIndex],
-					x: Math.sin(theta) * geometry.radius,
-					y: Math.sin(phi) * geometry.radius,
-					rotateX: -phi * 54,
-					rotateY: theta * 58,
-					scale: 0.82 + z * 0.16,
-					opacity: 0.2 + edgeFalloff * 0.8,
-					zIndex: Math.round(z * 1000)
+					x: localX,
+					y: localY
 				})
 			}
 		}
 
-		return tiles.sort((a, b) => a.zIndex - b.zIndex)
-	}, [entries, geometry, mounted, renderOffset])
+		return tiles
+	}, [entries, geometry, renderOffset, viewport])
 
 	const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
 		stopInertia()
@@ -287,7 +270,6 @@ export default function SiteEntrySphere() {
 
 		dragRef.current = {
 			active: true,
-			moved: false,
 			targetUrl: tileElement?.dataset.entryUrl || '',
 			startX: event.clientX,
 			startY: event.clientY,
@@ -318,9 +300,6 @@ export default function SiteEntrySphere() {
 		}
 		queueRender()
 
-		const totalDx = event.clientX - drag.startX
-		const totalDy = event.clientY - drag.startY
-		if (Math.hypot(totalDx, totalDy) > CLICK_DRAG_THRESHOLD) drag.moved = true
 		drag.x = event.clientX
 		drag.y = event.clientY
 		drag.lastTime = now
@@ -343,16 +322,14 @@ export default function SiteEntrySphere() {
 		<div className='relative h-dvh w-full overflow-hidden'>
 			<div
 				ref={surfaceRef}
-				className='site-entry-sphere relative h-full w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing'
+				className='site-entry-plane relative h-full w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing'
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerEnd}
 				onPointerCancel={handlePointerEnd}>
-				<div className='pointer-events-none absolute inset-0 bg-white/8 shadow-[inset_0_0_120px_rgba(255,255,255,0.16)]' />
-				<div className='pointer-events-none absolute inset-x-[-10%] top-[5%] h-[90%] rounded-[50%] border-y border-white/35' />
-				<div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,transparent_64%,rgba(255,255,255,0.34)_100%)]' />
+				<div className='pointer-events-none absolute inset-0 bg-white/8' />
 
-				<div className='absolute inset-0 [perspective:1100px]'>
+				<div className='absolute inset-0'>
 					{tiles.map(tile => {
 						const { origin, tint } = getEntryVisual(tile.entry)
 
@@ -373,11 +350,7 @@ export default function SiteEntrySphere() {
 									top: `calc(50% + ${tile.y}px)`,
 									width: geometry.tileWidth,
 									height: geometry.tileHeight,
-									zIndex: tile.zIndex,
-									opacity: tile.opacity,
-									transform: `translate(-50%, -50%) rotateX(${tile.rotateX}deg) rotateY(${tile.rotateY}deg) scale(${tile.scale})`,
-									transformStyle: 'preserve-3d',
-									backfaceVisibility: 'hidden',
+									transform: 'translate(-50%, -50%)',
 									contain: 'layout paint style'
 								}}>
 								<div

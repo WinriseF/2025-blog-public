@@ -366,7 +366,7 @@ html.time-theme-transitioning::view-transition-new(root) {
 	}
 }
 
-.site-entry-sphere[data-moving='true'] .site-entry-tile {
+.site-entry-plane[data-moving='true'] .site-entry-tile {
 	will-change: transform;
 }
 

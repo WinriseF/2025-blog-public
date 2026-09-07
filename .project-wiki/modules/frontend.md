@@ -17,6 +17,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/config/site-content.json` | Site content plus the configured deployment-switcher targets. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
 | `src/app/(home)/` | Card homepage and configuration store. |
+| `src/app/home/` | Flat, draggable site-entry plane. |
 | `src/app/calendar/` | Calendar state, data, grid, day panel, term track. |
 | `src/app/world-clock/` | Interactive Earth, location time readings, annual solar track, and responsive scene layout. |
 
@@ -35,6 +36,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 - Keep global click feedback capped, theme-aware, disabled for reduced motion, and inactive on game/world-clock or covered full-screen workbenches.
 - Keep game/world-clock exceptions: hidden or covered Canvas/WebGL work must stop/release resources.
 - Homepage card layout comes from JSON; do not introduce a browser editor by accident.
+- `/home` lays its repeating site-entry cards on a flat, staggered plane; keep drag inertia and keyboard activation when changing the presentation.
 - Preserve compact navigation touch behavior and reduced-motion behavior.
 - The homepage quick-controls card must not add an idle animation loop; it marks the active deployment by matching `window.location.hostname` against the configured URLs.
 - Blog-reading performance rules belong in [content](./content.md).
