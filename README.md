@@ -35,6 +35,7 @@ ENABLE_EXPERIMENTAL_COREPACK=1
 - [ARCHITECTURE.md](./ARCHITECTURE.md)：短架构入口和维护导航。
 - [`.project-wiki/INDEX.md`](./.project-wiki/INDEX.md)：项目文档路由入口。
 - [`.project-wiki/modules/`](./.project-wiki/modules/)：八个按实现边界拆分的维护模块文档。
+- [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)：运行时 CDN 组件、固定版本及许可证说明。
 
 ## Content
 

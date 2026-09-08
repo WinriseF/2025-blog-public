@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { FileVideo, Image as ImageIcon } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
-import { ImageCompressPanel } from '../compress-tool'
+import { ImageCompressPanel } from './image-compress-panel'
 import { VideoCompressPanel } from './video-compress-panel'
 
 type CompressMode = 'image' | 'video'
@@ -50,4 +50,3 @@ export function MediaCompressTool() {
 		</div>
 	)
 }
-
