@@ -5,6 +5,7 @@ type AnimationLoopFrame = {
 }
 
 type AnimationLoopOptions = {
+	active?: () => boolean
 	element?: Element | null
 	maxDeltaMs?: number
 	targetFps?: number | (() => number)
@@ -12,15 +13,17 @@ type AnimationLoopOptions = {
 
 type AnimationLoop = {
 	destroy: () => void
+	wake: () => void
 }
 
 /**
- * Runs a visual frame loop only while its page and optional target are visible.
+ * Runs a visual frame loop only while its page, optional target, and active predicate are visible.
  * Pauses reset frame timing so returning to a tab never produces a giant delta.
+ * On-demand callers can wake a stopped loop after making the active predicate true.
  */
 export function startAnimationLoop(
 	draw: (frame: AnimationLoopFrame) => void,
-	{ element, maxDeltaMs = 100, targetFps }: AnimationLoopOptions = {}
+	{ active, element, maxDeltaMs = 100, targetFps }: AnimationLoopOptions = {}
 ): AnimationLoop {
 	const getFrameInterval = () => {
 		const fps = typeof targetFps === 'function' ? targetFps() : targetFps
@@ -34,14 +37,15 @@ export function startAnimationLoop(
 	let destroyed = false
 
 	const canRun = () => !destroyed && !document.hidden && inViewport
+	const isActive = () => active?.() ?? true
 
 	const requestFrame = () => {
 		wakeTimer = 0
-		if (!animationFrame && canRun()) animationFrame = window.requestAnimationFrame(tick)
+		if (!animationFrame && canRun() && isActive()) animationFrame = window.requestAnimationFrame(tick)
 	}
 
 	const schedule = () => {
-		if (animationFrame || wakeTimer || !canRun()) return
+		if (animationFrame || wakeTimer || !canRun() || !isActive()) return
 		const frameInterval = getFrameInterval()
 		if (!frameInterval || !lastTimestamp) {
 			requestFrame()
@@ -55,7 +59,7 @@ export function startAnimationLoop(
 
 	const tick = (timestamp: number) => {
 		animationFrame = 0
-		if (!canRun()) return
+		if (!canRun() || !isActive()) return
 
 		const frameInterval = getFrameInterval()
 		const fallbackDelta = frameInterval || 1000 / 60
@@ -100,6 +104,11 @@ export function startAnimationLoop(
 	schedule()
 
 	return {
+		wake() {
+			if (!canRun() || !isActive() || animationFrame || wakeTimer) return
+			lastTimestamp = 0
+			requestFrame()
+		},
 		destroy() {
 			destroyed = true
 			if (animationFrame) window.cancelAnimationFrame(animationFrame)

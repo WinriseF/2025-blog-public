@@ -260,6 +260,20 @@ html.time-theme-transitioning::view-transition-new(root) {
 	backdrop-filter: blur(4px);
 }
 
+.core-card .animate-pulse {
+	animation-play-state: paused;
+}
+
+.core-card .group\/core:hover .animate-pulse {
+	animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.core-card .animate-pulse {
+		animation: none;
+	}
+}
+
 @utility text-linear {
 	background: linear-gradient(to right bottom, #0003 0%, #aaa1), linear-gradient(to right bottom, var(--color-brand) 40%, var(--color-brand-secondary));
 	-webkit-background-clip: text;

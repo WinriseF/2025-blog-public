@@ -34,7 +34,7 @@ export default function HiCard() {
 			height={styles.height}
 			x={x}
 			y={y}
-			className='relative overflow-hidden border-[#7fdcff]/34! bg-[#061722]/80! p-0 text-center text-white shadow-[0_34px_78px_-28px_rgba(76,231,255,0.62),inset_0_1px_0_rgba(255,255,255,0.14)] max-sm:static max-sm:translate-0'>
+			className='core-card relative overflow-hidden border-[#7fdcff]/34! bg-[#061722]/80! p-0 text-center text-white shadow-[0_34px_78px_-28px_rgba(76,231,255,0.62),inset_0_1px_0_rgba(255,255,255,0.14)] max-sm:static max-sm:translate-0'>
 			<AnimatedCore className='absolute inset-0 h-full w-full rounded-[40px]' />
 			<div className='pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,transparent_0%,rgba(6,23,34,0.04)_34%,rgba(6,23,34,0.46)_78%),linear-gradient(180deg,rgba(2,10,18,0.1),rgba(2,10,18,0.18)_54%,rgba(2,10,18,0.72))]' />
 			<div className='pointer-events-none absolute inset-x-8 top-4 h-px bg-linear-to-r from-transparent via-white/32 to-transparent' />

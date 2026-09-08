@@ -16,7 +16,7 @@ type Glow = {
 	x: number
 	y: number
 	r: number
-	color: string
+	texture: HTMLCanvasElement
 	vx: number
 	vy: number
 	phase: number
@@ -48,6 +48,19 @@ function makeBackground(colors: string[]) {
 		`radial-gradient(circle at 82% 18%, ${hexToRgba(third, 0.74)} 0, transparent 32%)`,
 		`linear-gradient(145deg, ${first} 0%, ${second} 48%, ${third} 100%)`
 	].join(', ')
+}
+
+function createGlowTexture(color: string, alpha: number) {
+	const texture = document.createElement('canvas')
+	texture.width = texture.height = 512
+	const ctx = texture.getContext('2d')!
+	const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256)
+	gradient.addColorStop(0, hexToRgba(color, alpha))
+	gradient.addColorStop(0.42, hexToRgba(color, alpha * 0.46))
+	gradient.addColorStop(1, hexToRgba(color, 0))
+	ctx.fillStyle = gradient
+	ctx.fillRect(0, 0, 512, 512)
+	return texture
 }
 
 function useReducedMotion() {
@@ -94,19 +107,18 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 		let glows: Glow[] = []
 		let stars: Star[] = []
 
-		const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 640 ? 1.25 : 1.75)
 		const targetFps = reducedMotion ? 1 : Math.max(1, atmosphere.targetFps)
 		const mobile = window.innerWidth < 640
 		const glowCount = reducedMotion ? Math.min(3, atmosphere.bubbleCount) : mobile ? Math.min(4, atmosphere.bubbleCount) : atmosphere.bubbleCount
 		const starCount = theme.name === 'night' ? (mobile ? 36 : 72) : 0
+		const glowTextures = atmosphere.glows.map(color => createGlowTexture(color, atmosphere.glowOpacity))
 
 		function resizeCanvas() {
 			width = canvas.clientWidth
 			height = canvas.clientHeight
-			canvas.width = Math.max(1, Math.floor(width * dpr))
-			canvas.height = Math.max(1, Math.floor(height * dpr))
+			canvas.width = Math.max(1, Math.floor(width))
+			canvas.height = Math.max(1, Math.floor(height))
 			ctx.setTransform(1, 0, 0, 1, 0, 0)
-			ctx.scale(dpr, dpr)
 		}
 
 		function createGlows() {
@@ -117,7 +129,7 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 					x: rand(-r * 0.3, width + r * 0.3),
 					y: rand(yMin - r * 0.25, height + r * 0.35),
 					r,
-					color: atmosphere.glows[index % atmosphere.glows.length],
+					texture: glowTextures[index % glowTextures.length],
 					vx: rand(-atmosphere.speed, atmosphere.speed),
 					vy: rand(-atmosphere.speed * 0.55, atmosphere.speed * 0.55),
 					phase: rand(0, Math.PI * 2),
@@ -154,15 +166,7 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 			for (const glow of glows) {
 				const pulse = reducedMotion ? 1 : 1 + Math.sin(t * 0.00035 + glow.phase) * glow.pulse
 				const radius = glow.r * pulse
-				const gradient = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, radius)
-				const alpha = atmosphere.glowOpacity
-				gradient.addColorStop(0, hexToRgba(glow.color, alpha))
-				gradient.addColorStop(0.42, hexToRgba(glow.color, alpha * 0.46))
-				gradient.addColorStop(1, hexToRgba(glow.color, 0))
-				ctx.fillStyle = gradient
-				ctx.beginPath()
-				ctx.arc(glow.x, glow.y, radius, 0, Math.PI * 2)
-				ctx.fill()
+				ctx.drawImage(glow.texture, glow.x - radius, glow.y - radius, radius * 2, radius * 2)
 			}
 			ctx.globalCompositeOperation = 'source-over'
 		}
@@ -218,6 +222,9 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 			animationLoop?.destroy()
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeObserver.disconnect()
+			glowTextures.forEach(texture => {
+				texture.width = texture.height = 1
+			})
 			canvas.width = 1
 			canvas.height = 1
 		}

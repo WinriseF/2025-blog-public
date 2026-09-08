@@ -292,6 +292,7 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				camera.updateProjectionMatrix()
 				renderer.setSize(width, height, false)
 				pointerBoundsRef.current = container.parentElement?.getBoundingClientRect() ?? null
+				renderer.render(scene, camera)
 			}
 			const resizeObserver = new ResizeObserver(resize)
 			resizeObserver.observe(container)

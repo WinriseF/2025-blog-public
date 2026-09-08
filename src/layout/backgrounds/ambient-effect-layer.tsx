@@ -1,27 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { TimeThemeName } from '@/lib/time-theme'
 import { startAnimationLoop } from '@/lib/animation-loop'
 import { rand } from './utils'
-import { useMusicPlayer } from '@/components/music-player'
-import { ambientMusic } from '@/app/music/list'
 
-export type AmbientEffectName = 'none' | 'rain' | 'meteor'
+type AmbientEffectName = 'none' | 'meteor'
 
 type AmbientEffectLayerProps = {
 	themeName: TimeThemeName
 	visualsEnabled?: boolean
-}
-
-type RainDrop = {
-	x: number
-	y: number
-	length: number
-	speed: number
-	wind: number
-	alpha: number
-	width: number
 }
 
 type Meteor = {
@@ -54,103 +42,30 @@ function useReducedMotion() {
 function pickAmbientEffect(themeName: TimeThemeName): AmbientEffectName {
 	const params = new URLSearchParams(window.location.search)
 	const override = params.get('effect') || params.get('ambient')
-	if (override === 'rain' || override === 'meteor' || override === 'none') return override
-
-	const score = Math.random()
-	if (themeName === 'night') {
-		if (score < 0.44) return 'meteor'
-		if (score < 0.52) return 'rain'
-		return 'none'
-	}
-
-	return score < 0.14 ? 'rain' : 'none'
+	if (override === 'meteor' || override === 'none') return override
+	return themeName === 'night' && Math.random() < 0.44 ? 'meteor' : 'none'
 }
 
 function setupCanvas(canvas: HTMLCanvasElement) {
 	const ctx = canvas.getContext('2d')
 	if (!ctx) return null
 
-	const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 640 ? 1.25 : 1.75)
 	const resize = () => {
+		const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 640 ? 1.25 : 1.75)
 		const width = canvas.clientWidth
 		const height = canvas.clientHeight
 		canvas.width = Math.max(1, Math.floor(width * dpr))
 		canvas.height = Math.max(1, Math.floor(height * dpr))
-		ctx.setTransform(1, 0, 0, 1, 0, 0)
-		ctx.scale(dpr, dpr)
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 		return { width, height }
 	}
 
 	return { ctx, resize }
 }
 
-function createRainDrops(count: number, width: number, height: number, themeName: TimeThemeName): RainDrop[] {
-	const night = themeName === 'night'
-	return Array.from({ length: count }, () => ({
-		x: rand(-width * 0.15, width * 1.1),
-		y: rand(-height, height),
-		length: rand(night ? 26 : 42, night ? 58 : 86),
-		speed: rand(night ? 620 : 720, night ? 940 : 1120),
-		wind: rand(night ? -120 : -160, night ? -40 : -70),
-		alpha: rand(night ? 0.34 : 0.42, night ? 0.62 : 0.72),
-		width: rand(night ? 0.9 : 1.15, night ? 1.65 : 2.35)
-	}))
-}
-
-function resetRainDrop(drop: RainDrop, width: number, height: number, themeName: TimeThemeName) {
-	const night = themeName === 'night'
-	drop.x = rand(-width * 0.12, width * 1.12)
-	drop.y = rand(-height * 0.28, -20)
-	drop.length = rand(night ? 26 : 42, night ? 58 : 86)
-	drop.speed = rand(night ? 620 : 720, night ? 940 : 1120)
-	drop.wind = rand(night ? -120 : -160, night ? -40 : -70)
-	drop.alpha = rand(night ? 0.34 : 0.42, night ? 0.62 : 0.72)
-	drop.width = rand(night ? 0.9 : 1.15, night ? 1.65 : 2.35)
-}
-
-function drawRain(ctx: CanvasRenderingContext2D, drops: RainDrop[], width: number, height: number, deltaSeconds: number, themeName: TimeThemeName) {
-	ctx.clearRect(0, 0, width, height)
-	ctx.save()
-	ctx.lineCap = 'round'
-	const rainColor = themeName === 'night' ? 'rgba(205, 235, 255, 0.95)' : 'rgba(55, 158, 166, 0.86)'
-	const rainHighlight = themeName === 'night' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(228, 255, 252, 0.58)'
-
-	for (const drop of drops) {
-		drop.x += drop.wind * deltaSeconds
-		drop.y += drop.speed * deltaSeconds
-
-		if (drop.y > height + drop.length || drop.x < -width * 0.2) {
-			resetRainDrop(drop, width, height, themeName)
-		}
-
-		const slant = drop.wind * 0.055
-		ctx.globalAlpha = drop.alpha
-		ctx.strokeStyle = rainColor
-		ctx.lineWidth = drop.width
-		ctx.beginPath()
-		ctx.moveTo(drop.x, drop.y)
-		ctx.lineTo(drop.x + slant, drop.y + drop.length)
-		ctx.stroke()
-
-		ctx.globalAlpha = drop.alpha * 0.46
-		ctx.strokeStyle = rainHighlight
-		ctx.lineWidth = Math.max(0.45, drop.width * 0.38)
-		ctx.beginPath()
-		ctx.moveTo(drop.x - 0.8, drop.y + drop.length * 0.18)
-		ctx.lineTo(drop.x + slant - 0.8, drop.y + drop.length)
-		ctx.stroke()
-	}
-
-	ctx.restore()
-}
-
-function maybeSpawnMeteor(meteors: Meteor[], width: number, mobile: boolean) {
-	const maxMeteors = mobile ? 3 : 6
-	if (meteors.length >= maxMeteors) return
-	if (Math.random() > (mobile ? 0.018 : 0.03)) return
-
+function createMeteor(width: number, mobile: boolean): Meteor {
 	const speed = rand(mobile ? 540 : 660, mobile ? 820 : 1040)
-	meteors.push({
+	return {
 		x: rand(width * 0.1, width * 1.05),
 		y: rand(-60, 120),
 		vx: -speed,
@@ -160,12 +75,18 @@ function maybeSpawnMeteor(meteors: Meteor[], width: number, mobile: boolean) {
 		life: rand(1.1, 1.8),
 		alpha: rand(0.55, 0.9),
 		width: rand(1.1, 1.8)
-	})
+	}
 }
 
-function drawMeteors(ctx: CanvasRenderingContext2D, meteors: Meteor[], width: number, height: number, deltaSeconds: number, mobile: boolean) {
+function getMeteorSpawnDelay(mobile: boolean) {
+	const framesPerSecond = mobile ? 24 : 30
+	const chancePerFrame = mobile ? 0.018 : 0.03
+	const eventsPerSecond = -Math.log(1 - chancePerFrame) * framesPerSecond
+	return (-Math.log(1 - Math.random()) / eventsPerSecond) * 1000
+}
+
+function drawMeteors(ctx: CanvasRenderingContext2D, meteors: Meteor[], width: number, height: number, deltaSeconds: number) {
 	ctx.clearRect(0, 0, width, height)
-	maybeSpawnMeteor(meteors, width, mobile)
 
 	ctx.save()
 	ctx.globalCompositeOperation = 'screen'
@@ -208,40 +129,17 @@ function drawMeteors(ctx: CanvasRenderingContext2D, meteors: Meteor[], width: nu
 	ctx.restore()
 }
 
-function getRainBackdropStyle(active: boolean): CSSProperties {
-	return {
-		opacity: active ? 1 : 0,
-		background: 'transparent',
-		backdropFilter: 'none',
-		transition: 'opacity 900ms ease'
-	}
-}
-
 export default function AmbientEffectLayer({ themeName, visualsEnabled = true }: AmbientEffectLayerProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
 	const [effect, setEffect] = useState<AmbientEffectName>('none')
-	const [effectReady, setEffectReady] = useState(false)
-	const { playMusic } = useMusicPlayer()
 	const visualEffect = reducedMotion ? 'none' : effect
-	const rainSelected = visualEffect === 'rain'
-	const rainActive = rainSelected && effectReady
 
 	useEffect(() => {
 		setEffect(pickAmbientEffect(themeName))
 	}, [themeName])
 
 	useEffect(() => {
-		if (!rainSelected) return
-		void playMusic(ambientMusic.rain, {
-			loop: true,
-			showPlayer: true,
-			autoPlay: false
-		})
-	}, [playMusic, rainSelected])
-
-	useEffect(() => {
-		setEffectReady(false)
 		if (visualEffect === 'none' || !visualsEnabled) return
 
 		const canvas = canvasRef.current
@@ -253,37 +151,16 @@ export default function AmbientEffectLayer({ themeName, visualsEnabled = true }:
 
 		let { width, height } = resize()
 		const mobile = window.innerWidth < 640
-		const targetFps = visualEffect === 'rain' ? (mobile ? 24 : 30) : mobile ? 24 : 30
-		const frameInterval = 1000 / targetFps
-		let rainDrops = visualEffect === 'rain' ? createRainDrops(mobile ? 72 : 148, width, height, themeName) : []
+		const targetFps = mobile ? 24 : 30
 		const meteors: Meteor[] = []
 		let resizeTimer: number | null = null
+		let meteorTimer: number | null = null
 
 		function prepareFrame() {
 			const size = resize()
 			width = size.width
 			height = size.height
-			if (width <= 1 || height <= 1) return false
-
-			if (visualEffect === 'rain') {
-				rainDrops = createRainDrops(mobile ? 72 : 148, width, height, themeName)
-				drawRain(ctx, rainDrops, width, height, frameInterval / 1000, themeName)
-			} else {
-				meteors.splice(0)
-				drawMeteors(ctx, meteors, width, height, frameInterval / 1000, mobile)
-			}
-
-			setEffectReady(true)
-			return true
-		}
-
-		function draw(deltaMs: number) {
-			const deltaSeconds = deltaMs / 1000
-			if (visualEffect === 'rain') {
-				drawRain(ctx, rainDrops, width, height, deltaSeconds, themeName)
-			} else {
-				drawMeteors(ctx, meteors, width, height, deltaSeconds, mobile)
-			}
+			meteors.length = 0
 		}
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -296,29 +173,39 @@ export default function AmbientEffectLayer({ themeName, visualsEnabled = true }:
 
 		resizeObserver.observe(canvas)
 		prepareFrame()
-		const animationLoop = startAnimationLoop(({ deltaMs }) => draw(deltaMs), {
+		const animationLoop = startAnimationLoop(({ deltaMs }) => drawMeteors(ctx, meteors, width, height, deltaMs / 1000), {
+			active: () => meteors.length > 0,
 			element: canvas,
 			maxDeltaMs: 80,
 			targetFps
 		})
 
+		function scheduleMeteor() {
+			meteorTimer = window.setTimeout(() => {
+				if (!document.hidden && meteors.length < (mobile ? 3 : 6)) {
+					meteors.push(createMeteor(width, mobile))
+					animationLoop.wake()
+				}
+				scheduleMeteor()
+			}, getMeteorSpawnDelay(mobile))
+		}
+
+		scheduleMeteor()
+
 		return () => {
 			animationLoop.destroy()
+			if (meteorTimer !== null) window.clearTimeout(meteorTimer)
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
 			resizeObserver.disconnect()
 			ctx.clearRect(0, 0, width, height)
 			canvas.width = 1
 			canvas.height = 1
-			setEffectReady(false)
 		}
 	}, [themeName, visualEffect, visualsEnabled])
 
 	if (visualEffect === 'none' || !visualsEnabled) return null
 
 	return (
-		<>
-			<div className='pointer-events-none absolute inset-0' style={getRainBackdropStyle(rainActive)} />
-			<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} aria-hidden='true' />
-		</>
+		<canvas ref={canvasRef} className='absolute inset-0 h-full w-full' data-ambient-effect={visualEffect} aria-hidden='true' />
 	)
 }
