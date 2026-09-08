@@ -1,0 +1,7 @@
+{
+	"title": "一次 Ubuntu Server 故障排查：Wi-Fi 看似在线却无法 SSH，以及一个吃掉 30GB 内存的 Ruby",
+	"tags": ["Linux", "Docker", "Jekyll", "OOM", "Wi-Fi", "故障排查"],
+	"date": "2026-09-09",
+	"summary": "复盘两起彼此独立的服务器故障：同 SSID 下跨 BSSID 二层通信异常导致 ARP 失败、SSH 超时，以及 Jekyll 容器内 Ruby 长期 regeneration 后触发系统 OOM。",
+	"cover": "/blogs/server-oom-and-network-troubleshooting/cover.png"
+}
