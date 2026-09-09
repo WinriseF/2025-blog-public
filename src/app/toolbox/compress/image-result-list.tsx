@@ -2,13 +2,14 @@ import type { CSSProperties } from 'react'
 import { Ban, Download, Eye, LoaderCircle, Play, Trash2 } from 'lucide-react'
 import { downloadImage } from '@/lib/image-compress/image-archive'
 import type { ImageClass, ImageJobStage } from '@/lib/image-compress/types'
-import { formatImageType, type ImageCompressionItem } from './use-image-compress'
+import type { ImageCompressionItem } from './use-image-compress'
+import { IMAGE_FORMAT_META } from '@/lib/image-compress/sniff'
+import { formatBytes } from './image-format'
 
 const STAGES: Record<ImageJobStage, string> = {
 	validate: '验证格式',
 	metadata: '检查元数据',
 	decode: '解码图片',
-	resize: '高质量缩放',
 	analyze: '分析内容',
 	encode: '编码候选',
 	evaluate: '质量检查'
@@ -23,12 +24,6 @@ const CLASSES: Record<ImageClass, string> = {
 	mixed: '混合内容'
 }
 
-function formatBytes(bytes: number) {
-	if (bytes < 1024) return `${bytes} B`
-	if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
-	return `${(bytes / 1024 ** 2).toFixed(2)} MB`
-}
-
 export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare }: {
 	items: ImageCompressionItem[]
 	onStart: (id: string) => void
@@ -39,7 +34,7 @@ export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare 
 	if (!items.length) return <div className='text-secondary flex min-h-36 items-center justify-center border-t border-border text-sm'>选择图片后将在这里显示任务与压缩结果</div>
 	return (
 		<section className='border-t border-border pt-5'>
-			<div className='mb-2 flex items-center justify-between gap-3'><h2 className='font-semibold text-primary'>图片任务（{items.length}）</h2><span className='text-secondary text-xs'>每张图片独立失败、重试与取消</span></div>
+			<h2 className='mb-2 font-semibold text-primary'>图片任务（{items.length}）</h2>
 			<ul className='divide-y divide-border'>
 				{items.map(item => {
 					const active = item.status === 'queued' || item.status === 'processing'
@@ -49,7 +44,7 @@ export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare 
 							<div className='size-14 overflow-hidden rounded-lg border border-border bg-card max-sm:size-12'><img src={item.previewUrl} alt='' loading='lazy' className='size-full object-cover' /></div>
 							<div className='min-w-0'>
 								<p className='truncate font-medium text-primary' title={item.file.name}>{item.file.name}</p>
-								<p className='text-secondary mt-1 text-xs'>{formatImageType(item.format)} · {item.width && item.height ? `${item.width} × ${item.height} · ` : ''}{formatBytes(item.file.size)}</p>
+								<p className='text-secondary mt-1 text-xs'>{IMAGE_FORMAT_META[item.format].label} · {item.width && item.height ? `${item.width} × ${item.height} · ` : ''}{formatBytes(item.file.size)}</p>
 								{active && <div className='mt-2 max-w-xl'><div className='flex justify-between text-xs text-secondary'><span>{item.status === 'queued' ? '等待处理' : item.stage ? STAGES[item.stage] : '处理中'}</span><span>{Math.round(item.progress * 100)}%</span></div><div className='mt-1.5 h-1.5 overflow-hidden rounded-full bg-border/70'><span className='bg-brand block h-full transition-[width]' style={{ width: `${Math.round(item.progress * 100)}%` }} /></div></div>}
 								{item.result && <div className='mt-2 flex flex-wrap items-center gap-2 text-xs'><span className='text-primary'>{item.result.format.toUpperCase()} · {formatBytes(item.result.outputBytes)}</span><span className='text-secondary'>{CLASSES[item.result.classification]} · {item.result.encoder}</span>{item.result.metrics && <span className='text-secondary'>SSIM {item.result.metrics.ssim.toFixed(4)}</span>}{saving !== null && <span className={`rounded-full px-2 py-0.5 font-medium ${saving >= 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>{saving >= 0 ? `节省 ${saving}%` : `增大 ${Math.abs(saving)}%`}</span>}</div>}
 								{item.result?.warnings.length ? <p className='mt-2 truncate text-xs text-amber-700 dark:text-amber-300' title={item.result.warnings.join('\n')}>{item.result.warnings[0]}{item.result.warnings.length > 1 ? `（另有 ${item.result.warnings.length - 1} 项提示）` : ''}</p> : null}

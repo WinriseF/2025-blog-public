@@ -42,7 +42,7 @@ export function MediaCompressTool() {
 			</div>
 
 			<div className={mode === 'image' ? 'block' : 'hidden'} aria-hidden={mode !== 'image'}>
-				<ImageCompressPanel />
+				<ImageCompressPanel active={mode === 'image'} />
 			</div>
 			<div className={mode === 'video' ? 'block' : 'hidden'} aria-hidden={mode !== 'video'}>
 				<VideoCompressPanel />

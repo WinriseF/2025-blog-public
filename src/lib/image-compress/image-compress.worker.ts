@@ -27,7 +27,7 @@ async function run(request: ImageWorkerRequest) {
 			options: request.options,
 			limits: request.limits,
 			decoded: request.type === 'job:start-decoded' ? request.decoded : undefined,
-			onProgress: (stage, progress, detail) => post({ type: 'job:progress', jobId: request.jobId, stage, progress, detail })
+			onProgress: (stage, progress) => post({ type: 'job:progress', jobId: request.jobId, stage, progress })
 		})
 		post({ type: 'job:done', jobId: request.jobId, result }, [result.bytes])
 	} catch (error) {
@@ -41,7 +41,7 @@ async function run(request: ImageWorkerRequest) {
 		}
 		const message = error instanceof Error ? error.message : '图片处理失败'
 		const outOfMemory = error instanceof RangeError || /memory|allocation|out of bounds/i.test(message)
-		post({ type: 'job:failed', jobId: request.jobId, code: outOfMemory ? 'OUT_OF_MEMORY' : 'ENCODE_FAILED', message: outOfMemory ? '浏览器内存不足，请限制最大宽度后重试' : message })
+		post({ type: 'job:failed', jobId: request.jobId, code: outOfMemory ? 'OUT_OF_MEMORY' : 'ENCODE_FAILED', message: outOfMemory ? '浏览器内存不足，请使用尺寸较小的图片重试' : message })
 	} finally {
 		activeJobId = null
 	}

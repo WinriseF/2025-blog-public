@@ -1,13 +1,11 @@
 import type { CandidatePlan, ImageAnalysis, ImageClass, ImageCompressionOptions, ImageFormat } from './types'
 
-export function computeTargetSize(width: number, height: number, maxWidth: number | undefined, maxPixels: number) {
-	const widthScale = maxWidth && width > maxWidth ? maxWidth / width : 1
-	const memoryScale = width * height > maxPixels ? Math.sqrt(maxPixels / (width * height)) : 1
-	const scale = Math.min(widthScale, memoryScale)
+export function computeTargetSize(width: number, height: number, maxPixels: number) {
+	const scale = width * height > maxPixels ? Math.sqrt(maxPixels / (width * height)) : 1
 	return {
 		width: Math.max(1, Math.round(width * scale)),
 		height: Math.max(1, Math.round(height * scale)),
-		limitedByMemory: memoryScale < widthScale
+		limitedByMemory: scale < 1
 	}
 }
 
@@ -25,12 +23,11 @@ export function buildCandidatePlans(input: {
 		if (!plans.some(item => item.format === format && item.variant === variant)) plans.push({ format, variant })
 	}
 	const graphic = classification === 'ui-text' || classification === 'flat-illustration' || classification === 'transparent-icon'
-	const quantizationSafe = analysis.gradientRatio < 0.42 && analysis.semiTransparent < 0.35
 
 	const addSameFormat = () => {
 		if (sourceFormat === 'png') {
 			add('png', 'lossless')
-			if (quantizationSafe) add('png', 'quantized')
+			add('png', 'quantized')
 		} else if (sourceFormat === 'webp' && graphic) add('webp', 'lossless')
 		else add(sourceFormat, 'lossy')
 	}
@@ -43,7 +40,7 @@ export function buildCandidatePlans(input: {
 	if (options.output !== 'auto') {
 		if (options.output === 'png') {
 			add('png', 'lossless')
-			if (quantizationSafe) add('png', 'quantized')
+			add('png', 'quantized')
 		} else if (options.output === 'webp' && graphic) add('webp', 'lossless')
 		else add(options.output, 'lossy')
 		return plans
@@ -52,7 +49,7 @@ export function buildCandidatePlans(input: {
 	addSameFormat()
 	if (graphic || analysis.alphaCoverage > 0) {
 		add('webp', 'lossless')
-		if (quantizationSafe) add('png', 'quantized')
+		add('png', 'quantized')
 	} else {
 		add('webp', 'lossy')
 	}

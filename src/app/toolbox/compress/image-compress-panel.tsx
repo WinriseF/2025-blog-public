@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { Ban, Download, Image as ImageIcon, Play, ShieldCheck, Trash2 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
@@ -20,20 +20,13 @@ const DEFAULT_OPTIONS: ImageCompressionOptions = {
 	jpegBackground: '#ffffff'
 }
 
-function formatBytes(bytes: number) {
-	if (bytes < 1024) return `${bytes} B`
-	if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
-	return `${(bytes / 1024 ** 2).toFixed(2)} MB`
-}
-
-export function ImageCompressPanel() {
+export function ImageCompressPanel({ active }: { active: boolean }) {
 	const controller = useImageCompress()
 	const [options, setOptions] = useState<ImageCompressionOptions>(DEFAULT_OPTIONS)
 	const [compareId, setCompareId] = useState<string | null>(null)
 	const [isDragging, setIsDragging] = useState(false)
 	const dragCounter = useRef(0)
 	const shouldReduceMotion = useReducedMotion()
-	const totalBytes = useMemo(() => controller.items.reduce((total, item) => total + item.file.size, 0), [controller.items])
 	const compareItem = compareId ? controller.items.find(item => item.id === compareId) : undefined
 
 	const ingest = useCallback(async (files: FileList | File[]) => {
@@ -43,15 +36,16 @@ export function ImageCompressPanel() {
 	}, [controller.addFiles])
 
 	useEffect(() => {
+		if (!active) return
 		const handlePaste = (event: ClipboardEvent) => {
 			const target = event.target as HTMLElement | null
 			if (target?.matches('input, textarea, [contenteditable="true"]')) return
-			const files = Array.from(event.clipboardData?.items ?? []).flatMap(item => item.kind === 'file' && item.getAsFile() ? [item.getAsFile()!] : [])
+			const files = Array.from(event.clipboardData?.files ?? [])
 			if (files.length) void ingest(files)
 		}
 		window.addEventListener('paste', handlePaste)
 		return () => window.removeEventListener('paste', handlePaste)
-	}, [ingest])
+	}, [active, ingest])
 
 	const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
 		event.preventDefault()
@@ -81,7 +75,7 @@ export function ImageCompressPanel() {
 				className={`group flex min-h-56 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border border-dashed p-7 text-center transition ${isDragging ? 'border-brand bg-brand/10' : 'border-brand/25 bg-background/25 hover:border-brand/45 hover:bg-brand/5'}`}>
 				<input type='file' multiple accept='image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif' className='hidden' onChange={event => { if (event.target.files) void ingest(event.target.files); event.currentTarget.value = '' }} />
 				<div className='bg-brand/10 text-brand flex size-16 items-center justify-center rounded-full'><ImageIcon size={30} /></div>
-				<div><p className='font-semibold text-primary'>点击、拖拽或粘贴图片</p><p className='text-secondary mt-2 text-sm'>支持静态 JPEG、PNG、WebP、AVIF；HEIC、SVG 和动态图会被明确拒绝</p></div>
+				<p className='font-semibold text-primary'>点击、拖拽或粘贴图片</p>
 			</motion.label>
 
 			<ImageOptions value={options} disabled={controller.isActive} onChange={setOptions} />
@@ -91,14 +85,13 @@ export function ImageCompressPanel() {
 				{controller.isActive && <button type='button' onClick={controller.cancelAll} className='flex items-center gap-2 rounded-xl border border-border bg-background/35 px-5 py-3 font-semibold text-primary'><Ban size={15} />取消全部</button>}
 				<button type='button' disabled={!controller.results.length} onClick={() => void handleDownloadAll()} className='flex items-center gap-2 rounded-xl border border-border bg-background/35 px-5 py-3 font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-45'><Download size={16} />下载结果{controller.results.length > 1 ? ' ZIP' : ''}</button>
 				<button type='button' disabled={!controller.items.length} onClick={controller.clear} className='text-secondary ml-auto flex items-center gap-2 rounded-xl border border-border px-4 py-3 font-medium disabled:opacity-45 max-sm:ml-0'><Trash2 size={15} />清空</button>
-				{controller.items.length ? <span className='text-secondary text-xs max-sm:w-full'>原图共 {formatBytes(totalBytes)} · 编码器按候选首次使用时从 CDN 加载</span> : null}
 			</div>
 
 			<ImageResultList items={controller.items} onStart={id => controller.start([id], options)} onCancel={controller.cancel} onRemove={controller.remove} onCompare={setCompareId} />
 
 			<div className='text-secondary flex items-start gap-3 border-t border-border pt-5 text-xs leading-5'>
 				<ShieldCheck size={17} className='text-brand mt-0.5 shrink-0' />
-				<p>图片内容只在当前设备处理，不会上传。MozJPEG、libwebp、libavif、OxiPNG、Pica、exifr 与 libimagequant 均使用固定版本 CDN 并按需加载；智能 PNG 量化所用 <a href='https://github.com/ImageOptim/libimagequant' target='_blank' rel='noreferrer' className='text-brand hover:underline'>libimagequant</a> 为 GPL-3.0+/商业双许可组件。</p>
+				<p>图片内容只在当前设备处理，不会上传。MozJPEG、libwebp、libavif、OxiPNG、Pica、exifr 与 libimagequant 均使用固定版本 CDN 并按需加载。</p>
 			</div>
 
 			{compareItem?.result && <ImageCompareDialog item={compareItem} onClose={() => setCompareId(null)} />}

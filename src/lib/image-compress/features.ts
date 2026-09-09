@@ -111,12 +111,12 @@ export function analyzeImage(source: ImageData): ImageAnalysis {
 export function classifyImage(analysis: ImageAnalysis): ImageClass {
 	const hasAlpha = analysis.alphaCoverage > 0
 	const lowColors = analysis.coarseColors <= 256
-	const flat = analysis.flatAreaRatio > 0.4
+	const flat = analysis.flatAreaRatio > 0.45
 	const screenshotScore = analysis.flatAreaRatio + analysis.edgeDensity * 2 + analysis.hvEdgeRatio * 0.35 - analysis.noiseScore * 3
 	const photoScore = analysis.lumaEntropy / 6 + analysis.noiseScore * 2 - analysis.flatAreaRatio * 0.65
 	if (hasAlpha && lowColors && flat) return 'transparent-icon'
 	if (hasAlpha && analysis.semiTransparent > 0.005 && photoScore > 0.72) return 'transparent-complex'
-	if (screenshotScore > 0.78 && analysis.edgeDensity > 0.06) return 'ui-text'
+	if (flat && screenshotScore > 0.78 && analysis.edgeDensity > 0.12) return 'ui-text'
 	if (!hasAlpha && photoScore > 0.82 && analysis.coarseColors > 512) return 'photo'
 	if (flat && lowColors) return 'flat-illustration'
 	return 'mixed'

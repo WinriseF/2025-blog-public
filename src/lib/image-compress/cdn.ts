@@ -1,4 +1,4 @@
-import type { ImageCompressionPreset, ImageQualityMetrics } from './types'
+import type { ImageCompressionPreset } from './types'
 
 const CDN_ROOT = 'https://cdn.jsdelivr.net/npm'
 
@@ -19,13 +19,11 @@ type OxiPngModule = { optimise: (data: ArrayBuffer | ImageData, options?: Record
 type ExifrModule = { parse: (input: Blob, options?: Record<string, unknown>) => Promise<Record<string, unknown> | undefined> }
 type PicaInstance = {
 	resize: (from: OffscreenCanvas, to: OffscreenCanvas, options?: Record<string, unknown>) => Promise<OffscreenCanvas>
-	resizeBuffer: (options: Record<string, unknown>) => Promise<Uint8Array>
 }
 type PicaModule = { default: (options?: Record<string, unknown>) => PicaInstance }
 
 type ImageQuantResult = {
 	getPalette: () => number[][]
-	getQuantizationQuality: () => number
 	getPaletteLength: () => number
 	setDithering: (value: number) => void
 	getPaletteIndices: (rgba: Uint8ClampedArray, width: number, height: number) => Uint8Array
@@ -36,12 +34,11 @@ type ImageQuantizer = {
 	setSpeed: (value: number) => void
 	setQuality: (min: number, target: number) => void
 	setMaxColors: (value: number) => void
-	setPosterization: (value: number) => void
 	quantizeImage: (rgba: Uint8ClampedArray, width: number, height: number) => ImageQuantResult
 	free: () => void
 }
 
-export type ImageQuantModule = {
+type ImageQuantModule = {
 	default: (wasmUrl?: string) => Promise<unknown>
 	ImageQuantizer: new () => ImageQuantizer
 	encode_palette_to_png: (indices: Uint8Array, palette: number[][], width: number, height: number) => Uint8Array
@@ -50,7 +47,6 @@ export type ImageQuantModule = {
 export type QuantizedImage = {
 	bytes: ArrayBuffer
 	imageData: ImageData
-	quality: number
 	paletteLength: number
 }
 
@@ -121,9 +117,10 @@ async function loadImageQuant() {
 function quantizationOptions(preset: ImageCompressionPreset, analysis: { gradientRatio: number; flatAreaRatio: number }) {
 	const flat = analysis.flatAreaRatio > 0.5
 	const gradient = analysis.gradientRatio > 0.2
-	if (preset === 'smaller') return { speed: 5, min: 65, target: 85, colors: flat ? 128 : 256, dithering: gradient ? 0.7 : flat ? 0.3 : 0.5 }
+	// Let the output quality gate judge the rendered pixels instead of aborting quantization early.
+	if (preset === 'smaller') return { speed: 3, min: 0, target: 65, colors: 256, dithering: gradient ? 0.5 : flat ? 0.1 : 0.25 }
 	if (preset === 'higher') return { speed: 3, min: 88, target: 98, colors: 256, dithering: gradient ? 0.9 : flat ? 0.4 : 0.8 }
-	return { speed: 4, min: 80, target: 95, colors: 256, dithering: gradient ? 0.8 : flat ? 0.35 : 0.6 }
+	return { speed: 3, min: 0, target: 80, colors: 256, dithering: gradient ? 0.65 : flat ? 0.2 : 0.4 }
 }
 
 export async function quantizeImage(image: ImageData, preset: ImageCompressionPreset, analysis: { gradientRatio: number; flatAreaRatio: number }): Promise<QuantizedImage> {
@@ -152,7 +149,6 @@ export async function quantizeImage(image: ImageData, preset: ImageCompressionPr
 			return {
 				bytes: png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength) as ArrayBuffer,
 				imageData: new ImageData(rgba, image.width, image.height),
-				quality: result.getQuantizationQuality(),
 				paletteLength: result.getPaletteLength()
 			}
 		} finally {
@@ -161,8 +157,4 @@ export async function quantizeImage(image: ImageData, preset: ImageCompressionPr
 	} finally {
 		quantizer.free()
 	}
-}
-
-export function qualitySummary(metrics: ImageQualityMetrics) {
-	return `SSIM ${metrics.ssim.toFixed(4)} · edge ${(metrics.edgeError * 100).toFixed(2)}%`
 }

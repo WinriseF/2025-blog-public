@@ -4,13 +4,12 @@ export type ImageCompressionPreset = 'smart' | 'smaller' | 'higher'
 export type ImageOutputMode = 'keep' | 'auto' | ImageFormat
 export type ImageCompatibility = 'compatible' | 'smallest'
 export type ImageClass = 'photo' | 'ui-text' | 'flat-illustration' | 'transparent-icon' | 'transparent-complex' | 'mixed'
-export type ImageJobStage = 'validate' | 'metadata' | 'decode' | 'resize' | 'analyze' | 'encode' | 'evaluate'
+export type ImageJobStage = 'validate' | 'metadata' | 'decode' | 'analyze' | 'encode' | 'evaluate'
 
 export type ImageCompressionOptions = {
 	preset: ImageCompressionPreset
 	output: ImageOutputMode
 	compatibility: ImageCompatibility
-	maxWidth?: number
 	stripMetadata: boolean
 	jpegBackground: string
 }
@@ -18,19 +17,6 @@ export type ImageCompressionOptions = {
 export type ImageDeviceLimits = {
 	maxPixels: number
 	lowMemory: boolean
-}
-
-export type ImageSourceInfo = {
-	format: DetectedImageFormat
-	mime: string
-	width: number
-	height: number
-	animated: boolean
-	orientation: number
-	hasAlpha: boolean
-	hasIcc: boolean
-	wideGamut: boolean
-	hasGps: boolean
 }
 
 export type ImageQualityMetrics = {
@@ -80,7 +66,7 @@ export type ImageWorkerRequest =
 	  }
 
 export type ImageWorkerResponse =
-	| { type: 'job:progress'; jobId: string; stage: ImageJobStage; progress?: number; detail?: string }
+	| { type: 'job:progress'; jobId: string; stage: ImageJobStage; progress?: number }
 	| { type: 'job:needs-main-decode'; jobId: string; message: string }
 	| { type: 'job:done'; jobId: string; result: ImageCompressionResult }
 	| {

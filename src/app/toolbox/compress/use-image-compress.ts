@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { computeTargetSize } from '@/lib/image-compress/presets'
-import { IMAGE_FORMAT_META, inspectImageContainer } from '@/lib/image-compress/sniff'
+import { inspectImageContainer } from '@/lib/image-compress/sniff'
 import type {
 	ImageCompressionOptions,
 	ImageCompressionResult,
@@ -71,7 +71,7 @@ async function inspectFile(file: File) {
 	return info as typeof info & { format: ImageFormat }
 }
 
-async function decodeOnMainThread(file: File, options: ImageCompressionOptions, limits: ImageDeviceLimits, knownWidth: number, knownHeight: number) {
+async function decodeOnMainThread(file: File, limits: ImageDeviceLimits, knownWidth: number, knownHeight: number) {
 	let source: CanvasImageSource
 	let width: number
 	let height: number
@@ -79,7 +79,7 @@ async function decodeOnMainThread(file: File, options: ImageCompressionOptions, 
 	let protectiveResize = false
 	if (typeof createImageBitmap === 'function') {
 		const knownPixels = knownWidth * knownHeight
-		const target = computeTargetSize(knownWidth || 1, knownHeight || 1, options.maxWidth, limits.maxPixels)
+		const target = computeTargetSize(knownWidth || 1, knownHeight || 1, limits.maxPixels)
 		protectiveResize = knownPixels > limits.maxPixels * 1.35
 		let bitmap: ImageBitmap
 		try {
@@ -113,7 +113,7 @@ async function decodeOnMainThread(file: File, options: ImageCompressionOptions, 
 		}
 	}
 	try {
-		const target = computeTargetSize(width, height, options.maxWidth, limits.maxPixels)
+		const target = computeTargetSize(width, height, limits.maxPixels)
 		const canvas = document.createElement('canvas')
 		canvas.width = target.width
 		canvas.height = target.height
@@ -144,11 +144,9 @@ export function useImageCompress() {
 	const pumpRef = useRef<() => void>(() => {})
 
 	const updateItems = useCallback((updater: (current: ImageCompressionItem[]) => ImageCompressionItem[]) => {
-		setItems(current => {
-			const next = updater(current)
-			itemsRef.current = next
-			return next
-		})
+		const next = updater(itemsRef.current)
+		itemsRef.current = next
+		setItems(next)
 	}, [])
 
 	const updateItem = useCallback((id: string, updater: (item: ImageCompressionItem) => ImageCompressionItem) => {
@@ -171,7 +169,7 @@ export function useImageCompress() {
 		const worker = new Worker(new URL('../../../lib/image-compress/image-compress.worker.ts', import.meta.url), { type: 'module' })
 		worker.onmessage = event => {
 			const response = event.data as ImageWorkerResponse
-			if (response.jobId !== slot.jobId) return
+			if (slot.worker !== worker || response.jobId !== slot.jobId) return
 			if (response.type === 'job:progress') {
 				updateItem(response.jobId, item => ({ ...item, status: 'processing', stage: response.stage, progress: response.progress ?? item.progress }))
 				return
@@ -180,7 +178,7 @@ export function useImageCompress() {
 				const task = tasksRef.current.get(response.jobId)
 				const item = itemsRef.current.find(candidate => candidate.id === response.jobId)
 				if (!task || !item) return
-				void decodeOnMainThread(item.file, task.options, task.limits, item.width, item.height)
+				void decodeOnMainThread(item.file, task.limits, item.width, item.height)
 					.then(decoded => {
 						if (slot.worker !== worker || slot.jobId !== item.id) return
 						worker.postMessage({ type: 'job:start-decoded', jobId: item.id, file: item.file, options: task.options, limits: task.limits, decoded } satisfies ImageWorkerRequest, [decoded.data])
@@ -201,11 +199,12 @@ export function useImageCompress() {
 			updateItem(response.jobId, item => {
 				disposeResult(item.result)
 				const { bytes: _, ...metadata } = response.result
-				return { ...item, status: 'done', progress: 1, stage: undefined, error: undefined, width: metadata.width, height: metadata.height, result: { ...metadata, blob, url } }
+				return { ...item, status: 'done', progress: 1, stage: undefined, error: undefined, result: { ...metadata, blob, url } }
 			})
 			finishSlot(slot)
 		}
 		worker.onerror = event => {
+			if (slot.worker !== worker) return
 			event.preventDefault()
 			const id = slot.jobId
 			worker.terminate()
@@ -213,6 +212,7 @@ export function useImageCompress() {
 			if (id) failTask(slot, id, event.message || '图片处理 Worker 运行异常')
 		}
 		worker.onmessageerror = () => {
+			if (slot.worker !== worker) return
 			const id = slot.jobId
 			worker.terminate()
 			slot.worker = null
@@ -237,9 +237,13 @@ export function useImageCompress() {
 				disposeResult(current.result)
 				return { ...current, result: undefined, status: 'processing', stage: 'validate', progress: 0.02, error: undefined }
 			})
-			createWorker(slot).postMessage({ type: 'job:start', jobId: task.id, file: item.file, options: task.options, limits: task.limits } satisfies ImageWorkerRequest)
+			try {
+				createWorker(slot).postMessage({ type: 'job:start', jobId: task.id, file: item.file, options: task.options, limits: task.limits } satisfies ImageWorkerRequest)
+			} catch (error) {
+				failTask(slot, task.id, error instanceof Error ? error.message : '无法启动图片处理 Worker')
+			}
 		}
-	}, [createWorker, updateItem])
+	}, [createWorker, failTask, updateItem])
 
 	pumpRef.current = pump
 
@@ -264,6 +268,10 @@ export function useImageCompress() {
 			} catch (error) {
 				rejected.push(`${file.name}: ${error instanceof Error ? error.message : '读取失败'}`)
 			}
+		}
+		if (!mountedRef.current) {
+			for (const item of accepted) URL.revokeObjectURL(item.previewUrl)
+			return { accepted: 0, rejected }
 		}
 		if (accepted.length) updateItems(current => [...current, ...accepted])
 		return { accepted: accepted.length, rejected }
@@ -338,6 +346,8 @@ export function useImageCompress() {
 			mountedRef.current = false
 			queueRef.current = []
 			for (const slot of slotsRef.current) slot.worker?.terminate()
+			slotsRef.current = []
+			tasksRef.current.clear()
 			for (const item of itemsRef.current) {
 				URL.revokeObjectURL(item.previewUrl)
 				disposeResult(item.result)
@@ -356,8 +366,4 @@ export function useImageCompress() {
 		isActive: items.some(item => item.status === 'processing' || item.status === 'queued'),
 		results: items.flatMap(item => item.result ? [{ item, result: item.result }] : [])
 	}
-}
-
-export function formatImageType(format: ImageFormat) {
-	return IMAGE_FORMAT_META[format].label
 }

@@ -1,7 +1,7 @@
 import { loadPica } from './cdn'
 import { computeTargetSize } from './presets'
 import { IMAGE_FORMAT_META } from './sniff'
-import type { ImageCompressionOptions, ImageDeviceLimits, ImageFormat } from './types'
+import type { ImageDeviceLimits, ImageFormat } from './types'
 
 export class NativeWorkerDecodeUnavailable extends Error {}
 
@@ -15,7 +15,6 @@ export async function decodeImageInWorker(
 	file: File,
 	containerWidth: number,
 	containerHeight: number,
-	options: ImageCompressionOptions,
 	limits: ImageDeviceLimits
 ) {
 	if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') {
@@ -25,7 +24,7 @@ export async function decodeImageInWorker(
 	const warnings: string[] = []
 	const sourcePixels = containerWidth * containerHeight
 	const protectiveResize = sourcePixels > limits.maxPixels * 1.35 && containerWidth > 0 && containerHeight > 0
-	const requested = computeTargetSize(containerWidth || 1, containerHeight || 1, options.maxWidth, limits.maxPixels)
+	const requested = computeTargetSize(containerWidth || 1, containerHeight || 1, limits.maxPixels)
 	let bitmap: ImageBitmap
 	try {
 		if (protectiveResize) {
@@ -44,7 +43,7 @@ export async function decodeImageInWorker(
 	}
 
 	try {
-		const target = computeTargetSize(bitmap.width, bitmap.height, options.maxWidth, limits.maxPixels)
+		const target = computeTargetSize(bitmap.width, bitmap.height, limits.maxPixels)
 		if (target.limitedByMemory && !protectiveResize) warnings.push('图片像素较大，已按当前设备内存预算等比缩小')
 		const source = new OffscreenCanvas(bitmap.width, bitmap.height)
 		const sourceContext = source.getContext('2d', { willReadFrequently: false })
@@ -83,10 +82,24 @@ export async function decodeEncodedCandidate(bytes: ArrayBuffer, format: ImageFo
 	}
 }
 
+export async function resizeQualityPreview(image: ImageData, width: number, height: number) {
+	if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') return null
+	const bitmap = await createImageBitmap(image, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' })
+	try {
+		const canvas = new OffscreenCanvas(width, height)
+		const context = canvas.getContext('2d', { willReadFrequently: true })
+		if (!context) return null
+		context.drawImage(bitmap, 0, 0, width, height)
+		return context.getImageData(0, 0, width, height)
+	} finally {
+		bitmap.close()
+	}
+}
+
 export function flattenAlpha(image: ImageData, background: string) {
-	const red = Number.parseInt(background.slice(1, 3), 16) || 255
-	const green = Number.parseInt(background.slice(3, 5), 16) || 255
-	const blue = Number.parseInt(background.slice(5, 7), 16) || 255
+	const red = Number.parseInt(background.slice(1, 3), 16)
+	const green = Number.parseInt(background.slice(3, 5), 16)
+	const blue = Number.parseInt(background.slice(5, 7), 16)
 	const data = new Uint8ClampedArray(image.data.length)
 	for (let index = 0; index < image.data.length; index += 4) {
 		const alpha = image.data[index + 3] / 255

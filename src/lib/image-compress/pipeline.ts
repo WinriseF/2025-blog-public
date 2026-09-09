@@ -1,4 +1,4 @@
-import { decodeEncodedCandidate, decodeImageInWorker, flattenAlpha } from './decode'
+import { decodeEncodedCandidate, decodeImageInWorker, flattenAlpha, resizeQualityPreview } from './decode'
 import { encodeCandidate, type EncodedCandidate } from './encode'
 import { analyzeImage, classifyImage, sampleImageData } from './features'
 import { inspectImageMetadata } from './metadata'
@@ -21,7 +21,7 @@ export class ImagePipelineError extends Error {
 	}
 }
 
-type Progress = (stage: ImageJobStage, progress?: number, detail?: string) => void
+type Progress = (stage: ImageJobStage, progress?: number) => void
 type RankedCandidate = EncodedCandidate & { metrics: ImageQualityMetrics; passed: boolean }
 
 function sourceError(format: ReturnType<typeof inspectImageContainer>['format']) {
@@ -45,14 +45,18 @@ function meaningfulGain(candidate: RankedCandidate, bestBytes: number, bestForma
 }
 
 async function rankCandidate(candidate: EncodedCandidate, reference: ImageData, classification: Parameters<typeof passesQualityGate>[1], options: ImageCompressionOptions) {
-	const decoded = candidate.preview ?? await decodeEncodedCandidate(candidate.bytes, candidate.format, reference.width, reference.height)
-	if (!decoded) {
-		const metrics = { ssim: 1, edgeError: 0, alphaMae: 0 }
-		return { ...candidate, metrics, passed: true, warning: '当前浏览器无法执行预览质量门禁' }
+	const { preview, ...encoded } = candidate
+	if (preview) {
+		const metrics = compareImageQuality(sampleImageData(reference, 384), sampleImageData(preview, 384))
+		return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) }
 	}
-	const sampledReference = sampleImageData(reference, 384)
+	const decoded = await decodeEncodedCandidate(candidate.bytes, candidate.format, reference.width, reference.height)
+	if (!decoded) {
+		throw new ImagePipelineError('QUALITY_GATE_FAILED', '当前浏览器无法检查该编码结果的画质')
+	}
+	const sampledReference = await resizeQualityPreview(reference, decoded.width, decoded.height) ?? sampleImageData(reference, 384)
 	const metrics = compareImageQuality(candidate.format === 'jpeg' ? flattenAlpha(sampledReference, options.jpegBackground) : sampledReference, decoded)
-	return { ...candidate, metrics, passed: passesQualityGate(metrics, classification, options.preset), warning: null }
+	return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) }
 }
 
 function makeResult(candidate: EncodedCandidate, input: {
@@ -111,7 +115,7 @@ export async function compressImage(input: {
 	const warnings = metadata.warning ? [metadata.warning] : []
 	if (metadata.wideGamut) warnings.push('检测到广色域配置；输出会通过浏览器解码链转换为标准 RGB，建议对关键颜色进行人工比较')
 	if (metadata.hasGps && !options.stripMetadata) warnings.push('原图包含定位信息；关闭元数据清理时可能随原文件保留')
-	if ((metadata.wideGamut || metadata.colorUncertain) && (options.output === 'keep' || options.output === 'auto') && !options.maxWidth && !options.stripMetadata) {
+	if ((metadata.wideGamut || metadata.colorUncertain) && (options.output === 'keep' || options.output === 'auto') && !options.stripMetadata) {
 		warnings.push(`${metadata.colorUncertain ? 'ICC' : '广色域'} 安全保护已保留原文件；如需转换，请明确选择输出格式`)
 		const swapsAxes = metadata.orientation >= 5 && metadata.orientation <= 8
 		return makeResult({ format: sourceFormat, bytes: sourceBuffer, encoder: metadata.colorUncertain ? 'ICC 安全回退' : '广色域安全回退' }, {
@@ -130,13 +134,9 @@ export async function compressImage(input: {
 		image = new ImageData(new Uint8ClampedArray(input.decoded.data), input.decoded.width, input.decoded.height)
 		warnings.push(...input.decoded.warnings)
 	} else {
-		try {
-			const decoded = await decodeImageInWorker(file, container.width, container.height, options, limits)
-			image = decoded.image
-			warnings.push(...decoded.warnings)
-		} catch (error) {
-			throw error
-		}
+		const decoded = await decodeImageInWorker(file, container.width, container.height, limits)
+		image = decoded.image
+		warnings.push(...decoded.warnings)
 	}
 
 	onProgress('analyze', 0.3)
@@ -144,7 +144,7 @@ export async function compressImage(input: {
 	const classification = classifyImage(analysis)
 	const sourceWidth = metadata.orientation >= 5 && metadata.orientation <= 8 ? container.height : container.width
 	const sourceHeight = metadata.orientation >= 5 && metadata.orientation <= 8 ? container.width : container.height
-	const resized = Boolean(options.maxWidth || (sourceWidth && sourceHeight && (sourceWidth !== image.width || sourceHeight !== image.height)) || warnings.some(message => /缩小|限制像素/.test(message)))
+	const resized = Boolean((sourceWidth && sourceHeight && (sourceWidth !== image.width || sourceHeight !== image.height)) || warnings.some(message => /缩小|限制像素/.test(message)))
 	const plans = buildCandidatePlans({
 		sourceFormat,
 		classification,
@@ -158,24 +158,25 @@ export async function compressImage(input: {
 		? ({ format: sourceFormat, bytes: sourceBuffer, encoder: '保留原文件' } satisfies EncodedCandidate)
 		: null
 	let best: RankedCandidate | null = baseline ? { ...baseline, metrics: { ssim: 1, edgeError: 0, alphaMae: 0 }, passed: true } : null
-	let fallback: RankedCandidate | null = null
+	let fallback: Pick<RankedCandidate, 'format' | 'metrics'> | null = null
+	let passedWithoutGain = false
 	const failures: string[] = []
 
 	for (let index = 0; index < plans.length; index += 1) {
 		const plan = plans[index]
-		onProgress('encode', 0.35 + index / Math.max(1, plans.length) * 0.45, `${plan.format}:${plan.variant}`)
+		onProgress('encode', 0.35 + index / plans.length * 0.6)
 		try {
 			const encoded = await encodeCandidate(plan, image, analysis, classification, options)
-			onProgress('evaluate', 0.72 + index / Math.max(1, plans.length) * 0.2, plan.format)
+			onProgress('evaluate', 0.35 + (index + 0.8) / plans.length * 0.6)
 			const ranked = await rankCandidate(encoded, image, classification, options)
-			if (ranked.warning) warnings.push(ranked.warning)
 			if (!ranked.passed) {
-				if (!fallback || ranked.metrics.ssim > fallback.metrics.ssim) fallback = ranked
+				if (!fallback || ranked.metrics.ssim > fallback.metrics.ssim) fallback = { format: ranked.format, metrics: ranked.metrics }
 				continue
 			}
 			if (!best || meaningfulGain(ranked, best.bytes.byteLength, best.format, options.compatibility)) best = ranked
+			else passedWithoutGain = true
 		} catch (error) {
-			failures.push(`${plan.format}: ${errorMessage(error)}`)
+			failures.push(`${plan.format}:${plan.variant}: ${errorMessage(error)}`)
 		}
 	}
 
@@ -188,9 +189,17 @@ export async function compressImage(input: {
 		throw new ImagePipelineError(cdnFailure ? 'CDN_UNAVAILABLE' : 'ENCODE_FAILED', cdnFailure ? `无法加载远程编码器：${detail}` : detail)
 	}
 
-	if (failures.length && best.encoder === '保留原文件') warnings.push(`部分候选未生成：${failures.join('；')}`)
-	if (best.encoder === '保留原文件') warnings.push('原文件已经足够小，已保留原文件')
+	if (best.encoder === '保留原文件') {
+		if (passedWithoutGain) warnings.push('重新编码未带来足够的体积收益，已保留原文件')
+		else if (fallback) warnings.push(`候选未通过质量门禁（最佳 SSIM ${fallback.metrics.ssim.toFixed(4)}），已保留原文件`)
+		else if (failures.length) warnings.push(`候选编码失败，已保留原文件：${failures.join('；')}`)
+	}
 	else if (best.bytes.byteLength >= file.size) warnings.push('当前操作为强制转换、缩放或清理元数据，因此输出可能大于原文件')
+	if (best.encoder === 'PNG + OxiPNG') {
+		const quantizationFailure = failures.find(message => message.startsWith('png:quantized:'))
+		if (quantizationFailure) warnings.push(`PNG 量化失败，已使用无损压缩：${quantizationFailure}`)
+		else if (fallback?.format === 'png') warnings.push('PNG 量化结果未达到画质要求，已使用无损压缩')
+	}
 	if (best.format === 'jpeg' && analysis.alphaCoverage > 0) warnings.push(`透明区域已使用 ${options.jpegBackground} 背景填充`)
 	if (metadata.hasIcc && !metadata.wideGamut && best.encoder !== '保留原文件') warnings.push('输入包含 ICC；重编码结果已按浏览器标准 RGB 解码链生成')
 	onProgress('evaluate', 0.98)
