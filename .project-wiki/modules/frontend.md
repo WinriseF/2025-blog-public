@@ -27,6 +27,8 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 
 ## Pay Attention
 
+- Shared `SelectMenu` lists render through a body portal with fixed viewport positioning and a theme surface background. Choose above/below placement based on available space, constrain list height, and close on outside scrolling/resizing. Outside-click detection must include the portaled list; preserve trigger focus for keyboard selection. Do not move menus back inside clipping card containers.
+
 - World clock keeps its immersive Earth view, natural imagery, day/night boundary, solar track, and four time-theme backgrounds. Route-local `world-clock.module.css` uses a full-viewport desktop canvas with a compact floating time panel and a small bottom-left track control. Do not turn these into a dashboard grid or a tall scrolling sidebar. At 960px and below, panels follow a dedicated globe stage in document flow. Header text adapts to the theme while data panels retain a translucent dark surface.
 - Keep the globe canvas and projected solar-term labels inside the same sized wrapper. The camera adjusts its field of view for portrait stages and uses a desktop view offset to leave room for the time panel without cropping the canvas. Initial and reset distance share `CAMERA_DISTANCE`. Layer and map buttons expose their selected state with `aria-pressed`.
 

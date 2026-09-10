@@ -14,6 +14,7 @@ import {
 	toggleZipSubtree,
 	writeZipArchive,
 	type ZipCompressionOptions,
+	type ZipOutputFileHandle,
 	type ZipScanResult,
 	type ZipSelectionState,
 	type ZipSkippedEntry,
@@ -24,7 +25,7 @@ import { ZipFileTree } from './zip-file-tree'
 type Phase = 'idle' | 'scanning' | 'ready' | 'preparing' | 'running' | 'done' | 'canceled' | 'error'
 type MobileView = 'files' | 'plan'
 type DirectoryPicker = (options?: { id?: string; mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>
-type SaveFilePicker = (options?: { suggestedName?: string; types?: Array<{ description?: string; accept: Record<string, string[]> }> }) => Promise<FileSystemFileHandle>
+type SaveFilePicker = (options?: { suggestedName?: string; types?: Array<{ description?: string; accept: Record<string, string[]> }> }) => Promise<ZipOutputFileHandle>
 type ZipPreset = 'smart' | 'maximum' | 'store' | 'custom'
 type ZipPresetOption = ZipCompressionOptions & { id: Exclude<ZipPreset, 'custom'>; label: string; description: string }
 
@@ -226,7 +227,7 @@ export function ZipTool() {
 		if (!picker) return
 		const finalName = suggestedZipName(archiveName.replace(/\.zip$/i, ''))
 
-		let outputHandle: FileSystemFileHandle
+		let outputHandle: ZipOutputFileHandle
 		try {
 			outputHandle = await picker.call(window, {
 				suggestedName: finalName,

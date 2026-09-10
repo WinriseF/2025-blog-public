@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,9 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 	const listboxId = useId()
 	const rootRef = useRef<HTMLDivElement | null>(null)
 	const triggerRef = useRef<HTMLButtonElement | null>(null)
+	const menuRef = useRef<HTMLDivElement | null>(null)
+	const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
+	const [listHeight, setListHeight] = useState(288)
 	const shouldReduceMotion = useReducedMotion()
 	const selectedIndex = Math.max(0, options.findIndex(option => option.value === value))
 	const [open, setOpen] = useState(false)
@@ -34,14 +38,41 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 	useEffect(() => {
 		if (!open) return
 		const handlePointerDown = (event: PointerEvent) => {
-			if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+			if (!rootRef.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) setOpen(false)
+		}
+		const close = () => setOpen(false)
+		const handleScroll = (event: Event) => {
+			if (!menuRef.current?.contains(event.target as Node)) close()
 		}
 		document.addEventListener('pointerdown', handlePointerDown)
-		return () => document.removeEventListener('pointerdown', handlePointerDown)
+		document.addEventListener('scroll', handleScroll, true)
+		window.addEventListener('resize', close)
+		return () => {
+			document.removeEventListener('pointerdown', handlePointerDown)
+			document.removeEventListener('scroll', handleScroll, true)
+			window.removeEventListener('resize', close)
+		}
 	}, [open])
 
+	useEffect(() => { if (disabled) setOpen(false) }, [disabled])
+	useEffect(() => {
+		if (open) document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+	}, [open, activeIndex, listboxId])
+
 	const openMenu = () => {
-		if (disabled) return
+		if (disabled || !triggerRef.current) return
+		const rect = triggerRef.current.getBoundingClientRect()
+		const below = Math.max(0, window.innerHeight - rect.bottom - 16)
+		const above = Math.max(0, rect.top - 16)
+		const upwards = below < Math.min(302, options.length * 48 + 10) && above > below
+		const width = Math.min(rect.width, window.innerWidth - 16)
+		setMenuStyle({
+			width,
+			left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+			...(upwards ? { bottom: window.innerHeight - rect.top + 8 } : { top: rect.bottom + 8 }),
+			transformOrigin: upwards ? 'bottom' : 'top'
+		})
+		setListHeight(Math.max(0, Math.min(288, (upwards ? above : below) - 14)))
 		setActiveIndex(selectedIndex)
 		setOpen(true)
 	}
@@ -111,15 +142,17 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 				<ChevronDown size={16} className={cn('ml-auto text-secondary transition-transform duration-150', open && 'rotate-180')} />
 			</button>
 
-			<AnimatePresence>
+			{typeof document !== 'undefined' && createPortal(<AnimatePresence>
 				{open && (
 					<motion.div
+						ref={menuRef}
+						style={menuStyle}
 						initial={shouldReduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
 						animate={{ opacity: 1, y: 0, scale: 1 }}
 						exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -2, scale: 0.99 }}
 						transition={{ duration: shouldReduceMotion ? 0 : 0.16 }}
-						className='absolute top-[calc(100%+8px)] right-0 z-50 min-w-full overflow-hidden rounded-lg border border-border bg-article p-1.5 shadow-[0_18px_50px_-24px_var(--color-primary)]'>
-						<div id={listboxId} role='listbox' aria-label={ariaLabel} className='grid max-h-72 gap-1 overflow-y-auto overscroll-contain'>
+						className='fixed z-[100] overflow-hidden rounded-lg border border-border bg-article p-1.5 shadow-[0_18px_50px_-24px_var(--color-primary)]'>
+						<div id={listboxId} role='listbox' aria-label={ariaLabel} style={{ maxHeight: listHeight }} className='grid gap-1 overflow-y-auto overscroll-contain'>
 							{options.map((option, index) => {
 								const selectedOption = option.value === value
 								const active = index === activeIndex
@@ -132,6 +165,7 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 										role='option'
 										tabIndex={-1}
 										aria-selected={selectedOption}
+										onMouseDown={event => event.preventDefault()}
 										onMouseEnter={() => setActiveIndex(index)}
 										onClick={() => choose(index)}
 										className={cn(
@@ -147,7 +181,7 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 						</div>
 					</motion.div>
 				)}
-			</AnimatePresence>
+			</AnimatePresence>, document.body)}
 		</div>
 	)
 }

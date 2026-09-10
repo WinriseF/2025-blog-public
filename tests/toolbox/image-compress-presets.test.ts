@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { classifyImage } from '../../src/lib/image-compress/features'
-import { buildCandidatePlans, computeTargetSize, jpegOptions } from '../../src/lib/image-compress/presets'
+import { buildCandidatePlans, jpegOptions } from '../../src/lib/image-compress/presets'
 import type { ImageAnalysis, ImageCompressionOptions } from '../../src/lib/image-compress/types'
 
 const analysis: ImageAnalysis = {
@@ -30,10 +30,6 @@ describe('image compression strategy', () => {
 			expect(plans).toContainEqual({ format: 'png', variant: 'quantized' })
 			expect(plans).toContainEqual({ format: 'png', variant: 'lossless' })
 		}
-	})
-
-	it('applies the pixel budget without changing aspect ratio', () => {
-		expect(computeTargetSize(8000, 6000, 12_000_000)).toEqual({ width: 4000, height: 3000, limitedByMemory: true })
 	})
 
 	it('keeps AVIF out of compatible auto mode and adds it to smallest mode', () => {

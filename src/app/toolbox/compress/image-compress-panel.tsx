@@ -6,23 +6,16 @@ import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { ANIMATION_DELAY, INIT_DELAY } from '@/consts'
 import { downloadImageArchive } from '@/lib/image-compress/image-archive'
+import { DEFAULT_IMAGE_COMPRESSION_OPTIONS } from '@/lib/image-compress/presets'
 import type { ImageCompressionOptions } from '@/lib/image-compress/types'
 import { ImageCompareDialog } from './image-compare-dialog'
 import { ImageOptions } from './image-options'
 import { ImageResultList } from './image-result-list'
 import { useImageCompress } from './use-image-compress'
 
-const DEFAULT_OPTIONS: ImageCompressionOptions = {
-	preset: 'smart',
-	output: 'keep',
-	compatibility: 'compatible',
-	stripMetadata: false,
-	jpegBackground: '#ffffff'
-}
-
 export function ImageCompressPanel({ active }: { active: boolean }) {
 	const controller = useImageCompress()
-	const [options, setOptions] = useState<ImageCompressionOptions>(DEFAULT_OPTIONS)
+	const [options, setOptions] = useState<ImageCompressionOptions>(DEFAULT_IMAGE_COMPRESSION_OPTIONS)
 	const [compareId, setCompareId] = useState<string | null>(null)
 	const [isDragging, setIsDragging] = useState(false)
 	const dragCounter = useRef(0)
@@ -91,7 +84,7 @@ export function ImageCompressPanel({ active }: { active: boolean }) {
 
 			<div className='text-secondary flex items-start gap-3 border-t border-border pt-5 text-xs leading-5'>
 				<ShieldCheck size={17} className='text-brand mt-0.5 shrink-0' />
-				<p>图片内容只在当前设备处理，不会上传。MozJPEG、libwebp、libavif、OxiPNG、Pica、exifr 与 libimagequant 均使用固定版本 CDN 并按需加载。</p>
+				<p>图片内容只在当前设备处理，不会上传。MozJPEG、libwebp、libavif、OxiPNG、exifr 与 libimagequant 均使用固定版本 CDN 并按需加载。</p>
 			</div>
 
 			{compareItem?.result && <ImageCompareDialog item={compareItem} onClose={() => setCompareId(null)} />}

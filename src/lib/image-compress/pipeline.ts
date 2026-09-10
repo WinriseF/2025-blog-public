@@ -134,7 +134,7 @@ export async function compressImage(input: {
 		image = new ImageData(new Uint8ClampedArray(input.decoded.data), input.decoded.width, input.decoded.height)
 		warnings.push(...input.decoded.warnings)
 	} else {
-		const decoded = await decodeImageInWorker(file, container.width, container.height, limits)
+		const decoded = await decodeImageInWorker(file)
 		image = decoded.image
 		warnings.push(...decoded.warnings)
 	}
@@ -144,7 +144,7 @@ export async function compressImage(input: {
 	const classification = classifyImage(analysis)
 	const sourceWidth = metadata.orientation >= 5 && metadata.orientation <= 8 ? container.height : container.width
 	const sourceHeight = metadata.orientation >= 5 && metadata.orientation <= 8 ? container.width : container.height
-	const resized = Boolean((sourceWidth && sourceHeight && (sourceWidth !== image.width || sourceHeight !== image.height)) || warnings.some(message => /缩小|限制像素/.test(message)))
+	const resized = Boolean(sourceWidth && sourceHeight && (sourceWidth !== image.width || sourceHeight !== image.height))
 	const plans = buildCandidatePlans({
 		sourceFormat,
 		classification,
@@ -194,7 +194,7 @@ export async function compressImage(input: {
 		else if (fallback) warnings.push(`候选未通过质量门禁（最佳 SSIM ${fallback.metrics.ssim.toFixed(4)}），已保留原文件`)
 		else if (failures.length) warnings.push(`候选编码失败，已保留原文件：${failures.join('；')}`)
 	}
-	else if (best.bytes.byteLength >= file.size) warnings.push('当前操作为强制转换、缩放或清理元数据，因此输出可能大于原文件')
+	else if (best.bytes.byteLength >= file.size) warnings.push('当前操作为强制转换或清理元数据，因此输出可能大于原文件')
 	if (best.encoder === 'PNG + OxiPNG') {
 		const quantizationFailure = failures.find(message => message.startsWith('png:quantized:'))
 		if (quantizationFailure) warnings.push(`PNG 量化失败，已使用无损压缩：${quantizationFailure}`)

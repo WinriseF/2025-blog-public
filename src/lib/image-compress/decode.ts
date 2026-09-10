@@ -1,7 +1,5 @@
-import { loadPica } from './cdn'
-import { computeTargetSize } from './presets'
 import { IMAGE_FORMAT_META } from './sniff'
-import type { ImageDeviceLimits, ImageFormat } from './types'
+import type { ImageFormat } from './types'
 
 export class NativeWorkerDecodeUnavailable extends Error {}
 
@@ -11,50 +9,25 @@ function canvasImageData(canvas: OffscreenCanvas) {
 	return context.getImageData(0, 0, canvas.width, canvas.height)
 }
 
-export async function decodeImageInWorker(
-	file: File,
-	containerWidth: number,
-	containerHeight: number,
-	limits: ImageDeviceLimits
-) {
+export async function decodeImageInWorker(file: File) {
 	if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') {
 		throw new NativeWorkerDecodeUnavailable('当前浏览器需要使用兼容解码路径')
 	}
 
 	const warnings: string[] = []
-	const sourcePixels = containerWidth * containerHeight
-	const protectiveResize = sourcePixels > limits.maxPixels * 1.35 && containerWidth > 0 && containerHeight > 0
-	const requested = computeTargetSize(containerWidth || 1, containerHeight || 1, limits.maxPixels)
 	let bitmap: ImageBitmap
 	try {
-		if (protectiveResize) {
-			bitmap = await createImageBitmap(file, {
-				imageOrientation: 'from-image',
-				resizeWidth: requested.width,
-				resizeHeight: requested.height,
-				resizeQuality: 'high'
-			})
-			warnings.push('为避免大图导致浏览器内存不足，已在解码阶段限制像素数量')
-		} else {
-			bitmap = await createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'default', premultiplyAlpha: 'default' })
-		}
+		bitmap = await createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'default', premultiplyAlpha: 'default' })
 	} catch (error) {
 		throw new NativeWorkerDecodeUnavailable(error instanceof Error ? `后台图片解码失败：${error.message}` : '后台图片解码失败')
 	}
 
 	try {
-		const target = computeTargetSize(bitmap.width, bitmap.height, limits.maxPixels)
-		if (target.limitedByMemory && !protectiveResize) warnings.push('图片像素较大，已按当前设备内存预算等比缩小')
 		const source = new OffscreenCanvas(bitmap.width, bitmap.height)
 		const sourceContext = source.getContext('2d', { willReadFrequently: false })
 		if (!sourceContext) throw new Error('无法创建图片解码画布')
 		sourceContext.drawImage(bitmap, 0, 0)
-		if (target.width === bitmap.width && target.height === bitmap.height) return { image: canvasImageData(source), warnings }
-
-		const destination = new OffscreenCanvas(target.width, target.height)
-		const pica = await loadPica()
-		await pica.resize(source, destination, { filter: 'mks2013' })
-		return { image: canvasImageData(destination), warnings }
+		return { image: canvasImageData(source), warnings }
 	} finally {
 		bitmap.close()
 	}

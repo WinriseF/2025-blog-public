@@ -1,3 +1,5 @@
+import { loadZipModule } from './zip-runtime'
+
 export type ZipSelectionState = 'checked' | 'mixed' | 'unchecked'
 
 export type ZipCompressionOptions = {
@@ -19,6 +21,15 @@ export type ZipNode = {
 	handle?: FileSystemFileHandle
 	directoryHandle?: FileSystemDirectoryHandle
 	file?: File
+}
+
+type ZipWritable = WritableStream<Uint8Array> & {
+	close: () => Promise<void>
+	abort: (reason?: unknown) => Promise<void>
+}
+
+export type ZipOutputFileHandle = FileSystemFileHandle & {
+	createWritable: () => Promise<ZipWritable>
 }
 
 export type ZipScanResult = {
@@ -80,8 +91,7 @@ const ALREADY_COMPRESSED = new Set([
 	'7z', 'aac', 'apk', 'avif', 'br', 'bz2', 'flac', 'gif', 'gz', 'heic', 'jpeg', 'jpg', 'm4a', 'm4v', 'mkv', 'mov', 'mp3', 'mp4', 'ogg', 'pdf', 'png', 'rar', 'webm', 'webp', 'woff', 'woff2', 'xz', 'zip'
 ])
 const SCAN_PROGRESS_INTERVAL = 100
-const ZIP_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.59/index-native.min.js'
-let zipRuntimePromise: Promise<ZipRuntime> | undefined
+// The same pinned runtime is shared with image archives and Office compression.
 
 export async function scanZipDirectory(directory: FileSystemDirectoryHandle, signal: AbortSignal, onProgress: (files: number, bytes: number) => void = () => {}) {
 	const rootHandle = directory as DirectoryHandle
@@ -184,7 +194,7 @@ export async function writeZipArchive(options: {
 	selectedIds: Set<string>
 	compression: ZipCompressionOptions
 	includeRoot: boolean
-	outputHandle: FileSystemFileHandle
+	outputHandle: ZipOutputFileHandle
 	signal: AbortSignal
 	onProgress: (progress: ZipWriteProgress) => void
 }) {
@@ -368,11 +378,9 @@ function createDirectoryNode(handle: DirectoryHandle, parentId: string | null, p
 }
 
 async function loadZipRuntime() {
-	if (!zipRuntimePromise) zipRuntimePromise = import(/* webpackIgnore: true */ ZIP_RUNTIME_URL) as Promise<ZipRuntime>
 	try {
-		return await zipRuntimePromise
+		return await loadZipModule<ZipRuntime>()
 	} catch {
-		zipRuntimePromise = undefined
 		throw new Error('压缩内核加载失败，请检查网络后重试')
 	}
 }

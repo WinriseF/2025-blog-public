@@ -1,7 +1,7 @@
 import { outputFileName } from './presets'
+import { loadZipModule } from '../zip-runtime'
 import type { ImageFormat } from './types'
 
-const ZIP_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.59/index-native.min.js'
 const BLOB_ARCHIVE_SOFT_LIMIT = 350 * 1024 * 1024
 
 type ZipWriterInstance = {
@@ -30,15 +30,8 @@ export type ImageArchiveEntry = {
 	lastModified: number
 }
 
-let zipPromise: Promise<ZipRuntime> | undefined
-
 async function loadZip() {
-	if (!zipPromise) {
-		const moduleUrl = ZIP_RUNTIME_URL
-		zipPromise = import(/* webpackIgnore: true */ moduleUrl) as Promise<ZipRuntime>
-		zipPromise.catch(() => { zipPromise = undefined })
-	}
-	return zipPromise
+	return loadZipModule<ZipRuntime>()
 }
 
 function downloadBlob(blob: Blob, name: string) {

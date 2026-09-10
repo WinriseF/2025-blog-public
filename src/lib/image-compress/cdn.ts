@@ -8,7 +8,6 @@ export const IMAGE_CODEC_URLS = {
 	oxipng: `${CDN_ROOT}/@jsquash/oxipng@2.3.0/+esm`,
 	webp: `${CDN_ROOT}/@jsquash/webp@1.5.0/+esm`,
 	avif: `${CDN_ROOT}/@jsquash/avif@2.1.1/+esm`,
-	pica: `${CDN_ROOT}/pica@10.0.3/dist/pica.mjs`,
 	exifr: `${CDN_ROOT}/exifr@7.1.3/dist/full.esm.mjs`,
 	imagequant: `${CDN_ROOT}/libimagequant-wasm@0.3.0/dist/wasm/libimagequant_wasm.js`,
 	imagequantWasm: `${CDN_ROOT}/libimagequant-wasm@0.3.0/dist/wasm/libimagequant_wasm_bg.wasm`
@@ -17,10 +16,6 @@ export const IMAGE_CODEC_URLS = {
 type EncodeModule = { encode: (data: ImageData, options?: Record<string, unknown>) => Promise<ArrayBuffer> }
 type OxiPngModule = { optimise: (data: ArrayBuffer | ImageData, options?: Record<string, unknown>) => Promise<ArrayBuffer> }
 type ExifrModule = { parse: (input: Blob, options?: Record<string, unknown>) => Promise<Record<string, unknown> | undefined> }
-type PicaInstance = {
-	resize: (from: OffscreenCanvas, to: OffscreenCanvas, options?: Record<string, unknown>) => Promise<OffscreenCanvas>
-}
-type PicaModule = { default: (options?: Record<string, unknown>) => PicaInstance }
 
 type ImageQuantResult = {
 	getPalette: () => number[][]
@@ -51,7 +46,6 @@ export type QuantizedImage = {
 }
 
 const remoteModules = new Map<string, Promise<unknown>>()
-let picaInstance: PicaInstance | undefined
 let imageQuantPromise: Promise<ImageQuantModule> | undefined
 
 async function importRemote<T>(url: string): Promise<T> {
@@ -89,14 +83,6 @@ export function loadOxiPng() {
 
 export function loadExifr() {
 	return importRemote<ExifrModule>(IMAGE_CODEC_URLS.exifr)
-}
-
-export async function loadPica() {
-	if (!picaInstance) {
-		const module = await importRemote<PicaModule>(IMAGE_CODEC_URLS.pica)
-		picaInstance = module.default({ features: ['js', 'wasm'], concurrency: 1, tile: 1024 })
-	}
-	return picaInstance
 }
 
 async function loadImageQuant() {

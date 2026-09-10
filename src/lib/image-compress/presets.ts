@@ -1,12 +1,11 @@
 import type { CandidatePlan, ImageAnalysis, ImageClass, ImageCompressionOptions, ImageFormat } from './types'
 
-export function computeTargetSize(width: number, height: number, maxPixels: number) {
-	const scale = width * height > maxPixels ? Math.sqrt(maxPixels / (width * height)) : 1
-	return {
-		width: Math.max(1, Math.round(width * scale)),
-		height: Math.max(1, Math.round(height * scale)),
-		limitedByMemory: scale < 1
-	}
+export const DEFAULT_IMAGE_COMPRESSION_OPTIONS: ImageCompressionOptions = {
+	preset: 'smart',
+	output: 'keep',
+	compatibility: 'compatible',
+	stripMetadata: false,
+	jpegBackground: '#ffffff'
 }
 
 export function buildCandidatePlans(input: {

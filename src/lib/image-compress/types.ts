@@ -15,7 +15,6 @@ export type ImageCompressionOptions = {
 }
 
 export type ImageDeviceLimits = {
-	maxPixels: number
 	lowMemory: boolean
 }
 

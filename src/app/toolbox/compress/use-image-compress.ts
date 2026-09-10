@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { computeTargetSize } from '@/lib/image-compress/presets'
 import { inspectImageContainer } from '@/lib/image-compress/sniff'
 import type {
 	ImageCompressionOptions,
@@ -43,7 +42,7 @@ function limitsForDevice(): ImageDeviceLimits {
 	const memory = navigatorWithMemory.deviceMemory
 	const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 	const lowMemory = ios || memory === undefined || memory <= 4
-	return { lowMemory, maxPixels: lowMemory ? 24_000_000 : 56_000_000 }
+	return { lowMemory }
 }
 
 function workerCount(items: ImageCompressionItem[], options: ImageCompressionOptions, limits: ImageDeviceLimits) {
@@ -71,25 +70,13 @@ async function inspectFile(file: File) {
 	return info as typeof info & { format: ImageFormat }
 }
 
-async function decodeOnMainThread(file: File, limits: ImageDeviceLimits, knownWidth: number, knownHeight: number) {
+async function decodeOnMainThread(file: File) {
 	let source: CanvasImageSource
 	let width: number
 	let height: number
 	let dispose = () => {}
-	let protectiveResize = false
 	if (typeof createImageBitmap === 'function') {
-		const knownPixels = knownWidth * knownHeight
-		const target = computeTargetSize(knownWidth || 1, knownHeight || 1, limits.maxPixels)
-		protectiveResize = knownPixels > limits.maxPixels * 1.35
-		let bitmap: ImageBitmap
-		try {
-			bitmap = protectiveResize
-				? await createImageBitmap(file, { imageOrientation: 'from-image', resizeWidth: target.width, resizeHeight: target.height, resizeQuality: 'high' })
-				: await createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'default', premultiplyAlpha: 'default' })
-		} catch {
-			protectiveResize = false
-			bitmap = await createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'default', premultiplyAlpha: 'default' })
-		}
+		const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image', colorSpaceConversion: 'default', premultiplyAlpha: 'default' })
 		source = bitmap
 		width = bitmap.width
 		height = bitmap.height
@@ -113,21 +100,16 @@ async function decodeOnMainThread(file: File, limits: ImageDeviceLimits, knownWi
 		}
 	}
 	try {
-		const target = computeTargetSize(width, height, limits.maxPixels)
 		const canvas = document.createElement('canvas')
-		canvas.width = target.width
-		canvas.height = target.height
+		canvas.width = width
+		canvas.height = height
 		const context = canvas.getContext('2d', { willReadFrequently: true })
 		if (!context) throw new Error('无法创建兼容解码画布')
-		context.imageSmoothingEnabled = true
-		context.imageSmoothingQuality = 'high'
-		context.drawImage(source, 0, 0, target.width, target.height)
-		const image = context.getImageData(0, 0, target.width, target.height)
+		context.drawImage(source, 0, 0)
+		const image = context.getImageData(0, 0, width, height)
 		const data = image.data.buffer.slice(image.data.byteOffset, image.data.byteOffset + image.data.byteLength) as ArrayBuffer
 		const warnings = ['当前浏览器使用主线程解码兼容路径']
-		if (protectiveResize) warnings.push('为避免大图导致浏览器内存不足，已在解码阶段限制像素数量')
-		if (target.width !== width || target.height !== height) warnings.push('兼容路径使用浏览器高质量缩放')
-		return { data, width: target.width, height: target.height, warnings }
+		return { data, width, height, warnings }
 	} finally {
 		dispose()
 	}
@@ -178,7 +160,7 @@ export function useImageCompress() {
 				const task = tasksRef.current.get(response.jobId)
 				const item = itemsRef.current.find(candidate => candidate.id === response.jobId)
 				if (!task || !item) return
-				void decodeOnMainThread(item.file, task.limits, item.width, item.height)
+				void decodeOnMainThread(item.file)
 					.then(decoded => {
 						if (slot.worker !== worker || slot.jobId !== item.id) return
 						worker.postMessage({ type: 'job:start-decoded', jobId: item.id, file: item.file, options: task.options, limits: task.limits, decoded } satisfies ImageWorkerRequest, [decoded.data])

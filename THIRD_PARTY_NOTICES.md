@@ -9,7 +9,6 @@ The image-compression toolbox loads the following pinned browser modules from js
 | `@jsquash/oxipng` | 2.3.0 | Lossless PNG optimization | Apache-2.0 |
 | `@jsquash/webp` | 1.5.0 | libwebp encoding | Apache-2.0 |
 | `@jsquash/avif` | 2.1.1 | libavif encoding | Apache-2.0 |
-| `pica` | 10.0.3 | High-quality browser resize | MIT |
 | `exifr` | 7.1.3 | EXIF and ICC inspection | MIT |
 | `libimagequant-wasm` | 0.3.0 | Browser bindings for libimagequant | MIT wrapper |
 | `libimagequant` / `imagequant` | 4.x dependency of the wrapper | Alpha-aware palette quantization | GPL-3.0-or-later or commercial license |
@@ -20,7 +19,6 @@ The `libimagequant-wasm` wrapper explicitly depends on the separately licensed `
 Upstream sources:
 
 - <https://github.com/jamsinclair/jSquash>
-- <https://github.com/nodeca/pica>
 - <https://github.com/MikeKovarik/exifr>
 - <https://github.com/akshetpandey/libimagequant-wasm>
 - <https://github.com/ImageOptim/libimagequant>
