@@ -1,4 +1,4 @@
-import type { ImageCompressionPreset } from './types'
+import type { ImageAnalysis, ImageClass, ImageCompressionPreset, PngQuantizationOptions } from './types'
 
 const CDN_ROOT = 'https://cdn.jsdelivr.net/npm'
 
@@ -100,23 +100,41 @@ async function loadImageQuant() {
 	return imageQuantPromise
 }
 
-function quantizationOptions(preset: ImageCompressionPreset, analysis: { gradientRatio: number; flatAreaRatio: number }) {
-	const flat = analysis.flatAreaRatio > 0.5
+export function buildPngQuantizationCandidates(preset: ImageCompressionPreset, classification: ImageClass, analysis: ImageAnalysis): PngQuantizationOptions[] {
+	const graphic = classification === 'ui-text' || classification === 'flat-illustration' || classification === 'transparent-icon'
 	const gradient = analysis.gradientRatio > 0.2
-	// Let the output quality gate judge the rendered pixels instead of aborting quantization early.
-	if (preset === 'smaller') return { speed: 3, min: 0, target: 65, colors: 256, dithering: gradient ? 0.5 : flat ? 0.1 : 0.25 }
-	if (preset === 'higher') return { speed: 3, min: 88, target: 98, colors: 256, dithering: gradient ? 0.9 : flat ? 0.4 : 0.8 }
-	return { speed: 3, min: 0, target: 80, colors: 256, dithering: gradient ? 0.65 : flat ? 0.2 : 0.4 }
+	if (preset !== 'smaller') {
+		const flat = analysis.flatAreaRatio > 0.5
+		return [{
+			speed: 3,
+			minQuality: preset === 'higher' ? 88 : 0,
+			targetQuality: preset === 'higher' ? 98 : 80,
+			maxColors: 256,
+			dithering: preset === 'higher' ? (gradient ? 0.9 : flat ? 0.4 : 0.8) : gradient ? 0.65 : flat ? 0.2 : 0.4
+		}]
+	}
+
+	const maxColors = graphic ? [128, 64, 32, 16, 8, 4] : gradient || classification === 'photo' ? [128, 64] : [128, 64, 32, 16]
+	const targetQuality = classification === 'ui-text' || classification === 'photo' || gradient
+		? 55
+		: classification === 'flat-illustration' || classification === 'transparent-icon' ? 45 : 50
+	const dithering = graphic ? [0] : gradient ? [0.3, 0.45] : classification === 'photo' ? [0.15, 0.25] : [0.05, 0.1]
+	return maxColors.flatMap(colors => dithering.map(value => ({
+		speed: 3,
+		minQuality: 0,
+		targetQuality,
+		maxColors: colors,
+		dithering: value
+	})))
 }
 
-export async function quantizeImage(image: ImageData, preset: ImageCompressionPreset, analysis: { gradientRatio: number; flatAreaRatio: number }): Promise<QuantizedImage> {
+export async function quantizeImage(image: ImageData, options: PngQuantizationOptions): Promise<QuantizedImage> {
 	const module = await loadImageQuant()
-	const options = quantizationOptions(preset, analysis)
 	const quantizer = new module.ImageQuantizer()
 	try {
 		quantizer.setSpeed(options.speed)
-		quantizer.setQuality(options.min, options.target)
-		quantizer.setMaxColors(options.colors)
+		quantizer.setQuality(options.minQuality, options.targetQuality)
+		quantizer.setMaxColors(options.maxColors)
 		const result = quantizer.quantizeImage(image.data, image.width, image.height)
 		try {
 			result.setDithering(options.dithering)

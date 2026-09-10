@@ -24,6 +24,36 @@ export type ImageQualityMetrics = {
 	alphaMae: number
 }
 
+export type PngQuantizationOptions = {
+	maxColors: number
+	targetQuality: number
+	dithering: number
+	minQuality: number
+	speed: number
+}
+
+export type ImageCompressionDiagnosticReason =
+	| 'icc-uncertain'
+	| 'wide-gamut'
+	| 'quality-rejected'
+	| 'no-meaningful-gain'
+	| 'quantize-failed'
+	| 'lossless-smaller'
+	| 'quantized-selected'
+
+export type ImageCompressionDiagnostic = {
+	reason: ImageCompressionDiagnosticReason
+	originalBytes: number
+	finalBytes: number
+	candidateBytes?: number
+	classification: ImageClass
+	paletteColors?: number
+	targetQuality?: number
+	dithering?: number
+	optimiseAlpha?: boolean
+	metrics?: ImageQualityMetrics
+}
+
 export type ImageCompressionResult = {
 	bytes: ArrayBuffer
 	format: ImageFormat
@@ -37,6 +67,7 @@ export type ImageCompressionResult = {
 	classification: ImageClass
 	encoder: string
 	metrics?: ImageQualityMetrics
+	diagnostics: ImageCompressionDiagnostic[]
 	warnings: string[]
 }
 
@@ -97,4 +128,6 @@ export type ImageAnalysis = {
 export type CandidatePlan = {
 	format: ImageFormat
 	variant: 'lossy' | 'lossless' | 'quantized'
+	quantization?: PngQuantizationOptions
+	optimiseAlpha?: boolean
 }

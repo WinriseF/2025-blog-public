@@ -18,17 +18,24 @@ export function buildCandidatePlans(input: {
 }) {
 	const { sourceFormat, classification, analysis, options, sourceBytes, pixels } = input
 	const plans: CandidatePlan[] = []
-	const add = (format: ImageFormat, variant: CandidatePlan['variant']) => {
-		if (!plans.some(item => item.format === format && item.variant === variant)) plans.push({ format, variant })
+	const add = (plan: CandidatePlan) => {
+		const key = JSON.stringify(plan)
+		if (!plans.some(item => JSON.stringify(item) === key)) plans.push(plan)
+	}
+	const addPngQuantized = () => {
+		add({ format: 'png', variant: 'quantized' })
+	}
+	const addPng = () => {
+		add({ format: 'png', variant: 'lossless' })
+		if (options.preset === 'smaller' && analysis.alphaCoverage > 0) add({ format: 'png', variant: 'lossless', optimiseAlpha: true })
+		addPngQuantized()
 	}
 	const graphic = classification === 'ui-text' || classification === 'flat-illustration' || classification === 'transparent-icon'
 
 	const addSameFormat = () => {
-		if (sourceFormat === 'png') {
-			add('png', 'lossless')
-			add('png', 'quantized')
-		} else if (sourceFormat === 'webp' && graphic) add('webp', 'lossless')
-		else add(sourceFormat, 'lossy')
+		if (sourceFormat === 'png') addPng()
+		else if (sourceFormat === 'webp' && graphic) add({ format: 'webp', variant: 'lossless' })
+		else add({ format: sourceFormat, variant: 'lossy' })
 	}
 
 	if (options.output === 'keep') {
@@ -37,22 +44,20 @@ export function buildCandidatePlans(input: {
 	}
 
 	if (options.output !== 'auto') {
-		if (options.output === 'png') {
-			add('png', 'lossless')
-			add('png', 'quantized')
-		} else if (options.output === 'webp' && graphic) add('webp', 'lossless')
-		else add(options.output, 'lossy')
+		if (options.output === 'png') addPng()
+		else if (options.output === 'webp' && graphic) add({ format: 'webp', variant: 'lossless' })
+		else add({ format: options.output, variant: 'lossy' })
 		return plans
 	}
 
 	addSameFormat()
 	if (graphic || analysis.alphaCoverage > 0) {
-		add('webp', 'lossless')
-		add('png', 'quantized')
+		add({ format: 'webp', variant: 'lossless' })
+		addPngQuantized()
 	} else {
-		add('webp', 'lossy')
+		add({ format: 'webp', variant: 'lossy' })
 	}
-	if (options.compatibility === 'smallest' && sourceBytes >= 40 * 1024 && pixels >= 64_000 && classification !== 'transparent-icon') add('avif', 'lossy')
+	if (options.compatibility === 'smallest' && sourceBytes >= 40 * 1024 && pixels >= 64_000 && classification !== 'transparent-icon') add({ format: 'avif', variant: 'lossy' })
 	return plans
 }
 

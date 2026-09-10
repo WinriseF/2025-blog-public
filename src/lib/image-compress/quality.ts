@@ -2,7 +2,7 @@ import { sampleImageData } from './features'
 import type { ImageClass, ImageCompressionPreset, ImageQualityMetrics } from './types'
 
 function luma(data: Uint8ClampedArray, offset: number) {
-	return data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722
+	return (data[offset] * 0.2126 + data[offset + 1] * 0.7152 + data[offset + 2] * 0.0722) * data[offset + 3] / 255
 }
 
 export function compareImageQuality(referenceSource: ImageData, candidateSource: ImageData): ImageQualityMetrics {
@@ -55,8 +55,8 @@ export function compareImageQuality(referenceSource: ImageData, candidateSource:
 }
 
 export function passesQualityGate(metrics: ImageQualityMetrics, classification: ImageClass, preset: ImageCompressionPreset) {
-	const ssimFloor = preset === 'smaller' ? 0.975 : preset === 'higher' ? 0.992 : 0.985
-	const edgeCeiling = classification === 'ui-text' ? (preset === 'smaller' ? 0.055 : 0.035) : preset === 'smaller' ? 0.075 : 0.055
-	const alphaCeiling = preset === 'smaller' ? 0.008 : 1 / 255
+	const ssimFloor = preset === 'smaller' ? 0.96 : preset === 'higher' ? 0.992 : 0.985
+	const edgeCeiling = classification === 'ui-text' ? (preset === 'smaller' ? 0.075 : 0.035) : preset === 'smaller' ? 0.1 : 0.055
+	const alphaCeiling = preset === 'smaller' ? 0.015 : 1 / 255
 	return metrics.ssim >= ssimFloor && metrics.edgeError <= edgeCeiling && metrics.alphaMae <= alphaCeiling
 }

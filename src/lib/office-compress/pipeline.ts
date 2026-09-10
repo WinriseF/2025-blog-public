@@ -3,6 +3,8 @@ import { inspectImageContainer } from '../image-compress/sniff'
 import { inspectPackage, officeFormat } from './package'
 import { loadOfficeZip, readPart, type Entry } from './zip'
 
+const OFFICE_FILE_LIMIT = 2 * 1024 * 1024 * 1024
+
 export type OfficeProgress = { stage: string; progress: number }
 
 export async function compressOffice(file: File, options: {
@@ -12,7 +14,7 @@ export async function compressOffice(file: File, options: {
 }): Promise<Blob> {
 	const { signal, onProgress } = options
 	const format = officeFormat(file.name)
-	if (file.size > 350 * 1024 * 1024) throw new Error('当前浏览器内存下载模式最多支持 350 MB 文档')
+	if (file.size > OFFICE_FILE_LIMIT) throw new Error('当前浏览器内存下载模式最多支持 2 GB 文档')
 	const header = new Uint8Array(await file.slice(0, 4).arrayBuffer())
 	if (header[0] === 208 && header[1] === 207) throw new Error('文档已加密或使用旧版二进制格式，请先另存为未加密的 PPTX、DOCX 或 XLSX')
 	if (header[0] !== 80 || header[1] !== 75 || header[2] !== 3 || header[3] !== 4) throw new Error('不是有效的 Office Open XML 文件')
@@ -52,7 +54,7 @@ export async function compressOffice(file: File, options: {
 			write(chunk) {
 				signal.throwIfAborted()
 				outputBytes += chunk.byteLength
-				if (outputBytes > 350 * 1024 * 1024) throw new Error('输出超过浏览器内存下载上限')
+				if (outputBytes > OFFICE_FILE_LIMIT) throw new Error('输出超过 2 GB 浏览器内存下载上限')
 				chunks.push(new Uint8Array(chunk))
 			}
 		})

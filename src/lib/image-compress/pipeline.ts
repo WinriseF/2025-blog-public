@@ -1,4 +1,5 @@
 import { decodeEncodedCandidate, decodeImageInWorker, flattenAlpha, resizeQualityPreview } from './decode'
+import { buildPngQuantizationCandidates } from './cdn'
 import { encodeCandidate, type EncodedCandidate } from './encode'
 import { analyzeImage, classifyImage, sampleImageData } from './features'
 import { inspectImageMetadata } from './metadata'
@@ -7,6 +8,7 @@ import { compareImageQuality, passesQualityGate } from './quality'
 import { IMAGE_FORMAT_META, inspectImageContainer } from './sniff'
 import type {
 	DecodedImagePayload,
+	ImageCompressionDiagnostic,
 	ImageCompressionOptions,
 	ImageCompressionResult,
 	ImageDeviceLimits,
@@ -48,7 +50,7 @@ async function rankCandidate(candidate: EncodedCandidate, reference: ImageData, 
 	const { preview, ...encoded } = candidate
 	if (preview) {
 		const metrics = compareImageQuality(sampleImageData(reference, 384), sampleImageData(preview, 384))
-		return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) }
+		return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) && (!encoded.optimiseAlpha || metrics.alphaMae === 0) }
 	}
 	const decoded = await decodeEncodedCandidate(candidate.bytes, candidate.format, reference.width, reference.height)
 	if (!decoded) {
@@ -56,7 +58,7 @@ async function rankCandidate(candidate: EncodedCandidate, reference: ImageData, 
 	}
 	const sampledReference = await resizeQualityPreview(reference, decoded.width, decoded.height) ?? sampleImageData(reference, 384)
 	const metrics = compareImageQuality(candidate.format === 'jpeg' ? flattenAlpha(sampledReference, options.jpegBackground) : sampledReference, decoded)
-	return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) }
+	return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) && (!encoded.optimiseAlpha || metrics.alphaMae === 0) }
 }
 
 function makeResult(candidate: EncodedCandidate, input: {
@@ -66,6 +68,7 @@ function makeResult(candidate: EncodedCandidate, input: {
 	classification: ImageCompressionResult['classification']
 	warnings: string[]
 	usedOriginal: boolean
+	diagnostics: ImageCompressionDiagnostic[]
 }): ImageCompressionResult {
 	const meta = IMAGE_FORMAT_META[candidate.format]
 	return {
@@ -81,8 +84,28 @@ function makeResult(candidate: EncodedCandidate, input: {
 		classification: input.classification,
 		encoder: candidate.encoder,
 		metrics: candidate.metrics,
+		diagnostics: input.diagnostics,
 		warnings: input.warnings
 	}
+}
+
+function candidateDiagnostic(reason: ImageCompressionDiagnostic['reason'], candidate: Partial<RankedCandidate>, originalBytes: number, classification: ImageCompressionResult['classification']): ImageCompressionDiagnostic {
+	return {
+		reason,
+		originalBytes,
+		finalBytes: originalBytes,
+		candidateBytes: candidate.bytes?.byteLength,
+		classification,
+		paletteColors: candidate.paletteColors ?? candidate.quantization?.maxColors,
+		targetQuality: candidate.quantization?.targetQuality,
+		dithering: candidate.quantization?.dithering,
+		optimiseAlpha: candidate.optimiseAlpha,
+		metrics: candidate.metrics
+	}
+}
+
+function withFinalBytes(diagnostics: ImageCompressionDiagnostic[], finalBytes: number) {
+	return diagnostics.map(diagnostic => ({ ...diagnostic, finalBytes }))
 }
 
 function errorMessage(error: unknown) {
@@ -124,7 +147,13 @@ export async function compressImage(input: {
 			height: swapsAxes ? container.width : container.height,
 			classification: 'mixed',
 			warnings,
-			usedOriginal: true
+			usedOriginal: true,
+			diagnostics: [{
+				reason: metadata.colorUncertain ? 'icc-uncertain' : 'wide-gamut',
+				originalBytes: file.size,
+				finalBytes: file.size,
+				classification: 'mixed'
+			}]
 		})
 	}
 
@@ -152,15 +181,18 @@ export async function compressImage(input: {
 		options,
 		sourceBytes: file.size,
 		pixels: image.width * image.height
-	}).filter(plan => !(limits.lowMemory && options.output === 'auto' && plan.format === 'avif'))
+	}).flatMap(plan => plan.variant === 'quantized'
+		? buildPngQuantizationCandidates(options.preset, classification, analysis).map(quantization => ({ ...plan, quantization }))
+		: [plan]
+	).filter(plan => !(limits.lowMemory && options.output === 'auto' && plan.format === 'avif'))
 
-	const baseline = canUseOriginal(options, resized)
-		? ({ format: sourceFormat, bytes: sourceBuffer, encoder: '保留原文件' } satisfies EncodedCandidate)
+	const baseline: RankedCandidate | null = canUseOriginal(options, resized)
+		? { format: sourceFormat, bytes: sourceBuffer, encoder: '保留原文件', metrics: { ssim: 1, edgeError: 0, alphaMae: 0 }, passed: true }
 		: null
-	let best: RankedCandidate | null = baseline ? { ...baseline, metrics: { ssim: 1, edgeError: 0, alphaMae: 0 }, passed: true } : null
+	let smallest: RankedCandidate | null = null
 	let fallback: Pick<RankedCandidate, 'format' | 'metrics'> | null = null
-	let passedWithoutGain = false
 	const failures: string[] = []
+	const diagnostics: ImageCompressionDiagnostic[] = []
 
 	for (let index = 0; index < plans.length; index += 1) {
 		const plan = plans[index]
@@ -170,32 +202,40 @@ export async function compressImage(input: {
 			onProgress('evaluate', 0.35 + (index + 0.8) / plans.length * 0.6)
 			const ranked = await rankCandidate(encoded, image, classification, options)
 			if (!ranked.passed) {
+				diagnostics.push(candidateDiagnostic('quality-rejected', ranked, file.size, classification))
 				if (!fallback || ranked.metrics.ssim > fallback.metrics.ssim) fallback = { format: ranked.format, metrics: ranked.metrics }
 				continue
 			}
-			if (!best || meaningfulGain(ranked, best.bytes.byteLength, best.format, options.compatibility)) best = ranked
-			else passedWithoutGain = true
+			if (!smallest || ranked.bytes.byteLength < smallest.bytes.byteLength) smallest = ranked
 		} catch (error) {
 			failures.push(`${plan.format}:${plan.variant}: ${errorMessage(error)}`)
+			if (plan.variant === 'quantized') diagnostics.push(candidateDiagnostic('quantize-failed', { quantization: plan.quantization }, file.size, classification))
 		}
 	}
 
-	if (!best && fallback) {
+	if (!baseline && !smallest && fallback) {
 		throw new ImagePipelineError('QUALITY_GATE_FAILED', `编码结果未达到质量门禁（SSIM ${fallback.metrics.ssim.toFixed(4)}）`)
 	}
-	if (!best) {
+	if (!baseline && !smallest) {
 		const detail = failures.join('；') || '没有可用的编码结果'
 		const cdnFailure = /fetch|import|network|module|cdn|wasm/i.test(detail)
 		throw new ImagePipelineError(cdnFailure ? 'CDN_UNAVAILABLE' : 'ENCODE_FAILED', cdnFailure ? `无法加载远程编码器：${detail}` : detail)
 	}
+	let best = smallest ?? baseline!
+	if (baseline && (!smallest || !meaningfulGain(smallest, baseline.bytes.byteLength, baseline.format, options.compatibility))) {
+		best = baseline
+		if (smallest) diagnostics.push(candidateDiagnostic('no-meaningful-gain', smallest, file.size, classification))
+	}
+	if (best.encoder.includes('libimagequant')) diagnostics.push(candidateDiagnostic('quantized-selected', best, file.size, classification))
+	else if (best.format === 'png' && best.encoder.startsWith('PNG + OxiPNG') && best.bytes.byteLength < file.size) diagnostics.push(candidateDiagnostic('lossless-smaller', best, file.size, classification))
 
 	if (best.encoder === '保留原文件') {
-		if (passedWithoutGain) warnings.push('重新编码未带来足够的体积收益，已保留原文件')
+		if (smallest) warnings.push('重新编码未带来足够的体积收益，已保留原文件')
 		else if (fallback) warnings.push(`候选未通过质量门禁（最佳 SSIM ${fallback.metrics.ssim.toFixed(4)}），已保留原文件`)
 		else if (failures.length) warnings.push(`候选编码失败，已保留原文件：${failures.join('；')}`)
 	}
 	else if (best.bytes.byteLength >= file.size) warnings.push('当前操作为强制转换或清理元数据，因此输出可能大于原文件')
-	if (best.encoder === 'PNG + OxiPNG') {
+	if (best.encoder.startsWith('PNG + OxiPNG')) {
 		const quantizationFailure = failures.find(message => message.startsWith('png:quantized:'))
 		if (quantizationFailure) warnings.push(`PNG 量化失败，已使用无损压缩：${quantizationFailure}`)
 		else if (fallback?.format === 'png') warnings.push('PNG 量化结果未达到画质要求，已使用无损压缩')
@@ -209,6 +249,7 @@ export async function compressImage(input: {
 		height: image.height,
 		classification,
 		warnings: [...new Set(warnings)],
-		usedOriginal: best.encoder === '保留原文件'
+		usedOriginal: best.encoder === '保留原文件',
+		diagnostics: withFinalBytes(diagnostics, best.bytes.byteLength)
 	})
 }
