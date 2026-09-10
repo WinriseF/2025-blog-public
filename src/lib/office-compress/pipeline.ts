@@ -1,4 +1,5 @@
 import type { ImageCompressionPreset } from '../image-compress/types'
+import { inspectImageContainer } from '../image-compress/sniff'
 import { inspectPackage, officeFormat } from './package'
 import { loadOfficeZip, readPart, type Entry } from './zip'
 
@@ -20,7 +21,8 @@ export async function compressOffice(file: File, options: {
 	const zip = await loadOfficeZip()
 	signal.throwIfAborted()
 	const reader = new zip.ZipReader(new zip.BlobReader(file), { useWebWorkers: false })
-	let worker: Worker | undefined
+	const concurrency = ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 0) >= 16 ? 2 : 1
+	const workers: (Worker | undefined)[] = []
 	let outputBytes = 0
 	const chunks: Uint8Array[] = []
 	try {
@@ -32,14 +34,14 @@ export async function compressOffice(file: File, options: {
 		}
 		const images = await inspectPackage(entries, format, signal)
 		let processed = 0
-		const encode = (image: File) => new Promise<ArrayBuffer | null>((resolve, reject) => {
+		const encode = (image: File, slot: number) => new Promise<ArrayBuffer | null>((resolve, reject) => {
 			signal.throwIfAborted()
-			try { worker ??= new Worker(new URL('./image.worker.ts', import.meta.url), { type: 'module' }) }
+			try { workers[slot] ??= new Worker(new URL('./image.worker.ts', import.meta.url), { type: 'module' }) }
 			catch { resolve(null); return }
-			const current = worker
+			const current = workers[slot]!
 			const cleanup = () => { signal.removeEventListener('abort', abort); current.onmessage = null; current.onerror = null; current.onmessageerror = null }
-			const abort = () => { cleanup(); current.terminate(); worker = undefined; reject(signal.reason) }
-			const fail = () => { cleanup(); current.terminate(); worker = undefined; resolve(null) }
+			const abort = () => { cleanup(); current.terminate(); workers[slot] = undefined; reject(signal.reason) }
+			const fail = () => { cleanup(); current.terminate(); workers[slot] = undefined; resolve(null) }
 			signal.addEventListener('abort', abort, { once: true })
 			current.onmessage = (event: MessageEvent<ArrayBuffer | null>) => { cleanup(); resolve(event.data) }
 			current.onerror = event => { event.preventDefault(); fail() }
@@ -55,36 +57,56 @@ export async function compressOffice(file: File, options: {
 			}
 		})
 		const writer = new zip.ZipWriter(sink, { keepOrder: true, useWebWorkers: false })
-		for (let index = 0; index < entries.length; index++) {
+		for (let index = 0; index < entries.length;) {
 			signal.throwIfAborted()
-			const entry = entries[index]
-			let replacement: Blob | undefined
-			const mime = images.get(entry.filename)
-			if (mime) {
+			// Prepare at most two images, then drain this batch in the original ZIP order.
+			const batch: Entry[] = []
+			let end = index
+			while (end < entries.length && batch.length < concurrency) {
+				const entry = entries[end++]
+				if (images.has(entry.filename)) batch.push(entry)
+			}
+			const inputs: { entry: Entry; file: File; parallelSafe: boolean }[] = []
+			for (const entry of batch) {
 				onProgress({ stage: `压缩图片 ${processed + 1} / ${images.size}`, progress: 0.1 + index / entries.length * 0.85 })
 				if (entry.uncompressedSize <= 256 * 1024 * 1024) {
 					// ZIP read/CRC failures are fatal; codec failures alone preserve the original image.
 					const blob = await readPart(entry, signal, 256 * 1024 * 1024)
-					const bytes = await encode(new File([blob], entry.filename, { type: mime }))
-					if (bytes && bytes.byteLength < entry.compressedSize) replacement = new Blob([bytes])
+					let parallelSafe = false
+					if (concurrency === 2) {
+						const info = inspectImageContainer(new Uint8Array(await blob.slice(0, 1024 * 1024).arrayBuffer()))
+						parallelSafe = ['jpeg', 'png', 'webp'].includes(info.format) && !info.animated && info.width > 0 && info.height > 0 && info.width * info.height <= 24_000_000
+					}
+					inputs.push({ entry, file: new File([blob], entry.filename, { type: images.get(entry.filename) }), parallelSafe })
 				}
-				processed++
 			}
-			const metadata = { directory: entry.directory, lastModDate: entry.lastModDate, comment: entry.comment, signal }
-			if (replacement) await writer.add(entry.filename, new zip.BlobReader(replacement), { ...metadata, level: 0 })
-			else if (entry.directory) await writer.add(entry.filename, undefined, metadata)
-			else {
-				const stream = new TransformStream<Uint8Array, Uint8Array>()
-				const transfer = new AbortController()
-				const abort = () => transfer.abort(signal.reason)
-				signal.addEventListener('abort', abort, { once: true })
-				const copying = entry.getData(stream.writable, { signal: transfer.signal, passThrough: true })
-				const writing = writer.add(entry.filename, stream.readable, { ...metadata, signal: transfer.signal, passThrough: true, compressionMethod: entry.compressionMethod, uncompressedSize: entry.uncompressedSize, signature: entry.signature })
-				try { await Promise.all([copying, writing]) }
-				catch (error) { transfer.abort(error); await Promise.allSettled([copying, writing]); throw error }
-				finally { signal.removeEventListener('abort', abort) }
+			const replacements = new Map<string, Blob>()
+			const optimize = async (input: typeof inputs[number], slot: number) => {
+				const bytes = await encode(input.file, slot)
+				if (bytes && bytes.byteLength < input.entry.compressedSize) replacements.set(input.entry.filename, new Blob([bytes]))
 			}
-			onProgress({ stage: '写入文档', progress: 0.1 + (index + 1) / entries.length * 0.85 })
+			if (inputs.every(input => input.parallelSafe)) await Promise.all(inputs.map(optimize))
+			else for (const input of inputs) await optimize(input, 0)
+			processed += batch.length
+			for (; index < end; index++) {
+				const entry = entries[index]
+				const replacement = replacements.get(entry.filename)
+				const metadata = { directory: entry.directory, lastModDate: entry.lastModDate, comment: entry.comment, signal }
+				if (replacement) await writer.add(entry.filename, new zip.BlobReader(replacement), { ...metadata, level: 0 })
+				else if (entry.directory) await writer.add(entry.filename, undefined, metadata)
+				else {
+					const stream = new TransformStream<Uint8Array, Uint8Array>()
+					const transfer = new AbortController()
+					const abort = () => transfer.abort(signal.reason)
+					signal.addEventListener('abort', abort, { once: true })
+					const copying = entry.getData(stream.writable, { signal: transfer.signal, passThrough: true })
+					const writing = writer.add(entry.filename, stream.readable, { ...metadata, signal: transfer.signal, passThrough: true, compressionMethod: entry.compressionMethod, uncompressedSize: entry.uncompressedSize, signature: entry.signature })
+					try { await Promise.all([copying, writing]) }
+					catch (error) { transfer.abort(error); await Promise.allSettled([copying, writing]); throw error }
+					finally { signal.removeEventListener('abort', abort) }
+				}
+				onProgress({ stage: '写入文档', progress: 0.1 + (index + 1) / entries.length * 0.85 })
+			}
 		}
 		await writer.close()
 		signal.throwIfAborted()
@@ -92,7 +114,7 @@ export async function compressOffice(file: File, options: {
 		onProgress({ stage: '完成', progress: 1 })
 		return blob
 	} finally {
-		worker?.terminate()
+		for (const worker of workers) worker?.terminate()
 		await reader.close().catch(() => {})
 	}
 }
