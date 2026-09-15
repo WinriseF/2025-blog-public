@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const pipeline = vi.hoisted(() => ({ compressImage: vi.fn() }))
+const pipeline = vi.hoisted(() => {
+	class MockImagePipelineError extends Error {
+		constructor(public code: string, message: string) { super(message) }
+	}
+	return { compressImage: vi.fn(), ImagePipelineError: MockImagePipelineError }
+})
 
 vi.mock('../../src/lib/image-compress/pipeline', () => ({
-	compressImage: pipeline.compressImage
+	compressImage: pipeline.compressImage,
+	ImagePipelineError: pipeline.ImagePipelineError
 }))
 
 import { DEFAULT_IMAGE_COMPRESSION_OPTIONS } from '../../src/lib/image-compress/presets'
@@ -48,5 +54,10 @@ describe('Office image compression adapter', () => {
 
 		pipeline.compressImage.mockResolvedValueOnce({ usedOriginal: true, bytes: new ArrayBuffer(10), originalBytes: 10, outputBytes: 10, classification: 'mixed', diagnostics: [{ reason: 'quality-rejected', originalBytes: 10, finalBytes: 10, classification: 'mixed' }], warnings: [] })
 		await expect(optimizeOfficeImage(file, 'smaller')).resolves.toBeNull()
+	})
+
+	it('does not hide an encoder failure by preserving the Office image', async () => {
+		pipeline.compressImage.mockRejectedValueOnce(new pipeline.ImagePipelineError('ENCODE_FAILED', 'PNG 编码失败'))
+		await expect(optimizeOfficeImage(new File(['png'], 'image.png', { type: 'image/png' }), 'smart')).rejects.toThrow('PNG 编码失败')
 	})
 })

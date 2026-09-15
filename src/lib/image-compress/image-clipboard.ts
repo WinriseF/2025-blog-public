@@ -1,4 +1,9 @@
+import { jxlToPng } from './jxl-display'
+
 async function convertToPng(blob: Blob) {
+	if (blob.type === 'image/jxl') {
+		return jxlToPng(blob)
+	}
 	const url = URL.createObjectURL(blob)
 	try {
 		const image = new Image()

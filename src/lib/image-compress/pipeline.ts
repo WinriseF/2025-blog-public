@@ -1,11 +1,12 @@
-import { decodeEncodedCandidate, decodeImageInWorker, flattenAlpha, resizeQualityPreview } from './decode'
-import { buildPngQuantizationCandidates } from './cdn'
+import { decodeEncodedCandidate, decodeImageInWorker, flattenAlpha, NativeWorkerDecodeUnavailable, resizeQualityPreview } from './decode'
+import { buildPngQuantizationCandidates, loadOxiPng } from './cdn'
 import { encodeCandidate, type EncodedCandidate } from './encode'
 import { analyzeImage, classifyImage, sampleImageData } from './features'
 import { inspectImageMetadata } from './metadata'
 import { buildCandidatePlans } from './presets'
 import { compareImageQuality, passesQualityGate } from './quality'
-import { IMAGE_FORMAT_META, inspectImageContainer } from './sniff'
+import { nextCandidate } from './search'
+import { assertOutputFormat, IMAGE_FORMAT_META, inspectImageContainer } from './sniff'
 import type {
 	DecodedImagePayload,
 	ImageCompressionDiagnostic,
@@ -30,11 +31,11 @@ function sourceError(format: ReturnType<typeof inspectImageContainer>['format'])
 	if (format === 'heic') return '暂不支持 HEIC/HEIF，避免 HDR、广色域或高位深内容被静默降质'
 	if (format === 'gif') return '暂不支持 GIF；本工具不会自动提取第一帧，以免丢失动画'
 	if (format === 'svg') return 'SVG 是矢量文档，请使用独立的矢量优化工具'
-	return '无法识别图片的真实格式，仅支持静态 JPEG、PNG、WebP 和 AVIF'
+	return '无法识别图片的真实格式，仅支持静态 JPEG、PNG、WebP、AVIF 和 JPEG XL'
 }
 
-function canUseOriginal(options: ImageCompressionOptions, resized: boolean) {
-	return (options.output === 'keep' || options.output === 'auto') && !options.stripMetadata && !resized
+function canUseOriginal(sourceFormat: ImageFormat, options: ImageCompressionOptions, resized: boolean) {
+	return (options.output === 'keep' || options.output === 'auto' || (sourceFormat === 'png' && options.output === 'png')) && !options.stripMetadata && !resized
 }
 
 function meaningfulGain(candidate: RankedCandidate, bestBytes: number, bestFormat: ImageFormat, compatibility: ImageCompressionOptions['compatibility']) {
@@ -42,6 +43,7 @@ function meaningfulGain(candidate: RankedCandidate, bestBytes: number, bestForma
 	const absoluteGain = bestBytes - candidate.bytes.byteLength
 	let relativeGain = candidate.format === bestFormat ? 0.01 : 0.03
 	if (candidate.format === 'avif') relativeGain = compatibility === 'smallest' ? 0.05 : 0.1
+	if (candidate.format === 'jxl') relativeGain = compatibility === 'smallest' ? 0.05 : 0.1
 	if (candidate.encoder.includes('libimagequant')) relativeGain = 0.05
 	return absoluteGain >= 4096 || candidate.bytes.byteLength <= bestBytes * (1 - relativeGain)
 }
@@ -50,15 +52,18 @@ async function rankCandidate(candidate: EncodedCandidate, reference: ImageData, 
 	const { preview, ...encoded } = candidate
 	if (preview) {
 		const metrics = compareImageQuality(sampleImageData(reference, 384), sampleImageData(preview, 384))
-		return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) && (!encoded.optimiseAlpha || metrics.alphaMae === 0) }
+		return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) }
 	}
 	const decoded = await decodeEncodedCandidate(candidate.bytes, candidate.format, reference.width, reference.height)
 	if (!decoded) {
 		throw new ImagePipelineError('QUALITY_GATE_FAILED', '当前浏览器无法检查该编码结果的画质')
 	}
-	const sampledReference = await resizeQualityPreview(reference, decoded.width, decoded.height) ?? sampleImageData(reference, 384)
-	const metrics = compareImageQuality(candidate.format === 'jpeg' ? flattenAlpha(sampledReference, options.jpegBackground) : sampledReference, decoded)
-	return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) && (!encoded.optimiseAlpha || metrics.alphaMae === 0) }
+	const sampledReference = candidate.format === 'jxl'
+		? sampleImageData(reference, 384)
+		: await resizeQualityPreview(reference, decoded.width, decoded.height) ?? sampleImageData(reference, 384)
+	const sampledCandidate = candidate.format === 'jxl' ? sampleImageData(decoded, 384) : decoded
+	const metrics = compareImageQuality(candidate.format === 'jpeg' ? flattenAlpha(sampledReference, options.jpegBackground) : sampledReference, sampledCandidate)
+	return { ...encoded, metrics, passed: passesQualityGate(metrics, classification, options.preset) }
 }
 
 function makeResult(candidate: EncodedCandidate, input: {
@@ -99,7 +104,6 @@ function candidateDiagnostic(reason: ImageCompressionDiagnostic['reason'], candi
 		paletteColors: candidate.paletteColors ?? candidate.quantization?.maxColors,
 		targetQuality: candidate.quantization?.targetQuality,
 		dithering: candidate.quantization?.dithering,
-		optimiseAlpha: candidate.optimiseAlpha,
 		metrics: candidate.metrics
 	}
 }
@@ -110,6 +114,17 @@ function withFinalBytes(diagnostics: ImageCompressionDiagnostic[], finalBytes: n
 
 function errorMessage(error: unknown) {
 	return error instanceof Error ? error.message : String(error)
+}
+
+function operationError(stage: '编码' | '解码', format: ImageFormat, error: unknown) {
+	const detail = errorMessage(error)
+	if (error instanceof RangeError || /memory|allocation|out of bounds/i.test(detail)) {
+		return new ImagePipelineError('OUT_OF_MEMORY', `${format.toUpperCase()} ${stage}时浏览器内存不足`)
+	}
+	if (/fetch|import|network|cdn|failed to load|loading chunk/i.test(detail)) {
+		return new ImagePipelineError('CDN_UNAVAILABLE', `无法加载 ${format.toUpperCase()} ${stage}器：${detail}`)
+	}
+	return new ImagePipelineError(stage === '编码' ? 'ENCODE_FAILED' : 'DECODE_FAILED', `${format.toUpperCase()} ${stage}失败：${detail}`)
 }
 
 export async function compressImage(input: {
@@ -129,7 +144,7 @@ export async function compressImage(input: {
 	}
 	const sourceBytes = new Uint8Array(sourceBuffer)
 	const container = inspectImageContainer(sourceBytes)
-	if (!['jpeg', 'png', 'webp', 'avif'].includes(container.format)) throw new ImagePipelineError('UNSUPPORTED_FORMAT', sourceError(container.format))
+	if (!['jpeg', 'png', 'webp', 'avif', 'jxl'].includes(container.format)) throw new ImagePipelineError('UNSUPPORTED_FORMAT', sourceError(container.format))
 	if (container.animated) throw new ImagePipelineError('ANIMATED_IMAGE', '检测到动态图；当前版本不会提取第一帧或破坏动画')
 	const sourceFormat = container.format as ImageFormat
 
@@ -163,9 +178,14 @@ export async function compressImage(input: {
 		image = new ImageData(new Uint8ClampedArray(input.decoded.data), input.decoded.width, input.decoded.height)
 		warnings.push(...input.decoded.warnings)
 	} else {
-		const decoded = await decodeImageInWorker(file)
-		image = decoded.image
-		warnings.push(...decoded.warnings)
+		try {
+			const decoded = await decodeImageInWorker(file, sourceFormat, sourceBuffer)
+			image = decoded.image
+			warnings.push(...decoded.warnings)
+		} catch (error) {
+			if (error instanceof NativeWorkerDecodeUnavailable) throw error
+			throw operationError('解码', sourceFormat, error)
+		}
 	}
 
 	onProgress('analyze', 0.3)
@@ -184,32 +204,51 @@ export async function compressImage(input: {
 	}).flatMap(plan => plan.variant === 'quantized'
 		? buildPngQuantizationCandidates(options.preset, classification, analysis).map(quantization => ({ ...plan, quantization }))
 		: [plan]
-	).filter(plan => !(limits.lowMemory && options.output === 'auto' && plan.format === 'avif'))
+	).filter(plan => !(limits.lowMemory && options.output === 'auto' && (plan.format === 'avif' || plan.format === 'jxl')))
 
-	const baseline: RankedCandidate | null = canUseOriginal(options, resized)
+	const baseline: RankedCandidate | null = canUseOriginal(sourceFormat, options, resized)
 		? { format: sourceFormat, bytes: sourceBuffer, encoder: '保留原文件', metrics: { ssim: 1, edgeError: 0, alphaMae: 0 }, passed: true }
 		: null
 	let smallest: RankedCandidate | null = null
 	let fallback: Pick<RankedCandidate, 'format' | 'metrics'> | null = null
-	const failures: string[] = []
 	const diagnostics: ImageCompressionDiagnostic[] = []
+	// Reserve two adaptive follow-ups and a final original-PNG optimization.
+	const progressSteps = plans.length + 3
 
 	for (let index = 0; index < plans.length; index += 1) {
 		const plan = plans[index]
-		onProgress('encode', 0.35 + index / plans.length * 0.6)
+		onProgress('encode', 0.35 + index / progressSteps * 0.6)
+		let encoded: EncodedCandidate
 		try {
-			const encoded = await encodeCandidate(plan, image, analysis, classification, options)
-			onProgress('evaluate', 0.35 + (index + 0.8) / plans.length * 0.6)
-			const ranked = await rankCandidate(encoded, image, classification, options)
-			if (!ranked.passed) {
-				diagnostics.push(candidateDiagnostic('quality-rejected', ranked, file.size, classification))
-				if (!fallback || ranked.metrics.ssim > fallback.metrics.ssim) fallback = { format: ranked.format, metrics: ranked.metrics }
-				continue
-			}
-			if (!smallest || ranked.bytes.byteLength < smallest.bytes.byteLength) smallest = ranked
+			encoded = await encodeCandidate(plan, image, analysis, classification, options)
 		} catch (error) {
-			failures.push(`${plan.format}:${plan.variant}: ${errorMessage(error)}`)
-			if (plan.variant === 'quantized') diagnostics.push(candidateDiagnostic('quantize-failed', { quantization: plan.quantization }, file.size, classification))
+			throw operationError('编码', plan.format, error)
+		}
+		onProgress('evaluate', 0.35 + (index + 0.8) / progressSteps * 0.6)
+		const ranked = await rankCandidate(encoded, image, classification, options)
+		const followUp = nextCandidate(plan, ranked, classification, options.preset, ranked.bytes.byteLength <= file.size * 0.8)
+		if (followUp) plans.splice(index + 1, 0, followUp)
+		if (!ranked.passed) {
+			diagnostics.push(candidateDiagnostic('quality-rejected', ranked, file.size, classification))
+			if (!fallback || ranked.metrics.ssim > fallback.metrics.ssim) fallback = { format: ranked.format, metrics: ranked.metrics }
+			continue
+		}
+		if (!smallest || ranked.bytes.byteLength < smallest.bytes.byteLength) smallest = ranked
+	}
+
+	// Optimize source bytes only when retaining their metadata and pixel semantics is allowed.
+	// Smaller searches both paths; fast presets skip this if a candidate already saves 20%.
+	if (sourceFormat === 'png' && baseline && (options.preset === 'smaller' || !smallest || smallest.bytes.byteLength > file.size * 0.8)) {
+		onProgress('encode', 0.94)
+		try {
+			const oxipng = await loadOxiPng()
+			const bytes = await oxipng.optimise(sourceBuffer.slice(0), { level: options.preset === 'smaller' ? 4 : 2, interlace: false, optimiseAlpha: false })
+			assertOutputFormat(new Uint8Array(bytes), 'png')
+			if (bytes.byteLength < file.size && (!smallest || bytes.byteLength < smallest.bytes.byteLength)) {
+				smallest = { format: 'png', bytes, encoder: 'OxiPNG 原图无损优化', metrics: baseline.metrics, passed: true }
+			}
+		} catch (error) {
+			throw operationError('编码', 'png', error)
 		}
 	}
 
@@ -217,9 +256,7 @@ export async function compressImage(input: {
 		throw new ImagePipelineError('QUALITY_GATE_FAILED', `编码结果未达到质量门禁（SSIM ${fallback.metrics.ssim.toFixed(4)}）`)
 	}
 	if (!baseline && !smallest) {
-		const detail = failures.join('；') || '没有可用的编码结果'
-		const cdnFailure = /fetch|import|network|module|cdn|wasm/i.test(detail)
-		throw new ImagePipelineError(cdnFailure ? 'CDN_UNAVAILABLE' : 'ENCODE_FAILED', cdnFailure ? `无法加载远程编码器：${detail}` : detail)
+		throw new ImagePipelineError('QUALITY_GATE_FAILED', '所有编码结果都未达到质量门禁')
 	}
 	let best = smallest ?? baseline!
 	if (baseline && (!smallest || !meaningfulGain(smallest, baseline.bytes.byteLength, baseline.format, options.compatibility))) {
@@ -227,21 +264,14 @@ export async function compressImage(input: {
 		if (smallest) diagnostics.push(candidateDiagnostic('no-meaningful-gain', smallest, file.size, classification))
 	}
 	if (best.encoder.includes('libimagequant')) diagnostics.push(candidateDiagnostic('quantized-selected', best, file.size, classification))
-	else if (best.format === 'png' && best.encoder.startsWith('PNG + OxiPNG') && best.bytes.byteLength < file.size) diagnostics.push(candidateDiagnostic('lossless-smaller', best, file.size, classification))
 
 	if (best.encoder === '保留原文件') {
 		if (smallest) warnings.push('重新编码未带来足够的体积收益，已保留原文件')
 		else if (fallback) warnings.push(`候选未通过质量门禁（最佳 SSIM ${fallback.metrics.ssim.toFixed(4)}），已保留原文件`)
-		else if (failures.length) warnings.push(`候选编码失败，已保留原文件：${failures.join('；')}`)
 	}
 	else if (best.bytes.byteLength >= file.size) warnings.push('当前操作为强制转换或清理元数据，因此输出可能大于原文件')
-	if (best.encoder.startsWith('PNG + OxiPNG')) {
-		const quantizationFailure = failures.find(message => message.startsWith('png:quantized:'))
-		if (quantizationFailure) warnings.push(`PNG 量化失败，已使用无损压缩：${quantizationFailure}`)
-		else if (fallback?.format === 'png') warnings.push('PNG 量化结果未达到画质要求，已使用无损压缩')
-	}
 	if (best.format === 'jpeg' && analysis.alphaCoverage > 0) warnings.push(`透明区域已使用 ${options.jpegBackground} 背景填充`)
-	if (metadata.hasIcc && !metadata.wideGamut && best.encoder !== '保留原文件') warnings.push('输入包含 ICC；重编码结果已按浏览器标准 RGB 解码链生成')
+	if (metadata.hasIcc && !metadata.wideGamut && best.encoder !== '保留原文件' && !best.encoder.startsWith('OxiPNG')) warnings.push('输入包含 ICC；重编码结果已按浏览器标准 RGB 解码链生成')
 	onProgress('evaluate', 0.98)
 	return makeResult(best, {
 		originalBytes: file.size,

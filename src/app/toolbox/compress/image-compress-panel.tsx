@@ -66,7 +66,7 @@ export function ImageCompressPanel({ active }: { active: boolean }) {
 				onDragLeave={event => { event.preventDefault(); dragCounter.current = Math.max(0, dragCounter.current - 1); if (!dragCounter.current) setIsDragging(false) }}
 				onDrop={handleDrop}
 				className={`group flex min-h-56 cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border border-dashed p-7 text-center transition ${isDragging ? 'border-brand bg-brand/10' : 'border-brand/25 bg-background/25 hover:border-brand/45 hover:bg-brand/5'}`}>
-				<input type='file' multiple accept='image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif' className='hidden' onChange={event => { if (event.target.files) void ingest(event.target.files); event.currentTarget.value = '' }} />
+				<input type='file' multiple accept='image/jpeg,image/png,image/webp,image/avif,image/jxl,.jpg,.jpeg,.png,.webp,.avif,.jxl' className='hidden' onChange={event => { if (event.target.files) void ingest(event.target.files); event.currentTarget.value = '' }} />
 				<div className='bg-brand/10 text-brand flex size-16 items-center justify-center rounded-full'><ImageIcon size={30} /></div>
 				<p className='font-semibold text-primary'>点击、拖拽或粘贴图片</p>
 			</motion.label>
@@ -84,7 +84,7 @@ export function ImageCompressPanel({ active }: { active: boolean }) {
 
 			<div className='text-secondary flex items-start gap-3 border-t border-border pt-5 text-xs leading-5'>
 				<ShieldCheck size={17} className='text-brand mt-0.5 shrink-0' />
-				<p>图片内容只在当前设备处理，不会上传。MozJPEG、libwebp、libavif、OxiPNG、exifr 与 libimagequant 均使用固定版本 CDN 并按需加载。</p>
+				<p>图片内容只在当前设备处理，不会上传。JPEGli、libwebp、libavif、libjxl、libimagequant 与 OxiPNG 均使用固定版本 CDN 并按需加载。</p>
 			</div>
 
 			{compareItem?.result && <ImageCompareDialog item={compareItem} onClose={() => setCompareId(null)} />}

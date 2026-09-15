@@ -1,4 +1,4 @@
-import { compressImage } from '../image-compress/pipeline'
+import { compressImage, ImagePipelineError } from '../image-compress/pipeline'
 import { DEFAULT_IMAGE_COMPRESSION_OPTIONS } from '../image-compress/presets'
 import type { ImageCompressionPreset, ImageCompressionResult } from '../image-compress/types'
 
@@ -30,6 +30,7 @@ export async function optimizeOfficeImage(file: File, preset: ImageCompressionPr
 		return result.usedOriginal ? null : result.bytes
 	} catch (error) {
 		if (process.env.NODE_ENV !== 'production') console.debug('[office-image-compress]', { file: file.name, error: error instanceof Error ? error.message : String(error) })
+		if (!(error instanceof ImagePipelineError) || ['ENCODE_FAILED', 'CDN_UNAVAILABLE', 'OUT_OF_MEMORY'].includes(error.code)) throw error
 		return null
 	}
 }

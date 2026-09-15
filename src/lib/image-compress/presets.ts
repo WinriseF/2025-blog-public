@@ -25,15 +25,15 @@ export function buildCandidatePlans(input: {
 	const addPngQuantized = () => {
 		add({ format: 'png', variant: 'quantized' })
 	}
-	const addPng = () => {
-		add({ format: 'png', variant: 'lossless' })
-		if (options.preset === 'smaller' && analysis.alphaCoverage > 0) add({ format: 'png', variant: 'lossless', optimiseAlpha: true })
-		addPngQuantized()
-	}
 	const graphic = classification === 'ui-text' || classification === 'flat-illustration' || classification === 'transparent-icon'
+	const addJpeg = () => {
+		const distances = jpegliDistances(options.preset, classification)
+		for (const jpegDistance of options.preset === 'smaller' ? distances : [distances[1]]) add({ format: 'jpeg', variant: 'lossy', jpegDistance })
+	}
 
 	const addSameFormat = () => {
-		if (sourceFormat === 'png') addPng()
+		if (sourceFormat === 'jpeg') addJpeg()
+		else if (sourceFormat === 'png') addPngQuantized()
 		else if (sourceFormat === 'webp' && graphic) add({ format: 'webp', variant: 'lossless' })
 		else add({ format: sourceFormat, variant: 'lossy' })
 	}
@@ -44,7 +44,8 @@ export function buildCandidatePlans(input: {
 	}
 
 	if (options.output !== 'auto') {
-		if (options.output === 'png') addPng()
+		if (options.output === 'jpeg') addJpeg()
+		else if (options.output === 'png') addPngQuantized()
 		else if (options.output === 'webp' && graphic) add({ format: 'webp', variant: 'lossless' })
 		else add({ format: options.output, variant: 'lossy' })
 		return plans
@@ -58,26 +59,30 @@ export function buildCandidatePlans(input: {
 		add({ format: 'webp', variant: 'lossy' })
 	}
 	if (options.compatibility === 'smallest' && sourceBytes >= 40 * 1024 && pixels >= 64_000 && classification !== 'transparent-icon') add({ format: 'avif', variant: 'lossy' })
+	if (options.compatibility === 'smallest' && sourceBytes >= 40 * 1024 && pixels >= 64_000) add({ format: 'jxl', variant: 'lossy' })
 	return plans
 }
 
-export function jpegOptions(preset: ImageCompressionOptions['preset'], classification: ImageClass) {
+export function jpegliDistances(preset: ImageCompressionOptions['preset'], classification: ImageClass) {
 	const text = classification === 'ui-text' || classification === 'flat-illustration'
-	const quality = text
-		? preset === 'smaller' ? 82 : preset === 'higher' ? 92 : 86
-		: preset === 'smaller' ? 70 : preset === 'higher' ? 86 : 78
+	if (text) {
+		if (preset === 'smaller') return [1.5, 3, 5, 7]
+		if (preset === 'higher') return [0.6, 1.5, 2.5, 4]
+		return [1, 2.5, 4, 6]
+	}
+	if (preset === 'smaller') return [2.5, 5.5, 9, 13]
+	if (preset === 'higher') return [1, 2.5, 4, 6]
+	return [1.5, 3.5, 6, 9]
+}
+
+export function jpegliOptions(preset: ImageCompressionOptions['preset'], classification: ImageClass, distance = jpegliDistances(preset, classification)[0]) {
+	const text = classification === 'ui-text' || classification === 'flat-illustration'
 	return {
-		quality,
+		distance,
+		chromaSubsampling: text ? '444' : '420',
 		progressive: true,
-		optimize_coding: true,
-		smoothing: 0,
-		quant_table: 3,
-		auto_subsample: false,
-		chroma_subsample: text ? 1 : 2,
-		trellis_multipass: preset === 'smaller',
-		trellis_opt_zero: preset === 'smaller',
-		trellis_opt_table: preset === 'smaller',
-		trellis_loops: preset === 'smaller' ? 2 : 1
+		adaptiveQuantization: true,
+		optimizeCoding: true
 	}
 }
 
@@ -117,6 +122,19 @@ export function avifOptions(preset: ImageCompressionOptions['preset'], classific
 		denoiseLevel: 0,
 		bitDepth: 8,
 		lossless: false
+	}
+}
+
+export function jxlOptions(preset: ImageCompressionOptions['preset']) {
+	return {
+		effort: preset === 'smaller' ? 8 : 7,
+		quality: preset === 'smaller' ? 68 : preset === 'higher' ? 88 : 78,
+		progressive: false,
+		epf: -1,
+		lossyPalette: false,
+		decodingSpeedTier: 0,
+		photonNoiseIso: 0,
+		lossyModular: false
 	}
 }
 

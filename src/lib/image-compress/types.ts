@@ -1,4 +1,4 @@
-export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'avif'
+export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'jxl'
 export type DetectedImageFormat = ImageFormat | 'gif' | 'heic' | 'svg' | 'unknown'
 export type ImageCompressionPreset = 'smart' | 'smaller' | 'higher'
 export type ImageOutputMode = 'keep' | 'auto' | ImageFormat
@@ -37,8 +37,6 @@ export type ImageCompressionDiagnosticReason =
 	| 'wide-gamut'
 	| 'quality-rejected'
 	| 'no-meaningful-gain'
-	| 'quantize-failed'
-	| 'lossless-smaller'
 	| 'quantized-selected'
 
 export type ImageCompressionDiagnostic = {
@@ -50,7 +48,6 @@ export type ImageCompressionDiagnostic = {
 	paletteColors?: number
 	targetQuality?: number
 	dithering?: number
-	optimiseAlpha?: boolean
 	metrics?: ImageQualityMetrics
 }
 
@@ -128,6 +125,6 @@ export type ImageAnalysis = {
 export type CandidatePlan = {
 	format: ImageFormat
 	variant: 'lossy' | 'lossless' | 'quantized'
+	jpegDistance?: number
 	quantization?: PngQuantizationOptions
-	optimiseAlpha?: boolean
 }

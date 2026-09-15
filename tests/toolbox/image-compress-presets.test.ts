@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildPngQuantizationCandidates } from '../../src/lib/image-compress/cdn'
 import { classifyImage } from '../../src/lib/image-compress/features'
-import { buildCandidatePlans, jpegOptions } from '../../src/lib/image-compress/presets'
+import { buildCandidatePlans, jpegliDistances, jpegliOptions } from '../../src/lib/image-compress/presets'
 import { passesQualityGate } from '../../src/lib/image-compress/quality'
 import type { ImageAnalysis, ImageCompressionOptions } from '../../src/lib/image-compress/types'
 
@@ -30,7 +30,7 @@ describe('image compression strategy', () => {
 		for (const output of ['keep', 'png', 'auto'] as const) {
 			const plans = buildCandidatePlans({ sourceFormat: 'png', classification: 'mixed', analysis: { ...analysis, gradientRatio: 0.8, semiTransparent: 0.6, alphaCoverage: 0.6 }, options: { ...options, output }, sourceBytes: 2_000_000, pixels: 2_000_000 })
 			expect(plans.some(plan => plan.format === 'png' && plan.variant === 'quantized')).toBe(true)
-			expect(plans).toContainEqual({ format: 'png', variant: 'lossless' })
+			expect(plans.some(plan => plan.format === 'png' && plan.variant !== 'quantized')).toBe(false)
 		}
 	})
 
@@ -50,21 +50,26 @@ describe('image compression strategy', () => {
 		expect(new Set(photo.map(item => item.dithering))).toEqual(new Set([0.15, 0.25]))
 	})
 
-	it('adds transparent-RGB optimization only for smaller transparent PNGs', () => {
-		const input = { sourceFormat: 'png' as const, classification: 'transparent-icon' as const, analysis: { ...analysis, alphaCoverage: 0.5 }, options: { ...options, output: 'keep' as const }, sourceBytes: 2_000_000, pixels: 2_000_000 }
-		expect(buildCandidatePlans({ ...input, options: { ...input.options, preset: 'smaller' } })).toContainEqual({ format: 'png', variant: 'lossless', optimiseAlpha: true })
-		expect(buildCandidatePlans(input).some(plan => plan.optimiseAlpha)).toBe(false)
-	})
-
-	it('keeps AVIF out of compatible auto mode and adds it to smallest mode', () => {
+	it('keeps modern-only formats out of compatible auto mode and adds them to smallest mode', () => {
 		const input = { sourceFormat: 'jpeg' as const, classification: 'photo' as const, analysis, options, sourceBytes: 2_000_000, pixels: 12_000_000 }
 		expect(buildCandidatePlans(input).some(plan => plan.format === 'avif')).toBe(false)
-		expect(buildCandidatePlans({ ...input, options: { ...options, compatibility: 'smallest' } }).some(plan => plan.format === 'avif')).toBe(true)
+		expect(buildCandidatePlans(input).some(plan => plan.format === 'jxl')).toBe(false)
+		const smallest = buildCandidatePlans({ ...input, options: { ...options, compatibility: 'smallest' } })
+		expect(smallest.some(plan => plan.format === 'avif')).toBe(true)
+		expect(smallest.some(plan => plan.format === 'jxl')).toBe(true)
 	})
 
-	it('uses 4:4:4 JPEG for UI text', () => {
-		expect(jpegOptions('smart', 'ui-text')).toMatchObject({ quality: 86, auto_subsample: false, chroma_subsample: 1 })
-		expect(jpegOptions('smart', 'photo')).toMatchObject({ quality: 78, chroma_subsample: 2 })
+	it('searches bounded JPEGli distances and maps chroma sampling', () => {
+		expect(jpegliDistances('higher', 'photo')).toEqual([1, 2.5, 4, 6])
+		expect(jpegliDistances('smart', 'photo')).toEqual([1.5, 3.5, 6, 9])
+		expect(jpegliDistances('smaller', 'photo')).toEqual([2.5, 5.5, 9, 13])
+		expect(jpegliDistances('higher', 'ui-text')).toEqual([0.6, 1.5, 2.5, 4])
+		const plans = buildCandidatePlans({ sourceFormat: 'jpeg', classification: 'photo', analysis, options: { ...options, preset: 'higher', output: 'keep' }, sourceBytes: 2_000_000, pixels: 12_000_000 })
+		expect(plans.map(plan => plan.jpegDistance)).toEqual([2.5])
+		const exhaustive = buildCandidatePlans({ sourceFormat: 'jpeg', classification: 'photo', analysis, options: { ...options, preset: 'smaller', output: 'keep' }, sourceBytes: 2_000_000, pixels: 12_000_000 })
+		expect(exhaustive.map(plan => plan.jpegDistance)).toEqual([2.5, 5.5, 9, 13])
+		expect(jpegliOptions('smart', 'ui-text')).toMatchObject({ distance: 1, chromaSubsampling: '444', adaptiveQuantization: true })
+		expect(jpegliOptions('higher', 'photo', 6)).toMatchObject({ distance: 6, chromaSubsampling: '420', progressive: true })
 	})
 
 	it('does not classify textured photos as UI', () => {

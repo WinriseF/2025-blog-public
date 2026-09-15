@@ -16,10 +16,6 @@ async function run(request: ImageWorkerRequest) {
 		post({ type: 'job:failed', jobId: request.jobId, code: 'ENCODE_FAILED', message: '当前 Worker 已有图片任务' })
 		return
 	}
-	if (request.type === 'job:start' && (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined')) {
-		post({ type: 'job:needs-main-decode', jobId: request.jobId, message: '当前浏览器需要使用兼容解码路径' })
-		return
-	}
 	activeJobId = request.jobId
 	try {
 		const result = await compressImage({

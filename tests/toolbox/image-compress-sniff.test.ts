@@ -30,4 +30,9 @@ describe('image compression container inspection', () => {
 		expect(sniffImageFormat(new Uint8Array([0, 0, 0, 20, ...ascii('ftyp'), ...ascii('heic'), 0, 0, 0, 0, ...ascii('mif1')]))).toBe('heic')
 		expect(sniffImageFormat(new TextEncoder().encode('<?xml version="1.0"?><svg></svg>'))).toBe('svg')
 	})
+
+	it('detects JPEG XL codestreams and containers', () => {
+		expect(sniffImageFormat(new Uint8Array([0xff, 0x0a, 0, 0]))).toBe('jxl')
+		expect(sniffImageFormat(new Uint8Array([0, 0, 0, 12, ...ascii('JXL '), 0x0d, 0x0a, 0x87, 0x0a]))).toBe('jxl')
+	})
 })

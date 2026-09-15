@@ -1,4 +1,5 @@
 import { IMAGE_FORMAT_META } from './sniff'
+import { loadJxlCodec } from './cdn'
 import type { ImageFormat } from './types'
 
 export class NativeWorkerDecodeUnavailable extends Error {}
@@ -9,7 +10,11 @@ function canvasImageData(canvas: OffscreenCanvas) {
 	return context.getImageData(0, 0, canvas.width, canvas.height)
 }
 
-export async function decodeImageInWorker(file: File) {
+export async function decodeImageInWorker(file: File, format: ImageFormat, bytes: ArrayBuffer) {
+	if (format === 'jxl') {
+		const module = await loadJxlCodec()
+		return { image: await module.decode(bytes), warnings: [] }
+	}
 	if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') {
 		throw new NativeWorkerDecodeUnavailable('当前浏览器需要使用兼容解码路径')
 	}
@@ -34,6 +39,10 @@ export async function decodeImageInWorker(file: File) {
 }
 
 export async function decodeEncodedCandidate(bytes: ArrayBuffer, format: ImageFormat, width: number, height: number) {
+	if (format === 'jxl') {
+		const module = await loadJxlCodec()
+		return module.decode(bytes)
+	}
 	if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') return null
 	const maxSide = 384
 	const scale = Math.min(1, maxSide / Math.max(width, height))

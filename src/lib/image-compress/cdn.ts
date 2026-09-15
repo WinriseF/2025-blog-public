@@ -3,17 +3,20 @@ import type { ImageAnalysis, ImageClass, ImageCompressionPreset, PngQuantization
 const CDN_ROOT = 'https://cdn.jsdelivr.net/npm'
 
 export const IMAGE_CODEC_URLS = {
-	jpeg: `${CDN_ROOT}/@jsquash/jpeg@1.6.0/+esm`,
-	png: `${CDN_ROOT}/@jsquash/png@3.1.1/+esm`,
+	// Use the published ESM entry directly so its sibling jpegli.wasm URL stays intact.
+	jpegli: `${CDN_ROOT}/@winrisef/jpegli-wasm@0.1.0/dist/index.js`,
 	oxipng: `${CDN_ROOT}/@jsquash/oxipng@2.3.0/+esm`,
 	webp: `${CDN_ROOT}/@jsquash/webp@1.5.0/+esm`,
 	avif: `${CDN_ROOT}/@jsquash/avif@2.1.1/+esm`,
+	jxl: `${CDN_ROOT}/@jsquash/jxl@1.3.0/+esm`,
 	exifr: `${CDN_ROOT}/exifr@7.1.3/dist/full.esm.mjs`,
 	imagequant: `${CDN_ROOT}/libimagequant-wasm@0.3.0/dist/wasm/libimagequant_wasm.js`,
 	imagequantWasm: `${CDN_ROOT}/libimagequant-wasm@0.3.0/dist/wasm/libimagequant_wasm_bg.wasm`
 } as const
 
 type EncodeModule = { encode: (data: ImageData, options?: Record<string, unknown>) => Promise<ArrayBuffer> }
+type ByteEncodeModule = { encode: (data: ImageData, options?: Record<string, unknown>) => Promise<ArrayBuffer | Uint8Array> }
+type JxlModule = ByteEncodeModule & { decode: (data: ArrayBuffer) => Promise<ImageData> }
 type OxiPngModule = { optimise: (data: ArrayBuffer | ImageData, options?: Record<string, unknown>) => Promise<ArrayBuffer> }
 type ExifrModule = { parse: (input: Blob, options?: Record<string, unknown>) => Promise<Record<string, unknown> | undefined> }
 
@@ -61,12 +64,8 @@ async function importRemote<T>(url: string): Promise<T> {
 	return pending as Promise<T>
 }
 
-export function loadJpegEncoder() {
-	return importRemote<EncodeModule>(IMAGE_CODEC_URLS.jpeg)
-}
-
-export function loadPngEncoder() {
-	return importRemote<EncodeModule>(IMAGE_CODEC_URLS.png)
+export function loadJpegliEncoder() {
+	return importRemote<ByteEncodeModule>(IMAGE_CODEC_URLS.jpegli)
 }
 
 export function loadWebpEncoder() {
@@ -75,6 +74,10 @@ export function loadWebpEncoder() {
 
 export function loadAvifEncoder() {
 	return importRemote<EncodeModule>(IMAGE_CODEC_URLS.avif)
+}
+
+export function loadJxlCodec() {
+	return importRemote<JxlModule>(IMAGE_CODEC_URLS.jxl)
 }
 
 export function loadOxiPng() {
@@ -107,7 +110,8 @@ export function buildPngQuantizationCandidates(preset: ImageCompressionPreset, c
 		const flat = analysis.flatAreaRatio > 0.5
 		return [{
 			speed: 3,
-			minQuality: preset === 'higher' ? 88 : 0,
+			// Evaluate rejected palettes with our shared gate instead of aborting quantization.
+			minQuality: 0,
 			targetQuality: preset === 'higher' ? 98 : 80,
 			maxColors: 256,
 			dithering: preset === 'higher' ? (gradient ? 0.9 : flat ? 0.4 : 0.8) : gradient ? 0.65 : flat ? 0.2 : 0.4

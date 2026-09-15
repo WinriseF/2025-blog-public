@@ -1,6 +1,7 @@
 import type { DetectedImageFormat, ImageFormat } from './types'
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const JXL_CONTAINER_SIGNATURE = [0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a]
 const JPEG_SOF = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf])
 
 function ascii(bytes: Uint8Array, offset: number, length: number) {
@@ -42,6 +43,7 @@ export function sniffImageFormat(bytes: Uint8Array): DetectedImageFormat {
 	if (bytes.length >= 12 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WEBP') return 'webp'
 	if (bytes.length >= 6 && (ascii(bytes, 0, 6) === 'GIF87a' || ascii(bytes, 0, 6) === 'GIF89a')) return 'gif'
 	if (isIsoBrand(bytes, 'avif') || isIsoBrand(bytes, 'avis')) return 'avif'
+	if ((bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0x0a) || (bytes.length >= 12 && matches(bytes, JXL_CONTAINER_SIGNATURE))) return 'jxl'
 	if (['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis'].some(brand => isIsoBrand(bytes, brand))) return 'heic'
 	const prefix = new TextDecoder().decode(bytes.subarray(0, Math.min(bytes.length, 512))).replace(/^\uFEFF/, '').trimStart().toLowerCase()
 	if (prefix.startsWith('<svg') || (prefix.startsWith('<?xml') && prefix.includes('<svg'))) return 'svg'
@@ -121,6 +123,7 @@ export function inspectImageContainer(bytes: Uint8Array) {
 	if (format === 'png') return { format, ...pngInfo(bytes) }
 	if (format === 'webp') return { format, ...webpInfo(bytes) }
 	if (format === 'avif') return { format, ...(avifDimensions(bytes) ?? { width: 0, height: 0 }), animated: isIsoBrand(bytes, 'avis') }
+	if (format === 'jxl') return { format, width: 0, height: 0, animated: false }
 	return { format, width: 0, height: 0, animated: format === 'gif' }
 }
 
@@ -128,7 +131,8 @@ export const IMAGE_FORMAT_META: Record<ImageFormat, { mime: string; extension: s
 	jpeg: { mime: 'image/jpeg', extension: 'jpg', label: 'JPEG' },
 	png: { mime: 'image/png', extension: 'png', label: 'PNG' },
 	webp: { mime: 'image/webp', extension: 'webp', label: 'WebP' },
-	avif: { mime: 'image/avif', extension: 'avif', label: 'AVIF' }
+	avif: { mime: 'image/avif', extension: 'avif', label: 'AVIF' },
+	jxl: { mime: 'image/jxl', extension: 'jxl', label: 'JPEG XL' }
 }
 
 export function assertOutputFormat(bytes: Uint8Array, expected: ImageFormat) {

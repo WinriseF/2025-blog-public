@@ -2,8 +2,8 @@ import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import type { ImageCompressionOptions, ImageCompressionPreset, ImageOutputMode } from '@/lib/image-compress/types'
 
 const PRESETS: Array<{ id: ImageCompressionPreset; label: string; description: string }> = [
-	{ id: 'smart', label: '智能推荐', description: '优先缩小体积，允许轻微画质损失。' },
-	{ id: 'smaller', label: '更小体积', description: '接受轻微质量下降，使用更积极的量化和编码策略。' },
+	{ id: 'smart', label: '智能推荐', description: '兼顾处理速度、文件大小和视觉质量。' },
+	{ id: 'smaller', label: '更小体积', description: '花更多时间寻找更小的结果，允许轻微画质损失。' },
 	{ id: 'higher', label: '更高画质', description: '提高质量门槛，UI、文字和透明边缘优先保真。' }
 ]
 
@@ -13,7 +13,8 @@ const OUTPUTS: readonly SelectMenuOption<ImageOutputMode>[] = [
 	{ value: 'jpeg', label: 'JPEG' },
 	{ value: 'png', label: 'PNG' },
 	{ value: 'webp', label: 'WebP' },
-	{ value: 'avif', label: 'AVIF' }
+	{ value: 'avif', label: 'AVIF' },
+	{ value: 'jxl', label: 'JPEG XL' }
 ]
 
 const COMPATIBILITY: readonly SelectMenuOption<ImageCompressionOptions['compatibility']>[] = [
@@ -51,6 +52,7 @@ export function ImageOptions({ value, disabled, onChange }: {
 					<p className='text-sm font-medium text-primary'>输出格式</p>
 					<SelectMenu value={value.output} options={OUTPUTS} disabled={disabled} onChange={output => update({ output })} ariaLabel='选择图片输出格式' className='mt-2 w-full' />
 				</div>
+				{value.output === 'png' && <p className='self-center text-xs leading-5 text-secondary'>优先尝试有损调色板压缩；原 PNG 也可按需无损优化。</p>}
 				{value.output === 'auto' && (
 					<div>
 						<p className='text-sm font-medium text-primary'>自动策略</p>

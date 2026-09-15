@@ -1,6 +1,6 @@
-import { loadAvifEncoder, loadJpegEncoder, loadOxiPng, loadPngEncoder, loadWebpEncoder, quantizeImage } from './cdn'
+import { loadAvifEncoder, loadJpegliEncoder, loadJxlCodec, loadOxiPng, loadWebpEncoder, quantizeImage } from './cdn'
 import { flattenAlpha } from './decode'
-import { avifOptions, jpegOptions, webpOptions } from './presets'
+import { avifOptions, jpegliOptions, jxlOptions, webpOptions } from './presets'
 import { assertOutputFormat } from './sniff'
 import type { CandidatePlan, ImageAnalysis, ImageClass, ImageCompressionOptions, ImageQualityMetrics, PngQuantizationOptions } from './types'
 
@@ -12,7 +12,6 @@ export type EncodedCandidate = {
 	metrics?: ImageQualityMetrics
 	paletteColors?: number
 	quantization?: PngQuantizationOptions
-	optimiseAlpha?: boolean
 }
 
 function exactBuffer(bytes: Uint8Array) {
@@ -26,14 +25,15 @@ export async function encodeCandidate(
 	classification: ImageClass,
 	options: ImageCompressionOptions
 ): Promise<EncodedCandidate> {
-	let bytes: ArrayBuffer
+	let bytes: ArrayBuffer | Uint8Array
 	let encoder: string
 	let preview: ImageData | undefined
 
 	if (plan.format === 'jpeg') {
-		const module = await loadJpegEncoder()
-		bytes = await module.encode(analysis.alphaCoverage > 0 ? flattenAlpha(image, options.jpegBackground) : image, jpegOptions(options.preset, classification))
-		encoder = 'MozJPEG'
+		const module = await loadJpegliEncoder()
+		const parameters = jpegliOptions(options.preset, classification, plan.jpegDistance)
+		bytes = await module.encode(analysis.alphaCoverage > 0 ? flattenAlpha(image, options.jpegBackground) : image, parameters)
+		encoder = 'JPEGli'
 	} else if (plan.format === 'webp') {
 		const module = await loadWebpEncoder()
 		bytes = await module.encode(image, webpOptions(options.preset, plan.variant === 'lossless'))
@@ -42,24 +42,23 @@ export async function encodeCandidate(
 		const module = await loadAvifEncoder()
 		bytes = await module.encode(image, avifOptions(options.preset, classification))
 		encoder = 'libavif'
+	} else if (plan.format === 'jxl') {
+		const module = await loadJxlCodec()
+		bytes = await module.encode(image, jxlOptions(options.preset))
+		encoder = 'libjxl'
 	} else if (plan.variant === 'quantized') {
 		if (!plan.quantization) throw new Error('PNG 量化候选缺少参数')
 		const quantized = await quantizeImage(image, plan.quantization)
 		const oxipng = await loadOxiPng()
 		bytes = await oxipng.optimise(quantized.bytes, { level: options.preset === 'smaller' ? 4 : 2, interlace: false, optimiseAlpha: false })
 		preview = quantized.imageData
-		encoder = `libimagequant ${quantized.paletteLength} colors + OxiPNG`
+		encoder = `libimagequant ${quantized.paletteLength} colors → OxiPNG`
 		const normalized = bytes instanceof ArrayBuffer ? bytes : exactBuffer(bytes)
 		assertOutputFormat(new Uint8Array(normalized), plan.format)
 		return { format: plan.format, bytes: normalized, encoder, preview, paletteColors: quantized.paletteLength, quantization: plan.quantization }
-	} else {
-		const [png, oxipng] = await Promise.all([loadPngEncoder(), loadOxiPng()])
-		const encoded = await png.encode(image)
-		bytes = await oxipng.optimise(encoded, { level: options.preset === 'smaller' ? 4 : 2, interlace: false, optimiseAlpha: Boolean(plan.optimiseAlpha) })
-		encoder = plan.optimiseAlpha ? 'PNG + OxiPNG (transparent RGB optimized)' : 'PNG + OxiPNG'
-	}
+	} else throw new Error(`没有为 ${plan.format} 配置编码器`)
 
 	const normalized = bytes instanceof ArrayBuffer ? bytes : exactBuffer(bytes)
 	assertOutputFormat(new Uint8Array(normalized), plan.format)
-	return { format: plan.format, bytes: normalized, encoder, preview, optimiseAlpha: plan.optimiseAlpha }
+	return { format: plan.format, bytes: normalized, encoder, preview }
 }

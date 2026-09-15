@@ -50,7 +50,10 @@ function workerCount(items: ImageCompressionItem[], options: ImageCompressionOpt
 	const encodesAvif = options.output === 'avif'
 		|| (options.output === 'auto' && options.compatibility === 'smallest')
 		|| ((options.output === 'keep' || options.output === 'auto') && items.some(item => item.format === 'avif'))
-	if (limits.lowMemory || heavyInput || encodesAvif) return 1
+	const encodesJxl = options.output === 'jxl'
+		|| (options.output === 'auto' && options.compatibility === 'smallest')
+		|| ((options.output === 'keep' || options.output === 'auto') && items.some(item => item.format === 'jxl'))
+	if (limits.lowMemory || heavyInput || encodesAvif || encodesJxl) return 1
 	const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 0
 	return memory >= 8 && navigator.hardwareConcurrency >= 8 ? 2 : 1
 }
@@ -59,13 +62,13 @@ function unsupportedMessage(format: ReturnType<typeof inspectImageContainer>['fo
 	if (format === 'gif') return 'GIF 暂不支持，动态图不会被静默转换成第一帧'
 	if (format === 'heic') return 'HEIC/HEIF 暂不支持，避免 HDR、广色域和高位深内容被静默降质'
 	if (format === 'svg') return 'SVG 是矢量文档，不进入栅格图片压缩流程'
-	return '无法识别图片真实格式，仅支持静态 JPEG、PNG、WebP 和 AVIF'
+	return '无法识别图片真实格式，仅支持静态 JPEG、PNG、WebP、AVIF 和 JPEG XL'
 }
 
 async function inspectFile(file: File) {
 	const bytes = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer())
 	const info = inspectImageContainer(bytes)
-	if (!['jpeg', 'png', 'webp', 'avif'].includes(info.format)) throw new Error(unsupportedMessage(info.format))
+	if (!['jpeg', 'png', 'webp', 'avif', 'jxl'].includes(info.format)) throw new Error(unsupportedMessage(info.format))
 	if (info.animated) throw new Error('检测到动态图，当前版本不会破坏动画或自动提取第一帧')
 	return info as typeof info & { format: ImageFormat }
 }
@@ -181,7 +184,7 @@ export function useImageCompress() {
 			updateItem(response.jobId, item => {
 				disposeResult(item.result)
 				const { bytes: _, ...metadata } = response.result
-				return { ...item, status: 'done', progress: 1, stage: undefined, error: undefined, result: { ...metadata, blob, url } }
+				return { ...item, width: response.result.width, height: response.result.height, status: 'done', progress: 1, stage: undefined, error: undefined, result: { ...metadata, blob, url } }
 			})
 			finishSlot(slot)
 		}

@@ -13,7 +13,8 @@ describe('image compression worker contract', () => {
 
 	it('loads every heavy codec from pinned CDN URLs at runtime', () => {
 		const text = cdn()
-		for (const version of ['jpeg@1.6.0', 'png@3.1.1', 'oxipng@2.3.0', 'webp@1.5.0', 'avif@2.1.1', 'exifr@7.1.3', 'libimagequant-wasm@0.3.0']) expect(text).toContain(version)
+		for (const version of ['jpegli-wasm@0.1.0', 'oxipng@2.3.0', 'webp@1.5.0', 'avif@2.1.1', 'jxl@1.3.0', 'exifr@7.1.3', 'libimagequant-wasm@0.3.0']) expect(text).toContain(version)
+		expect(text).not.toMatch(/@jsquash\/jpeg|@jsquash\/png/)
 		expect(text).toMatch(/webpackIgnore: true/)
 	})
 })

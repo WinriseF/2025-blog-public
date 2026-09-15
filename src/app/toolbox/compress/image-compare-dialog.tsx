@@ -1,17 +1,39 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Maximize2, RotateCcw } from 'lucide-react'
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch'
 import { DialogModal } from '@/components/dialog-modal'
+import { jxlToPng } from '@/lib/image-compress/jxl-display'
+import type { ImageFormat } from '@/lib/image-compress/types'
 import type { ImageCompressionItem } from './use-image-compress'
 import { formatBytes } from './image-format'
+
+function useDisplayUrl(blob: Blob, format: ImageFormat, nativeUrl: string) {
+	const [url, setUrl] = useState(format === 'jxl' ? '' : nativeUrl)
+	const [error, setError] = useState('')
+	useEffect(() => {
+		if (format !== 'jxl') { setUrl(nativeUrl); setError(''); return }
+		let disposed = false
+		let previewUrl = ''
+		setUrl('')
+		setError('')
+		void jxlToPng(blob).then(preview => {
+			previewUrl = URL.createObjectURL(preview)
+			if (disposed) URL.revokeObjectURL(previewUrl)
+			else setUrl(previewUrl)
+		}).catch(cause => { if (!disposed) setError(cause instanceof Error ? cause.message : 'JPEG XL 预览失败') })
+		return () => { disposed = true; if (previewUrl) URL.revokeObjectURL(previewUrl) }
+	}, [blob, format, nativeUrl])
+	return { url, error }
+}
 
 export function ImageCompareDialog({ item, onClose }: { item: ImageCompressionItem; onClose: () => void }) {
 	const [split, setSplit] = useState(50)
 	const frameRef = useRef<HTMLDivElement>(null)
-	const result = item.result
-	if (!result) return null
+	const result = item.result!
+	const originalDisplay = useDisplayUrl(item.file, item.format, item.previewUrl)
+	const resultDisplay = useDisplayUrl(result.blob, result.format, result.url)
 	const aspectRatio = `${result.width} / ${result.height}`
 	const frameWidth = `min(calc(100vw - 2rem), ${result.width}px, calc(${100 * result.width / result.height}dvh - ${10 * result.width / result.height}rem))`
 	return (
@@ -31,11 +53,12 @@ export function ImageCompareDialog({ item, onClose }: { item: ImageCompressionIt
 							</div>
 						</div>
 						<div className='relative min-h-0 flex-1 overflow-hidden bg-black/90'>
+							{(originalDisplay.error || resultDisplay.error) && <p className='absolute inset-x-4 top-4 z-10 rounded-lg bg-rose-950/90 px-4 py-3 text-xs text-white'>{originalDisplay.error || resultDisplay.error}</p>}
 							<TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 								<div ref={frameRef} className='relative max-w-full shrink-0 overflow-hidden' style={{ aspectRatio, width: frameWidth }}>
-									<img src={item.previewUrl} alt='原图' draggable={false} className='absolute inset-0 size-full select-none object-contain' />
+									{originalDisplay.url && <img src={originalDisplay.url} alt='原图' draggable={false} className='absolute inset-0 size-full select-none object-contain' />}
 									<div className='absolute inset-0 overflow-hidden' style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
-										<img src={result.url} alt='压缩结果' draggable={false} className='absolute inset-0 size-full select-none object-contain' />
+										{resultDisplay.url && <img src={resultDisplay.url} alt='压缩结果' draggable={false} className='absolute inset-0 size-full select-none object-contain' />}
 									</div>
 									<div className='pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_10px_rgba(0,0,0,.8)]' style={{ left: `${split}%` }} />
 									<span className='absolute left-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-xs text-white'>原图</span>

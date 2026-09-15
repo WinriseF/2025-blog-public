@@ -53,7 +53,7 @@ export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare 
 					const saving = item.result && item.file.size ? Math.round((1 - item.result.outputBytes / item.file.size) * 100) : null
 					return (
 						<li key={item.id} className='grid grid-cols-[58px_minmax(0,1fr)_auto] gap-4 py-4 max-sm:grid-cols-[52px_minmax(0,1fr)]' style={{ contentVisibility: 'auto', containIntrinsicSize: '84px' } as CSSProperties}>
-							<div className='size-14 overflow-hidden rounded-lg border border-border bg-card max-sm:size-12'><img src={item.previewUrl} alt='' loading='lazy' className='size-full object-cover' /></div>
+							<div className='size-14 overflow-hidden rounded-lg border border-border bg-card max-sm:size-12'>{item.format === 'jxl' ? <span className='flex size-full items-center justify-center text-[10px] font-semibold text-secondary'>JXL</span> : <img src={item.previewUrl} alt='' loading='lazy' className='size-full object-cover' />}</div>
 							<div className='min-w-0'>
 								<div className='flex min-w-0 items-center gap-2'>
 									<p className='min-w-0 truncate font-medium text-primary' title={item.file.name}>{item.file.name}</p>
