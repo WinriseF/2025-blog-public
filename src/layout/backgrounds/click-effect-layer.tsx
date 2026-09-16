@@ -37,6 +37,8 @@ type ClickEffectLayerProps = {
 
 const TAU = Math.PI * 2
 const MAX_EFFECTS = 3
+// Maximum point radius (78px) + glow (8.2px), with room for antialiasing.
+const EFFECT_SIZE = 192
 const DESKTOP_EFFECT_DURATION = 1150
 const COMPACT_EFFECT_DURATION = 740
 const LINE_DELAY = 90
@@ -179,64 +181,79 @@ function drawEffect(context: CanvasRenderingContext2D, effect: ClickEffect, prog
 }
 
 export function ClickEffectLayer({ enabled, theme }: ClickEffectLayerProps) {
-	const canvasRef = useRef<HTMLCanvasElement>(null)
+	const layerRef = useRef<HTMLDivElement>(null)
 	const sequenceRef = useRef(0)
 
 	useEffect(() => {
-		const canvas = canvasRef.current
-		if (!enabled || !canvas) return
-		const context = canvas.getContext('2d', { alpha: true })
-		if (!context) return
+		const layer = layerRef.current
+		if (!enabled || !layer) return
+		const slots: { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D; effect: ClickEffect | null }[] = []
+		for (let index = 0; index < MAX_EFFECTS; index += 1) {
+			const canvas = document.createElement('canvas')
+			const context = canvas.getContext('2d', { alpha: true })
+			if (!context) continue
+			canvas.style.cssText = `position:absolute;display:none;width:${EFFECT_SIZE}px;height:${EFFECT_SIZE}px`
+			layer.appendChild(canvas)
+			slots.push({ canvas, context, effect: null })
+		}
 
 		const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-		let effects: ClickEffect[] = []
 		let frameId = 0
 		let width = 0
-		let height = 0
-
-		const clear = () => {
-			context.clearRect(0, 0, width, height)
-		}
 		const stop = () => {
 			if (frameId) cancelAnimationFrame(frameId)
 			frameId = 0
-			effects = []
-			clear()
+			for (const slot of slots) {
+				slot.effect = null
+				slot.canvas.style.display = 'none'
+				slot.context.clearRect(0, 0, EFFECT_SIZE, EFFECT_SIZE)
+			}
 		}
 		const draw = (now: number) => {
 			frameId = 0
-			clear()
-			for (let index = effects.length - 1; index >= 0; index -= 1) {
-				if (now - effects[index].startedAt >= effects[index].duration) effects.splice(index, 1)
+			for (const slot of slots) {
+				const { effect, canvas, context } = slot
+				if (!effect) continue
+				context.clearRect(0, 0, EFFECT_SIZE, EFFECT_SIZE)
+				if (now - effect.startedAt >= effect.duration) {
+					slot.effect = null
+					canvas.style.display = 'none'
+					continue
+				}
+				drawEffect(context, effect, clamp((now - effect.startedAt) / effect.duration))
+				context.globalAlpha = 1
 			}
-			for (const effect of effects) drawEffect(context, effect, clamp((now - effect.startedAt) / effect.duration))
-			context.globalAlpha = 1
-			if (effects.length && !document.hidden) frameId = requestAnimationFrame(draw)
+			if (slots.some(slot => slot.effect) && !document.hidden) frameId = requestAnimationFrame(draw)
 		}
 		const resize = () => {
 			stop()
-			if (motionQuery.matches) {
-				width = 0
-				height = 0
-				canvas.width = 1
-				canvas.height = 1
-				return
-			}
 			width = window.innerWidth
-			height = window.innerHeight
 			const compact = width < 640
-			const dprCap = width * height > 3_000_000 ? 1 : compact ? 1 : 1.25
+			const dprCap = width * window.innerHeight > 3_000_000 ? 1 : compact ? 1 : 1.25
 			const dpr = Math.min(window.devicePixelRatio || 1, dprCap)
-			canvas.width = Math.max(1, Math.floor(width * dpr))
-			canvas.height = Math.max(1, Math.floor(height * dpr))
-			context.setTransform(dpr, 0, 0, dpr, 0, 0)
+			for (const { canvas, context } of slots) {
+				canvas.width = canvas.height = motionQuery.matches ? 1 : Math.ceil(EFFECT_SIZE * dpr)
+				const scale = canvas.width / EFFECT_SIZE
+				context.setTransform(scale, 0, 0, scale, 0, 0)
+			}
 		}
 		const handlePointerDown = (event: PointerEvent) => {
 			if (motionQuery.matches || document.hidden || event.button !== 0 || !event.isPrimary) return
 			const target = event.target
 			if (target instanceof Element && target.closest(IGNORED_TARGETS)) return
-			effects.push(createEffect(event.clientX, event.clientY, sequenceRef.current++, theme, width < 640))
-			if (effects.length > MAX_EFFECTS) effects.shift()
+			const slot = slots.find(slot => !slot.effect) ?? slots[0]
+			if (!slot) return
+			const effect = createEffect(event.clientX, event.clientY, sequenceRef.current++, theme, width < 640)
+			slot.canvas.style.left = `${effect.x - EFFECT_SIZE / 2}px`
+			slot.canvas.style.top = `${effect.y - EFFECT_SIZE / 2}px`
+			effect.x = effect.y = EFFECT_SIZE / 2
+			slot.effect = effect
+			slot.context.clearRect(0, 0, EFFECT_SIZE, EFFECT_SIZE)
+			slot.canvas.style.display = 'block'
+			// Reuse the oldest slot and preserve source-over ordering for overlapping clicks.
+			slots.splice(slots.indexOf(slot), 1)
+			slots.push(slot)
+			layer.appendChild(slot.canvas)
 			if (!frameId) frameId = requestAnimationFrame(draw)
 		}
 		const handleMotionChange = () => resize()
@@ -251,6 +268,10 @@ export function ClickEffectLayer({ enabled, theme }: ClickEffectLayerProps) {
 		motionQuery.addEventListener('change', handleMotionChange)
 		return () => {
 			stop()
+			slots.forEach(({ canvas }) => {
+				canvas.remove()
+				canvas.width = canvas.height = 1
+			})
 			window.removeEventListener('resize', resize)
 			window.removeEventListener('pointerdown', handlePointerDown, true)
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -258,5 +279,5 @@ export function ClickEffectLayer({ enabled, theme }: ClickEffectLayerProps) {
 		}
 	}, [enabled, theme])
 
-	return <canvas ref={canvasRef} className='pointer-events-none fixed inset-0 z-20 h-full w-full' aria-hidden='true' />
+	return <div ref={layerRef} className='pointer-events-none fixed inset-0 z-20 overflow-hidden' aria-hidden='true' />
 }

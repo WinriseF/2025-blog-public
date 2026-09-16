@@ -30,6 +30,9 @@ export default function Card({ children, order, width, height, x, y, className }
 	const init = useSize(state => state.init)
 	const shouldReduceMotion = useReducedMotion()
 	const [show, setShow] = useState(false)
+	const hoveringRef = useRef(false)
+	const movingRef = useRef(new Set<string>())
+	const willChange = useMotionValue('auto')
 	const pressingRef = useRef(false)
 	const rectRef = useRef<DOMRect | null>(null)
 	const frameRef = useRef<number | null>(null)
@@ -38,6 +41,21 @@ export default function Card({ children, order, width, height, x, y, className }
 	const rotateYValue = useMotionValue(0)
 	const rotateX = useSpring(rotateXValue, cardTiltSpring)
 	const rotateY = useSpring(rotateYValue, cardTiltSpring)
+	const updatePromotion = useCallback(() => {
+		willChange.set(hoveringRef.current || movingRef.current.size ? 'transform' : 'auto')
+	}, [willChange])
+
+	useEffect(() => {
+		const subscriptions = [rotateX, rotateY].map((value, index) =>
+			value.on('change', angle => {
+				// Spring-backed values settle exactly at zero after pointer leave.
+				if (angle !== 0) movingRef.current.add(`tilt-${index}`)
+				else movingRef.current.delete(`tilt-${index}`)
+				updatePromotion()
+			})
+		)
+		return () => subscriptions.forEach(unsubscribe => unsubscribe())
+	}, [rotateX, rotateY, updatePromotion])
 
 	if (maxSM && init) order = 0
 
@@ -63,6 +81,7 @@ export default function Card({ children, order, width, height, x, y, className }
 	}, [])
 
 	const resetTilt = useCallback(() => {
+		hoveringRef.current = false
 		pressingRef.current = false
 		rectRef.current = null
 		pointerRef.current = null
@@ -72,7 +91,8 @@ export default function Card({ children, order, width, height, x, y, className }
 		}
 		rotateXValue.set(0)
 		rotateYValue.set(0)
-	}, [rotateXValue, rotateYValue])
+		updatePromotion()
+	}, [rotateXValue, rotateYValue, updatePromotion])
 
 	const applyTilt = useCallback(() => {
 		frameRef.current = null
@@ -94,6 +114,8 @@ export default function Card({ children, order, width, height, x, y, className }
 	const scheduleTilt = useCallback(
 		(event: React.PointerEvent<HTMLDivElement>, shouldReadRect = false) => {
 			if (shouldReduceMotion || event.pointerType === 'touch' || (maxSM && init)) return
+			hoveringRef.current = true
+			updatePromotion()
 
 			if (shouldReadRect || !rectRef.current) {
 				rectRef.current = event.currentTarget.getBoundingClientRect()
@@ -108,7 +130,7 @@ export default function Card({ children, order, width, height, x, y, className }
 				frameRef.current = requestAnimationFrame(applyTilt)
 			}
 		},
-		[applyTilt, init, maxSM, shouldReduceMotion]
+		[applyTilt, init, maxSM, shouldReduceMotion, updatePromotion]
 	)
 
 	const handlePointerDown = useCallback(
@@ -137,7 +159,15 @@ export default function Card({ children, order, width, height, x, y, className }
 	if (show)
 		return (
 			<motion.div
-				className={cn('card transform-gpu', className)}
+				className={cn('card', className)}
+				onAnimationStart={() => {
+					movingRef.current.add('layout')
+					updatePromotion()
+				}}
+				onAnimationComplete={() => {
+					movingRef.current.delete('layout')
+					updatePromotion()
+				}}
 				initial={{ opacity: 0, scale: 0.6, left: x, top: y, width, height }}
 				animate={{ opacity: 1, scale: 1, left: x, top: y, width, height }}
 				whileHover={shouldReduceMotion ? undefined : { scale: 1.035 }}
@@ -153,7 +183,7 @@ export default function Card({ children, order, width, height, x, y, className }
 					rotateY: shouldReduceMotion ? 0 : rotateY,
 					transformPerspective: 900,
 					transformStyle: 'preserve-3d',
-					willChange: 'transform'
+					willChange
 				}}>
 				{children}
 			</motion.div>

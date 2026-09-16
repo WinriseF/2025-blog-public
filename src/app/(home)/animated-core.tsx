@@ -197,6 +197,7 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 					depthWrite: false,
 					opacity: 0.1,
 					side: THREE.DoubleSide,
+					forceSinglePass: true,
 					transparent: true
 				})
 			)
@@ -275,8 +276,9 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				roughness: 0.2,
 				transparent: true
 			})
+			const shardGeometries = Array.from({ length: 3 }, (_, index) => new THREE.TetrahedronGeometry(0.09 + index * 0.025, 0))
 			const shards = Array.from({ length: 7 }, (_, index) => {
-				const shard = new THREE.Mesh(new THREE.TetrahedronGeometry(0.09 + (index % 3) * 0.025, 0), shardMaterial.clone())
+				const shard = new THREE.Mesh(shardGeometries[index % 3], shardMaterial)
 				shard.userData.angle = index * 0.88
 				shard.userData.radius = 1.36 + (index % 3) * 0.22
 				shard.userData.speed = 0.74 + index * 0.045
@@ -367,26 +369,26 @@ export default function AnimatedCore({ className }: AnimatedCoreProps) {
 				renderer.render(scene, camera)
 			}
 			renderFrame(0)
-			const animationLoop = reduceMotion
-				? null
-				: startAnimationLoop(({ deltaMs, elapsedMs }) => renderFrame(elapsedMs, deltaMs), {
-						element: container,
-						targetFps: () => hoverRef.current || activationRef.current > 0.01 ? 60 : 50
-					})
+			const animationLoop = startAnimationLoop(({ deltaMs, elapsedMs }) => {
+				if (reduceMotion) renderer.render(scene, camera)
+				else renderFrame(elapsedMs, deltaMs)
+			}, { element: container, targetFps: 60 })
 
 			cleanupScene = () => {
 				animationLoop?.destroy()
 				resizeObserver.disconnect()
+				const resources = new Set<{ dispose: () => void }>()
 				scene.traverse(object => {
 					if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments || object instanceof THREE.Points) {
-						object.geometry.dispose()
+						resources.add(object.geometry)
 						const material = object.material
-						if (Array.isArray(material)) material.forEach(item => item.dispose())
-						else material.dispose()
+						if (Array.isArray(material)) material.forEach(item => resources.add(item))
+						else resources.add(material)
 					} else if (object instanceof THREE.Sprite) {
-						object.material.dispose()
+						resources.add(object.material)
 					}
 				})
+				resources.forEach(resource => resource.dispose())
 				glowTexture.dispose()
 				renderer.dispose()
 				renderer.forceContextLoss()

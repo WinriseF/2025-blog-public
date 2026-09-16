@@ -33,7 +33,9 @@ export function startAnimationLoop(
 	let wakeTimer = 0
 	let elapsedMs = 0
 	let inViewport = true
-	let lastTimestamp = 0
+	let lastTimestamp: number | null = null
+	let nextTimestamp = 0
+	let scheduledInterval = 0
 	let destroyed = false
 
 	const canRun = () => !destroyed && !document.hidden && inViewport
@@ -47,12 +49,13 @@ export function startAnimationLoop(
 	const schedule = () => {
 		if (animationFrame || wakeTimer || !canRun() || !isActive()) return
 		const frameInterval = getFrameInterval()
-		if (!frameInterval || !lastTimestamp) {
+		// Fast loops stay on RAF; timers can miss the next display refresh.
+		if (frameInterval <= 1000 / 30 || lastTimestamp === null) {
 			requestFrame()
 			return
 		}
 
-		const waitMs = Math.max(0, frameInterval - (performance.now() - lastTimestamp) - 4)
+		const waitMs = Math.max(0, nextTimestamp - performance.now() - 4)
 		if (waitMs <= 0) requestFrame()
 		else wakeTimer = window.setTimeout(requestFrame, waitMs)
 	}
@@ -62,9 +65,20 @@ export function startAnimationLoop(
 		if (!canRun() || !isActive()) return
 
 		const frameInterval = getFrameInterval()
+		if (frameInterval !== scheduledInterval) {
+			nextTimestamp = lastTimestamp === null ? timestamp : lastTimestamp + frameInterval
+			scheduledInterval = frameInterval
+		}
+		// Allow sub-millisecond RAF rounding, but never draw on every high-Hz refresh.
+		if (lastTimestamp !== null && frameInterval && timestamp + 0.5 < nextTimestamp) {
+			schedule()
+			return
+		}
 		const fallbackDelta = frameInterval || 1000 / 60
 		const deltaLimit = frameInterval ? Math.max(maxDeltaMs, frameInterval) : maxDeltaMs
-		const deltaMs = lastTimestamp ? Math.min(timestamp - lastTimestamp, deltaLimit) : fallbackDelta
+		const deltaMs = lastTimestamp !== null ? Math.min(timestamp - lastTimestamp, deltaLimit) : fallbackDelta
+		if (lastTimestamp === null || !frameInterval) nextTimestamp = timestamp + frameInterval
+		else nextTimestamp += (Math.max(0, Math.floor((timestamp - nextTimestamp) / frameInterval)) + 1) * frameInterval
 		lastTimestamp = timestamp
 		elapsedMs += deltaMs
 		draw({ deltaMs, elapsedMs, timestamp })
@@ -74,7 +88,6 @@ export function startAnimationLoop(
 
 	const sync = () => {
 		if (canRun()) {
-			lastTimestamp = 0
 			schedule()
 			return
 		}
@@ -83,7 +96,8 @@ export function startAnimationLoop(
 		if (wakeTimer) window.clearTimeout(wakeTimer)
 		animationFrame = 0
 		wakeTimer = 0
-		lastTimestamp = 0
+		lastTimestamp = null
+		nextTimestamp = 0
 	}
 
 	const handleVisibilityChange = () => sync()
@@ -106,7 +120,8 @@ export function startAnimationLoop(
 	return {
 		wake() {
 			if (!canRun() || !isActive() || animationFrame || wakeTimer) return
-			lastTimestamp = 0
+			lastTimestamp = null
+			nextTimestamp = 0
 			requestFrame()
 		},
 		destroy() {

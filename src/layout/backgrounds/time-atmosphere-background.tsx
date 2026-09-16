@@ -80,6 +80,7 @@ function useReducedMotion() {
 
 export default function TimeAtmosphereBackground({ animated = true, theme, regenerateKey = 0 }: TimeAtmosphereBackgroundProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null)
+	const starsRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
 	const { atmosphere } = theme
 
@@ -100,6 +101,8 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 		if (!context) return
 		const canvas = canvasEl as HTMLCanvasElement
 		const ctx = context as CanvasRenderingContext2D
+		const starCanvas = starsRef.current
+		const starContext = starCanvas?.getContext('2d')
 
 		let width = canvas.clientWidth
 		let height = canvas.clientHeight
@@ -116,9 +119,14 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 		function resizeCanvas() {
 			width = canvas.clientWidth
 			height = canvas.clientHeight
-			canvas.width = Math.max(1, Math.floor(width))
-			canvas.height = Math.max(1, Math.floor(height))
-			ctx.setTransform(1, 0, 0, 1, 0, 0)
+			// Soft glows need only a quarter of the pixels; stars keep CSS-pixel detail.
+			canvas.width = Math.max(1, Math.ceil(width * 0.5))
+			canvas.height = Math.max(1, Math.ceil(height * 0.5))
+			ctx.setTransform(canvas.width / Math.max(1, width), 0, 0, canvas.height / Math.max(1, height), 0, 0)
+			if (starCanvas) {
+				starCanvas.width = Math.max(1, Math.ceil(width))
+				starCanvas.height = Math.max(1, Math.ceil(height))
+			}
 		}
 
 		function createGlows() {
@@ -148,11 +156,12 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 			}))
 		}
 
-		function updateGlows(t: number) {
+		function updateGlows(t: number, deltaMs: number) {
+			const frameScale = deltaMs * atmosphere.targetFps / 1000
 			const bandMin = height * atmosphere.bottomBandStart
 			for (const glow of glows) {
-				glow.x += glow.vx + Math.cos(t * 0.00012 + glow.phase) * atmosphere.speed * 0.18
-				glow.y += glow.vy + Math.sin(t * 0.0001 + glow.phase) * atmosphere.speed * 0.12
+				glow.x += (glow.vx + Math.cos(t * 0.00012 + glow.phase) * atmosphere.speed * 0.18) * frameScale
+				glow.y += (glow.vy + Math.sin(t * 0.0001 + glow.phase) * atmosphere.speed * 0.12) * frameScale
 
 				if (glow.x < -glow.r * 0.65) glow.x = width + glow.r * 0.35
 				if (glow.x > width + glow.r * 0.65) glow.x = -glow.r * 0.35
@@ -172,7 +181,9 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 		}
 
 		function drawStars(t: number) {
-			if (!stars.length) return
+			if (!starContext || !stars.length) return
+			const ctx = starContext
+			ctx.clearRect(0, 0, width, height)
 			ctx.save()
 			ctx.globalCompositeOperation = 'screen'
 			for (const star of stars) {
@@ -198,11 +209,11 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 		draw()
 		const animationLoop = !reducedMotion
 			? startAnimationLoop(
-					({ timestamp }) => {
-						updateGlows(timestamp)
+					({ timestamp, deltaMs }) => {
+						updateGlows(timestamp, deltaMs)
 						draw(timestamp)
 					},
-					{ element: canvas, targetFps }
+					{ element: canvas, targetFps, maxDeltaMs: 1000 }
 				)
 			: null
 
@@ -227,6 +238,7 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 			})
 			canvas.width = 1
 			canvas.height = 1
+			if (starCanvas) starCanvas.width = starCanvas.height = 1
 		}
 	}, [animated, atmosphere, reducedMotion, regenerateKey, theme.name])
 
@@ -240,6 +252,7 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 
 			{/* Canvas Animation */}
 			{animated && <canvas ref={canvasRef} className='absolute inset-0 h-full w-full' aria-hidden='true' />}
+			{animated && theme.name === 'night' && <canvas ref={starsRef} className='absolute inset-0 h-full w-full' aria-hidden='true' />}
 			<AmbientEffectLayer themeName={theme.name} visualsEnabled={animated} />
 
 			{/* Noise Texture */}
