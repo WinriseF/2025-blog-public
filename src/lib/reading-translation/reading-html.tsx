@@ -2,7 +2,7 @@ import { createElement, Fragment, type ReactElement } from 'react'
 import parse, { domToReact, Element, type DOMNode, type HTMLReactParserOptions } from 'html-react-parser'
 import { MarkdownImage } from '@/components/markdown-image'
 
-// This reader only renders a small, inert Markdown vocabulary while credentials are in page memory.
+// This reader only renders a small, inert Markdown vocabulary and never exposes stored credentials to article markup.
 const tags = new Set(['p', 'div', 'span', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'sub', 'sup', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a'])
 
 function readingHref(href?: string) {

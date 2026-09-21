@@ -49,7 +49,7 @@ export function ImageCompressPanel({ active }: { active: boolean }) {
 
 	const handleDownloadAll = async () => {
 		try {
-			await downloadImageArchive(controller.results.map(({ item, result }) => ({ sourceName: item.file.name, format: result.format, blob: result.blob, lastModified: item.file.lastModified })))
+			await downloadImageArchive(controller.results.map(({ item, result }) => ({ sourceName: item.file.name, outputName: item.outputName, format: result.format, blob: result.blob, lastModified: item.file.lastModified })))
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : '批量下载失败')
 		}
@@ -80,7 +80,7 @@ export function ImageCompressPanel({ active }: { active: boolean }) {
 				<button type='button' disabled={!controller.items.length} onClick={controller.clear} className='text-secondary ml-auto flex items-center gap-2 rounded-xl border border-border px-4 py-3 font-medium disabled:opacity-45 max-sm:ml-0'><Trash2 size={15} />清空</button>
 			</div>
 
-			<ImageResultList items={controller.items} onStart={id => controller.start([id], options)} onCancel={controller.cancel} onRemove={controller.remove} onCompare={setCompareId} />
+			<ImageResultList items={controller.items} onStart={id => controller.start([id], options)} onCancel={controller.cancel} onRemove={controller.remove} onCompare={setCompareId} onRename={controller.rename} />
 
 			<div className='text-secondary flex items-start gap-3 border-t border-border pt-5 text-xs leading-5'>
 				<ShieldCheck size={17} className='text-brand mt-0.5 shrink-0' />

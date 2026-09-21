@@ -1,4 +1,4 @@
-import { outputFileName } from './presets'
+import { normalizeOutputFileName, outputFileName } from './presets'
 import { loadZipModule } from '../zip-runtime'
 import type { ImageFormat } from './types'
 
@@ -25,6 +25,7 @@ type SaveFilePicker = (options?: {
 
 export type ImageArchiveEntry = {
 	sourceName: string
+	outputName?: string
 	format: ImageFormat
 	blob: Blob
 	lastModified: number
@@ -48,7 +49,7 @@ function downloadBlob(blob: Blob, name: string) {
 function uniqueNames(entries: ImageArchiveEntry[]) {
 	const seen = new Map<string, number>()
 	return entries.map(entry => {
-		const base = outputFileName(entry.sourceName, entry.format)
+		const base = normalizeOutputFileName(entry.outputName || outputFileName(entry.sourceName, entry.format), entry.format)
 		const count = seen.get(base) ?? 0
 		seen.set(base, count + 1)
 		if (!count) return base
@@ -57,7 +58,7 @@ function uniqueNames(entries: ImageArchiveEntry[]) {
 }
 
 export function downloadImage(entry: ImageArchiveEntry) {
-	downloadBlob(entry.blob, outputFileName(entry.sourceName, entry.format))
+	downloadBlob(entry.blob, normalizeOutputFileName(entry.outputName || outputFileName(entry.sourceName, entry.format), entry.format))
 }
 
 export async function downloadImageArchive(entries: ImageArchiveEntry[]) {

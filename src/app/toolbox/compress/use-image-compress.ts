@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { normalizeOutputFileName, outputFileName } from '@/lib/image-compress/presets'
 import { inspectImageContainer } from '@/lib/image-compress/sniff'
 import type {
 	ImageCompressionOptions,
@@ -26,6 +27,7 @@ export type ImageCompressionItem = {
 	progress: number
 	error?: string
 	result?: ImageResult
+	outputName?: string
 }
 
 type QueueTask = { id: string; options: ImageCompressionOptions; limits: ImageDeviceLimits }
@@ -184,7 +186,7 @@ export function useImageCompress() {
 			updateItem(response.jobId, item => {
 				disposeResult(item.result)
 				const { bytes: _, ...metadata } = response.result
-				return { ...item, width: response.result.width, height: response.result.height, status: 'done', progress: 1, stage: undefined, error: undefined, result: { ...metadata, blob, url } }
+				return { ...item, width: response.result.width, height: response.result.height, status: 'done', progress: 1, stage: undefined, error: undefined, result: { ...metadata, blob, url }, outputName: item.outputName ? normalizeOutputFileName(item.outputName, response.result.format) : outputFileName(item.file.name, response.result.format) }
 			})
 			finishSlot(slot)
 		}
@@ -315,6 +317,10 @@ export function useImageCompress() {
 		})
 	}, [cancel, updateItems])
 
+	const rename = useCallback((id: string, name: string) => {
+		updateItem(id, item => item.result ? { ...item, outputName: normalizeOutputFileName(name, item.result.format) } : item)
+	}, [updateItem])
+
 	const clear = useCallback(() => {
 		cancelAll()
 		for (const item of itemsRef.current) {
@@ -347,6 +353,7 @@ export function useImageCompress() {
 		cancel,
 		cancelAll,
 		remove,
+		rename,
 		clear,
 		isActive: items.some(item => item.status === 'processing' || item.status === 'queued'),
 		results: items.flatMap(item => item.result ? [{ item, result: item.result }] : [])

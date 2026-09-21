@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Ban, Copy, Download, Eye, LoaderCircle, Play, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { downloadImage } from '@/lib/image-compress/image-archive'
 import { copyImageToClipboard } from '@/lib/image-compress/image-clipboard'
+import { outputFileName } from '@/lib/image-compress/presets'
 import type { ImageClass, ImageJobStage } from '@/lib/image-compress/types'
 import type { ImageCompressionItem } from './use-image-compress'
 import { IMAGE_FORMAT_META } from '@/lib/image-compress/sniff'
@@ -36,12 +37,35 @@ async function copyResult(blob: Blob) {
 	}
 }
 
-export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare }: {
+function EditableImageName({ name, editable, onCommit }: { name: string; editable: boolean; onCommit: (name: string) => void }) {
+	const [editing, setEditing] = useState(false)
+	const [draft, setDraft] = useState(name)
+	const inputRef = useRef<HTMLInputElement>(null)
+	const start = () => {
+		if (!editable) return
+		setDraft(name)
+		setEditing(true)
+	}
+	useEffect(() => {
+		if (!editing || !inputRef.current) return
+		const extensionAt = name.lastIndexOf('.')
+		inputRef.current.focus()
+		inputRef.current.setSelectionRange(0, extensionAt > 0 ? extensionAt : name.length)
+	}, [editing, name])
+	if (editing) return <input ref={inputRef} value={draft} onChange={event => setDraft(event.target.value)} onBlur={() => { onCommit(draft); setEditing(false) }} onKeyDown={event => {
+		if (event.key === 'Enter') event.currentTarget.blur()
+		if (event.key === 'Escape') { event.preventDefault(); setEditing(false) }
+	}} aria-label='下载文件名' className='min-w-0 flex-1 rounded-md border border-brand/45 bg-background px-2 py-1 font-medium text-primary outline-none focus:ring-2 focus:ring-brand/20' />
+	return <p className={`min-w-0 truncate font-medium text-primary ${editable ? 'cursor-text rounded-sm outline-none focus:ring-2 focus:ring-brand/20' : ''}`} title={editable ? `${name}（双击修改下载文件名）` : name} tabIndex={editable ? 0 : undefined} role={editable ? 'button' : undefined} onDoubleClick={start} onKeyDown={event => { if (event.key === 'Enter' || event.key === 'F2') start() }}>{name}</p>
+}
+
+export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare, onRename }: {
 	items: ImageCompressionItem[]
 	onStart: (id: string) => void
 	onCancel: (id: string) => void
 	onRemove: (id: string) => void
 	onCompare: (id: string) => void
+	onRename: (id: string, name: string) => void
 }) {
 	if (!items.length) return <div className='text-secondary flex min-h-36 items-center justify-center border-t border-border text-sm'>选择图片后将在这里显示任务与压缩结果</div>
 	return (
@@ -51,12 +75,13 @@ export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare 
 				{items.map(item => {
 					const active = item.status === 'queued' || item.status === 'processing'
 					const saving = item.result && item.file.size ? Math.round((1 - item.result.outputBytes / item.file.size) * 100) : null
+					const displayName = item.result ? item.outputName || outputFileName(item.file.name, item.result.format) : item.file.name
 					return (
 						<li key={item.id} className='grid grid-cols-[58px_minmax(0,1fr)_auto] gap-4 py-4 max-sm:grid-cols-[52px_minmax(0,1fr)]' style={{ contentVisibility: 'auto', containIntrinsicSize: '84px' } as CSSProperties}>
 							<div className='size-14 overflow-hidden rounded-lg border border-border bg-card max-sm:size-12'>{item.format === 'jxl' ? <span className='flex size-full items-center justify-center text-[10px] font-semibold text-secondary'>JXL</span> : <img src={item.previewUrl} alt='' loading='lazy' className='size-full object-cover' />}</div>
 							<div className='min-w-0'>
 								<div className='flex min-w-0 items-center gap-2'>
-									<p className='min-w-0 truncate font-medium text-primary' title={item.file.name}>{item.file.name}</p>
+									<EditableImageName name={displayName} editable={Boolean(item.result)} onCommit={name => onRename(item.id, name)} />
 									{saving !== null && <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${saving >= 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>{saving >= 0 ? `节省 ${saving}%` : `增大 ${Math.abs(saving)}%`}</span>}
 								</div>
 								<p className='text-secondary mt-1 text-xs'>{IMAGE_FORMAT_META[item.format].label} · {item.width && item.height ? `${item.width} × ${item.height} · ` : ''}{formatBytes(item.file.size)}</p>
@@ -69,7 +94,7 @@ export function ImageResultList({ items, onStart, onCancel, onRemove, onCompare 
 								{active ? <button type='button' onClick={() => onCancel(item.id)} className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-primary'><Ban size={13} />取消</button> : <button type='button' onClick={() => onStart(item.id)} className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-primary'><Play size={13} />{item.result ? '重压' : '压缩'}</button>}
 								<button type='button' disabled={!item.result} onClick={() => onCompare(item.id)} className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-primary disabled:opacity-40'><Eye size={13} />对比</button>
 								<button type='button' disabled={!item.result} onClick={() => { if (item.result) void copyResult(item.result.blob) }} className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-primary disabled:opacity-40'><Copy size={13} />复制</button>
-								<button type='button' disabled={!item.result} onClick={() => item.result && downloadImage({ sourceName: item.file.name, format: item.result.format, blob: item.result.blob, lastModified: item.file.lastModified })} className='text-brand flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 font-medium disabled:text-secondary disabled:opacity-40'><Download size={13} />下载</button>
+								<button type='button' disabled={!item.result} onClick={() => item.result && downloadImage({ sourceName: item.file.name, outputName: item.outputName, format: item.result.format, blob: item.result.blob, lastModified: item.file.lastModified })} className='text-brand flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 font-medium disabled:text-secondary disabled:opacity-40'><Download size={13} />下载</button>
 								<button type='button' onClick={() => onRemove(item.id)} className='text-secondary flex items-center rounded-lg border border-border p-2 hover:text-primary' aria-label={`移除 ${item.file.name}`}>{active ? <LoaderCircle size={14} className='animate-spin' /> : <Trash2 size={14} />}</button>
 							</div>
 						</li>

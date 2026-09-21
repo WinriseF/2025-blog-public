@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MAX_SELECTION_LENGTH, TRANSLATION_PROMPT_VERSION, translateSelection } from '@/lib/reading-translation/client'
-import type { SessionConfigStore } from '@/lib/reading-translation/model-config'
+import type { BrowserConfigStore } from '@/lib/reading-translation/model-config'
 import type { TranslationResult, TranslationState, TranslationTarget } from '@/lib/reading-translation/types'
 
-export function useTranslation(configStore: SessionConfigStore, title: string) {
+export function useTranslation(configStore: BrowserConfigStore, title: string) {
 	const [state, setState] = useState<TranslationState>({ status: 'idle' })
 	const activeRef = useRef<{ id: number; controller?: AbortController; targetKey?: string }>({ id: 0 })
 	const cacheRef = useRef(new Map<string, TranslationResult>())
@@ -35,7 +35,7 @@ export function useTranslation(configStore: SessionConfigStore, title: string) {
 		const timer = window.setTimeout(() => { timedOut = true; controller.abort() }, 30000)
 		setState({ status: 'loading' })
 		try {
-			const config = configStore.get()
+			const config = await configStore.get()
 			if (id !== activeRef.current.id) return
 			controller.signal.throwIfAborted()
 			if (!config) { setState({ status: 'unconfigured' }); return }

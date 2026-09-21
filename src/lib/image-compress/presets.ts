@@ -141,5 +141,11 @@ export function jxlOptions(preset: ImageCompressionOptions['preset']) {
 export function outputFileName(sourceName: string, format: ImageFormat, suffix = '-compressed') {
 	const base = sourceName.replace(/\.[^.]+$/, '') || 'image'
 	const extension = format === 'jpeg' ? 'jpg' : format
-	return `${base}${suffix}.${extension}`
+	return normalizeOutputFileName(`${base}${suffix}.${extension}`, format)
+}
+
+export function normalizeOutputFileName(name: string, format: ImageFormat) {
+	const extension = format === 'jpeg' ? 'jpg' : format
+	const base = name.trim().replace(/\.[^.]+$/, '').replace(/[\u0000-\u001f<>:"/\\|?*]/g, '-').replace(/[. ]+$/, '').trim() || 'image'
+	return `${base}.${extension}`
 }
