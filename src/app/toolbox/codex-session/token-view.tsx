@@ -1,21 +1,24 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { estimateApiCost } from '@/lib/codex-session/api-cost'
 import type { PerformanceMetrics, SessionTokenUsage } from '@/lib/codex-session/types'
 import type { DetailSelection } from './detail-panel'
+import { ApiCostView } from './api-cost-view'
 import { formatCompactNumber, formatDate, formatNumber, formatPercent } from './format'
 import { MetricLabel } from './metric-help'
 import { PerformanceStats } from './performance-stats'
 
 const TokenChart = dynamic(() => import('./token-chart'), { ssr: false, loading: () => <div className='text-secondary flex h-72 items-center justify-center text-xs'>正在加载图表...</div> })
 
-export function TokenView({ usage, performance, onSelect }: { usage: SessionTokenUsage; performance: PerformanceMetrics; onSelect: (selection: DetailSelection) => void }) {
+export function TokenView({ usage, performance, fallbackModel, onSelect }: { usage: SessionTokenUsage; performance: PerformanceMetrics; fallbackModel?: string; onSelect: (selection: DetailSelection) => void }) {
 	if (usage.status === 'missing') return <div className='space-y-5'>
 		<PerformanceStats metrics={performance} />
 		<div className='text-secondary flex min-h-48 items-center justify-center border-y border-border px-5 text-center'>此 Session 没有记录 Token 用量，输出速度和模型步骤均值不可计算</div>
 	</div>
 
 	const total = usage.total
+	const cost = estimateApiCost(usage, fallbackModel)
 	const requests = usage.samples.length
 	const average = requests ? Math.round(usage.samples.reduce((sum, sample) => sum + sample.total, 0) / requests) : 0
 	const peak = usage.samples.reduce((best, sample) => sample.total > best.total ? sample : best, usage.samples[0] ?? { total: 0 })
@@ -25,7 +28,7 @@ export function TokenView({ usage, performance, onSelect }: { usage: SessionToke
 	const reasoningRate = total?.output ? total.reasoningOutput / total.output : undefined
 	const listedSamples = usage.samples.slice(-200)
 	const stats: Array<{ label: string; value: string; help?: string }> = [
-		{ label: '累计总量', value: total ? formatCompactNumber(total.total) : '不可用', help: 'Session 记录的累计 Input 与 Output Token。' },
+		{ label: usage.totalSource === 'samples' ? usage.complete === false ? '已记录步骤' : '步骤重建总量' : '累计总量', value: total ? formatCompactNumber(total.total) : '不可用', help: usage.totalSource === 'samples' ? '累计计数器曾回退，使用每个有效模型步骤记录的 Input 与 Output 相加。' : 'Session 记录的累计 Input 与 Output Token。' },
 		{ label: 'Input', value: total ? formatNumber(total.input) : '不可用' },
 		{ label: 'Output', value: total ? formatNumber(total.output) : '不可用', help: '模型产生的全部 Output Token，包含 Reasoning、可见回复和工具调用参数。' },
 		{ label: '推理 Token / Output', value: formatPercent(reasoningRate), help: 'Reasoning Output Token 占全部 Output Token 的比例；工具调用参数不属于推理 Token。' },
@@ -37,15 +40,17 @@ export function TokenView({ usage, performance, onSelect }: { usage: SessionToke
 
 	return (
 		<div className='space-y-5'>
-			{usage.status === 'invalid' && <div className='border-l-2 border-rose-400 bg-rose-400/5 px-4 py-3 text-xs leading-5 text-rose-500'>累计 Token 曾出现下降，因此隐藏 Session 总量；下方仍展示可确认的模型步骤样本。</div>}
+			{usage.status === 'invalid' && <div className='border-l-2 border-rose-400 bg-rose-400/5 px-4 py-3 text-xs leading-5 text-rose-500'>累计 Token 曾出现下降，且缺少可用于重建总量的模型步骤样本。</div>}
+			{usage.totalSource === 'samples' && <div className='border-l-2 border-amber-400 bg-amber-400/5 px-4 py-3 text-xs leading-5 text-amber-700'>累计计数器曾回退；{usage.complete === false ? '以下仅是已记录模型步骤的合计，可能低于实际用量。' : '以下总量由模型步骤用量相加重建。'}</div>}
 			{usage.scope === 'possibly-inherited' && <div className='border-l-2 border-amber-400 bg-amber-400/5 px-4 py-3 text-xs leading-5 text-amber-600'>该 Session 来自 fork / subagent，累计值可能包含父 Session 的继承前缀。</div>}
 
 			<div className='grid grid-cols-2 border-y border-border sm:grid-cols-4 xl:grid-cols-8'>
 				{stats.map((item, index) => <div key={item.label} className={`min-w-0 px-3 py-3 ${index > 0 ? 'lg:border-l lg:border-border' : ''}`}>
 					<p className='text-secondary text-[10px]'><MetricLabel label={item.label} help={item.help} /></p>
-					<p className='mt-1 truncate text-base font-semibold' title={item.label === '累计总量' ? formatNumber(total?.total) : undefined}>{item.value}</p>
+					<p className='mt-1 truncate text-base font-semibold' title={index === 0 ? formatNumber(total?.total) : undefined}>{item.value}</p>
 				</div>)}
 			</div>
+			{cost && <ApiCostView estimate={cost} />}
 			<PerformanceStats metrics={performance} />
 
 			{total && <div className='grid gap-3 text-xs md:grid-cols-2'>

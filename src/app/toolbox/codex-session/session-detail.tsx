@@ -61,7 +61,7 @@ export function SessionDetail({ result, file, onExit, onFile, backToTimeline }: 
 					{tab === 'activity' && <ActivityView activity={result.activity} onSelect={setSelection} />}
 					{tab === 'commands' && <CommandsView processes={result.processes} sourceName={result.source.name} onSelect={setSelection} />}
 					{tab === 'files' && <FilesView audit={result.fileAudit} onSelect={setSelection} />}
-					{tab === 'token' && <TokenView usage={result.tokenUsage} performance={summarizePerformance(result.performance.turns)} onSelect={setSelection} />}
+					{tab === 'token' && <TokenView usage={result.tokenUsage} performance={summarizePerformance(result.performance.turns)} fallbackModel={result.meta.models.length === 1 ? result.meta.model : undefined} onSelect={setSelection} />}
 					{compressionOpened && <div className={tab === 'compress' ? undefined : 'hidden'}><CompressionView file={file} /></div>}
 				</section>
 

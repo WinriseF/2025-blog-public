@@ -22,7 +22,8 @@ export function buildTokenUsage(records: RecordEnvelope[], possiblyInherited: bo
 	let latestTotal: TokenUsageNumbers | undefined
 	let contextWindow: number | undefined
 	let previousTotal: number | undefined
-	let invalid = false
+	let decreased = false
+	let complete = true
 	let currentTurnId: string | undefined
 	let currentCwd: string | undefined
 	let currentModel: string | undefined
@@ -57,12 +58,12 @@ export function buildTokenUsage(records: RecordEnvelope[], possiblyInherited: bo
 			continue
 		}
 		if (previousTotal !== undefined && total.total < previousTotal) {
-			invalid = true
+			decreased = true
 			diagnostics.push({
 				id: `diagnostic-token-reset-${envelope.sequence}`,
-				severity: 'error',
+				severity: 'info',
 				code: 'TOKEN_TOTAL_DECREASED',
-				message: `累计 Token 从 ${previousTotal} 降至 ${total.total}，已隐藏 Session 总量`,
+				message: `累计 Token 从 ${previousTotal} 降至 ${total.total}，改用模型步骤用量重建总量`,
 				sourceRef: envelope.sourceRef
 			})
 		}
@@ -72,6 +73,7 @@ export function buildTokenUsage(records: RecordEnvelope[], possiblyInherited: bo
 		latestTotal = total
 		const rawLast = info.last_token_usage
 		const last = advanced ? mapUsage(rawLast) : undefined
+		if (advanced && !last) complete = false
 		if (advanced && rawLast != null && !last) {
 			diagnostics.push({
 				id: `diagnostic-token-sample-shape-${envelope.sequence}`,
@@ -96,10 +98,21 @@ export function buildTokenUsage(records: RecordEnvelope[], possiblyInherited: bo
 		}
 	}
 
+	const sampleTotal = samples.reduce<TokenUsageNumbers>((sum, sample) => ({
+		input: sum.input + sample.input,
+		freshInput: sum.freshInput + sample.freshInput,
+		cachedInput: sum.cachedInput + sample.cachedInput,
+		cacheWriteInput: sum.cacheWriteInput + sample.cacheWriteInput,
+		output: sum.output + sample.output,
+		reasoningOutput: sum.reasoningOutput + sample.reasoningOutput,
+		total: sum.total + sample.total
+	}), { input: 0, freshInput: 0, cachedInput: 0, cacheWriteInput: 0, output: 0, reasoningOutput: 0, total: 0 })
 	return {
-		status: invalid ? 'invalid' : latestTotal ? 'available' : 'missing',
+		status: decreased ? samples.length ? 'available' : 'invalid' : latestTotal ? 'available' : 'missing',
 		scope: possiblyInherited ? 'possibly-inherited' : 'session',
-		total: invalid ? undefined : latestTotal,
+		total: decreased ? samples.length ? sampleTotal : undefined : latestTotal,
+		totalSource: decreased ? 'samples' : 'cumulative',
+		complete,
 		contextWindow,
 		samples
 	}

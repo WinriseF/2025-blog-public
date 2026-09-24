@@ -31,11 +31,12 @@ describe('buildTokenUsage', () => {
 		expect(usage.samples).toHaveLength(2)
 	})
 
-	it('累计值下降时隐藏总量', () => {
+	it('累计值下降时按模型步骤重建总量', () => {
 		const diagnostics: ParseDiagnostic[] = []
 		const usage = buildTokenUsage([tokenRecord(1, 180, 140), tokenRecord(2, 120)], false, diagnostics)
-		expect(usage.status).toBe('invalid')
-		expect(usage.total).toBeUndefined()
+		expect(usage.status).toBe('available')
+		expect(usage.totalSource).toBe('samples')
+		expect(usage.total?.total).toBe(300)
 		expect(diagnostics.some(item => item.code === 'TOKEN_TOTAL_DECREASED')).toBe(true)
 	})
 

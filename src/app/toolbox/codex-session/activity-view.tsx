@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 import type { SessionActivity } from '@/lib/codex-session/types'
 import type { DetailSelection } from './detail-panel'
 import { ActivityWaterfall } from './activity-waterfall'
-import { formatDate, formatDurationMs, formatNumber, formatPercent, statusLabels, toolCategoryColors, toolCategoryLabels } from './format'
+import { formatDurationMs, formatNumber, formatPercent, toolCategoryColors, toolCategoryLabels } from './format'
 import { MetricLabel } from './metric-help'
 
 export function ActivityView({ activity, onSelect }: { activity: SessionActivity; onSelect: (selection: DetailSelection) => void }) {
@@ -12,8 +12,6 @@ export function ActivityView({ activity, onSelect }: { activity: SessionActivity
 	const outputTokens = metrics.reasoningOutputTokens + metrics.visibleOutputTokens
 	const reasoningPercent = metrics.reasoningShareOfOutput ?? 0
 	const toolTimePercent = metrics.toolTimeShare ?? 0
-	const listedRequests = activity.requests.slice(-160)
-	const listedTools = activity.tools.filter(tool => tool.logical).slice(-200)
 	const stats: Array<{ label: string; value: string; help?: string }> = [
 		{ label: '推理 Token / Output', value: formatPercent(metrics.reasoningShareOfOutput), help: 'Reasoning Output Token 占全部 Output Token 的比例；工具调用参数属于非推理 Output。' },
 		{ label: '工具调用步骤率', value: formatPercent(metrics.toolRequestRate), help: '产生至少一次逻辑工具调用的模型步骤，占全部有效模型步骤的比例。' },
@@ -73,35 +71,6 @@ export function ActivityView({ activity, onSelect }: { activity: SessionActivity
 						<span className='text-secondary min-w-28 text-right tabular-nums'>{formatNumber(category.callCount)} 次 · {formatDurationMs(category.durationMs || undefined)}</span>
 					</div>
 				})}
-			</div>
-		</section>}
-
-		{listedRequests.length > 0 && <section>
-			<div className='mb-3 flex items-center justify-between gap-3'><h2 className='font-semibold'>模型步骤时间线</h2><span className='text-secondary text-xs'>最近 {formatNumber(listedRequests.length)} / {formatNumber(activity.requests.length)}</span></div>
-			<div className='max-h-96 overflow-auto border-t border-border'>
-				{listedRequests.map((request, offset) => {
-					const index = activity.requests.length - listedRequests.length + offset + 1
-					const toolShare = request.spanMs ? Math.min(request.toolDurationMs / request.spanMs, 1) : undefined
-					return <div key={request.id} className='grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-3 py-3 text-xs max-sm:grid-cols-[42px_minmax(0,1fr)]'>
-						<span className='font-medium'>#{index}</span>
-						<div className='min-w-0'>
-							<div className='flex flex-wrap items-center gap-x-3 gap-y-1'><span>Output {formatNumber(request.outputTokens)}</span><span className='text-violet-500'>思考 {formatPercent(request.reasoningShareOfOutput)}</span><span className='text-secondary'>{request.toolCallCount} 个工具</span></div>
-							<div className='mt-2 h-1.5 overflow-hidden rounded-full bg-border/50'>{toolShare !== undefined && <span className='block h-full bg-sky-500' style={{ width: `${toolShare * 100}%` }} />}</div>
-						</div>
-						<div className='text-secondary text-right text-[10px] max-sm:col-start-2 max-sm:text-left'><p>{formatDate(request.timestamp)}</p><p className='mt-1'>{formatDurationMs(request.spanMs)} · 工具 {formatDurationMs(request.toolDurationMs || undefined)}</p></div>
-					</div>
-				})}
-			</div>
-		</section>}
-
-		{listedTools.length > 0 && <section>
-			<div className='mb-3 flex items-center justify-between gap-3'><h2 className='font-semibold'>工具调用</h2><span className='text-secondary text-xs'>最近 {formatNumber(listedTools.length)} / {formatNumber(metrics.logicalToolCallCount)}</span></div>
-			<div className='max-h-80 overflow-auto border-t border-border'>
-				{listedTools.map(tool => <button key={tool.id} type='button' onClick={() => onSelect({ type: 'tool-activity', value: tool })} className='hover:bg-background/25 grid w-full grid-cols-[minmax(0,1fr)_auto_auto] gap-3 border-b border-border px-3 py-3 text-left text-xs transition-colors'>
-					<span className='truncate font-mono'>{tool.name}</span>
-					<span style={{ color: toolCategoryColors[tool.category] }}>{toolCategoryLabels[tool.category]}</span>
-					<span className='text-secondary tabular-nums'>{statusLabels[tool.status]} · {formatDurationMs(tool.durationMs)}</span>
-				</button>)}
 			</div>
 		</section>}
 	</div>

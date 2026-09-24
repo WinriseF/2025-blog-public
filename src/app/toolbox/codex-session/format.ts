@@ -83,6 +83,12 @@ export function formatPercent(value: number | undefined, digits = 1) {
 	return value === undefined ? '不可用' : `${(value * 100).toFixed(digits)}%`
 }
 
+export function formatUsd(value: number) {
+	if (value > 0 && value < 0.000001) return '<$0.000001'
+	const digits = value === 0 || value >= 1 ? 2 : value >= 0.01 ? 4 : 6
+	return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
+}
+
 export function formatDurationMs(value: number | undefined) {
 	if (value === undefined) return '不可用'
 	if (value < 1000) return `${Math.round(value)} ms`

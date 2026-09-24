@@ -170,6 +170,8 @@ export type SessionTokenUsage = {
 	status: 'available' | 'missing' | 'invalid'
 	scope: 'session' | 'possibly-inherited'
 	total?: TokenUsageNumbers
+	totalSource?: 'cumulative' | 'samples'
+	complete?: boolean
 	contextWindow?: number
 	samples: TokenUsageSample[]
 }

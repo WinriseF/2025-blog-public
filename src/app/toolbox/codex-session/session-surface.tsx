@@ -118,7 +118,7 @@ export function SessionOverview({ result, onClear, onFile, backToTimeline }: Ses
 		{ label: '失败 / 中断批次', value: formatNumber(failed) },
 		{ label: '读取文件', value: formatNumber(result.fileAudit.reads.length) },
 		{ label: '修改文件', value: formatNumber(result.fileAudit.changes.length) },
-		{ label: 'Token', value: tokenTotal, help: 'Session 记录的 Input 与 Output Token 总量；缓存 Input 已包含在 Input 中。' },
+		{ label: 'Token', value: tokenTotal, help: result.tokenUsage.totalSource === 'samples' ? '累计计数器曾回退，按已记录模型步骤用量相加；缓存 Input 已包含在 Input 中。' : 'Session 记录的 Input 与 Output Token 总量；缓存 Input 已包含在 Input 中。' },
 		{ label: '推理 Token / Output', value: formatPercent(result.activity.metrics.reasoningShareOfOutput), help: 'Reasoning Output Token 占全部 Output Token 的比例；工具调用参数属于非推理 Output。' },
 		{ label: '工具耗时 / 回合耗时', value: formatPercent(result.activity.metrics.toolTimeShare), help: '可确认的工具执行时间区间并集，占 Session 累计回合耗时的比例。' }
 	]

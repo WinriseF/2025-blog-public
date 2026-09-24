@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "currency": "USD",
+  "unitTokens": 1000000,
+  "pricingMode": "standard",
+  "verifiedOn": "2026-09-23",
+  "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+  "scope": "Hypothetical OpenAI first-party API text-token cost for Codex rollout sessions. Excludes tool calls, regional processing, subscriptions, taxes, and negotiated discounts.",
+  "models": {
+    "gpt-6-astra": {
+      "rates": {
+        "input": 10,
+        "cachedInput": 1,
+        "cacheWriteInput": 12.5,
+        "output": 50
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 20,
+          "cachedInput": 2,
+          "cacheWriteInput": 25,
+          "output": 75
+        }
+      }
+    },
+    "gpt-6-sol": {
+      "rates": {
+        "input": 2,
+        "cachedInput": 0.2,
+        "cacheWriteInput": 2.5,
+        "output": 10
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 4,
+          "cachedInput": 0.4,
+          "cacheWriteInput": 5,
+          "output": 15
+        }
+      }
+    },
+    "gpt-6-luna": {
+      "rates": {
+        "input": 0.1,
+        "cachedInput": 0.01,
+        "cacheWriteInput": 0.125,
+        "output": 0.5
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 0.2,
+          "cachedInput": 0.02,
+          "cacheWriteInput": 0.25,
+          "output": 0.75
+        }
+      }
+    },
+    "gpt-5.6-sol": {
+      "aliases": [
+        "gpt-5.6"
+      ],
+      "reviewAfter": "2026-11-21",
+      "rates": {
+        "input": 4,
+        "cachedInput": 0.4,
+        "cacheWriteInput": 5,
+        "output": 20
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 8,
+          "cachedInput": 0.8,
+          "cacheWriteInput": 10,
+          "output": 30
+        }
+      }
+    },
+    "gpt-5.6-terra": {
+      "rates": {
+        "input": 2,
+        "cachedInput": 0.2,
+        "cacheWriteInput": 2.5,
+        "output": 12
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 4,
+          "cachedInput": 0.4,
+          "cacheWriteInput": 5,
+          "output": 18
+        }
+      }
+    },
+    "gpt-5.6-luna": {
+      "rates": {
+        "input": 0.2,
+        "cachedInput": 0.02,
+        "cacheWriteInput": 0.25,
+        "output": 1.2
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 0.4,
+          "cachedInput": 0.04,
+          "cacheWriteInput": 0.5,
+          "output": 1.8
+        }
+      }
+    },
+    "gpt-5.5": {
+      "rates": {
+        "input": 5,
+        "cachedInput": 0.5,
+        "cacheWriteInput": 5,
+        "output": 30
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 10,
+          "cachedInput": 1,
+          "cacheWriteInput": 10,
+          "output": 45
+        }
+      }
+    },
+    "gpt-5.4": {
+      "rates": {
+        "input": 2.5,
+        "cachedInput": 0.25,
+        "cacheWriteInput": 2.5,
+        "output": 15
+      },
+      "longContext": {
+        "minInputTokens": 272001,
+        "rates": {
+          "input": 5,
+          "cachedInput": 0.5,
+          "cacheWriteInput": 5,
+          "output": 22.5
+        }
+      }
+    },
+    "gpt-5.4-mini": {
+      "rates": {
+        "input": 0.75,
+        "cachedInput": 0.075,
+        "cacheWriteInput": 0.75,
+        "output": 4.5
+      }
+    },
+    "gpt-5.3-codex": {
+      "rates": {
+        "input": 1.75,
+        "cachedInput": 0.175,
+        "cacheWriteInput": 1.75,
+        "output": 14
+      }
+    },
+    "gpt-5.2-codex": {
+      "rates": {
+        "input": 1.75,
+        "cachedInput": 0.175,
+        "cacheWriteInput": 1.75,
+        "output": 14
+      }
+    },
+    "gpt-5.1-codex": {
+      "rates": {
+        "input": 1.25,
+        "cachedInput": 0.125,
+        "cacheWriteInput": 1.25,
+        "output": 10
+      }
+    },
+    "gpt-5.1-codex-max": {
+      "rates": {
+        "input": 1.25,
+        "cachedInput": 0.125,
+        "cacheWriteInput": 1.25,
+        "output": 10
+      }
+    },
+    "gpt-4.1": {
+      "rates": {
+        "input": 2,
+        "cachedInput": 0.5,
+        "cacheWriteInput": 2,
+        "output": 8
+      }
+    }
+  }
+}
