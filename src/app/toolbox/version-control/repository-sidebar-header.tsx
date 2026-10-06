@@ -25,7 +25,7 @@ export function RepositorySidebarHeader({
 		<header className='border-border space-y-2 border-b px-3 py-2'>
 			<div className='flex min-w-0 items-center gap-2'>
 				<nav aria-label='仓库视图' className='border-border bg-article/55 flex shrink-0 rounded-lg border p-0.5'>
-					<ModeButton active={mode === 'history'} label='历史' icon={<History size={12} />} onClick={() => onModeChange('history')} />
+					{overview && <ModeButton active={mode === 'history'} label='历史' icon={<History size={12} />} onClick={() => onModeChange('history')} />}
 					<ModeButton active={mode === 'files'} label='文件' icon={<Files size={12} />} onClick={() => onModeChange('files')} />
 				</nav>
 				{mode === 'history' && overview?.capabilities?.supportsBranchFilter ? <RepositoryBranchFilter /> : <BranchLabel overview={overview} />}
@@ -71,6 +71,7 @@ function ModeButton({ active, label, icon, onClick }: { active: boolean; label: 
 }
 
 function branchLabel(overview: RepositoryOverview | null) {
+	if (!overview) return '本地文件夹'
 	if (overview?.repositoryKind === 'svn') return overview.svn?.relativeUrl || overview.currentBranch || 'SVN'
 	return overview?.currentBranch || (overview?.isDetachedHead ? 'DETACHED' : overview?.isBare ? 'HEAD' : 'BRANCH')
 }

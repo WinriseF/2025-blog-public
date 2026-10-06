@@ -2,13 +2,14 @@
 
 import { File as PierreFile, Virtualizer } from '@pierre/diffs/react'
 import type { FileContents } from '@pierre/diffs'
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import { useVersionControlStore } from '@/lib/version-control/store'
+import type { WorkspaceFileSource } from '@/lib/version-control/repository-data-source'
 import type { RepositoryFileContent, RepositoryTreeEntry } from '@/lib/version-control/types'
 import { ImagePreviewDialog } from '@/components/image-preview-dialog'
-import { createDiffThemeStyle, diffThemes } from './diff-themes'
+import { createFileThemeStyle, diffThemes } from './diff-themes'
 
 type FileState =
 	| { status: 'idle' | 'loading' }
@@ -17,9 +18,10 @@ type FileState =
 	| { status: 'unavailable'; message: string }
 	| { status: 'error'; message: string }
 
-export function RepositoryFileViewer({ entry, onMobileBack }: { entry: RepositoryTreeEntry | null; onMobileBack: () => void }) {
-	const repository = useVersionControlStore(state => state.repository)
+export function RepositoryFileViewer({ entry, renderHeader }: { entry: RepositoryTreeEntry | null; renderHeader: (actions: ReactNode) => ReactNode }) {
+	const repository: WorkspaceFileSource | null = useVersionControlStore(state => state.browserDirectory || state.repository)
 	const overview = useVersionControlStore(state => state.overview)
+	const fileRevision = useVersionControlStore(state => state.fileRevision)
 	const { theme: siteTheme } = useTimeTheme()
 	const [state, setState] = useState<FileState>({ status: 'idle' })
 	const [reload, setReload] = useState(0)
@@ -50,7 +52,7 @@ export function RepositoryFileViewer({ entry, onMobileBack }: { entry: Repositor
 			setState({ status: 'idle' })
 			return cleanup
 		}
-		if (imagePath && overview?.capabilities?.supportsImagePreview && repository.openRepositoryImage) {
+		if (imagePath && (repository.source === 'browser-directory' || overview?.capabilities?.supportsImagePreview) && repository.openRepositoryImage) {
 			setState({ status: 'loading' })
 			void repository
 				.openRepositoryImage(entry.path)
@@ -82,11 +84,11 @@ export function RepositoryFileViewer({ entry, onMobileBack }: { entry: Repositor
 				if (!disposed) setState({ status: 'error', message: previewError(error) })
 			})
 		return cleanup
-	}, [entry, imagePath, overview, reload, remoteImageUrl, repository])
+	}, [entry, imagePath, overview, reload, remoteImageUrl, repository, fileRevision])
 
 	const contentInfo = useMemo(() => (state.status === 'ready' ? analyzeContent(state.file.content) : null), [state])
 	const diffTheme = diffThemes[siteTheme.name]
-	const themeStyle = useMemo(() => createDiffThemeStyle(diffTheme), [diffTheme])
+	const themeStyle = useMemo(() => createFileThemeStyle(diffTheme), [diffTheme])
 	const source = useMemo<FileContents | null>(() => {
 		if (state.status !== 'ready' || state.file.path !== entry?.path) return null
 		return {
@@ -99,9 +101,11 @@ export function RepositoryFileViewer({ entry, onMobileBack }: { entry: Repositor
 		() => ({
 			theme: diffTheme.shiki,
 			themeType: diffTheme.type,
-			overflow: 'scroll' as const,
+			overflow: 'wrap' as const,
 			disableFileHeader: true,
-			stickyHeader: false
+			stickyHeader: false,
+			// Single-theme Pierre output sets a literal host background as well as variables.
+			unsafeCSS: ':host { background-color: transparent; --diffs-bg: transparent; --diffs-light-bg: transparent; --diffs-dark-bg: transparent; }'
 		}),
 		[diffTheme.shiki, diffTheme.type]
 	)
@@ -109,44 +113,35 @@ export function RepositoryFileViewer({ entry, onMobileBack }: { entry: Repositor
 
 	if (!entry)
 		return (
-			<section className='bg-background flex h-full items-center justify-center'>
-				<div className='text-secondary flex flex-col items-center text-center'>
-					<div className='border-border bg-article/45 mb-3 flex size-12 items-center justify-center rounded-2xl border'>
-						<FileCode2 size={20} className='text-brand' />
+			<section className='bg-background flex h-full flex-col'>
+				{renderHeader(null)}
+				<div className='flex min-h-0 flex-1 items-center justify-center'>
+					<div className='text-secondary flex flex-col items-center text-center'>
+						<div className='border-border bg-article/45 mb-3 flex size-12 items-center justify-center rounded-2xl border'>
+							<FileCode2 size={20} className='text-brand' />
+						</div>
+						<p className='text-primary text-sm font-medium'>选择文件</p>
+						<p className='mt-1 text-xs'>预览当前版本源码</p>
 					</div>
-					<p className='text-primary text-sm font-medium'>选择文件</p>
-					<p className='mt-1 text-xs'>预览当前版本源码</p>
 				</div>
 			</section>
 		)
 
 	return (
 		<section style={themeStyle} className='flex h-full min-w-0 flex-col overflow-hidden [background-color:var(--diff-background)] [color:var(--diff-foreground)]'>
-			<header className='flex h-12 shrink-0 items-center gap-2 border-b px-4 max-lg:px-2 [background-color:var(--diff-background)] [border-color:var(--diff-border)]'>
-				<button type='button' onClick={onMobileBack} aria-label='返回文件树' className='border-border flex size-9 shrink-0 items-center justify-center rounded-md border [color:var(--diff-muted)] lg:hidden'>
-					<ArrowLeft size={16} />
+			{renderHeader(state.status === 'ready' && state.file.path === entry.path ? (
+				<button
+					onClick={() => {
+						void navigator.clipboard.writeText(state.file.content).then(() => {
+							setCopied(true)
+							window.setTimeout(() => setCopied(false), 1200)
+						}).catch(() => setCopied(false))
+					}}
+					title='复制文件' aria-label='复制文件'
+					className='flex size-9 shrink-0 items-center justify-center rounded-md transition [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'>
+					{copied ? <Check size={13} className='text-emerald-400' /> : <Clipboard size={13} />}
 				</button>
-				<FileCode2 size={15} className='text-brand shrink-0' />
-				<span title={entry.path} className='min-w-0 flex-1 truncate font-mono text-xs'>{entry.path}</span>
-				<span className='shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] [background-color:var(--diff-subtle)] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>{sourceLabel}</span>
-				{state.status === 'ready' && (
-					<>
-						<span className='hidden shrink-0 text-[10px] [color:var(--diff-muted)] sm:inline'>{formatBytes(state.file.size)} · {contentInfo?.lines} 行</span>
-						<button
-							onClick={() => {
-								void navigator.clipboard.writeText(state.file.content).then(() => {
-									setCopied(true)
-									window.setTimeout(() => setCopied(false), 1200)
-								})
-							}}
-							title='复制文件'
-							className='flex size-7 shrink-0 items-center justify-center rounded-md transition max-lg:size-9 [color:var(--diff-muted)] hover:[background-color:var(--diff-hover)] hover:[color:var(--diff-foreground)]'>
-							{copied ? <Check size={13} className='text-emerald-400' /> : <Clipboard size={13} />}
-						</button>
-					</>
-				)}
-				{imageUrl && <span className='hidden shrink-0 text-[10px] [color:var(--diff-muted)] sm:inline'>{formatBytes(state.status === 'image' ? state.size : entry.size || 0)}</span>}
-			</header>
+			) : null)}
 
 			{imageUrl ? (
 				<button type='button' onClick={() => setImagePreviewOpen(true)} className='flex min-h-0 flex-1 cursor-zoom-in items-center justify-center overflow-auto [background-color:var(--diff-subtle)]'>
@@ -171,6 +166,11 @@ export function RepositoryFileViewer({ entry, onMobileBack }: { entry: Repositor
 					</Virtualizer>
 				) : null
 			) : null}
+			<footer className='flex h-6 shrink-0 items-center justify-end gap-3 border-t px-3 text-[10px] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>
+				<span className='truncate'>{sourceLabel}</span>
+				{state.status === 'ready' && state.file.path === entry.path && <span className='shrink-0'>{formatBytes(state.file.size)} · {contentInfo?.lines} 行</span>}
+				{imageUrl && <span className='shrink-0'>{formatBytes(state.status === 'image' ? state.size : entry.size || 0)}</span>}
+			</footer>
 			{imagePreviewOpen && imageUrl && <ImagePreviewDialog src={imageUrl} alt={entry.name} onClose={() => setImagePreviewOpen(false)} />}
 		</section>
 	)

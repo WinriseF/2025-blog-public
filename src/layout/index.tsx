@@ -51,7 +51,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const pathname = usePathname()
 	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
 	const isVersionControlCallback = pathname === '/toolbox/version-control/agent-return'
-	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.repository))
+	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.browserDirectory || state.repository))
 	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock'
 	const clickEffectEnabled = clickEffectPreference.ready && clickEffectPreference.enabled && atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
 	const homeFitActive = pathname === '/' && !maxSM

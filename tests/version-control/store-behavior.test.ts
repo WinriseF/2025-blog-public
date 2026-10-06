@@ -35,6 +35,26 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('version control store', () => {
+  it('disconnects history without dropping the browser workspace', () => {
+    const browserDirectory = { key: 'browser-workspace', refresh: vi.fn() } as any
+    const close = vi.fn()
+    useVersionControlStore.setState({ browserDirectory, agentBridge: { close } as any, repository: repository(), overview, connection: 'connected' })
+    useVersionControlStore.getState().disconnectAgent()
+    expect(close).toHaveBeenCalledOnce()
+    expect(useVersionControlStore.getState().browserDirectory).toBe(browserDirectory)
+    expect(useVersionControlStore.getState().repository).toBeNull()
+    expect(useVersionControlStore.getState().overview).toBeNull()
+  })
+
+  it('refreshes browser files without requiring a repository', async () => {
+    const browserDirectory = { key: 'browser-workspace', refresh: vi.fn() } as any
+    useVersionControlStore.setState({ browserDirectory, repository: null })
+    const revision = useVersionControlStore.getState().fileRevision
+    await useVersionControlStore.getState().refresh()
+    expect(browserDirectory.refresh).toHaveBeenCalledOnce()
+    expect(useVersionControlStore.getState().fileRevision).toBe(revision + 1)
+  })
+
   it('opens a root commit against the empty revision and selects only exportable files', async () => {
     const files = [file(1), file(2, { isBinary: true }), file(3, { exportTooLarge: true }), file(4, { nodeKind: 'dir' })]
     const repo = repository({ getDiffFiles: vi.fn(async () => ({ items: files, nextCursor: null })) })

@@ -10,7 +10,7 @@ This directory is the compact maintenance map for `2025-blog-public`. Read the m
 | [LAN transfer](./modules/lan-transfer.md) | V14 rooms, signaling, WebRTC, native Agent, scheduler, recovery, diagnostics. |
 | [Toolbox](./modules/toolbox.md) | Compression, Markdown preview, password, face masking, OCR, shared image preview, Agent center. |
 | [Codex Session](./modules/codex-session.md) | Rollout JSONL parsing, audit evidence, token accounting, parser Worker. |
-| [Version control](./modules/version-control.md) | GitHub/local Git/SVN workbench, bridge, diff, export boundaries. |
+| [Version control](./modules/version-control.md) | Local file browsing/editing, tabs, GitHub/local Git/SVN workbench, bridge, diff, export boundaries. |
 | [Operations](./modules/operations.md) | Stack, directories, scripts, tests, deployment, integrations, secrets, global risks. |
 
 The root [ARCHITECTURE.md](../ARCHITECTURE.md) is the short cross-module entrypoint. Do not duplicate module detail there.

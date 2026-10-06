@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { BrowserDirectory } from './browser-directory'
 import { VersionControlBridge } from './bridge'
 import { GitHubRestRepositoryDataSource } from './github-rest-repository-data-source'
 import { LocalAgentRepositoryDataSource, type RepositoryDataSource } from './repository-data-source'
@@ -23,6 +24,12 @@ import type {
 export type VersionSelection = { kind: 'working-tree'; label: string } | { kind: 'commit'; commit: GraphCommit }
 
 type VersionControlState = {
+	workspaceKey: string | null
+	browserDirectory: BrowserDirectory | null
+	fileRevision: number
+	openLocalDirectory: () => Promise<void>
+	authorizeLocalEditing: () => Promise<boolean>
+	disconnectAgent: () => void
 	agentBridge: VersionControlBridge | null
 	repository: RepositoryDataSource | null
 	connection: 'idle' | 'launching' | 'connecting' | 'connected' | 'error'
@@ -106,6 +113,35 @@ let branchFilterTimer: number | null = null
 const historyRequests = new Map<string, Promise<void>>()
 
 export const useVersionControlStore = create<VersionControlState>((set, get) => ({
+	workspaceKey: null,
+	browserDirectory: null,
+	fileRevision: 0,
+	openLocalDirectory: async () => {
+		try {
+			const directory = await BrowserDirectory.pick()
+			get().repository?.dispose?.()
+			get().disconnectAgent()
+			set({ ...initialSession, browserDirectory: directory, workspaceKey: directory.key, fileRevision: 0, error: null, loading: false })
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === 'AbortError')) set({ error: message(error) })
+		}
+	},
+	authorizeLocalEditing: async () => {
+		const repository = get().repository
+		if (repository?.source !== 'local-agent' || get().overview?.isBare) return false
+		const directory = await BrowserDirectory.pick('readwrite')
+		if (get().repository !== repository) return false
+		set({ browserDirectory: directory })
+		return true
+	},
+	disconnectAgent: () => {
+		invalidateDiffLoads()
+		invalidateHistoryLoads()
+		const bridge = get().agentBridge
+		if (bridge) bridge.onDisconnect = null
+		bridge?.close()
+		set({ ...initialSession, agentBridge: null, connection: 'idle', expectedNonce: null, loading: false })
+	},
 	agentBridge: null,
 	connection: 'idle',
 	expectedNonce: null,
@@ -119,9 +155,9 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 	setLaunch: nonce => set({ connection: 'launching', expectedNonce: nonce, error: null }),
 
 	connect: async callback => {
+		if (!get().expectedNonce || callback.nonce !== get().expectedNonce) return
 		invalidateDiffLoads()
 		invalidateHistoryLoads()
-		if (get().expectedNonce && callback.nonce !== get().expectedNonce) return
 		if (callback.error === 'agent_busy') {
 			set({ connection: 'error', expectedNonce: null, error: 'Agent 正被快传或另一个版本控制器会话占用，请先关闭它。' })
 			return
@@ -130,6 +166,13 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		const bridge = new VersionControlBridge()
 		try {
 			await bridge.connect(callback)
+			if (get().expectedNonce !== callback.nonce) { bridge.close(); return }
+			bridge.onDisconnect = () => {
+				if (get().agentBridge === bridge) {
+					get().disconnectAgent()
+					set({ error: get().browserDirectory ? 'Agent 已断开，本地文件仍可继续使用。' : 'Agent 已断开，请重新连接。' })
+				}
+			}
 			bridge.onExport(event => {
 				set({ exportEvent: event })
 				if (event.type === 'export-complete' && event.insideRepository) void get().refresh()
@@ -138,7 +181,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			set({ agentBridge: bridge, connection: 'connected', expectedNonce: null })
 		} catch (error) {
 			bridge.close()
-			set({ connection: 'error', error: message(error) })
+			if (get().expectedNonce === callback.nonce) set({ connection: 'error', expectedNonce: null, error: message(error) })
 		}
 	},
 
@@ -149,7 +192,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			const overview = await repository.connectHistory()
 			get().repository?.dispose?.()
 			const historyGeneration = invalidateHistoryLoads()
-			set({ ...initialSession, repository, overview, search: '', group: 'all', loading: true })
+			set({ ...initialSession, browserDirectory: null, workspaceKey: repository.key, repository, overview, search: '', group: 'all', loading: true })
 			await loadHistory(get, set, true, historyGeneration)
 			const first = get().commits[0]
 			if (first) await get().selectVersion({ kind: 'commit', commit: first })
@@ -167,8 +210,10 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 				return
 			}
 			if (!selected.repositoryId || !selected.overview) return
+			if (get().agentBridge !== bridge) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ ...initialSession, candidates: [], repository: new LocalAgentRepositoryDataSource(bridge, selected.repositoryId), overview: selected.overview, loading: true })
+			const repository = new LocalAgentRepositoryDataSource(bridge, selected.repositoryId)
+			set({ ...initialSession, browserDirectory: null, workspaceKey: repository.key, candidates: [], repository, overview: selected.overview, loading: true })
 			await loadHistory(get, set, true, historyGeneration)
 			if (selected.overview.isBare) {
 				const first = get().commits[0]
@@ -183,8 +228,10 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 			const bridge = required(get().agentBridge, 'Agent 尚未连接')
 			const selected = await bridge.openRepositoryCandidate(candidateId)
 			if (selected.cancelled || !selected.repositoryId || !selected.overview) return
+			if (get().agentBridge !== bridge) return
 			const historyGeneration = invalidateHistoryLoads()
-			set({ ...initialSession, candidates: [], repository: new LocalAgentRepositoryDataSource(bridge, selected.repositoryId), overview: selected.overview, loading: true })
+			const repository = new LocalAgentRepositoryDataSource(bridge, selected.repositoryId)
+			set({ ...initialSession, browserDirectory: null, workspaceKey: repository.key, candidates: [], repository, overview: selected.overview, loading: true })
 			await loadHistory(get, set, true, historyGeneration)
 			if (selected.overview.isBare) {
 				const first = get().commits[0]
@@ -208,9 +255,10 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		invalidateHistoryLoads()
 		return run(set, async () => {
 			const { repository } = get()
-			if (repository) await repository.close()
+			if (repository) await repository.close().catch(() => {})
 			repository?.dispose?.()
-			set({ ...initialSession, candidates: [] })
+			get().disconnectAgent()
+			set({ ...initialSession, browserDirectory: null, workspaceKey: null, candidates: [] })
 		})
 	},
 
@@ -295,6 +343,9 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 	},
 
 	refresh: async () => {
+		get().browserDirectory?.refresh()
+		set({ fileRevision: get().fileRevision + 1 })
+		if (!get().repository) return
 		const selectedPaths = new Set(
 			get()
 				.files.filter(file => get().selectedFileIds.has(file.fileId))
@@ -394,7 +445,7 @@ export const useVersionControlStore = create<VersionControlState>((set, get) => 
 		invalidateHistoryLoads()
 		get().repository?.dispose?.()
 		get().agentBridge?.close()
-		set({ agentBridge: null, connection: 'idle', expectedNonce: null, error: null, ...initialSession, candidates: [] })
+		set({ browserDirectory: null, workspaceKey: null, agentBridge: null, connection: 'idle', expectedNonce: null, error: null, ...initialSession, candidates: [] })
 	}
 }))
 

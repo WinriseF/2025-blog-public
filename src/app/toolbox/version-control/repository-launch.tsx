@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Cable, FolderGit2, Github, MonitorX } from 'lucide-react'
+import { Cable, FolderGit2, FolderOpen, Github } from 'lucide-react'
 import { motion } from 'motion/react'
 import { createVersionControlLaunchRequest, launchVersionControlAgent } from '@/lib/version-control/launch-client'
 import { useVersionControlStore } from '@/lib/version-control/store'
 import { RepositoryCandidatePicker } from './repository-candidate-picker'
 
-export function RepositoryLaunch({ supported }: { supported: boolean }) {
+export function RepositoryLaunch({ supported, directorySupported }: { supported: boolean; directorySupported: boolean }) {
 	const [mode, setMode] = useState<'github' | 'local'>('github')
 	const [repositoryUrl, setRepositoryUrl] = useState('')
 	const connection = useVersionControlStore(state => state.connection)
@@ -16,6 +16,7 @@ export function RepositoryLaunch({ supported }: { supported: boolean }) {
 	const setLaunch = useVersionControlStore(state => state.setLaunch)
 	const openRemoteRepository = useVersionControlStore(state => state.openRemoteRepository)
 	const selectRepository = useVersionControlStore(state => state.selectRepository)
+	const openLocalDirectory = useVersionControlStore(state => state.openLocalDirectory)
 	const clearError = useVersionControlStore(state => state.clearError)
 	const connected = connection === 'connected'
 
@@ -80,11 +81,6 @@ export function RepositoryLaunch({ supported }: { supported: boolean }) {
 								{loading ? '正在读取…' : '打开仓库'}
 							</button>
 						</form>
-					) : !supported ? (
-						<div className='relative py-6 text-center'>
-							<MonitorX className='text-secondary mx-auto' size={36} />
-							<h2 className='mt-4 text-lg font-semibold'>当前设备不支持本机模式</h2>
-						</div>
 					) : (
 						<div className='relative'>
 							<h2 className='text-xl font-semibold'>
@@ -99,11 +95,18 @@ export function RepositoryLaunch({ supported }: { supported: boolean }) {
 							{error && <ErrorButton error={error} clear={clearError} />}
 							<button
 								onClick={connected ? selectRepository : launch}
-								disabled={connection === 'connecting' || connection === 'launching'}
+								disabled={!supported || loading || connection === 'connecting' || connection === 'launching'}
 								className='bg-brand text-background mt-7 flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 font-semibold transition hover:brightness-110 disabled:opacity-50'>
 								{connected ? <FolderGit2 size={18} /> : <Cable size={18} />}
-								{connected ? '选择项目' : '启动 Agent'}
+								{connected ? '选择项目' : '连接 Agent'}
 							</button>
+							<button onClick={() => void openLocalDirectory()} disabled={!directorySupported || loading}
+								className='border-border bg-background/45 text-primary mt-3 flex w-full items-center justify-center gap-2 rounded-lg border px-5 py-3.5 font-semibold transition hover:border-brand/40 disabled:opacity-50'>
+								<FolderOpen size={18} />选择文件夹
+							</button>
+							<p className='text-secondary mt-3 text-xs leading-5'>连接 Agent 可查看 Git / SVN 历史；选择文件夹可直接浏览和编辑文件。</p>
+							{!supported && <p className='text-secondary mt-2 text-xs'>Agent 需要支持 WebTransport 的 Windows 浏览器。</p>}
+							{!directorySupported && <p className='text-secondary mt-2 text-xs'>文件夹访问需要支持此功能的 Chrome / Edge 和安全连接。</p>}
 						</div>
 					)}
 				</motion.section>

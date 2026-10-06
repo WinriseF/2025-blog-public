@@ -34,6 +34,7 @@ export class VersionControlBridge {
 	private streams = new Map<number, StreamWaiter>()
 	private exportListeners = new Set<(event: ExportEvent) => void>()
 	private closed = false
+	onDisconnect: (() => void) | null = null
 
 	async connect(callback: VersionControlCallback) {
 		const Constructor = (window as unknown as { WebTransport?: new (url: string, options: object) => WebTransportLike }).WebTransport
@@ -274,6 +275,11 @@ export class VersionControlBridge {
 		for (const preview of this.streams.values()) preview.reject(error)
 		this.pending.clear()
 		this.streams.clear()
+		if (!this.closed) {
+			this.closed = true
+			this.transport?.close({ closeCode: 0, reason: 'connection lost' })
+			this.onDisconnect?.()
+		}
 	}
 
 	private failStreams(error: Error) {

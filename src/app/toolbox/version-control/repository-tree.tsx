@@ -22,15 +22,18 @@ export function RepositoryTree({
 	mode,
 	onModeChange,
 	selectedPath,
-	onSelect
+	onSelect,
+	onKeepOpen
 }: {
 	mode: RepositoryViewMode
 	onModeChange: (mode: RepositoryViewMode) => void
 	selectedPath: string | null
 	onSelect: (entry: RepositoryTreeEntry) => void
+	onKeepOpen: (entry: RepositoryTreeEntry) => void
 }) {
-	const repository = useVersionControlStore(state => state.repository)
+	const repository = useVersionControlStore(state => state.browserDirectory || state.repository)
 	const overview = useVersionControlStore(state => state.overview)
+	const fileRevision = useVersionControlStore(state => state.fileRevision)
 	const [query, setQuery] = useState('')
 	const [directories, setDirectories] = useState<Map<string, DirectoryState>>(() => new Map())
 	const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
@@ -91,7 +94,7 @@ export function RepositoryTree({
 		setExpanded(new Set())
 		setQuery('')
 		void loadDirectory('', null, nextGeneration)
-	}, [loadDirectory, overview])
+	}, [loadDirectory, overview, fileRevision])
 
 	const rows = useMemo(() => flattenTree(directories, expanded), [directories, expanded])
 	const loadedEntries = useMemo(() => {
@@ -145,12 +148,12 @@ export function RepositoryTree({
 	const folderCount = loadedEntries.filter(entry => entry.kind === 'directory').length
 
 	return (
-		<aside className='border-border bg-background flex h-full w-full flex-col border-r'>
+		<aside className='border-border bg-background flex h-full w-full flex-col border-r lg:border-r-0'>
 			<RepositorySidebarHeader mode={mode} onModeChange={onModeChange} query={query} onQueryChange={setQuery} placeholder='筛选已加载路径' overview={overview} />
 			<div className='min-h-0 flex-1 overflow-y-auto py-1'>
 				{normalizedQuery ? (
 					searchResults.length ? (
-						searchResults.map(entry => <EntryRow key={entry.path} entry={entry} depth={0} active={selectedPath === entry.path} searchResult onOpen={() => openSearchResult(entry)} />)
+						searchResults.map(entry => <EntryRow key={entry.path} entry={entry} depth={0} active={selectedPath === entry.path} searchResult onKeepOpen={() => onKeepOpen(entry)} onOpen={() => openSearchResult(entry)} />)
 					) : (
 						<PanelState>没有匹配的已加载路径</PanelState>
 					)
@@ -177,6 +180,7 @@ export function RepositoryTree({
 								active={selectedPath === row.entry.path}
 								expanded={expanded.has(row.entry.path)}
 								loading={directories.get(row.entry.path)?.loading}
+								onKeepOpen={() => onKeepOpen(row.entry)}
 								onOpen={() => (row.entry.kind === 'directory' ? toggleDirectory(row.entry.path) : onSelect(row.entry))}
 							/>
 						) : (
@@ -206,13 +210,14 @@ function flattenTree(directories: Map<string, DirectoryState>, expanded: Set<str
 	return rows
 }
 
-function EntryRow({ entry, depth, active, expanded, loading, searchResult, onOpen }: { entry: RepositoryTreeEntry; depth: number; active: boolean; expanded?: boolean; loading?: boolean; searchResult?: boolean; onOpen: () => void }) {
+function EntryRow({ entry, depth, active, expanded, loading, searchResult, onOpen, onKeepOpen }: { entry: RepositoryTreeEntry; depth: number; active: boolean; expanded?: boolean; loading?: boolean; searchResult?: boolean; onOpen: () => void; onKeepOpen: () => void }) {
 	const directory = entry.kind === 'directory'
 	return (
 		<button
 			type='button'
 			title={entry.path}
 			onClick={onOpen}
+			onDoubleClick={() => { if (!directory) onKeepOpen() }}
 			className={`group flex h-8 w-full items-center border-l-2 pr-2 text-left text-xs transition max-lg:h-11 ${active ? 'border-l-brand bg-brand/10 text-primary' : 'hover:bg-article/70 border-l-transparent'} ${entry.isBinary || entry.kind === 'symlink' ? 'text-secondary/65' : 'text-secondary hover:text-primary'}`}
 			style={{ paddingLeft: searchResult ? 10 : depth * 14 + 8 }}>
 			<span className='flex size-4 shrink-0 items-center justify-center'>

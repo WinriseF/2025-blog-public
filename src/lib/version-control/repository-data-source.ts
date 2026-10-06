@@ -15,24 +15,27 @@ import type {
 	WorkingTreeGroup
 } from './types'
 
-export type RepositorySource = 'local-agent' | 'github-rest'
+export type RepositorySource = 'local-agent' | 'github-rest' | 'browser-directory'
 export type HistoryPage = { items: GraphCommit[]; nextCursor: string | null }
 export type DiffFilesPage = { items: DiffFile[]; nextCursor: string | null }
 export type DirectoryPage = { items: RepositoryTreeEntry[]; nextCursor: string | null }
 
-export interface RepositoryDataSource {
+export interface WorkspaceFileSource {
 	readonly key: string
 	readonly source: RepositorySource
+	getDirectory(path: string, cursor: string | null, limit?: number): Promise<DirectoryPage>
+	getRepositoryImageUrl?(path: string): string | null
+	openRepositoryImage?(path: string): Promise<Blob>
+	openRepositoryFile(path: string): Promise<RepositoryFileContent>
+}
+
+export interface RepositoryDataSource extends WorkspaceFileSource {
 	connectHistory(): Promise<RepositoryOverview>
 	close(): Promise<unknown>
 	dispose?(): void
 	refresh(): Promise<RepositoryOverview>
 	getBranches?(): Promise<RepositoryBranch[]>
 	getHistory(query: string | null, cursor: string | null, limit?: number, branchRefs?: string[]): Promise<HistoryPage>
-	getDirectory(path: string, cursor: string | null, limit?: number): Promise<DirectoryPage>
-	getRepositoryImageUrl?(path: string): string | null
-	openRepositoryImage?(path: string): Promise<Blob>
-	openRepositoryFile(path: string): Promise<RepositoryFileContent>
 	openDiff(oldRevision: RevisionRef, newRevision: RevisionRef, group: WorkingTreeGroup): Promise<DiffSessionInfo>
 	getDiffFiles(diffId: string, cursor: string | null, limit?: number): Promise<DiffFilesPage>
 	openPreview(diffId: string, fileId: number, perspective: ConflictPerspective, mode?: 'full' | 'patch'): Promise<PreviewContent>

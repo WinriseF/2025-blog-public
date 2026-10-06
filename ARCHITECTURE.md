@@ -17,7 +17,7 @@ This file is intentionally a **short maintenance entrypoint**. Detailed implemen
 | Work on LAN V14, native Agent transfer, benchmarks, or recovery | [LAN transfer](./.project-wiki/modules/lan-transfer.md) |
 | Work on compression, preview, password, face masking, OCR, or Agent center | [Toolbox](./.project-wiki/modules/toolbox.md) |
 | Work on Codex rollout parsing and audit | [Codex Session](./.project-wiki/modules/codex-session.md) |
-| Work on GitHub, local Git, or SVN review | [Version control](./.project-wiki/modules/version-control.md) |
+| Work on local file browsing/editing, GitHub, local Git, or SVN review | [Version control](./.project-wiki/modules/version-control.md) |
 | Work on stack, scripts, tests, deployment, integrations, or security | [Operations](./.project-wiki/modules/operations.md) |
 
 ## Core Architecture

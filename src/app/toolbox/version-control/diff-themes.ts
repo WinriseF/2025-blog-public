@@ -78,6 +78,15 @@ export function createDiffThemeStyle(theme: DiffThemeDefinition) {
 	} as CSSProperties
 }
 
+// Only the file surface is translucent; text and controls retain full opacity.
+export function createFileThemeStyle(theme: DiffThemeDefinition) {
+	return {
+		...createDiffThemeStyle(theme),
+		'--file-background': `color-mix(in srgb, ${theme.background} 20%, transparent)`,
+		'--diff-background': 'transparent'
+	} as CSSProperties
+}
+
 export function isOfficialDiffTheme(theme: DiffThemeId): theme is OfficialDiffThemeId {
 	return theme === 'pierre-light' || theme === 'pierre-dark'
 }

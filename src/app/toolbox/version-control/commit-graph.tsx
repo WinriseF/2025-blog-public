@@ -398,7 +398,7 @@ export function CommitGraph({
 	}, [])
 
 	return (
-		<aside className='border-border bg-background flex h-full w-full flex-col border-r'>
+		<aside className='border-border bg-background flex h-full w-full flex-col border-r lg:border-r-0'>
 			<RepositorySidebarHeader
 				mode={mode}
 				onModeChange={onModeChange}
