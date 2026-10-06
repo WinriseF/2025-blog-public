@@ -15,7 +15,7 @@ Parses user-selected Codex rollout JSONL files in the browser and shows command,
 | `session-compression.ts` | Shared compression rule catalog, scan statistics, and record transforms. |
 | `parser.worker.ts` | Off-main-thread detail parser. |
 | `public/wasm/codex-session/` | Browser Shell grammars. |
-| `src/config/codex-api-pricing.json` | Manually verified OpenAI GPT/Codex Standard API text-token rates for a future hypothetical cost estimator. |
+| `src/config/codex-api-pricing.json` | Manually verified OpenAI GPT/Codex Standard API text-token rates for API-equivalent Session cost estimates. |
 | `src/lib/codex-session/api-cost.ts` | Per-model-step API-equivalent token cost and cumulative cost calculation. |
 | `tests/codex-session/` | Focused Vitest fixtures/tests. |
 
@@ -37,6 +37,7 @@ Tool wall time uses recorded duration first, then a runtime-reported wall time, 
 
 ## Pay Attention
 
+- Price `gpt-6.1-sol` separately from `gpt-6-sol`: their cached-input rates are 5% and 10% of the input rate, respectively. Their long-context tier starts above 272,000 input tokens and applies to the entire model step; do not alias these model IDs.
 - Never scan `.codex`, upload files, execute extracted commands, or access paths merely named inside a rollout.
 - Compression is local and single-Session. Its output is for audit re-import, not guaranteed Codex resume; selected content is irreversible.
 - Removing reasoning records must retain `token_count.reasoning_output_tokens`, so reasoning ratios remain available after re-import.
