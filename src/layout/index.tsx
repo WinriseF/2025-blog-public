@@ -114,7 +114,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 			</main>
 			<ClickEffectLayer enabled={clickEffectEnabled} theme={timeTheme} />
 
-			{!isVersionControlRoute && maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}
+			{!isVersionControlRoute && pathname !== '/music' && maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}
 		</MusicPlayerProvider>
 	)
 }

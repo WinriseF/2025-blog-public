@@ -17,6 +17,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/config/site-content.json` | Site content plus the configured deployment-switcher targets. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
 | `src/app/(home)/` | Card homepage and configuration store. |
+| `src/app/music/` + `src/components/music-player.tsx` | Music room, cover metadata, and shared playback across routes. |
 | `src/app/home/` | Flat, draggable site-entry plane. |
 | `src/app/calendar/` | Calendar state, data, grid, day panel, term track. |
 | `src/app/world-clock/` | Interactive Earth, location time readings, annual solar track, and responsive scene layout. |
@@ -26,6 +27,10 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 `layout.tsx` injects configuration and wraps every route in the client `Layout`. The client layout mounts providers, atmosphere, navigation, and route-specific exceptions. Navigation keeps the compact appearance picker; the homepage uses one animated quick-controls card for direct theme selection, the persisted click-effect preference, and E/V/N deployment navigation from `site-content.json`. Theme changes continue to use the original View Transition flow. Continuous visuals use the shared animation loop; the homepage WebGL core targets a constant 60 FPS with capped DPR, while click feedback uses a bounded pool of local canvases that is idle when no effect is visible.
 
 ## Pay Attention
+
+- Music metadata lives in `src/app/music/list.ts` with only `name`, `src`, and `cover`. The five generated WebP covers live in sibling `2025-blog-img/images/music/`; store root-relative paths and resolve them through `getAssetUrl()`. Publish image assets before the frontend that references them. Audio remains hosted on Cloudinary.
+- The music room uses cover artwork, a compact track list, and a fixed desktop dock. At 860px and below, controls follow the artwork; an IntersectionObserver reveals a compact dock only after those controls scroll above the viewport. The global floating player and scroll-to-top button are suppressed on `/music` to avoid overlapping controls. Other routes keep the same shared audio instance and a cover-based mini player.
+- `MusicPlayerProvider` owns loading/error state, seek, volume/mute, previous/next, and repeat mode. Default playback advances through the list and wraps; single-track repeat uses the audio element's loop property. Do not reset volume on track changes. Playback request IDs prevent stale play promises from overwriting newer selections or a pause. No audio loads until playback is requested; failures require an explicit retry or another track. The music UI uses existing time-theme variables and reduced-motion rules, without synthetic equalizer or record animations.
 
 - Version-control workbench visibility includes both `browserDirectory` and `repository`. While either workspace is open on that route, hide the global avatar navigation and disable click effects, preserving the original atmosphere animation and time-theme styling. Browser-local file access must not depend on an Agent connection for these layout rules.
 

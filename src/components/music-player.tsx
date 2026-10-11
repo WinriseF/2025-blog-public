@@ -1,11 +1,14 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
-import { Music2, Pause } from 'lucide-react'
-import PlaySVG from '@/svgs/play.svg'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { LoaderCircle, Music2, Pause, Play } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { list, type MusicItem } from '@/app/music/list'
+import { getAssetUrl } from '@/lib/asset-url'
 import { cn } from '@/lib/utils'
+import { OptimizedImage } from '@/components/optimized-image'
 
 type MusicPlayerContextValue = {
 	currentMusic?: MusicItem
@@ -13,303 +16,230 @@ type MusicPlayerContextValue = {
 	duration: number
 	hasMusic: boolean
 	isPlaying: boolean
+	isLoading: boolean
 	loadError: boolean
+	loop: boolean
+	volume: number
 	progress: number
-	playMusic: (music: MusicItem, options?: PlayMusicOptions) => Promise<void>
+	playMusic: (music: MusicItem) => Promise<void>
+	playNext: () => Promise<void>
+	playPrevious: () => Promise<void>
 	seek: (value: number) => void
+	setVolume: (value: number) => void
+	toggleMute: () => void
+	toggleLoop: () => void
 	togglePlayback: () => Promise<void>
 	togglePlaybackFrom: (rect?: DOMRect) => Promise<void>
 }
 
-type PlayMusicOptions = {
-	fadeInMs?: number
-	loop?: boolean
-	showPlayer?: boolean
-	autoPlay?: boolean
-}
-
-type PendingPlayRequest = {
-	music: MusicItem
-	options: PlayMusicOptions
+type FlightAnimation = {
+	id: number
+	from: { x: number; y: number }
+	to: { x: number; y: number }
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextValue | null>(null)
-const floatingPlayerTarget = { x: 0, y: 0 }
-
-type FlightAnimation = {
-	id: number
-	from: {
-		x: number
-		y: number
-	}
-	to: {
-		x: number
-		y: number
-	}
-}
 
 export function formatMusicTime(seconds: number) {
 	if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
-	const mins = Math.floor(seconds / 60)
-	const secs = Math.floor(seconds % 60)
-	return `${mins}:${secs.toString().padStart(2, '0')}`
+	return (
+		Math.floor(seconds / 60) +
+		':' +
+		Math.floor(seconds % 60)
+			.toString()
+			.padStart(2, '0')
+	)
 }
 
 export function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname()
+	const reducedMotion = useReducedMotion()
 	const audioRef = useRef<HTMLAudioElement | null>(null)
 	const currentSrcRef = useRef<string | null>(null)
-	const fadeTimerRef = useRef<number | null>(null)
-	const [currentMusic, setCurrentMusic] = useState<MusicItem>(() => list[0])
+	const currentMusicRef = useRef<MusicItem | undefined>(list[0])
+	const playbackRequestRef = useRef(0)
+	const loadingRef = useRef(false)
+	const lastVolumeRef = useRef(1)
+	const flightTimerRef = useRef<number | null>(null)
+	const [currentMusic, setCurrentMusic] = useState<MusicItem | undefined>(list[0])
 	const [loop, setLoop] = useState(false)
-	const hasMusic = Boolean(currentMusic?.src)
+	const [volume, setVolumeState] = useState(1)
 	const [isPlaying, setIsPlaying] = useState(false)
+	const [isLoading, setIsLoading] = useState(false)
 	const [currentTime, setCurrentTime] = useState(0)
 	const [duration, setDuration] = useState(0)
 	const [loadError, setLoadError] = useState(false)
 	const [hasStarted, setHasStarted] = useState(false)
 	const [showFloatingPlayer, setShowFloatingPlayer] = useState(false)
 	const [flightAnimation, setFlightAnimation] = useState<FlightAnimation | null>(null)
-	const [pendingPlayRequest, setPendingPlayRequest] = useState<PendingPlayRequest | null>(null)
+	const hasMusic = Boolean(currentMusic?.src)
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0
 
-	const clearFadeTimer = useCallback(() => {
-		if (fadeTimerRef.current !== null) {
-			window.clearInterval(fadeTimerRef.current)
-			fadeTimerRef.current = null
-		}
+	const setLoading = useCallback((loading: boolean) => {
+		loadingRef.current = loading
+		setIsLoading(loading)
 	}, [])
-
-	const fadeVolumeIn = useCallback(
-		(audio: HTMLAudioElement, fadeInMs: number) => {
-			clearFadeTimer()
-			if (fadeInMs <= 0) {
-				audio.volume = 1
-				return
-			}
-
-			const startedAt = performance.now()
-			audio.volume = 0
-			fadeTimerRef.current = window.setInterval(() => {
-				const progress = Math.min((performance.now() - startedAt) / fadeInMs, 1)
-				audio.volume = progress
-				if (progress >= 1) clearFadeTimer()
-			}, 100)
-		},
-		[clearFadeTimer]
-	)
-
 	const syncDuration = useCallback(() => {
 		const audio = audioRef.current
-		if (!audio) return
-		setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
+		if (audio) setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
 	}, [])
 
-	useEffect(() => {
-		const audio = audioRef.current
-		if (!audio) return
-
-		const handleLoadedMetadata = () => {
-			syncDuration()
-			setLoadError(false)
-		}
-		const handleTimeUpdate = () => {
-			setCurrentTime(audio.currentTime || 0)
-		}
-		const handleEnded = () => {
-			setIsPlaying(false)
-			setCurrentTime(0)
-		}
-		const handleError = () => {
-			setIsPlaying(false)
-			setLoadError(true)
-		}
-
-		audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-		audio.addEventListener('durationchange', syncDuration)
-		audio.addEventListener('canplay', syncDuration)
-		audio.addEventListener('timeupdate', handleTimeUpdate)
-		audio.addEventListener('ended', handleEnded)
-		audio.addEventListener('error', handleError)
-
-		return () => {
-			audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-			audio.removeEventListener('durationchange', syncDuration)
-			audio.removeEventListener('canplay', syncDuration)
-			audio.removeEventListener('timeupdate', handleTimeUpdate)
-			audio.removeEventListener('ended', handleEnded)
-			audio.removeEventListener('error', handleError)
-		}
-	}, [syncDuration])
-
-	useEffect(() => {
-		const audio = audioRef.current
-		if (audio) {
-			audio.loop = loop
-		}
-	}, [loop])
-
-	useEffect(() => {
-		return () => clearFadeTimer()
-	}, [clearFadeTimer])
-
 	const playMusic = useCallback(
-		async (music: MusicItem, options: PlayMusicOptions = {}) => {
+		async (music: MusicItem) => {
 			const audio = audioRef.current
 			if (!audio || !music.src) return
-
-			const showPlayer = options.showPlayer ?? true
-			const nextLoop = options.loop ?? false
-			const autoPlay = options.autoPlay ?? true
-
-			clearFadeTimer()
+			const request = ++playbackRequestRef.current
+			currentMusicRef.current = music
 			setCurrentMusic(music)
-			setLoop(nextLoop)
-			audio.loop = nextLoop
-
+			setHasStarted(true)
+			setShowFloatingPlayer(true)
+			setLoadError(false)
 			if (currentSrcRef.current !== music.src) {
 				audio.pause()
 				audio.src = music.src
 				currentSrcRef.current = music.src
+				setIsPlaying(false)
 				setCurrentTime(0)
 				setDuration(0)
+			} else if (audio.error) {
+				audio.load()
 			}
-
-			if (!autoPlay) {
-				setIsPlaying(false)
-				setHasStarted(false)
-				if (showPlayer) setShowFloatingPlayer(true)
-				setLoadError(false)
-				syncDuration()
-				setPendingPlayRequest(null)
-				return
-			}
-
+			setLoading(true)
 			try {
-				fadeVolumeIn(audio, options.fadeInMs ?? 0)
 				await audio.play()
+				if (request !== playbackRequestRef.current) return
 				setIsPlaying(true)
-				setHasStarted(true)
-				if (showPlayer) setShowFloatingPlayer(true)
-				setLoadError(false)
+				setLoading(false)
 				syncDuration()
-				setPendingPlayRequest(null)
 			} catch (error) {
-				audio.volume = 1
+				if (request !== playbackRequestRef.current) return
 				setIsPlaying(false)
-				const blockedByAutoplay = error instanceof DOMException && error.name === 'NotAllowedError'
-				if (blockedByAutoplay) {
-					setHasStarted(true)
-					if (showPlayer) setShowFloatingPlayer(true)
-					setLoadError(false)
-					setPendingPlayRequest({ music, options })
-					return
-				}
-				setLoadError(true)
+				setLoading(false)
+				if (!(error instanceof DOMException && error.name === 'AbortError')) setLoadError(true)
 			}
 		},
-		[clearFadeTimer, fadeVolumeIn, syncDuration]
+		[setLoading, syncDuration]
 	)
 
-	useEffect(() => {
-		if (!pendingPlayRequest) return
-
-		const retry = () => {
-			const request = pendingPlayRequest
-			setPendingPlayRequest(null)
-			void playMusic(request.music, request.options)
-		}
-
-		window.addEventListener('pointerdown', retry, { once: true })
-		window.addEventListener('keydown', retry, { once: true })
-		window.addEventListener('touchstart', retry, { once: true, passive: true })
-
-		return () => {
-			window.removeEventListener('pointerdown', retry)
-			window.removeEventListener('keydown', retry)
-			window.removeEventListener('touchstart', retry)
-		}
-	}, [pendingPlayRequest, playMusic])
-
-	const togglePlaybackCore = useCallback(
-		async (showPlayerImmediately: boolean) => {
-			const audio = audioRef.current
-			if (!audio || !currentMusic?.src) return
-
-			if (currentSrcRef.current !== currentMusic.src) {
-				audio.src = currentMusic.src
-				currentSrcRef.current = currentMusic.src
-			}
-
-			if (audio.paused) {
-				try {
-					clearFadeTimer()
-					audio.volume = 1
-					audio.loop = loop
-					await audio.play()
-					setIsPlaying(true)
-					setHasStarted(true)
-					if (showPlayerImmediately) setShowFloatingPlayer(true)
-					setLoadError(false)
-					syncDuration()
-				} catch {
-					setIsPlaying(false)
-					setLoadError(true)
-				}
-				return
-			}
-
-			clearFadeTimer()
-			audio.pause()
-			setIsPlaying(false)
+	const playAdjacent = useCallback(
+		async (offset: number) => {
+			if (!list.length) return
+			const index = Math.max(
+				0,
+				list.findIndex(song => song.src === currentMusicRef.current?.src)
+			)
+			await playMusic(list[(index + offset + list.length) % list.length])
 		},
-		[clearFadeTimer, currentMusic, loop, syncDuration]
+		[playMusic]
+	)
+	const playNext = useCallback(() => playAdjacent(1), [playAdjacent])
+	const playPrevious = useCallback(() => playAdjacent(-1), [playAdjacent])
+
+	useEffect(() => {
+		const audio = audioRef.current
+		if (!audio) return
+		const handleTimeUpdate = () => setCurrentTime(audio.currentTime || 0)
+		const handlePlaying = () => {
+			if (audio.paused) return
+			setIsPlaying(true)
+			setLoading(false)
+			setLoadError(false)
+		}
+		const handlePause = () => {
+			if (!audio.paused) return
+			setIsPlaying(false)
+			setLoading(false)
+		}
+		const handleWaiting = () => {
+			if (!audio.paused) setLoading(true)
+		}
+		const handleError = () => {
+			if (!audio.error) return
+			setIsPlaying(false)
+			setLoading(false)
+			setLoadError(true)
+		}
+		const handleEnded = () => {
+			void playNext()
+		}
+		audio.addEventListener('loadedmetadata', syncDuration)
+		audio.addEventListener('durationchange', syncDuration)
+		audio.addEventListener('timeupdate', handleTimeUpdate)
+		audio.addEventListener('playing', handlePlaying)
+		audio.addEventListener('pause', handlePause)
+		audio.addEventListener('waiting', handleWaiting)
+		audio.addEventListener('error', handleError)
+		audio.addEventListener('ended', handleEnded)
+		return () => {
+			audio.removeEventListener('loadedmetadata', syncDuration)
+			audio.removeEventListener('durationchange', syncDuration)
+			audio.removeEventListener('timeupdate', handleTimeUpdate)
+			audio.removeEventListener('playing', handlePlaying)
+			audio.removeEventListener('pause', handlePause)
+			audio.removeEventListener('waiting', handleWaiting)
+			audio.removeEventListener('error', handleError)
+			audio.removeEventListener('ended', handleEnded)
+		}
+	}, [playNext, setLoading, syncDuration])
+
+	useEffect(() => {
+		if (audioRef.current) audioRef.current.loop = loop
+	}, [loop])
+	useEffect(
+		() => () => {
+			if (flightTimerRef.current !== null) window.clearTimeout(flightTimerRef.current)
+		},
+		[]
 	)
 
 	const togglePlayback = useCallback(async () => {
-		await togglePlaybackCore(true)
-	}, [togglePlaybackCore])
+		const audio = audioRef.current
+		const music = currentMusicRef.current
+		if (!audio || !music) return
+		if (!audio.paused || loadingRef.current) {
+			++playbackRequestRef.current
+			audio.pause()
+			setIsPlaying(false)
+			setLoading(false)
+			return
+		}
+		await playMusic(music)
+	}, [playMusic, setLoading])
 
 	const togglePlaybackFrom = useCallback(
 		async (rect?: DOMRect) => {
-			const wasStarted = hasStarted
-			await togglePlaybackCore(wasStarted || !rect)
-
-			if (!rect || wasStarted) return
-
-			const isSmallScreen = window.matchMedia('(max-width: 640px)').matches
-			const targetX = window.innerWidth - (isSmallScreen ? 176 : 166)
-			const targetY = window.innerHeight - (isSmallScreen ? 64 : 54)
-			const animation = {
+			await togglePlayback()
+			if (!rect || hasStarted || reducedMotion || audioRef.current?.paused) return
+			const smallScreen = window.matchMedia('(max-width: 640px)').matches
+			setFlightAnimation({
 				id: Date.now(),
-				from: {
-					x: rect.left + rect.width / 2,
-					y: rect.top + rect.height / 2
-				},
-				to: {
-					x: targetX,
-					y: targetY
-				}
-			}
-
-			floatingPlayerTarget.x = targetX
-			floatingPlayerTarget.y = targetY
+				from: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+				to: { x: window.innerWidth - (smallScreen ? 176 : 184), y: window.innerHeight - 58 }
+			})
 			setShowFloatingPlayer(false)
-			setFlightAnimation(animation)
-			window.setTimeout(() => setShowFloatingPlayer(true), 520)
+			if (flightTimerRef.current !== null) window.clearTimeout(flightTimerRef.current)
+			flightTimerRef.current = window.setTimeout(() => setShowFloatingPlayer(true), 520)
 		},
-		[hasStarted, togglePlaybackCore]
+		[hasStarted, reducedMotion, togglePlayback]
 	)
 
-	const seek = useCallback(
-		(value: number) => {
-			const audio = audioRef.current
-			if (!audio || !Number.isFinite(value)) return
-			audio.currentTime = Math.min(Math.max(value, 0), duration || value)
-			setCurrentTime(audio.currentTime)
-		},
-		[duration]
-	)
-
+	const seek = useCallback((value: number) => {
+		const audio = audioRef.current
+		if (!audio || !Number.isFinite(value) || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+		audio.currentTime = Math.min(Math.max(value, 0), audio.duration)
+		setCurrentTime(audio.currentTime)
+	}, [])
+	const setVolume = useCallback((value: number) => {
+		const audio = audioRef.current
+		if (!audio || !Number.isFinite(value)) return
+		const nextVolume = Math.max(0, Math.min(1, value))
+		audio.volume = nextVolume
+		audio.muted = nextVolume === 0
+		setVolumeState(audio.muted ? 0 : audio.volume)
+		if (!audio.muted && audio.volume > 0) lastVolumeRef.current = audio.volume
+	}, [])
+	const toggleMute = useCallback(() => setVolume(volume > 0 ? 0 : lastVolumeRef.current), [setVolume, volume])
+	const toggleLoop = useCallback(() => setLoop(value => !value), [])
 	const value = useMemo<MusicPlayerContextValue>(
 		() => ({
 			currentMusic,
@@ -317,14 +247,42 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 			duration,
 			hasMusic,
 			isPlaying,
+			isLoading,
 			loadError,
+			loop,
+			volume,
 			progress,
 			playMusic,
+			playNext,
+			playPrevious,
 			seek,
+			setVolume,
+			toggleMute,
+			toggleLoop,
 			togglePlayback,
 			togglePlaybackFrom
 		}),
-		[currentMusic, currentTime, duration, hasMusic, isPlaying, loadError, playMusic, progress, seek, togglePlayback, togglePlaybackFrom]
+		[
+			currentMusic,
+			currentTime,
+			duration,
+			hasMusic,
+			isPlaying,
+			isLoading,
+			loadError,
+			loop,
+			volume,
+			progress,
+			playMusic,
+			playNext,
+			playPrevious,
+			seek,
+			setVolume,
+			toggleMute,
+			toggleLoop,
+			togglePlayback,
+			togglePlaybackFrom
+		]
 	)
 
 	return (
@@ -332,7 +290,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 			{children}
 			<audio ref={audioRef} preload='none' />
 			<FlyingMusicNote animation={flightAnimation} onDone={() => setFlightAnimation(null)} />
-			<FloatingMusicPlayer visible={(hasStarted || isPlaying) && showFloatingPlayer} />
+			<FloatingMusicPlayer visible={pathname !== '/music' && hasStarted && showFloatingPlayer} />
 		</MusicPlayerContext.Provider>
 	)
 }
@@ -345,101 +303,65 @@ export function useMusicPlayer() {
 
 export function MusicProgress({ className }: { className?: string }) {
 	const { currentTime, duration, hasMusic, seek } = useMusicPlayer()
-	const rangeProgress = duration > 0 ? `${(currentTime / duration) * 100}%` : '0%'
-
+	const rangeProgress = duration > 0 ? (currentTime / duration) * 100 + '%' : '0%'
 	return (
 		<input
 			type='range'
 			min={0}
-			max={duration || 0}
+			max={duration || 1}
 			step='0.1'
-			value={duration ? currentTime : 0}
+			value={duration ? Math.min(currentTime, duration) : 0}
 			disabled={!hasMusic || duration <= 0}
 			onChange={event => seek(Number(event.target.value))}
 			className={cn('range-track w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-60', className)}
 			style={{ '--range-progress': rangeProgress } as React.CSSProperties}
 			aria-label='音乐播放进度'
+			aria-valuetext={formatMusicTime(currentTime) + ' / ' + (duration > 0 ? formatMusicTime(duration) : '时长待加载')}
 		/>
 	)
 }
 
 function FloatingMusicPlayer({ visible }: { visible: boolean }) {
-	const { currentMusic, currentTime, duration, hasMusic, isPlaying, loadError, togglePlayback } = useMusicPlayer()
-	const [expandedWidth, setExpandedWidth] = useState(320)
-	const playerTransition = { duration: 0.42, ease: [0.22, 1, 0.36, 1] as const }
-
-	useEffect(() => {
-		const updateWidth = () => {
-			setExpandedWidth(Math.min(320, window.innerWidth - 32))
-		}
-
-		updateWidth()
-		window.addEventListener('resize', updateWidth)
-		return () => window.removeEventListener('resize', updateWidth)
-	}, [])
-
+	const { currentMusic, currentTime, duration, isPlaying, isLoading, loadError, togglePlayback } = useMusicPlayer()
+	const reducedMotion = useReducedMotion()
 	return (
 		<AnimatePresence>
-			{visible && (
+			{visible && currentMusic && (
 				<motion.div
-					initial={{ opacity: 0, scale: 0.86, y: 18, filter: 'blur(6px)', width: 56, height: 56 }}
-					animate={{
-						opacity: 1,
-						scale: 1,
-						y: 0,
-						filter: 'blur(0px)',
-						width: isPlaying ? expandedWidth : 56,
-						height: isPlaying ? 66 : 56,
-						borderRadius: isPlaying ? 28 : 999,
-						padding: isPlaying ? 12 : 8
-					}}
-					exit={{ opacity: 0, scale: 0.94, y: 10, filter: 'blur(4px)' }}
-					transition={playerTransition}
-					className='bg-card fixed right-6 bottom-6 z-50 origin-bottom-right overflow-hidden border shadow-lg backdrop-blur-md max-sm:right-4 max-sm:bottom-4'>
-					<motion.div
-						animate={{
-							opacity: isPlaying ? 1 : 0,
-							x: isPlaying ? 0 : 12,
-							scale: isPlaying ? 1 : 0.98
-						}}
-						transition={{ duration: isPlaying ? 0.24 : 0.14, delay: isPlaying ? 0.12 : 0, ease: [0.22, 1, 0.36, 1] }}
-						className='flex h-full w-full items-center gap-3'
-						style={{ pointerEvents: isPlaying ? 'auto' : 'none' }}>
-						<div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border bg-white/45'>
-							<Music2 className='text-brand h-5 w-5' />
-						</div>
-						<div className='min-w-0 flex-1'>
-							<div className='truncate text-sm font-medium'>{currentMusic?.name || '随机音乐'}</div>
-							<MusicProgress className='mt-1' />
-							<div className='text-secondary mt-1 truncate text-[11px]'>
-								{loadError ? '音频资源加载失败' : hasMusic ? `${formatMusicTime(currentTime)} / ${formatMusicTime(duration)}` : '还没有添加音乐'}
-							</div>
-						</div>
-						<button
-							type='button'
-							disabled={!hasMusic}
-							onClick={togglePlayback}
-							className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white/70 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'
-							aria-label='暂停音乐'>
-							<Pause className='text-brand h-4 w-4' />
-						</button>
-					</motion.div>
-
-					<motion.button
+					initial={reducedMotion ? false : { opacity: 0, y: 16 }}
+					animate={{ opacity: 1, y: 0 }}
+					exit={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+					transition={{ duration: reducedMotion ? 0 : 0.2 }}
+					className='bg-article text-primary fixed right-6 bottom-6 z-50 flex w-80 max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl border p-3 shadow-lg backdrop-blur-xl max-sm:right-4 max-sm:bottom-4'>
+					<Link href='/music' aria-label='打开音乐仓' className='focus-visible:outline-brand shrink-0 overflow-hidden rounded-xl focus-visible:outline-2'>
+						<OptimizedImage src={getAssetUrl(currentMusic.cover)} alt='' width={44} height={44} className='h-11 w-11 object-cover' />
+					</Link>
+					<div className='min-w-0 flex-1'>
+						<Link href='/music' className='block truncate text-sm font-medium'>
+							{currentMusic.name}
+						</Link>
+						<MusicProgress className='mt-1' />
+						<p className='text-secondary mt-1 text-[11px]'>
+							{loadError
+								? '播放失败，点击重试'
+								: isLoading
+									? '正在加载…'
+									: formatMusicTime(currentTime) + ' / ' + (duration > 0 ? formatMusicTime(duration) : '—:—')}
+						</p>
+					</div>
+					<button
 						type='button'
-						disabled={!hasMusic}
 						onClick={togglePlayback}
-						animate={{
-							opacity: isPlaying ? 0 : 1,
-							scale: isPlaying ? 0.72 : 1,
-							rotate: isPlaying ? -12 : 0
-						}}
-						transition={{ duration: isPlaying ? 0.12 : 0.22, delay: isPlaying ? 0 : 0.12, ease: [0.22, 1, 0.36, 1] }}
-						className='absolute inset-2 flex items-center justify-center rounded-full bg-white/70 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'
-						style={{ pointerEvents: isPlaying ? 'none' : 'auto' }}
-						aria-label='播放音乐'>
-						<PlaySVG className='text-brand ml-1 h-4 w-4' />
-					</motion.button>
+						className='bg-card text-primary hover:bg-bg focus-visible:outline-brand flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-2'
+						aria-label={isLoading ? '取消加载' : isPlaying ? '暂停音乐' : loadError ? '重试播放' : '播放音乐'}>
+						{isLoading ? (
+							<LoaderCircle className='h-4 w-4 animate-spin motion-reduce:animate-none' />
+						) : isPlaying ? (
+							<Pause className='h-4 w-4' />
+						) : (
+							<Play className='h-4 w-4' />
+						)}
+					</button>
 				</motion.div>
 			)}
 		</AnimatePresence>
@@ -452,24 +374,17 @@ function FlyingMusicNote({ animation, onDone }: { animation: FlightAnimation | n
 			{animation && (
 				<motion.div
 					key={animation.id}
-					initial={{
-						x: animation.from.x - 18,
-						y: animation.from.y - 18,
-						opacity: 0,
-						scale: 0.8,
-						rotate: -12
-					}}
+					initial={{ x: animation.from.x - 18, y: animation.from.y - 18, opacity: 0, scale: 0.8 }}
 					animate={{
 						x: [animation.from.x - 18, (animation.from.x + animation.to.x) / 2 - 58, animation.to.x - 18],
 						y: [animation.from.y - 18, Math.min(animation.from.y, animation.to.y) - 118, animation.to.y - 18],
 						opacity: [0, 1, 1, 0],
-						scale: [0.8, 1.18, 0.92, 0.7],
-						rotate: [-12, 14, -8, 0]
+						scale: [0.8, 1.18, 0.92, 0.7]
 					}}
-					exit={{ opacity: 0, scale: 0.7 }}
-					transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1], times: [0, 0.28, 0.76, 1] }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
 					onAnimationComplete={onDone}
-					className='pointer-events-none fixed top-0 left-0 z-[60] flex h-9 w-9 items-center justify-center rounded-full border bg-white/70 shadow-lg backdrop-blur-md'>
+					className='bg-article pointer-events-none fixed top-0 left-0 z-[60] flex h-9 w-9 items-center justify-center rounded-full border shadow-lg backdrop-blur-md'>
 					<Music2 className='text-brand h-5 w-5' />
 				</motion.div>
 			)}
