@@ -39,6 +39,11 @@ Keep the existing four themes and pen identity. Consume the root
 The four supplied CDN backgrounds remain in the sibling image repository at
 `images/project/mo-stack/login-backgrounds/{dawn,noon,sunset,night}.png`.
 
+Auth uses a single-column card capped at 400px, with the pen brand and current
+screen title sharing one header row. Inputs and primary buttons are 44px high;
+secondary sign-in actions use lighter styling. Shared spacing covers login,
+signup and unlock; small screens reduce card padding without enlarging titles.
+
 Desktop uses compact navigation, a searchable note list, and a spacious editor.
 Tablet hides the navigation rail; mobile switches between list and editor.
 Lists virtualize visible rows with five overscan rows and native continuous scrolling.
@@ -73,9 +78,13 @@ an unimplemented future editor option, not a parallel runtime.
 3. Generate separate random 32-byte data/recovery keys. Derive the wrapping key
    with `hash-wasm` Argon2id (64 MiB, 3 iterations, parallelism 1, output 32).
    AES-256-GCM uses a fresh random 12-byte nonce, 16-byte tag and exact v1 AAD.
-4. Require the user to save/acknowledge the recovery key before setup/rewrap.
-   Verify both wrappers locally before submitting. Uncertain setup/rewrap
-   delivery is resolved by comparing both wrappers from a fresh bootstrap.
+4. Show the recovery key as naturally wrapping, selectable read-only text in a
+   compact panel; do not reserve extra rows with a fixed-height textarea.
+   Copy only the raw key, with inline success or manual-copy error feedback.
+   Require explicit save acknowledgement before setup/rewrap; copying alone
+   does not acknowledge storage. Verify both wrappers locally before submitting.
+   Uncertain setup/rewrap delivery is resolved by comparing both wrappers from
+   a fresh bootstrap.
 5. Unlock with the independent passphrase or recovery key. Rewrapping preserves
    the data key and replaces both wrappers/recovery key. It does not revoke a
    previously exported data key.

@@ -44,7 +44,7 @@ export async function checkFeatures(page, fixture, passphrase) {
 	await page.locator('input[name=encryption-passphrase]').fill(nextPassphrase)
 	await page.getByPlaceholder('再次输入加密口令').fill(nextPassphrase)
 	await page.getByRole('button', { name: '生成恢复密钥', exact: true }).click()
-	const recovery = await page.getByRole('textbox', { name: /^恢复密钥/ }).inputValue()
+	const recovery = await page.getByRole('textbox', { name: /^恢复密钥/ }).innerText()
 	await page.getByRole('checkbox').check()
 	await page.getByRole('button', { name: '更新加密设置', exact: true }).click()
 	await page.getByText('加密口令与恢复密钥已更新。', { exact: true }).waitFor()
