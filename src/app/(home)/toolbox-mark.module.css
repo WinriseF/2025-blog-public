@@ -1,10 +1,14 @@
+.wrench { transform-origin: 18px 27px; transform: rotate(-8deg); }
+.driver { transform-origin: 44px 27px; transform: rotate(10deg); }
+
 @media (prefers-reduced-motion: no-preference) {
-	.tool { stroke-dasharray: 1 1; animation: draw .6s cubic-bezier(.4, 0, .2, 1) both; }
+	.line { stroke-dasharray: 1 1; animation: draw .6s cubic-bezier(.4, 0, .2, 1) both; }
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-	.tool { transform-origin: 35px 24px; transition: transform .22s cubic-bezier(.2, 0, 0, 1); }
-	.mark:hover .tool { transform: rotate(-9deg); }
+	.wrench, .driver { transition: transform .24s cubic-bezier(.2, 0, 0, 1); }
+	.mark:hover .wrench { transform: translate(-1px, -2px) rotate(-14deg); }
+	.mark:hover .driver { transform: translate(1px, -3px) rotate(16deg); }
 }
 
 @keyframes draw {

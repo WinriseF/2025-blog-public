@@ -20,7 +20,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/app/orbitalis/` | Full Orbitalis planet/station observatory and on-demand texture quality selection. |
 | `src/app/music/` + `src/components/music-player.tsx` | Music room, cover metadata, and shared playback across routes. |
 | `src/app/(home)/social-buttons.tsx` | Homepage links and the shared animated SVG brand entry to 墨栈. |
-| `src/app/(home)/toolbox-mark.tsx`, `toolbox-mark.module.css` | Hand-drawn inline wrench with finite entry and hover motion for the homepage Toolbox shortcut. |
+| `src/app/(home)/toolbox-mark.tsx`, `toolbox-mark.module.css` | Inline toolbox, wrench and screwdriver with finite entry and hover motion for the homepage Toolbox shortcut. |
 | `src/app/home/` | InkStack four-theme authentication and encrypted Markdown workspace; see [InkStack](./inkstack.md). |
 | `src/lib/stack/pocketbase.ts` | Browser-side PocketBase client for `users` authentication. |
 | `src/lib/stack/use-stack-auth.ts` | Email-code signup, verified email flow, OAuth/password login and bootstrap state routing. |
@@ -69,7 +69,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 - The former `/home` site-entry plane is now the InkStack auth and encrypted notes workspace. The brand entry and shared-shell exception remain here; auth, encryption, workspace behavior and delivery status are maintained in [InkStack](./inkstack.md). The route consumes the root TimeThemeProvider with no separate theme picker or clock.
 - Preserve compact navigation touch behavior and reduced-motion behavior.
 - The homepage quick-controls card must not add an idle animation loop; it marks the active deployment by matching `window.location.hostname` against the configured URLs.
-- The homepage Toolbox shortcut uses its own two-shape inline SVG: a 600ms outline entry and a 220ms hover rotation that returns to rest. Keep the existing brand color, glow, link target and button dimensions. CSS enables motion only for `prefers-reduced-motion: no-preference`, with hover limited to fine pointers. Do not add timers, an animation dependency or duplicate the old Wrench implementation beside it.
+- The homepage Toolbox shortcut uses an inline toolbox with a wrench and screwdriver: a 600ms outline entry and 240ms tool lift/rotation that returns to rest. Both handles extend into the box; a nested SVG viewport clips them at the rim so they remain connected throughout hover without painting inside the transparent box. Keep the existing brand color, glow, link target and button dimensions. CSS enables motion only for `prefers-reduced-motion: no-preference`, with hover limited to fine pointers. Do not add timers, an animation dependency or retain the former standalone wrench beside it.
 - Blog-reading performance rules belong in [content](./content.md).
 
 - The InkStack entry uses document navigation to preserve the browser unload guard for unsaved notes. Its icon reuses `src/app/home/stack-mark.tsx`, including its entry/hover motion and reduced-motion behavior; pass the homepage brand color and glow through `className` rather than copying SVG paths or retaining the old Pencil icon. The root theme initializer and provider share `blog-time-theme` in sessionStorage, preserving manual selection within the tab across this navigation; automatic time selection remains the default.
