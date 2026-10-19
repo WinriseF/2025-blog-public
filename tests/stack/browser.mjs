@@ -40,7 +40,7 @@ try {
 	await page.locator('a[href="/home"]').first().click()
 	await page.locator('input[name=email]').fill(fixture.email)
 	await page.locator('input[name=password]').fill(fixture.password)
-	await page.getByRole('button', { name: '登录', exact: true }).click()
+	await page.locator('form').getByRole('button', { name: '登录', exact: true }).click()
 	await page.locator('input[name=encryption-passphrase]').fill(passphrase)
 	await page.getByPlaceholder('再次输入加密口令').fill(passphrase)
 	await page.getByRole('button', { name: '生成恢复密钥' }).click()

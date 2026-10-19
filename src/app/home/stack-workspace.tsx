@@ -8,6 +8,7 @@ import { WorkspaceSession } from '@/lib/stack/workspace'
 import { NotePreview } from './note-preview'
 import { NoteList } from './note-list'
 import { StackSettings } from './stack-settings'
+import { StackMark } from './stack-mark'
 import { downloadText } from './vault-gate'
 import themeStyles from './stack-login.module.css'
 import styles from './stack-workspace.module.css'
@@ -102,7 +103,7 @@ function Workspace({ owner, email, dataKey, epoch, onLock, onSignOut, session }:
 		<div className={styles.ambient} style={{ backgroundImage: `url("${getAssetUrl(`/images/project/mo-stack/login-backgrounds/${theme.name}.png`)}")` }} aria-hidden='true'/>
 		<div className={styles.shell} data-focus={focus} data-editing={!!note}>
 			<aside className={styles.sidebar} aria-label='墨栈导航'>
-				<a href='/' className={styles.brand} onClick={event => { if (dirty) { event.preventDefault(); void leave(() => { window.location.href = '/' }) } }}><span><PenLine size={23}/></span><div>墨栈<small>INKSTACK</small></div><ArrowUpRight size={14}/></a>
+				<a href='/' className={styles.brand} onClick={event => { if (dirty) { event.preventDefault(); void leave(() => { window.location.href = '/' }) } }}><span><StackMark size={32}/></span><div>墨栈<small>INKSTACK</small></div><ArrowUpRight size={14}/></a>
 				<div className={styles.spaceName}><span className={styles.avatar}>{(email[0] || 'M').toUpperCase()}</span><span className={styles.accountEmail}>{email}</span></div>
 				<button className={styles.newNote} onClick={create} disabled={!state.loaded || state.resetRequired}><Plus size={17}/><span>新建笔记</span><PenLine size={14}/></button>
 				<nav className={styles.navigation}>
@@ -155,5 +156,5 @@ function Workspace({ owner, email, dataKey, epoch, onLock, onSignOut, session }:
 }
 
 function Welcome({ loaded, onCreate }: { loaded: boolean; onCreate: () => void }) {
-	return <div className={styles.welcome}><div className={styles.welcomeArt} aria-hidden='true'><span/><span/><div><PenLine size={42} strokeWidth={1.2}/></div></div><button className={styles.primaryButton} disabled={!loaded} onClick={onCreate}><Plus size={17}/>新建笔记</button></div>
+	return <div className={styles.welcome}><div className={styles.welcomeArt} aria-hidden='true'><span/><span/><div><StackMark size={56}/></div></div><button className={styles.primaryButton} disabled={!loaded} onClick={onCreate}><Plus size={17}/>新建笔记</button></div>
 }

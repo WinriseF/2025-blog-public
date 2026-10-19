@@ -20,6 +20,7 @@ requires explicit authorization before verification commands are run.
 | Paths | Responsibility |
 | --- | --- |
 | `src/app/home/stack-login.tsx`, `stack-login.module.css` | Existing auth layout, shared theme surface, session-to-workspace boundary. |
+| `src/app/home/stack-mark.tsx`, `stack-mark.module.css` | Single inline SVG brand mark and CSS motion shared by the homepage entry, auth, workspace navigation and the empty state. |
 | `src/lib/stack/use-stack-auth.ts`, `pocketbase.ts` | PB users auth, email-code signup, bootstrap and account-change notifications. |
 | `src/app/home/vault-gate.tsx` | Initial setup, recovery-key acknowledgement, unlock and keyring replacement. |
 | `src/lib/stack/crypto.ts`, `types.ts` | Browser Argon2id/AES-GCM and the current encrypted Markdown payload. |
@@ -34,15 +35,32 @@ requires explicit authorization before verification commands are run.
 
 ## Design
 
-Keep the existing four themes and pen identity. Consume the root
+Keep the existing four themes. The custom brand mark combines stacked pages
+with an ink droplet and a negative-space nib slit. Keep its hand-drawn paths in
+`stack-mark.tsx`; use `currentColor` so all four brand placements follow the
+theme without duplicate SVG assets or network requests. Consume the root
 `TimeThemeProvider`; do not add an InkStack theme picker, timer or preference.
 The four supplied CDN backgrounds remain in the sibling image repository at
 `images/project/mo-stack/login-backgrounds/{dawn,noon,sunset,night}.png`.
 
-Auth uses a single-column card capped at 400px, with the pen brand and current
-screen title sharing one header row. Inputs and primary buttons are 44px high;
-secondary sign-in actions use lighter styling. Shared spacing covers login,
-signup and unlock; small screens reduce card padding without enlarging titles.
+The mark draws its outlines once over 600ms on mount; the ink droplet settles
+in during the final 180ms. Fine-pointer hover gently separates the two page
+layers over 220ms, then returns them to rest when the pointer leaves. Motion is
+enabled only with `prefers-reduced-motion: no-preference`; reduced motion keeps
+the complete static mark. Use CSS only, without timers, state or a motion
+dependency, and do not key the mark by theme or form state to replay its entry.
+
+Auth uses a single-column card capped at 400px, with the centered, unboxed brand
+mark and the Chinese brand name. Login and signup share a two-button navigation
+row with an active underline; it replaces the old login heading and registration
+footer. The signup step keeps its active navigation button without resetting
+the verification challenge. Other auth states have a concise screen heading.
+Inputs have lightly bordered, filled surfaces without leading icons; password
+visibility stays at the trailing edge. Primary and provider controls are 46px
+high, with GitHub and Google marks on the provider buttons. Shared spacing and
+four-theme tokens cover login, signup and unlock; small screens reduce card
+padding and use 16px input text. Autofill inherits the field colors. Keep one
+layout implementation rather than retaining earlier design variants.
 
 Desktop uses compact navigation, a searchable note list, and a spacious editor.
 Tablet hides the navigation rail; mobile switches between list and editor.

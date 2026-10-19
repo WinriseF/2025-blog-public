@@ -9,7 +9,8 @@ import { motion } from 'motion/react'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useSize } from '@/hooks/use-size'
-import { Pencil, Wrench } from 'lucide-react'
+import { StackMark } from '@/app/home/stack-mark'
+import { ToolboxMark } from './toolbox-mark'
 
 type SocialButtonType = 'github' | 'juejin' | 'email' | 'link'
 const STACK_ENTRY_WIDTH = 64
@@ -157,7 +158,7 @@ export default function SocialButtons() {
 								aria-label='打开墨栈登录页'
 								title='墨栈'
 								className='card relative flex h-12 w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-xl p-0'>
-								<Pencil className='text-brand h-7 w-7 drop-shadow-[0_0_10px_var(--color-brand)]' strokeWidth={2.2} aria-hidden='true' />
+								<StackMark size={36} className='text-brand drop-shadow-[0_0_10px_var(--color-brand)]' />
 							</a>
 						</motion.div>
 						<motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -166,7 +167,7 @@ export default function SocialButtons() {
 								aria-label='打开工具箱'
 								title='工具箱'
 								className='card group relative flex h-12 w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-xl p-0'>
-								<Wrench className='text-brand h-7 w-7 drop-shadow-[0_0_10px_var(--color-brand)]' strokeWidth={2.35} />
+								<ToolboxMark />
 							</Link>
 						</motion.div>
 					</>

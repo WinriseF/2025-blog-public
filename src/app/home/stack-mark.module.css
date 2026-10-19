@@ -1,0 +1,20 @@
+@media (prefers-reduced-motion: no-preference) {
+	.line { stroke-dasharray: 1 1; animation: draw .6s cubic-bezier(.4, 0, .2, 1) both; }
+	.ink { transform-origin: 36.5px 35.5px; animation: appear .18s ease-out .42s both; }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+	.back, .front { transform-origin: 32px 36px; transition: transform .22s cubic-bezier(.2, 0, 0, 1); }
+	.mark:hover .back { transform: translate(-2px, 1px) rotate(-4deg); }
+	.mark:hover .front { transform: translate(1px, -1px) rotate(2deg); }
+}
+
+@keyframes draw {
+	from { stroke-dashoffset: 1; }
+	to { stroke-dashoffset: 0; }
+}
+
+@keyframes appear {
+	from { opacity: 0; transform: translateY(-2px) scale(.94); }
+	to { opacity: 1; transform: none; }
+}
