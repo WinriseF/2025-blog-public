@@ -62,6 +62,16 @@ four-theme tokens cover login, signup and unlock; small screens reduce card
 padding and use 16px input text. Autofill inherits the field colors. Keep one
 layout implementation rather than retaining earlier design variants.
 
+Auth screen changes reuse Motion: the active underline shares one layout ID,
+the card interpolates its size/position over 240ms, and the incoming panel fades
+in with a 6px rise. Login, signup, password reset and return navigation use the
+same transition. Position-only layout on the brand and content prevents text
+stretching. Key only the panel by auth screen; keep the brand mounted and retain
+form state in `useStackAuth`. Replace the outgoing panel immediately rather than
+keeping two live forms during an exit animation; keep the feedback live region
+outside the keyed panel. Reduced motion disables these transitions, and card
+layout measurement depends on the screen/checking state rather than keystrokes.
+
 Desktop uses compact navigation, a searchable note list, and a spacious editor.
 Tablet hides the navigation rail; mobile switches between list and editor.
 Lists virtualize visible rows with five overscan rows and native continuous scrolling.

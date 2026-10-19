@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 import { ArrowLeft, Eye, EyeOff, Github, Mail } from 'lucide-react'
 import { useTimeTheme } from '@/components/time-theme-provider'
@@ -34,6 +35,7 @@ function GoogleIcon() {
 export default function StackLogin() {
 	const { theme } = useTimeTheme()
 	const auth = useStackAuth()
+	const reducedMotion = useReducedMotion()
 	// Private auth UI uses the browser's shared theme after hydration.
 	const [mounted, setMounted] = useState(false)
 	useEffect(() => setMounted(true), [])
@@ -48,6 +50,8 @@ export default function StackLogin() {
 	const spaceScreen = screen === 'setup' || screen === 'unlock'
 	const registering = screen === 'register' || screen === 'register-code'
 	const accountScreen = screen === 'login' || registering
+	const layoutKey = auth.checking ? 'checking' : screen
+	const transition = { duration: reducedMotion ? 0 : .24, ease: [.2, 0, 0, 1] as const }
 	if (!mounted) return null
 	if (unlocked && unlocked.owner === auth.owner) return <StackWorkspace owner={auth.owner} email={auth.email} dataKey={unlocked.key} epoch={unlocked.account.sync_epoch} onLock={() => { setUnlocked(null); void auth.retry() }} onSignOut={() => { setUnlocked(null); auth.signOut() }}/>
 
@@ -56,34 +60,37 @@ export default function StackLogin() {
 			<div className={styles.background} style={{ backgroundImage: `url("${getAssetUrl(`/images/project/mo-stack/login-backgrounds/${theme.name}.png`)}")` }} aria-hidden='true' />
 			<Link href='/' className={styles.backLink}><ArrowLeft size={16} /> 返回网站</Link>
 			<div className={styles.stage}>
-				<article className={styles.card} aria-labelledby='stack-heading'>
-					<header className={styles.brand}><StackMark size={60}/><h1 id='stack-heading'>墨栈</h1></header>
-					{auth.checking ? <div className={styles.state} role='status'>正在恢复登录状态…</div> : <>
-						{accountScreen ? <nav className={styles.modeSwitch} aria-label='账户入口'>
-							<button type='button' disabled={busy} aria-pressed={screen === 'login'} onClick={() => { if (screen !== 'login') auth.changeScreen('login') }}>登录</button>
-							<button type='button' disabled={busy} aria-pressed={registering} onClick={() => { if (!registering) auth.changeScreen('register') }}>注册</button>
-						</nav> : <h2 className={styles.screenTitle}>{titles[screen]}</h2>}
-						{formScreen && <form className={styles.form} onSubmit={event => { event.preventDefault(); void auth.submit() }}>
-							<fieldset disabled={busy}>
-								{!codeScreen ? <label className={styles.field}><span>邮箱地址</span><div className={styles.inputWrap}><input name='email' type='email' autoComplete='email' placeholder='you@example.com' required maxLength={254} value={auth.email} onChange={e => auth.setEmail(e.target.value)}/></div></label> :
-									<div className={styles.emailSummary}><Mail size={16}/><span>{auth.email}</span>{screen === 'register-code' && <button type='button' onClick={() => auth.changeScreen('register')}>修改</button>}</div>}
-								{codeScreen && <label className={styles.field}><span>邮箱验证码</span><div className={styles.inputWrap}><input className={styles.codeInput} name='code' inputMode='numeric' autoComplete='one-time-code' pattern='[0-9]{6}' maxLength={6} placeholder='6 位验证码' required value={auth.code} onChange={e => auth.setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}/><button className={styles.sendCode} type='button' disabled={busy || auth.remaining > 0} onClick={() => void auth.resend()}>{auth.remaining > 0 ? `${auth.remaining}s 后重发` : auth.challenge ? '重新发送' : '发送验证码'}</button></div></label>}
-								{passwordScreen && <label className={styles.field}><span>密码{screen === 'login' && <button type='button' onClick={() => auth.changeScreen('forgot')}>忘记密码？</button>}</span><div className={styles.inputWrap}><input name='password' type={showPassword ? 'text' : 'password'} autoComplete={screen === 'login' ? 'current-password' : 'new-password'} placeholder={screen === 'login' ? '输入你的密码' : '至少 8 位字符'} required minLength={screen === 'login' ? undefined : 8} maxLength={128} value={auth.password} onChange={e => auth.setPassword(e.target.value)}/><button type='button' className={styles.eye} aria-label={showPassword ? '隐藏密码' : '显示密码'} onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></label>}
-								{screen === 'register-code' && <label className={styles.field}><span>确认密码</span><div className={styles.inputWrap}><input name='passwordConfirm' type={showPassword ? 'text' : 'password'} autoComplete='new-password' placeholder='再次输入登录密码' required minLength={8} maxLength={128} value={auth.passwordConfirm} onChange={e => auth.setPasswordConfirm(e.target.value)}/></div></label>}
-								<button className={styles.primary} type='submit' disabled={busy || (codeScreen && !auth.challenge)}>{busy ? '正在处理…' : screen === 'login' ? '登录' : screen === 'register' ? '发送注册验证码' : screen === 'register-code' ? '验证并创建账户' : screen === 'verify' ? '验证并继续' : '发送重置链接'}</button>
-							</fieldset>
-						</form>}
-						{screen === 'login' && <><div className={styles.divider} aria-hidden='true'/><div className={styles.providers}><button type='button' disabled={busy} onClick={() => void auth.oauth('github')}><Github size={20} aria-hidden='true'/>GitHub</button><button type='button' disabled={busy} onClick={() => void auth.oauth('google')}><GoogleIcon/>Google</button></div></>}
-						{(screen === 'forgot' || screen === 'reset-sent') && <p className={styles.switchMode}><button disabled={busy} onClick={() => auth.changeScreen('login')}>返回登录</button></p>}
-						{screen === 'forgot' && <p className={styles.hint}>此操作不重置加密口令。</p>}
-						{screen === 'reset-sent' && <div className={styles.state}><Mail size={32}/><span>{auth.email}</span><p>若邮箱已注册，请查收重置邮件。</p></div>}
-						{spaceScreen && <VaultGate key={`${auth.owner}:${screen}:${auth.account?.key_revision ?? 0}`} owner={auth.owner} account={auth.account} onUnlock={(key, account) => setUnlocked({ owner: auth.owner, key, account })}/>}
-						{screen === 'deleting' && <div className={styles.state} role='status'><button type='button' className={styles.secondary} disabled={busy} onClick={() => void auth.retry()}>检查进度</button></div>}
-						{screen === 'connection-error' && <button className={styles.primary} disabled={busy} onClick={() => void auth.retry()}>重新连接</button>}
-						{(spaceScreen || screen === 'deleting' || screen === 'verify' || screen === 'connection-error') && <p className={styles.switchMode}><button disabled={busy} onClick={auth.signOut}>退出当前账户</button></p>}
+				<motion.article layout={!reducedMotion} layoutDependency={layoutKey} transition={transition} className={styles.card} aria-labelledby='stack-heading'>
+					<motion.header layout={reducedMotion ? false : 'position'} layoutDependency={layoutKey} transition={transition} className={styles.brand}><StackMark size={60}/><h1 id='stack-heading'>墨栈</h1></motion.header>
+					{auth.checking ? <div className={styles.state} role='status'>正在恢复登录状态…</div> : <motion.div layout={reducedMotion ? false : 'position'} layoutDependency={layoutKey} transition={transition}>
+						{accountScreen && <nav className={styles.modeSwitch} aria-label='账户入口'>
+							<button type='button' disabled={busy} aria-pressed={screen === 'login'} onClick={() => { if (screen !== 'login') auth.changeScreen('login') }}>登录{screen === 'login' && <motion.span className={styles.modeIndicator} layoutId={reducedMotion ? undefined : 'stack-auth-mode'} transition={transition} aria-hidden='true'/>}</button>
+							<button type='button' disabled={busy} aria-pressed={registering} onClick={() => { if (!registering) auth.changeScreen('register') }}>注册{registering && <motion.span className={styles.modeIndicator} layoutId={reducedMotion ? undefined : 'stack-auth-mode'} transition={transition} aria-hidden='true'/>}</button>
+						</nav>}
+						<motion.div key={screen} className={styles.panel} initial={reducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={transition}>
+							{!accountScreen && <h2 className={styles.screenTitle}>{titles[screen]}</h2>}
+							{formScreen && <form className={styles.form} onSubmit={event => { event.preventDefault(); void auth.submit() }}>
+								<fieldset disabled={busy}>
+									{!codeScreen ? <label className={styles.field}><span>邮箱地址</span><div className={styles.inputWrap}><input name='email' type='email' autoComplete='email' placeholder='you@example.com' required maxLength={254} value={auth.email} onChange={e => auth.setEmail(e.target.value)}/></div></label> :
+										<div className={styles.emailSummary}><Mail size={16}/><span>{auth.email}</span>{screen === 'register-code' && <button type='button' onClick={() => auth.changeScreen('register')}>修改</button>}</div>}
+									{codeScreen && <label className={styles.field}><span>邮箱验证码</span><div className={styles.inputWrap}><input className={styles.codeInput} name='code' inputMode='numeric' autoComplete='one-time-code' pattern='[0-9]{6}' maxLength={6} placeholder='6 位验证码' required value={auth.code} onChange={e => auth.setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}/><button className={styles.sendCode} type='button' disabled={busy || auth.remaining > 0} onClick={() => void auth.resend()}>{auth.remaining > 0 ? `${auth.remaining}s 后重发` : auth.challenge ? '重新发送' : '发送验证码'}</button></div></label>}
+									{passwordScreen && <label className={styles.field}><span>密码{screen === 'login' && <button type='button' onClick={() => auth.changeScreen('forgot')}>忘记密码？</button>}</span><div className={styles.inputWrap}><input name='password' type={showPassword ? 'text' : 'password'} autoComplete={screen === 'login' ? 'current-password' : 'new-password'} placeholder={screen === 'login' ? '输入你的密码' : '至少 8 位字符'} required minLength={screen === 'login' ? undefined : 8} maxLength={128} value={auth.password} onChange={e => auth.setPassword(e.target.value)}/><button type='button' className={styles.eye} aria-label={showPassword ? '隐藏密码' : '显示密码'} onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></label>}
+									{screen === 'register-code' && <label className={styles.field}><span>确认密码</span><div className={styles.inputWrap}><input name='passwordConfirm' type={showPassword ? 'text' : 'password'} autoComplete='new-password' placeholder='再次输入登录密码' required minLength={8} maxLength={128} value={auth.passwordConfirm} onChange={e => auth.setPasswordConfirm(e.target.value)}/></div></label>}
+									<button className={styles.primary} type='submit' disabled={busy || (codeScreen && !auth.challenge)}>{busy ? '正在处理…' : screen === 'login' ? '登录' : screen === 'register' ? '发送注册验证码' : screen === 'register-code' ? '验证并创建账户' : screen === 'verify' ? '验证并继续' : '发送重置链接'}</button>
+								</fieldset>
+							</form>}
+							{screen === 'login' && <><div className={styles.divider} aria-hidden='true'/><div className={styles.providers}><button type='button' disabled={busy} onClick={() => void auth.oauth('github')}><Github size={20} aria-hidden='true'/>GitHub</button><button type='button' disabled={busy} onClick={() => void auth.oauth('google')}><GoogleIcon/>Google</button></div></>}
+							{(screen === 'forgot' || screen === 'reset-sent') && <p className={styles.switchMode}><button disabled={busy} onClick={() => auth.changeScreen('login')}>返回登录</button></p>}
+							{screen === 'forgot' && <p className={styles.hint}>此操作不重置加密口令。</p>}
+							{screen === 'reset-sent' && <div className={styles.state}><Mail size={32}/><span>{auth.email}</span><p>若邮箱已注册，请查收重置邮件。</p></div>}
+							{spaceScreen && <VaultGate key={`${auth.owner}:${screen}:${auth.account?.key_revision ?? 0}`} owner={auth.owner} account={auth.account} onUnlock={(key, account) => setUnlocked({ owner: auth.owner, key, account })}/>}
+							{screen === 'deleting' && <div className={styles.state} role='status'><button type='button' className={styles.secondary} disabled={busy} onClick={() => void auth.retry()}>检查进度</button></div>}
+							{screen === 'connection-error' && <button className={styles.primary} disabled={busy} onClick={() => void auth.retry()}>重新连接</button>}
+							{(spaceScreen || screen === 'deleting' || screen === 'verify' || screen === 'connection-error') && <p className={styles.switchMode}><button disabled={busy} onClick={auth.signOut}>退出当前账户</button></p>}
+						</motion.div>
 						<div className={styles.feedback} aria-live='polite'>{auth.error ? <p className={styles.error} role='alert'>{auth.error}</p> : auth.notice ? <p>{auth.notice}</p> : null}</div>
-					</>}
-				</article>
+					</motion.div>}
+				</motion.article>
 			</div>
 		</section>
 	)
