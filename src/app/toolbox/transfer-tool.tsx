@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, type ClipboardEvent } from 'react'
-import { Copy, Download, Globe2, Image as ImageIcon, Link as LinkIcon, Network, QrCode, Send, UploadCloud, X } from 'lucide-react'
+import Link from 'next/link'
+import { Copy, Download, Globe2, Image as ImageIcon, Link as LinkIcon, Network, QrCode, Send, Settings, UploadCloud, X } from 'lucide-react'
 import * as QRCode from 'qrcode'
 import { toast } from 'sonner'
 import { LanTransferTool } from './lan-transfer-tool'
@@ -454,10 +455,20 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 	const relayView = (
 		<div aria-hidden={mode === 'lan'} className={`space-y-5 max-sm:px-4 ${mode === 'lan' ? 'lan-session-underlay' : ''}`}>
 			<div className='flex flex-wrap gap-2 border-b border-border pb-4'>
-				<button onClick={() => setMode('relay')} className='flex items-center gap-2 rounded-full bg-brand/10 px-4 py-2 text-xs font-medium text-primary'>
-					<Globe2 size={15} />
-					公网中转
-				</button>
+				<div className='group relative'>
+					<button type='button' onClick={() => setMode('relay')} className='flex items-center gap-2 rounded-full bg-brand/10 py-2 pr-10 pl-4 text-xs font-medium text-primary'>
+						<Globe2 size={15} />
+						公网中转
+					</button>
+					<Link
+						href='/t/status'
+						prefetch={false}
+						aria-label='公网中转状态管理'
+						title='公网中转状态管理'
+						className='text-secondary absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 hover:bg-brand/10 hover:text-brand focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [@media(hover:none)]:opacity-100'>
+						<Settings size={14} aria-hidden='true' />
+					</Link>
+				</div>
 				<button onClick={() => setMode('lan')} className='text-secondary flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium hover:bg-brand/5'>
 					<Network size={15} />
 					局域网互传

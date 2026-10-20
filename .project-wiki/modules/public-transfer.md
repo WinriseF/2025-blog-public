@@ -9,6 +9,7 @@ Owns the password-protected EdgeOne relay at `/t`, including encrypted chunk lif
 | Path | Use it for |
 | --- | --- |
 | `src/app/t/` | Public create/read/status UI. |
+| `src/app/toolbox/transfer-tool.tsx` | Shared public relay UI and LAN mode switch. |
 | `src/lib/transfer-crypto.ts` | Browser encryption/key derivation. |
 | `src/lib/transfer-relay.ts` | Relay client flow. |
 | `src/lib/transfer-chunks.ts` | Four-slot chunk scheduling, ordered receive backpressure, cancellation and bounded direct-request retries. |
@@ -25,6 +26,7 @@ Browser derives an AES-GCM key from the password, creates the chunk manifest and
 
 ## Pay Attention
 
+- The public-relay tab reveals a separate `/t/status` settings link on hover or keyboard focus; keep it visible on devices without hover. Reserve its space to avoid moving the adjacent LAN tab. The link must not be nested inside the mode button, and status navigation does not prefetch the admin route.
 - Never send plaintext/password through the server; Blob bytes do not pass through Edge Function responses.
 - Text/pasted images are capped at 4 MiB; regular files at 800 MiB with 4 MiB plaintext chunks (at most 200). Upload/download URLs last one hour; the daily transfer expiry still applies. Keep the browser and Edge Function size limits synchronized.
 - Files above 200 MiB require OPFS writable storage. Check available browser quota and prepare the writer before calling the consume-on-open endpoint. Download/decrypt at most four unconsumed chunks; one consumer appends them in order and refills a slot only after its write completes. Slow early chunks or disk writes must not accumulate the entire file in memory. The plaintext window is at most 16 MiB, plus ciphertext/browser buffers. Smaller files still retain the completed file in memory.
