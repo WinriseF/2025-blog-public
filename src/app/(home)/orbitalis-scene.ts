@@ -41,6 +41,7 @@ export async function mountOrbitalis(
 	let reduceMotion = motionPreference.matches
 	let disposed = false
 	let highQualityTimer = 0
+	let shaderCompilation: Promise<unknown> | undefined
 	let animationLoop: ReturnType<typeof startAnimationLoop> | undefined
 	let resizeObserver: ResizeObserver | undefined
 
@@ -60,11 +61,16 @@ export async function mountOrbitalis(
 		motionPreference.removeEventListener('change', updateMotionPreference)
 		signal.removeEventListener('abort', dispose)
 		renderer.domElement.removeEventListener('webglcontextlost', handleContextLost)
-		resources.forEach(resource => resource.dispose())
-		textures.forEach(releaseTexture)
-		renderer.dispose()
-		renderer.forceContextLoss()
 		renderer.domElement.remove()
+		const releaseResources = () => {
+			resources.forEach(resource => resource.dispose())
+			textures.forEach(releaseTexture)
+			renderer.dispose()
+			renderer.forceContextLoss()
+		}
+		// compileAsync polls material programs; keep them alive until it settles.
+		if (shaderCompilation) void shaderCompilation.then(releaseResources, releaseResources)
+		else releaseResources()
 	}
 	const track = <T extends { dispose: () => void }>(resource: T) => {
 		if (disposed) resource.dispose()
@@ -179,6 +185,12 @@ export async function mountOrbitalis(
 			root.add(shell)
 		}
 
+		shaderCompilation = renderer.compileAsync(scene, camera)
+		await shaderCompilation
+		shaderCompilation = undefined
+		requests.signal.throwIfAborted()
+		renderer.initTexture(preview)
+
 		let renderWidth = 0
 		let renderHeight = 0
 		const resize = () => {
@@ -237,6 +249,14 @@ export async function mountOrbitalis(
 		if (renderer.capabilities.maxTextureSize >= 4096) {
 			highQualityTimer = window.setTimeout(() => {
 				void loadTexture(orbitalisAssets.texture).then(texture => {
+					requests.signal.throwIfAborted()
+					// Upload before publishing the texture to the animation loop.
+					try {
+						renderer.initTexture(texture)
+					} catch {
+						releaseTexture(texture)
+						return
+					}
 					detailMap.value = texture
 					detail = texture
 				}).catch(() => {
