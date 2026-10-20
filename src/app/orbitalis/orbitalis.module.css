@@ -24,8 +24,15 @@
 .surface[data-phase='ready'] { touch-action: none; }
 .surface[data-dragging='true'] { cursor: grabbing; }
 .surface[aria-disabled='true'] { cursor: default; }
-.poster, .canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
-.poster { object-fit: contain; }
+.preview, .poster, .canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
+.preview { background: #000 center / cover no-repeat; }
+.poster {
+	width: min(100%, calc(100dvh * 4 / 3));
+	height: auto;
+	margin: auto;
+	mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent), linear-gradient(transparent, #000 6%, #000 94%, transparent);
+	mask-composite: intersect;
+}
 .hidden { opacity: 0; }
 .canvas { opacity: 0; }
 .canvas.ready { opacity: 1; }

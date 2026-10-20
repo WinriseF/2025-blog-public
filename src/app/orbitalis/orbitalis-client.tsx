@@ -61,15 +61,19 @@ export default function OrbitalisClient() {
 				aria-disabled={fallback}
 				aria-label='探索场景：拖星球旋转，拖空间站前后环绕；滚轮或双指缩放，Shift 拖动平移，方向键旋转，加减键缩放，Home 复位'
 				aria-describedby='orbitalis-instructions'>
-				<img
-					src={sceneAssetUrl('observatory-poster-v1.webp')}
-					alt='彩色风暴星球与精细的环形空间站'
-					width={1600}
-					height={1200}
-					decoding='async'
-					draggable={false}
-					className={`${styles.poster} ${ready ? styles.hidden : ''}`}
-				/>
+				<span
+					className={`${styles.preview} ${ready ? styles.hidden : ''}`}
+					style={{ backgroundImage: `linear-gradient(#0008, #0008), url("${sceneAssetUrl('space-background-v1.webp')}")` }}>
+					<img
+						src={sceneAssetUrl('observatory-poster-v1.webp')}
+						alt='彩色风暴星球与精细的环形空间站'
+						width={1600}
+						height={1200}
+						decoding='async'
+						draggable={false}
+						className={styles.poster}
+					/>
+				</span>
 				<span ref={host} className={`${styles.canvas} ${ready ? styles.ready : ''}`} />
 			</button>
 			<header className={styles.masthead}>
