@@ -179,11 +179,16 @@ export async function mountOrbitalis(
 			root.add(shell)
 		}
 
+		let renderWidth = 0
+		let renderHeight = 0
 		const resize = () => {
 			const width = Math.max(host.clientWidth, 1)
 			const height = Math.max(host.clientHeight, 1)
-			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 640 ? 1 : 1.25))
-			renderer.setSize(width, height, false)
+			const pixelRatio = Math.min(window.devicePixelRatio || 1, width < 640 ? 1 : 1.25)
+			if (width === renderWidth && height === renderHeight && pixelRatio === renderer.getPixelRatio()) return
+			renderWidth = width
+			renderHeight = height
+			renderer.setDrawingBufferSize(width, height, pixelRatio)
 			camera.aspect = width / height
 			camera.updateProjectionMatrix()
 			renderer.render(scene, camera)

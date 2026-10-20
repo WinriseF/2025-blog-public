@@ -219,6 +219,8 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 
 		const resizeObserver = new ResizeObserver(() => {
 			if (resizeTimer !== null) window.clearTimeout(resizeTimer)
+			resizeTimer = null
+			if (width === canvas.clientWidth && height === canvas.clientHeight) return
 			resizeTimer = window.setTimeout(() => {
 				resizeCanvas()
 				createGlows()
