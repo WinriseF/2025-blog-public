@@ -6,16 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useCenterStore } from '@/hooks/use-center'
 import { CARD_SPACING } from '@/consts'
-import ScrollOutlineSVG from '@/svgs/scroll-outline.svg'
-import ScrollFilledSVG from '@/svgs/scroll-filled.svg'
-import NewsOutlineSVG from '@/svgs/news-outline.svg'
-import NewsFilledSVG from '@/svgs/news-filled.svg'
-import ProjectsFilledSVG from '@/svgs/projects-filled.svg'
-import ProjectsOutlineSVG from '@/svgs/projects-outline.svg'
-import AboutFilledSVG from '@/svgs/about-filled.svg'
-import AboutOutlineSVG from '@/svgs/about-outline.svg'
-import WebsiteFilledSVG from '@/svgs/website-filled.svg'
-import WebsiteOutlineSVG from '@/svgs/website-outline.svg'
+import { NavMark, type NavMarkName } from '@/components/nav-mark'
+import navMarkStyles from '@/components/nav-mark.module.css'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
 import { cn } from '@/lib/utils'
@@ -28,36 +20,31 @@ import { AppearanceControl } from '@/components/appearance-control'
 
 const list = [
 	{
-		icon: ScrollOutlineSVG,
-		iconActive: ScrollFilledSVG,
+		icon: 'articles',
 		label: '近期文章',
 		href: '/blog'
 	},
 	{
-		icon: ProjectsOutlineSVG,
-		iconActive: ProjectsFilledSVG,
+		icon: 'projects',
 		label: '我的项目',
 		href: '/projects'
 	},
 	{
-		icon: AboutOutlineSVG,
-		iconActive: AboutFilledSVG,
+		icon: 'about',
 		label: '关于网站',
 		href: '/about'
 	},
 	{
-		icon: NewsOutlineSVG,
-		iconActive: NewsFilledSVG,
+		icon: 'news',
 		label: '新闻趋势',
 		href: '/news'
 	},
 	{
-		icon: WebsiteOutlineSVG,
-		iconActive: WebsiteFilledSVG,
+		icon: 'blogs',
 		label: '优秀博客',
 		href: '/bloggers'
 	}
-]
+] satisfies { icon: NavMarkName; label: string; href: string }[]
 
 const extraSize = 8
 const appearanceItem = { type: 'appearance' as const, label: '外观设置' }
@@ -322,11 +309,11 @@ export default function NavCard() {
 											key={item.href}
 											href={item.href}
 											aria-current={isCurrentPath(item.href) ? 'page' : undefined}
-											className={cn('text-secondary text-md relative z-10 flex items-center gap-3 rounded-full px-5 py-3', form === 'icons' && 'p-0')}
+											className={cn(navMarkStyles.item, 'text-secondary text-md relative z-10 flex items-center gap-3 rounded-full px-5 py-3', hoveredIndex === index && 'text-brand', form === 'icons' && 'p-0')}
 											onMouseEnter={() => setHoveredIndex(index)}
 											onFocus={() => setHoveredIndex(index)}>
 											<div className='flex h-7 w-7 items-center justify-center'>
-												{hoveredIndex === index ? <item.iconActive className='text-brand absolute h-7 w-7' /> : <item.icon className='absolute h-7 w-7' />}
+												<NavMark name={item.icon} />
 											</div>
 											{form !== 'icons' && <span className={clsx(index === hoveredIndex && 'text-primary font-medium')}>{item.label}</span>}
 										</Link>

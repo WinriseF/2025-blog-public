@@ -13,6 +13,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/layout/backgrounds/click-effect-layer.tsx` | Theme-aware, on-demand global click feedback. |
 | `src/components/appearance-control.tsx` | Shared theme picker and click-effect switch. |
 | `src/components/nav-card.tsx` | Responsive navigation and appearance-control entrypoint. |
+| `src/components/nav-mark.tsx`, `nav-mark.module.css` | Shared custom SVG navigation marks and finite hover/focus animations. |
 | `src/app/(home)/quick-controls-card.tsx` | Homepage's animated theme, click-effect, and E/V/N deployment switcher. |
 | `src/config/site-content.json` | Site content plus the configured deployment-switcher targets. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
@@ -69,6 +70,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 - Homepage card layout comes from JSON; do not introduce a browser editor by accident.
 - The former `/home` site-entry plane is now the InkStack auth and encrypted notes workspace. The brand entry and shared-shell exception remain here; auth, encryption, workspace behavior and delivery status are maintained in [InkStack](./inkstack.md). The route consumes the root TimeThemeProvider with no separate theme picker or clock.
 - Preserve compact navigation touch behavior and reduced-motion behavior.
+- Navigation uses one inline SVG per item (document, grid, smile, newspaper trend, globe) through `NavMark`; do not restore outline/filled asset swapping. The whole link triggers a single 650–750ms CSS animation on fine-pointer hover or keyboard focus, with staggered document lines and no mount/idle animation, timers, or React animation state. Keep the paper fold endpoints connected. `aria-current` retains the active theme color; reduced motion keeps static icons. Both full and compact navigation share the same marks. The ten former navigation SVG files and their preview-index entries are removed.
 - The homepage quick-controls card must not add an idle animation loop; it marks the active deployment by matching `window.location.hostname` against the configured URLs.
 - The homepage Toolbox shortcut uses an inline toolbox with a wrench and screwdriver: a 600ms outline entry and 240ms tool lift/rotation that returns to rest. Both handles extend into the box; a nested SVG viewport clips them at the rim so they remain connected throughout hover without painting inside the transparent box. Keep the existing brand color, glow, link target and button dimensions. CSS enables motion only for `prefers-reduced-motion: no-preference`, with hover limited to fine pointers. Do not add timers, an animation dependency or retain the former standalone wrench beside it.
 - Blog-reading performance rules belong in [content](./content.md).
