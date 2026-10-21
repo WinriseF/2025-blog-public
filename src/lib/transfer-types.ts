@@ -81,7 +81,10 @@ export type TransferPublicMeta = {
 
 export type TransferOpenResponse = Omit<TransferPublicMeta, 'chunks'> & {
 	chunks: TransferOpenChunk[]
+	receipt: { id: string; token: string }
 }
+
+export type TransferReceivedResponse = { nextIndex: number | null }
 
 export type TransferErrorBody = {
 	error: string

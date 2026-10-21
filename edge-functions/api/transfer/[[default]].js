@@ -154,10 +154,14 @@ function getNextBeijingCleanupAt(now = Date.now()) {
 	return cleanupAt
 }
 
+function chunkKey(id, index) {
+	return `transfer/items/${id}/chunks/part-${String(index).padStart(5, '0')}.bin`
+}
+
 function keySet(id, code, expireAt) {
 	const expireDate = formatBeijingDate(expireAt)
 	return {
-		chunkKey: index => `transfer/items/${id}/chunks/part-${String(index).padStart(5, '0')}.bin`,
+		chunkKey: index => chunkKey(id, index),
 		metaKey: `transfer/items/${id}/meta.json`,
 		codeKey: `transfer/codes/${code}.json`,
 		expireKey: `transfer/expires/${expireDate}/${id}.json`,
@@ -331,15 +335,33 @@ async function openTransfer(input, env) {
 			url: (await createDownloadUrl(store, keys.chunkKey(chunk.index), LIMITS.downloadUrlSeconds)).url
 		}))
 	)
+	const token = randomId(32)
 	try {
-		await store.setJSON(keys.consumedKey, { id: meta.id, code, consumedAt: Date.now() }, { onlyIfNew: true, cacheControl: 'no-store' })
+		await store.setJSON(keys.consumedKey, { id: meta.id, code, consumedAt: Date.now(), chunkCount: meta.chunkCount, receiptHash: await sha256(token) }, { onlyIfNew: true, cacheControl: 'no-store' })
 	} catch (error) {
 		if (isPreconditionFailed(error, PreconditionFailedError)) throw new TransferError(410, 'consumed', 'Transfer has already been destroyed')
 		throw error
 	}
 
 	await Promise.all([store.delete(keys.metaKey), store.delete(keys.codeKey), store.delete(keys.expireKey)])
-	return { ...publicMeta(meta), chunks }
+	return { ...publicMeta(meta), chunks, receipt: { id: meta.id, token } }
+}
+
+async function receivedTransfer(input, env) {
+	assertBase64Url(input.id, 'id')
+	assertBase64Url(input.token, 'token')
+	const store = await getTransferStore(env)
+	const consumed = await store.get(`transfer/items/${input.id}/consumed.json`, { type: 'json', consistency: 'strong' })
+	if (!consumed?.receiptHash || !safeEqual(await sha256(input.token), consumed.receiptHash)) throw new TransferError(401, 'unauthorized', 'Invalid transfer receipt')
+	const start = input.startIndex
+	if (!Number.isInteger(start) || start < 0 || start >= consumed.chunkCount) throw new TransferError(400, 'invalid_payload', 'Invalid cleanup position')
+	const end = Math.min(start + 20, consumed.chunkCount)
+	for (let index = start; index < end; index += 8) {
+		const results = await Promise.allSettled(Array.from({ length: Math.min(8, end - index) }, (_, offset) => store.delete(chunkKey(input.id, index + offset))))
+		if (results.some(result => result.status === 'rejected')) throw new TransferError(503, 'cleanup_failed', 'Transfer data cleanup failed; retry this page')
+	}
+	// Retain the small consume-once marker until daily cleanup, including during receipt retries.
+	return { nextIndex: end === consumed.chunkCount ? null : end }
 }
 
 function actionFromRequest(request) {
@@ -360,6 +382,7 @@ export async function onRequest(context) {
 		if (request.method === 'POST' && action === 'open') {
 			return json(await openTransfer(await readJson(request), env), 200, request, env)
 		}
+		if (request.method === 'POST' && action === 'received') return json(await receivedTransfer(await readJson(request), env), 200, request, env)
 		if (request.method === 'POST' && action === 'cleanup') {
 			const input = await readJson(request)
 			await assertTransferAdminPassword(input, { env, getRequiredEnv, sha256, safeEqual, TransferError })

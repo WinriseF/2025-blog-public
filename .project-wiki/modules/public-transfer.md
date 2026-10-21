@@ -15,14 +15,14 @@ Owns the password-protected EdgeOne relay at `/t`, including encrypted chunk lif
 | `src/lib/transfer-chunks.ts` | Four-slot chunk scheduling, ordered receive backpressure, cancellation and bounded direct-request retries. |
 | `src/lib/transfer-download-storage.ts` | Browser-private disk storage and temporary-file cleanup for large downloads. |
 | `src/lib/transfer-stats.ts` | Merge paginated admin statistics and retain global largest objects. |
-| `edge-functions/api/transfer/` | Create, complete, meta, open, stats, cleanup API. |
+| `edge-functions/api/transfer/` | Create, complete, meta, open, received, stats, cleanup API. |
 | `edge-functions/api/transfer/cleanup.js` | Bounded deletion pages shared by manual cleanup and the scheduled worker. |
 | `cloud-functions/api/transfer-cleanup.js` | Node.js scheduled cleanup worker, independent of the Edge Fetch budget. |
 | `edgeone.json` | Daily cleanup schedule. |
 
 ## Main Flow
 
-Browser derives an AES-GCM key from the password, creates the chunk manifest and obtains upload URLs. Four browser workers each read, encrypt and upload a chunk directly to Blob; only a fully successful upload calls `complete`. Recipient sends only a derived proof; `open` returns one-time direct download URLs. The browser downloads/decrypts a window of four chunks and consumes them in manifest order.
+Browser derives an AES-GCM key from the password, creates the chunk manifest and obtains upload URLs. Four browser workers each read, encrypt and upload a chunk directly to Blob; only a fully successful upload calls `complete`. Recipient sends only a derived proof; `open` returns one-time direct download URLs and a transfer-scoped receipt. The browser downloads/decrypts a window of four chunks and consumes them in manifest order. After decoding text or preparing a complete local file (closing OPFS when used), it submits the receipt to `received` across bounded requests to remove that transfer's ciphertext.
 
 ## Pay Attention
 
@@ -33,7 +33,8 @@ Browser derives an AES-GCM key from the password, creates the chunk manifest and
 - Chunk GET/PUT requests retry transient network/body-read errors and HTTP 408/429/5xx at most twice, with exponential backoff, jitter and Retry-After. A server cooldown above 30 seconds stops the transfer instead of retrying early. Retries reuse the same URL and upload ciphertext/IV; crypto/authentication failures and other 4xx responses are terminal. Never retry create/open or reopen a consumed code automatically.
 - Both transfer directions share a UI operation guard, byte-weighted completed-chunk progress and explicit cancellation. A failed chunk aborts its peers; wait for all started reads/crypto/network work and any current write to settle before returning or disposing local storage. Leaving the UI aborts uploads as well as downloads, and prevents stale status/results from updating a later operation.
 - Releasing a received file revokes its object URL and removes its temporary disk file. Failed/cancelled receives abort and remove the partial file; an already consumed code stays consumed. Partial uploads remain for normal Blob cleanup. A later large receive clears temporary files older than 24 hours after tab interruptions.
-- The free Blob account quota is 1 GB across stored objects, independent of the per-file limit. Consuming a code removes its indexes; server chunks remain until scheduled/manual cleanup, so an 800 MiB transfer leaves little capacity for additional uploads.
+- Successful receives immediately remove server chunks through `received`, with at most 20 deletes per request and concurrency eight. Authenticate with the random receipt token issued only to the winning `open`; store only its SHA-256 hash and server-owned chunk count in `consumed.json`. Build keys from the validated transfer ID and stored count, never caller-supplied paths. Receipt pages are idempotent and reuse bounded transient-request retries; do not retry create/open. Retain the tiny consume-once marker until normal cleanup so an overlapping open cannot claim the transfer again. Decryption/storage failures never acknowledge receipt; cleanup failures preserve the usable local result and explicitly report deferred cleanup. Cancelling during cleanup releases local resources and stops subsequent pages; already accepted server deletes may finish.
+- The free Blob account quota is 1 GB across stored objects, independent of the per-file limit. Interrupted uploads/receives and unsuccessful receipt cleanup can still occupy capacity until manual/scheduled cleanup. Native browser download completion is not observable: cleanup begins once all bytes are received, decrypted and available locally, independently of saving that local copy to the user's Downloads folder.
 - Do not add a silent Next/Netlify fallback; `NEXT_PUBLIC_TRANSFER_API_BASE` is required.
 - `complete` must not HEAD every chunk; missing objects surface at recipient download.
 - Cleanup is daily 02:00 Asia/Shanghai; stats/manual cleanup require the protected admin-password hash.

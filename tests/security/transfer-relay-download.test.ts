@@ -23,7 +23,8 @@ const meta: TransferPublicMeta = {
   createdAt: Date.now(), chunked: true, chunkSize: TRANSFER_LIMITS.publicRelayChunkBytes,
   chunkCount: chunks.length, chunks
 }
-const options = { code: meta.code, password: 'password', metaUrl: '/meta', openUrl: '/open' }
+const options = { code: meta.code, password: 'password', metaUrl: '/meta', openUrl: '/open', receivedUrl: '/received' }
+const receipt = { id: 'example-transfer-id', token: 'example-receipt-token' }
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -42,7 +43,11 @@ function setup(manifest = meta) {
   const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
     if (url === '/meta') return Response.json(manifest)
     events.push(url)
-    if (url === '/open') return Response.json({ ...manifest, chunks: manifest.chunks.map(chunk => ({ ...chunk, url: `/chunk/${chunk.index}` })) })
+    if (url === '/open') return Response.json({ ...manifest, receipt, chunks: manifest.chunks.map(chunk => ({ ...chunk, url: `/chunk/${chunk.index}` })) })
+    if (url === '/received') {
+      const { startIndex } = JSON.parse(String(_init?.body))
+      return Response.json({ nextIndex: startIndex + 20 >= manifest.chunkCount ? null : startIndex + 20 })
+    }
     return new Response(new Uint8Array([Number(url.split('/').pop())]))
   })
   vi.stubGlobal('fetch', fetcher)
@@ -86,7 +91,7 @@ describe('public relay large-file receive lifecycle', () => {
     const { events, storage } = setup()
     const result = await openRelayTransfer(options)
     expect(createRelayDownloadStorage).toHaveBeenCalledWith(800 * 1024 * 1024)
-    expect(events).toEqual(['storage', '/open', ...chunks.map(chunk => `/chunk/${chunk.index}`)])
+    expect(events).toEqual(['storage', '/open', ...chunks.map(chunk => `/chunk/${chunk.index}`), ...Array(10).fill('/received')])
     expect(storage.write).toHaveBeenCalledTimes(200)
     expect(storage.write).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]))
     expect(storage.finish).toHaveBeenCalledWith('image/png')
@@ -97,12 +102,62 @@ describe('public relay large-file receive lifecycle', () => {
   })
 
   it('removes a partial file when writing a decrypted chunk fails', async () => {
-    const { storage } = setup()
+    const { storage, fetcher } = setup()
     storage.write.mockRejectedValueOnce(new Error('disk full'))
     await expect(openRelayTransfer(options)).rejects.toThrow('disk full')
     expect(storage.dispose).toHaveBeenCalledOnce()
     expect(storage.finish).not.toHaveBeenCalled()
     expect(URL.createObjectURL).not.toHaveBeenCalled()
+    expect(fetcher.mock.calls.some(([url]) => url === '/received')).toBe(false)
+  })
+
+  it('acknowledges only after the full local file is ready and clears all 200 chunks in separate pages', async () => {
+    const { events, storage, fetcher } = setup()
+    storage.finish.mockImplementation(async () => { events.push('file-ready'); return new Blob([new Uint8Array([1])]) })
+    const result = await openRelayTransfer(options)
+    expect(events.indexOf('/received')).toBeGreaterThan(events.indexOf('file-ready'))
+    const requests = fetcher.mock.calls.filter(([url]) => url === '/received').map(([, init]) => JSON.parse(String(init?.body)))
+    expect(requests).toEqual(Array.from({ length: 10 }, (_, index) => ({ ...receipt, startIndex: index * 20 })))
+    await result.file?.dispose()
+  })
+
+  it('keeps the received file usable and reports deferred cleanup if acknowledgement fails', async () => {
+    const { storage, fetcher } = setup()
+    const originalFetch = fetcher.getMockImplementation()!
+    fetcher.mockImplementation((url, init) => url === '/received' ? Promise.resolve(new Response(null, { status: 401 })) : originalFetch(url, init))
+    const onStatus = vi.fn()
+    const result = await openRelayTransfer({ ...options, onStatus })
+    expect(result.file?.url).toBe('blob:relay-test')
+    expect(storage.dispose).not.toHaveBeenCalled()
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled()
+    expect(onStatus).toHaveBeenLastCalledWith('接收成功，中转数据清理未完成，将由定时任务清理')
+    await result.file?.dispose()
+  })
+
+  it('cleans text transfers after decoding the received content', async () => {
+    const plain = new TextEncoder().encode('hello')
+    const manifest = { ...meta, kind: 'text' as const, size: plain.length, chunkCount: 1, chunks: [{ ...chunks[0], plainSize: plain.length, cipherSize: plain.length + 16 }] }
+    const { fetcher } = setup(manifest)
+    vi.mocked(decryptTransferChunk).mockResolvedValue(plain)
+    expect(await openRelayTransfer(options)).toEqual({ text: 'hello' })
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual(['/meta', '/open', '/chunk/0', '/received'])
+    expect(createRelayDownloadStorage).not.toHaveBeenCalled()
+  })
+
+  it('releases the local result and stops further pages when cancelled during receipt cleanup', async () => {
+    const { storage, fetcher } = setup()
+    const pending = deferred<Response>()
+    const originalFetch = fetcher.getMockImplementation()!
+    fetcher.mockImplementation((url, init) => url === '/received' ? pending.promise : originalFetch(url, init))
+    const controller = new AbortController()
+    const run = expect(openRelayTransfer({ ...options, signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.waitFor(() => expect(fetcher.mock.calls.some(([url]) => url === '/received')).toBe(true))
+    controller.abort()
+    pending.resolve(Response.json({ nextIndex: 20 }))
+    await run
+    expect(fetcher.mock.calls.filter(([url]) => url === '/received')).toHaveLength(1)
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:relay-test')
+    expect(storage.dispose).toHaveBeenCalledOnce()
   })
 
   it('cleans a prepared file without consuming the code if the receive is cancelled', async () => {
@@ -171,6 +226,7 @@ describe('public relay large-file receive lifecycle', () => {
     expect(fetcher.mock.calls.filter(([url]) => url === '/open')).toHaveLength(1)
     expect(storage.dispose).toHaveBeenCalledOnce()
     expect(storage.finish).not.toHaveBeenCalled()
+    expect(fetcher.mock.calls.some(([url]) => url === '/received')).toBe(false)
   })
 
   it('retries the same upload ciphertext, reports byte-weighted progress and completes once after all uploads', async () => {

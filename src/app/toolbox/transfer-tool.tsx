@@ -234,7 +234,8 @@ export function TransferTool({ initialCode = '' }: TransferToolProps) {
 		try {
 			const metaUrl = `${transferApiUrl('meta')}?code=${encodeURIComponent(code)}`
 			const openUrl = transferApiUrl('open')
-			const opened = await openRelayTransfer({ code, password: openPassword, metaUrl, openUrl, signal: controller.signal, onStatus: message => reportStatus(controller, message) })
+			const receivedUrl = transferApiUrl('received')
+			const opened = await openRelayTransfer({ code, password: openPassword, metaUrl, openUrl, receivedUrl, signal: controller.signal, onStatus: message => reportStatus(controller, message) })
 			if (controller.signal.aborted || activeTransfer.current !== controller) {
 				await opened.file?.dispose()
 				return

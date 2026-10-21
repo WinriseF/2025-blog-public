@@ -21,6 +21,7 @@ import {
 	type TransferErrorBody,
 	type TransferKind,
 	type TransferOpenResponse,
+	type TransferReceivedResponse,
 	type TransferPublicMeta
 } from './transfer-types'
 
@@ -61,6 +62,7 @@ type OpenRelayOptions = {
 	password: string
 	metaUrl: string
 	openUrl: string
+	receivedUrl: string
 	signal?: AbortSignal
 	onStatus?: StatusSink
 }
@@ -263,8 +265,7 @@ function sortOpenChunks(opened: TransferOpenResponse) {
 	return chunks
 }
 
-async function openChunkManifest(response: Response, key: CryptoKey, storage: RelayDownloadStorage | null, onStatus?: StatusSink, signal?: AbortSignal): Promise<OpenedRelayTransfer> {
-	const opened = (await response.json()) as TransferOpenResponse
+async function openChunkManifest(opened: TransferOpenResponse, key: CryptoKey, storage: RelayDownloadStorage | null, onStatus?: StatusSink, signal?: AbortSignal): Promise<OpenedRelayTransfer> {
 	const chunks = sortOpenChunks(opened)
 	const parts: Uint8Array[] = []
 	let savedBytes = 0
@@ -318,6 +319,21 @@ async function openChunkManifest(response: Response, key: CryptoKey, storage: Re
 	return { file }
 }
 
+async function clearReceivedTransfer(options: OpenRelayOptions, receipt: TransferOpenResponse['receipt']) {
+	const signal = options.signal ?? new AbortController().signal
+	let startIndex = 0
+	while (true) {
+		const page = await requestTransferChunk<TransferReceivedResponse>(options.receivedUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ ...receipt, startIndex })
+		}, response => response.json(), signal, '中转数据清理未完成')
+		if (page.nextIndex === null) return
+		if (!Number.isInteger(page.nextIndex) || page.nextIndex <= startIndex) throw new Error('中转数据清理进度异常')
+		startIndex = page.nextIndex
+	}
+}
+
 export async function openRelayTransfer(options: OpenRelayOptions) {
 	options.signal?.throwIfAborted()
 	options.onStatus?.('正在读取元信息...')
@@ -330,6 +346,7 @@ export async function openRelayTransfer(options: OpenRelayOptions) {
 	// Reserve local storage before the one-time open request consumes the transfer code.
 	if (meta.kind === 'file' && meta.size > TRANSFER_LIMITS.memoryFileBytes) options.onStatus?.('正在准备大文件存储...')
 	const storage = meta.kind === 'file' && meta.size > TRANSFER_LIMITS.memoryFileBytes ? await createRelayDownloadStorage(meta.size) : null
+	let opened: OpenedRelayTransfer | undefined
 	try {
 		options.signal?.throwIfAborted()
 		const response = await fetch(options.openUrl, {
@@ -340,12 +357,21 @@ export async function openRelayTransfer(options: OpenRelayOptions) {
 		})
 		if (!response.ok) throw new Error(await readTransferApiError(response))
 
-		const opened = await openChunkManifest(response, key, storage, options.onStatus, options.signal)
-		if ('file' in opened && opened.file) options.onStatus?.(opened.file.isImage ? '图片读取成功，提取入口已销毁' : '文件已开始下载，提取入口已销毁，下载链接短时有效')
-		else options.onStatus?.('读取成功，提取入口已销毁')
+		const manifest = (await response.json()) as TransferOpenResponse
+		opened = await openChunkManifest(manifest, key, storage, options.onStatus, options.signal)
+		options.onStatus?.('接收成功，正在清理中转数据...')
+		let cleaned = false
+		try {
+			await clearReceivedTransfer(options, manifest.receipt)
+			cleaned = true
+		} catch {
+			options.signal?.throwIfAborted()
+		}
+		options.onStatus?.(cleaned ? '接收成功，中转数据已清理' : '接收成功，中转数据清理未完成，将由定时任务清理')
 		return opened
 	} catch (error) {
-		await storage?.dispose()
+		if (opened?.file) await opened.file.dispose()
+		else await storage?.dispose()
 		throw error
 	}
 }
