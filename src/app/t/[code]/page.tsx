@@ -1,4 +1,3 @@
-import { ToolPageShell } from '../../toolbox/tool-page-shell'
 import { TransferPageClient } from '../transfer-page-client'
 
 type TransferPageContext = {
@@ -9,9 +8,5 @@ type TransferPageContext = {
 
 export default async function Page({ params }: TransferPageContext) {
 	const { code } = await params
-	return (
-		<ToolPageShell mobileFlush>
-			<TransferPageClient initialCode={code} />
-		</ToolPageShell>
-	)
+	return <TransferPageClient initialCode={code} />
 }

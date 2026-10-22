@@ -9,6 +9,7 @@ Owns the password-protected EdgeOne relay at `/t`, including encrypted chunk lif
 | Path | Use it for |
 | --- | --- |
 | `src/app/t/` | Public create/read/status UI. |
+| `src/app/t/transfer-page-client.tsx` | Compact, theme-aware relay page shell shared by `/t` and `/t/[code]`. |
 | `src/app/toolbox/transfer-tool.tsx` | Shared public relay UI and LAN mode switch. |
 | `src/lib/transfer-crypto.ts` | Browser encryption/key derivation. |
 | `src/lib/transfer-relay.ts` | Relay client flow. |
@@ -26,7 +27,9 @@ Browser derives an AES-GCM key from the password, creates the chunk manifest and
 
 ## Pay Attention
 
-- The public-relay tab reveals a separate `/t/status` settings link on hover or keyboard focus; keep it visible on devices without hover. Reserve its space to avoid moving the adjacent LAN tab. The link must not be nested inside the mode button, and status navigation does not prefetch the admin route.
+- `/t` uses a single compact composer with Send/Receive controls; code links and password fragments open Receive directly. File selection is the default, with a single-file drop target and an explicit switch to the text/pasted-image editor. Drafts and completed results survive switching directions; starting another receive disposes the previous local file. A new code prop cancels prior work and clears the old received result. Keep cancellation outside disabled form fields.
+- The header reuses the toolbox entry's existing `Send` icon. Public relay and LAN are both visible choices, followed by a separate, always-visible `/t/status` settings link with prefetch disabled. Busy operations disable direction/LAN switching and input edits. The LAN workbench still mounts through its existing full-screen portal; the covered relay UI is inert.
+- The relay page has its own narrow shell rather than nesting inside the generic toolbox glass card. Reuse the existing time-theme colors and atmosphere; do not force a fixed light theme or introduce new image/logo assets. Successful sends replace the composer with the code, ordinary link, password-bearing link and QR actions, plus an explicit new-send action. Keep the password-bearing link and QR labeled accordingly.
 - Never send plaintext/password through the server; Blob bytes do not pass through Edge Function responses.
 - Text/pasted images are capped at 4 MiB; regular files at 800 MiB with 4 MiB plaintext chunks (at most 200). Upload/download URLs last one hour; the daily transfer expiry still applies. Keep the browser and Edge Function size limits synchronized.
 - Files above 200 MiB require OPFS writable storage. Check available browser quota and prepare the writer before calling the consume-on-open endpoint. Download/decrypt at most four unconsumed chunks; one consumer appends them in order and refills a slot only after its write completes. Slow early chunks or disk writes must not accumulate the entire file in memory. The plaintext window is at most 16 MiB, plus ciphertext/browser buffers. Smaller files still retain the completed file in memory.
