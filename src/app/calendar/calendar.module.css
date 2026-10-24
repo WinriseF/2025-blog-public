@@ -137,69 +137,36 @@
 	align-items: end;
 }
 
+.titleBlock {
+	min-width: 0;
+}
+
 .titleBlock h1 {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 0.45rem 1.4rem;
+	align-items: end;
+	gap: clamp(0.6rem, 2vw, 1.4rem);
 	margin: 0;
-	font-size: clamp(2.9rem, 6.8vw, 6.2rem);
-	line-height: 0.92;
 	font-weight: 500;
-	letter-spacing: -0.055em;
 }
 
 .yearArtwork {
-	position: relative;
-	isolation: isolate;
-	display: inline-block;
-	padding-right: 0.06em;
-	background: linear-gradient(118deg, var(--color-primary) 8%, var(--color-primary) 42%, var(--calendar-season) 62%, var(--color-brand-secondary) 88%);
-	background-clip: text;
-	color: transparent;
-	font-family: 'Times New Roman', Georgia, serif;
-	font-size: 1.28em;
-	font-variant-numeric: lining-nums tabular-nums;
-	font-weight: 400;
-	letter-spacing: -0.045em;
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	filter: drop-shadow(0 0.12em 0.24em color-mix(in srgb, var(--color-brand) 16%, transparent));
-}
-
-.yearArtwork::before {
-	position: absolute;
-	right: -0.04em;
-	bottom: 0.05em;
-	left: 0.04em;
-	z-index: -1;
-	height: 1px;
-	background: linear-gradient(90deg, transparent, var(--calendar-season) 18%, var(--color-brand-secondary) 82%, transparent);
-	content: '';
-	opacity: 0.62;
-	transform: skewX(-18deg);
-}
-
-.yearArtwork::after {
-	position: absolute;
-	inset: 0;
-	z-index: -1;
-	color: transparent;
-	content: attr(data-year);
-	font: inherit;
-	letter-spacing: inherit;
-	opacity: 0.48;
-	transform: translate(0.035em, 0.045em);
-	-webkit-text-fill-color: transparent;
-	-webkit-text-stroke: 1px color-mix(in srgb, var(--color-brand-secondary) 50%, var(--calendar-season));
+	display: block;
+	width: clamp(10rem, 27vw, 21rem);
+	min-width: 0;
+	height: auto;
+	color: color-mix(in srgb, var(--color-primary) 90%, var(--color-brand));
 }
 
 .titleBlock h1 em {
+	flex-shrink: 0;
+	margin-bottom: clamp(0.35rem, 1vw, 0.85rem);
 	color: color-mix(in srgb, var(--color-primary) 84%, var(--color-brand));
 	font-family: 'Songti SC', STSong, SimSun, serif;
 	font-style: normal;
-	font-size: 0.63em;
-	letter-spacing: -0.04em;
+	font-size: clamp(1.5rem, 3vw, 2.65rem);
+	line-height: 1.2;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
 }
 
 .seasonMark {
@@ -806,9 +773,22 @@
 		gap: 2rem;
 	}
 
-	.titleRow,
 	.solarTermHeading {
 		align-items: start;
+	}
+
+	.titleRow {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 1.1rem;
+	}
+
+	.yearArtwork {
+		width: clamp(10rem, 48vw, 20rem);
+	}
+
+	.seasonMark {
+		align-self: end;
 	}
 
 	.stage {
@@ -841,15 +821,6 @@
 @media (max-width: 480px) {
 	.solarTermHeading p {
 		display: none;
-	}
-
-	.titleRow {
-		display: grid;
-		gap: 1.1rem;
-	}
-
-	.seasonMark {
-		justify-self: end;
 	}
 
 	.toolbar {

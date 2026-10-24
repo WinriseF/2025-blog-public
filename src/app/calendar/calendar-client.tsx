@@ -9,6 +9,7 @@ import { getAlmanacDay } from '@/lib/calendar/almanac'
 import { getCalendarFestival } from '@/lib/calendar/festivals'
 import { CalendarDayPanel } from './calendar-day-panel'
 import { CalendarGrid } from './calendar-grid'
+import { CalendarYear } from './calendar-year'
 import { getCalendarDays, getChineseMonth, getSolarTermContext, getYearProgress, toDateKey } from './calendar-data'
 import { SolarTermTrack } from './solar-term-track'
 import styles from './calendar.module.css'
@@ -97,14 +98,7 @@ export function CalendarClient() {
 						<div className={styles.titleRow}>
 							<div className={styles.titleBlock}>
 								<h1>
-									<motion.span
-										key={viewMonth.year()}
-										className={styles.yearArtwork}
-										data-year={viewMonth.year()}
-										initial={{ opacity: 0, y: 8 }}
-										animate={{ opacity: 1, y: 0 }}>
-										{viewMonth.year()}
-									</motion.span>
+									<CalendarYear key={viewMonth.year()} year={viewMonth.year()} />
 									<motion.em key={viewKey} initial={{ opacity: 0, x: direction * 12 }} animate={{ opacity: 1, x: 0 }}>
 										{getChineseMonth(viewMonth.month())}
 									</motion.em>
