@@ -1,0 +1,19 @@
+.surface.surface {
+	box-shadow:
+		0 24px 48px -32px color-mix(in srgb, var(--color-bg) 60%, transparent),
+		inset 0 1px 9px rgb(255 255 255 / 7%);
+}
+
+.starfield {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: linear-gradient(165deg, transparent 15%, color-mix(in srgb, var(--color-bg) 28%, transparent) 100%);
+}
+
+.starfield canvas {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}

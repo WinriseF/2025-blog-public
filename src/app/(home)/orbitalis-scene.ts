@@ -169,11 +169,11 @@ export async function mountOrbitalis(
 
 		const atmosphereGeometry = track(new THREE.SphereGeometry(1, 96, 48))
 		const layers = [
-			{ radius: 5.064 / 5.05, power: 8, opacity: 0.7, colorLinear: [0.16, 0.48, 1], emission: 5 },
-			{ radius: 5.102 / 5.05, power: 12, opacity: 0.25, colorLinear: [0.18, 0.22, 1], emission: 0.8 }
+			{ radius: 5.064 / 5.05, power: 8, opacity: 0.82, colorLinear: [0.16, 0.48, 1], emission: 5 },
+			{ radius: 5.102 / 5.05, power: 12, opacity: 0.32, colorLinear: [0.18, 0.22, 1], emission: 0.8 }
 		]
 		for (const layer of layers) {
-			const atmosphere = track(createAtmosphereMaterial(layer, [0.85052991, 0.45067921, 0.27108523], 0.1))
+			const atmosphere = track(createAtmosphereMaterial(layer, [0.85052991, 0.45067921, 0.27108523], 0.06))
 			const shell = new THREE.Mesh(atmosphereGeometry, atmosphere)
 			shell.scale.setScalar(layer.radius)
 			root.add(shell)

@@ -11,7 +11,7 @@ const LIMITS = {
 	publicRelayChunkBytes: 4 * 1024 * 1024,
 	maxTextBytes: 4 * 1024 * 1024,
 	maxFileBytes: 800 * 1024 * 1024,
-	maxCreatePerIpPerDay: 20,
+	maxCreatePerIpPerDay: 100,
 	uploadUrlSeconds: 60 * 60,
 	downloadUrlSeconds: 60 * 60,
 	statsTopLimit: 50,
