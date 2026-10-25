@@ -1,14 +1,66 @@
 .surface.surface {
+	--planet-treatment: brightness(1.12) contrast(0.9) saturate(0.76);
+	background: var(--color-card);
+	border-color: var(--color-border);
+	color: var(--color-primary);
 	box-shadow:
-		0 24px 48px -32px color-mix(in srgb, var(--color-bg) 60%, transparent),
-		inset 0 1px 9px rgb(255 255 255 / 7%);
+		0 24px 48px -32px color-mix(in srgb, var(--color-primary) 16%, transparent),
+		inset 0 1px 9px rgb(255 255 255 / 24%);
+}
+
+:global(html[data-time-theme='dawn']) .surface.surface {
+	--planet-treatment: brightness(1.14) contrast(0.88) saturate(0.72);
+}
+
+:global(html[data-time-theme='noon']) .surface.surface {
+	--planet-treatment: brightness(1.16) contrast(0.9) saturate(0.7);
+}
+
+:global(html[data-time-theme='sunset']) .surface.surface {
+	--planet-treatment: brightness(1.1) contrast(0.94) saturate(0.84);
+}
+
+:global(html[data-time-theme='night']) .surface.surface {
+	--planet-treatment: none;
+	background: #182326;
+	border-color: rgb(221 232 230 / 14%);
+	color: #dde8e6;
+	box-shadow: 0 24px 48px -32px rgb(16 24 27 / 36%), inset 0 1px 9px rgb(255 255 255 / 7%);
+}
+
+.planet > img, .planet > div {
+	filter: var(--planet-treatment);
+}
+
+.lowerShade {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: linear-gradient(180deg, transparent 78%, var(--color-card) 100%);
+}
+
+:global(html[data-time-theme='night']) .lowerShade {
+	background: linear-gradient(180deg, transparent 62%, rgb(24 35 38 / 80%) 100%);
+}
+
+.greeting {
+	color: inherit;
+	text-shadow: 0 1px 4px var(--color-bg);
+}
+
+:global(html[data-time-theme='night']) .greeting {
+	text-shadow: 0 1px 4px #10181b;
 }
 
 .starfield {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	background: linear-gradient(165deg, transparent 15%, color-mix(in srgb, var(--color-bg) 28%, transparent) 100%);
+	background: radial-gradient(ellipse 48% 54% at 60% 36%, color-mix(in srgb, var(--color-brand-secondary) 10%, transparent), transparent 100%);
+}
+
+:global(html[data-time-theme='night']) .starfield {
+	background: linear-gradient(165deg, transparent 15%, rgb(16 24 27 / 28%) 100%);
 }
 
 .starfield canvas {

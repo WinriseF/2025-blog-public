@@ -35,12 +35,12 @@ export default function HiCard() {
 			height={styles.height}
 			x={x}
 			y={y}
-			className={`${cardAppearance.surface} core-card relative overflow-hidden p-0 text-center text-primary max-sm:static max-sm:translate-0`}>
+			className={`${cardAppearance.surface} core-card relative overflow-hidden p-0 text-center max-sm:static max-sm:translate-0`}>
 			<Starfield />
-			<AnimatedCore className='absolute inset-0 h-full w-full rounded-[40px] [&>img]:scale-[1.15] [&>div]:scale-[1.15]' />
-			<div className='pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_62%,var(--color-card)_100%)]' />
+			<AnimatedCore className={`${cardAppearance.planet} absolute inset-0 h-full w-full rounded-[40px] [&>img]:scale-[1.15] [&>div]:scale-[1.15]`} />
+			<div aria-hidden='true' className={cardAppearance.lowerShade} />
 			<div className='pointer-events-none absolute right-6 bottom-4 left-6 z-20'>
-				<h1 className='font-averia text-2xl leading-none text-primary drop-shadow-[0_1px_4px_var(--color-bg)]'>{greeting}</h1>
+				<h1 className={`${cardAppearance.greeting} font-averia text-2xl leading-none`}>{greeting}</h1>
 			</div>
 		</Card>
 	)
