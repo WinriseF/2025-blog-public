@@ -50,12 +50,14 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const clickEffectPreference = useClickEffectPreference()
 	const pathname = usePathname()
 	const isOrbitalisRoute = pathname === '/orbitalis'
+	const isDatabaseRoute = pathname === '/toolbox/database'
 	const isStackRoute = pathname === '/home' || pathname.startsWith('/home/')
 	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
 	const isVersionControlCallback = pathname === '/toolbox/version-control/agent-return'
 	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.browserDirectory || state.repository))
-	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock' && !isStackRoute && !isOrbitalisRoute
-	const clickEffectEnabled = clickEffectPreference.ready && clickEffectPreference.enabled && atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
+	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock' && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute
+	const clickEffectEnabled =
+		clickEffectPreference.ready && clickEffectPreference.enabled && atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
 	const homeFitActive = pathname === '/' && !maxSM
 	const [homeFit, setHomeFit] = useState({ ready: false, scale: 1 })
 	const [mounted, setMounted] = useState(false)
@@ -101,22 +103,22 @@ function ThemedLayout({ children }: PropsWithChildren) {
 					} as React.CSSProperties
 				}
 			/>
-			{mounted && !isStackRoute && !isOrbitalisRoute ? (
-				<TimeAtmosphereBackground
-					animated={atmosphereAnimated}
-					theme={timeTheme}
-					regenerateKey={`${regenerateKey}-${timeTheme.name}`}
-				/>
+			{mounted && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute ? (
+				<TimeAtmosphereBackground animated={atmosphereAnimated} theme={timeTheme} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
 			) : (
-				<div className='pointer-events-none fixed inset-0 z-0 bg-bg' />
+				<div className='bg-bg pointer-events-none fixed inset-0 z-0' />
 			)}
 			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
-				{!isStackRoute && !isOrbitalisRoute && !isVersionControlCallback && !(isVersionControlRoute && versionControlWorkbenchOpen) && <NavCard />}
+				{!isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isVersionControlCallback && !(isVersionControlRoute && versionControlWorkbenchOpen) && (
+					<NavCard />
+				)}
 			</main>
 			<ClickEffectLayer enabled={clickEffectEnabled} theme={timeTheme} />
 
-			{!isStackRoute && !isOrbitalisRoute && !isVersionControlRoute && pathname !== '/music' && maxSM && init && <ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />}
+			{!isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isVersionControlRoute && pathname !== '/music' && maxSM && init && (
+				<ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />
+			)}
 		</MusicPlayerProvider>
 	)
 }

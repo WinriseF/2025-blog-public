@@ -1,5 +1,7 @@
 # Third-Party Runtime Components
 
+The database viewer serves `@sqlite.org/sqlite-wasm@3.54.1-build1` JavaScript and WASM from the application's own origin, preserving the upstream JavaScript notices. The npm wrapper is Apache-2.0; SQLite is public domain, and the generated Emscripten glue carries its upstream MIT / University of Illinois-NCSA notices. Source: <https://github.com/sqlite/sqlite-wasm>. Selected database contents are not sent to the server.
+
 The image-compression toolbox loads the following pinned browser modules from jsDelivr only after a user starts an operation that needs them. They are not installed into the application bundle. Image bytes are processed locally and are not uploaded to the CDN.
 
 | Component | Version | Purpose | License |

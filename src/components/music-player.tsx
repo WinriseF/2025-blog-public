@@ -290,7 +290,9 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 			{children}
 			<audio ref={audioRef} preload='none' />
 			<FlyingMusicNote animation={flightAnimation} onDone={() => setFlightAnimation(null)} />
-			<FloatingMusicPlayer visible={pathname !== '/music' && pathname !== '/orbitalis' && hasStarted && showFloatingPlayer} />
+			<FloatingMusicPlayer
+				visible={pathname !== '/music' && pathname !== '/orbitalis' && pathname !== '/toolbox/database' && hasStarted && showFloatingPlayer}
+			/>
 		</MusicPlayerContext.Provider>
 	)
 }

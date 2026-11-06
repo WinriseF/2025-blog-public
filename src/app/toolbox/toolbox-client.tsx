@@ -1,11 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
+import { ArrowUpRight, Database, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
 const tools = [
+	{
+		href: '/toolbox/database',
+		label: '数据库查看器',
+		desc: '本地 SQLite / 只读 SQL 查询',
+		tone: 'from-sky-400/20 via-teal-300/10 to-transparent',
+		icon: Database
+	},
 	{
 		href: '/t',
 		label: '快传',

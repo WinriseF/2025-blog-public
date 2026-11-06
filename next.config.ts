@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
 	typescript: {
 		ignoreBuildErrors: false
 	},
+	outputFileTracingIncludes: {
+		'/toolbox/database/runtime/**/*': ['./node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs', './node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm']
+	},
 	experimental: {
 		scrollRestoration: false
 	},
