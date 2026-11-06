@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
-// Use an installed Playwright or an explicit external installation; no production dependency.
-const { chromium } = process.env.PLAYWRIGHT_MODULE ? await import(process.env.PLAYWRIGHT_MODULE) : createRequire(import.meta.url)('playwright')
+import { chromium, baseUrl } from './browser-helpers.mjs'
 const output = path.resolve('.tmp/database')
 mkdirSync(output, { recursive: true })
 const fixture = path.join(output, 'functional.sqlite')
@@ -22,7 +20,7 @@ try {
 	page.on('worker', worker => {
 		if (!worker.url().startsWith('blob:')) workerUrl = worker.url()
 	})
-	await page.goto(`${process.env.DATABASE_TEST_URL || 'http://127.0.0.1:2025'}/toolbox/database`)
+	await page.goto(`${baseUrl}/toolbox/database`)
 	await page.getByLabel('选择 SQLite 文件').setInputFiles(fixture)
 	await page.getByRole('button', { name: '打开表 records', exact: true }).click()
 	await page.getByRole('gridcell', { name: '记录 1', exact: true }).waitFor()

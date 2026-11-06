@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
-import path from 'node:path'
-const { chromium } = process.env.PLAYWRIGHT_MODULE ? await import(process.env.PLAYWRIGHT_MODULE) : createRequire(import.meta.url)('playwright')
+import { chromium, baseUrl, serveLocalMonaco } from './browser-helpers.mjs'
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
-const baseUrl = process.env.DATABASE_TEST_URL || 'http://127.0.0.1:2025'
 try {
 	// Exercise the actual Windows CSS branch in Chromium, including a failed CDN load.
 	const page = await browser.newPage({
@@ -67,11 +64,7 @@ try {
 	const modulePage = await browser.newPage()
 	const moduleErrors = []
 	modulePage.on('pageerror', error => moduleErrors.push(error.message))
-	await modulePage.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', route => {
-		const asset = new URL(route.request().url()).pathname.split('/min/')[1]
-		if (asset === 'vs/editor/editor.main.js') return route.abort()
-		return route.fulfill({ path: path.resolve('node_modules/monaco-editor/min', asset), headers: { 'access-control-allow-origin': '*' } })
-	})
+	await serveLocalMonaco(modulePage, 'vs/editor/editor.main.js')
 	await modulePage.goto(`${baseUrl}/toolbox/database`)
 	await modulePage.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles('.tmp/database/functional.sqlite')
 	await modulePage.getByRole('button', { name: 'SQL 查询' }).click()

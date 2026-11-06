@@ -57,6 +57,33 @@
 .workspace svg {
 	flex-shrink: 0;
 }
+.gridRow:nth-child(even),
+.schemaTable tbody tr:nth-child(even) {
+	background: var(--db-zebra);
+}
+.back:hover,
+.treeItem:hover:not(:disabled),
+.tab:hover:not(:disabled),
+.gridRow:hover {
+	background: var(--db-hover);
+}
+.treeRoot span,
+.treeItem span,
+.tab span,
+.columnHeader button > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.mode[data-active='true'],
+.valueToolbar .button[aria-pressed='true'] {
+	background: var(--db-selected);
+	color: var(--db-accent);
+}
+.workspace ::-webkit-scrollbar-thumb:hover,
+.columnResize:hover {
+	background: var(--db-accent);
+}
 .titlebar {
 	display: flex;
 	align-items: center;
@@ -88,9 +115,6 @@
 	width: 26px;
 	height: 26px;
 	border-radius: 4px;
-}
-.back:hover {
-	background: var(--db-hover);
 }
 .button {
 	display: inline-flex;
@@ -200,12 +224,6 @@
 	padding: 0 11px;
 	font-weight: 600;
 }
-.treeRoot span,
-.treeItem span {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
 .treeRoot svg:nth-child(2) {
 	color: #469c7b;
 }
@@ -235,9 +253,6 @@
 }
 .treeItem svg {
 	color: #6296c8;
-}
-.treeItem:hover:not(:disabled) {
-	background: var(--db-hover);
 }
 .treeItem[data-active='true'] {
 	background: var(--db-selected);
@@ -305,18 +320,10 @@
 	border-top: 2px solid transparent;
 	font-size: 12px;
 }
-.tab span {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
 .tab[data-active='true'] {
 	background: var(--db-bg);
 	border-top-color: var(--db-accent);
 	color: var(--db-accent);
-}
-.tab:hover:not(:disabled) {
-	background: var(--db-hover);
 }
 .objectToolbar {
 	display: flex;
@@ -336,10 +343,6 @@
 	align-items: center;
 	gap: 5px;
 	color: var(--db-muted);
-}
-.mode[data-active='true'] {
-	background: var(--db-selected);
-	color: var(--db-accent);
 }
 .filterBar {
 	display: flex;
@@ -501,9 +504,6 @@
 	border: 3px solid var(--db-panel);
 	border-radius: 6px;
 }
-.workspace ::-webkit-scrollbar-thumb:hover {
-	background: var(--db-accent);
-}
 .workspace .grid::-webkit-scrollbar:horizontal {
 	height: 0;
 }
@@ -572,11 +572,6 @@
 	text-align: left;
 	height: 100%;
 }
-.columnHeader button > span {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
 .typeMark {
 	color: var(--db-muted);
 	font-size: 9px;
@@ -593,17 +588,11 @@
 	z-index: 2;
 	touch-action: none;
 }
-.columnResize:hover {
-	background: var(--db-accent);
-}
 .gridRow {
 	position: absolute;
 	width: 100%;
 	height: 28px;
 	border-bottom: 1px solid var(--db-line);
-}
-.gridRow:nth-child(even) {
-	background: var(--db-zebra);
 }
 .cell {
 	position: absolute;
@@ -769,9 +758,6 @@
 	border-bottom: 1px solid var(--db-line);
 	border-right: 1px solid var(--db-line);
 }
-.schemaTable tbody tr:nth-child(even) {
-	background: var(--db-zebra);
-}
 .schemaSection {
 	padding: 14px 10px 7px;
 	font-weight: 600;
@@ -882,9 +868,6 @@
 	color: var(--db-accent);
 	background: var(--db-selected);
 }
-.gridRow:hover {
-	background: var(--db-hover);
-}
 .valueViewer {
 	display: flex;
 	flex-direction: column;
@@ -928,10 +911,6 @@
 	font-size: 11px;
 	padding: 0 6px;
 	height: 24px;
-}
-.valueToolbar .button[aria-pressed='true'] {
-	background: var(--db-selected);
-	color: var(--db-accent);
 }
 .valueSearch {
 	display: flex;

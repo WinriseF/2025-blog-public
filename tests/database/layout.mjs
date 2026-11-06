@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-const { chromium } = process.env.PLAYWRIGHT_MODULE ? await import(process.env.PLAYWRIGHT_MODULE) : createRequire(import.meta.url)('playwright')
+import { chromium, baseUrl, serveLocalMonaco } from './browser-helpers.mjs'
 const output = path.resolve('.tmp/database')
 mkdirSync(output, { recursive: true })
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
@@ -12,12 +11,9 @@ try {
 	const errors = []
 	page.on('pageerror', error => errors.push(error.message))
 	// Serve the exact installed Monaco version so visual checks do not depend on CDN availability.
-	await page.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', route => {
-		const asset = new URL(route.request().url()).pathname.split('/min/')[1]
-		return route.fulfill({ path: path.resolve('node_modules/monaco-editor/min', asset), headers: { 'access-control-allow-origin': '*' } })
-	})
+	await serveLocalMonaco(page)
 	await page.addInitScript(() => sessionStorage.setItem('blog-time-theme', 'noon'))
-	await page.goto(`${process.env.DATABASE_TEST_URL || 'http://127.0.0.1:2025'}/toolbox/database`)
+	await page.goto(`${baseUrl}/toolbox/database`)
 	const workspace = page.getByRole('region', { name: '数据库工作台' })
 	await page.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles(path.join(output, 'functional.sqlite'))
 	await page.getByRole('button', { name: '打开表 records', exact: true }).click()

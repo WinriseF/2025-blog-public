@@ -14,7 +14,7 @@ export type QueryResult = {
 	elapsedMs: number
 	stats: { bytesRead: number; readCalls: number; maxOffset: number; tempFiles: number; wasmBytes: number }
 }
-export type DatabaseObject = { name: string; type: 'table' | 'view'; sql: string | null }
+export type DatabaseObject = { name: string; type: 'table' | 'view' }
 export type DatabaseInfo = { name: string; size: number; version: string; objects: DatabaseObject[] }
 export type ColumnInfo = { cid: number; name: string; type: string; notnull: number; dflt_value: string | null; pk: number; hidden: number }
 export type TableStructure = { columns: ColumnInfo[]; indexes: Record<string, unknown>[]; foreignKeys: Record<string, unknown>[]; sql: string | null }

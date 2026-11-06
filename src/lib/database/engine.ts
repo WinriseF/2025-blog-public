@@ -51,7 +51,7 @@ export class QueryCursor {
 	private columns: string[] = []
 	private count = 0
 	private bytes = 0
-	private started = 0
+	private decoder = new TextDecoder()
 	private elapsed = 0
 	private deadline = 0
 	constructor(
@@ -69,8 +69,8 @@ export class QueryCursor {
 	start(sql: string, bindings: (string | number)[] = []) {
 		this.close()
 		this.count = this.bytes = this.elapsed = 0
-		this.started = performance.now()
-		this.deadline = this.started + DATABASE_OPERATION_TIMEOUT_MS
+		const started = performance.now()
+		this.deadline = started + DATABASE_OPERATION_TIMEOUT_MS
 		const { capi: c, wasm: w } = this.sqlite
 		c.sqlite3_progress_handler(this.db.pointer!, 10_000, () => (performance.now() > this.deadline ? 1 : 0), 0)
 		const scope = w.scopedAllocPush()
@@ -104,7 +104,7 @@ export class QueryCursor {
 				}
 			})
 			this.columns = Array.from({ length: c.sqlite3_column_count(this.statement) }, (_, index) => c.sqlite3_column_name(this.statement, index))
-			this.elapsed = performance.now() - this.started
+			this.elapsed = performance.now() - started
 			return this.next(false)
 		} catch (error) {
 			this.close()
@@ -157,7 +157,7 @@ export class QueryCursor {
 							rowBytes += length * 2
 							if (this.bytes + rowBytes > MAX_RESULT_BYTES) break
 							const pointer = c.sqlite3_column_blob(this.statement, i)
-							row.push(new TextDecoder().decode(this.sqlite.wasm.heap8u().subarray(pointer, pointer + length)))
+							row.push(this.decoder.decode(this.sqlite.wasm.heap8u().subarray(pointer, pointer + length)))
 						}
 					}
 				}

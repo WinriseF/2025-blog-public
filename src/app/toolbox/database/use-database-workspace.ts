@@ -9,15 +9,15 @@ export function useDatabaseWorkspace() {
 	const task = useRef(0)
 	const seededSql = useRef(false)
 	const [info, setInfo] = useState<DatabaseInfo | null>(null)
-	const [table, setTable] = useState('')
 	const [structure, setStructure] = useState<TableStructure | null>(null)
 	const [tab, setTab] = useState<'data' | 'structure' | 'sql'>('data')
 	const [tableResult, setTableResult] = useState<QueryResult | null>(null)
 	const [sqlResult, setSqlResult] = useState<QueryResult | null>(null)
 	const [query, setQuery] = useState<TableQuery>({ table: '', offset: 0 })
 	const [sql, setSql] = useState('SELECT name, type FROM sqlite_schema;')
-	const [busy, setBusy] = useState(false)
-	const [counting, setCounting] = useState(false)
+	const table = query.table
+	const [operation, setOperation] = useState<'read' | 'count' | null>(null)
+	const busy = operation !== null
 	const [count, setCount] = useState<{ key: string; value: number | bigint; elapsedMs: number } | null>(null)
 	const countKey = JSON.stringify([query.table, query.filter || null])
 	const [error, setError] = useState('')
@@ -32,8 +32,7 @@ export function useDatabaseWorkspace() {
 	}, [])
 	async function perform(work: (id: number) => Promise<void>, kind: 'read' | 'count' = 'read') {
 		const id = ++task.current
-		setBusy(true)
-		setCounting(kind === 'count')
+		setOperation(kind)
 		setError('')
 		setNotice('')
 		try {
@@ -41,10 +40,7 @@ export function useDatabaseWorkspace() {
 		} catch (e) {
 			if (id === task.current) setError(e instanceof Error ? e.message : '操作失败。')
 		} finally {
-			if (id === task.current) {
-				setBusy(false)
-				setCounting(false)
-			}
+			if (id === task.current) setOperation(null)
 		}
 	}
 	function invalidateCursor() {
@@ -52,7 +48,8 @@ export function useDatabaseWorkspace() {
 	}
 	async function loadTable(name: string, id: number) {
 		setCount(null)
-		setTable(name)
+		const next = { table: name, offset: 0 }
+		setQuery(next)
 		setTab('data')
 		setStructure(null)
 		setTableResult(null)
@@ -60,22 +57,23 @@ export function useDatabaseWorkspace() {
 		const schema = await client.current!.call<TableStructure>({ type: 'structure', table: name })
 		if (id !== task.current) return
 		setStructure(schema)
-		const next = { table: name, offset: 0 }
-		setQuery(next)
 		const data = await client.current!.call<QueryResult>({ type: 'table', query: next })
 		if (id === task.current) setTableResult(data)
 	}
-	function open(file?: File) {
-		if (!file) return
+	function resetDatabase() {
 		setCount(null)
 		setInfo(null)
-		setTable('')
+		setQuery({ table: '', offset: 0 })
 		setStructure(null)
 		setTableResult(null)
 		setSqlResult(null)
 		setTab('data')
 		seededSql.current = false
 		setSql('SELECT name, type FROM sqlite_schema;')
+	}
+	function open(file?: File) {
+		if (!file) return
+		resetDatabase()
 		void perform(async id => {
 			const opened = await client.current!.open(file)
 			if (id !== task.current) return
@@ -120,12 +118,15 @@ export function useDatabaseWorkspace() {
 	}
 	function run(statement: string) {
 		if (busy) return
+		invalidateCursor()
 		void perform(async id => {
 			const data = await client.current!.call<QueryResult>({ type: 'query', sql: statement })
 			if (id === task.current) setSqlResult(data)
 		})
 	}
 	function more() {
+		if (busy || !sqlResult?.hasMore) return
+		invalidateCursor()
 		void perform(async id => {
 			const data = await client.current!.call<QueryResult>({ type: 'next' })
 			if (id === task.current) setSqlResult(previous => ({ ...data, rows: [...(previous?.rows || []), ...data.rows] }))
@@ -134,22 +135,15 @@ export function useDatabaseWorkspace() {
 	function cancel() {
 		task.current++
 		client.current?.cancel()
-		setBusy(false)
-		setCounting(false)
+		setOperation(null)
 		setNotice('查询已取消。')
 		invalidateCursor()
 	}
 	function close() {
-		setCount(null)
-		setCounting(false)
 		task.current++
 		client.current?.dispose()
-		setInfo(null)
-		setTableResult(null)
-		setSqlResult(null)
-		setStructure(null)
-		setTable('')
-		setBusy(false)
+		resetDatabase()
+		setOperation(null)
 		setError('')
 		setNotice('')
 		void cleanDatabaseScratch().catch(() => setNotice('临时文件将在下次打开数据库时清理。'))
@@ -166,7 +160,7 @@ export function useDatabaseWorkspace() {
 		sql,
 		setSql,
 		busy,
-		counting,
+		counting: operation === 'count',
 		rowCount: count?.key === countKey ? count : null,
 		countRows,
 		error,

@@ -1,13 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { Copy, Search, WrapText, X } from 'lucide-react'
-import { loadWorkspaceMonaco } from '@/lib/version-control/monaco-runtime'
 import { cellText, formattedJson, isBlob, isJson, writeCellClipboard } from '@/lib/database/cells'
 import type { CellValue } from '@/lib/database/types'
-import { useTimeTheme } from '@/components/time-theme-provider'
-import { applyDatabaseEditorTheme } from './editor-theme'
+import { useDatabaseEditor } from './use-database-editor'
 import styles from './database.module.css'
 
 export function ValueViewer({ value, column, row, onClose }: { value: CellValue; column: string; row: number; onClose: () => void }) {
@@ -17,16 +14,27 @@ export function ValueViewer({ value, column, row, onClose }: { value: CellValue;
 	const [wrap, setWrap] = useState(true)
 	const [search, setSearch] = useState('')
 	const [message, setMessage] = useState('')
-	const [ready, setReady] = useState(false)
-	const surface = useRef<HTMLDivElement>(null)
 	const fallback = useRef<HTMLTextAreaElement>(null)
-	const editor = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
-	const runtime = useRef<typeof Monaco | null>(null)
 	const match = useRef(-1)
 	const text = useMemo(() => (pretty && json ? formattedJson(raw) : raw), [pretty, json, raw])
-	const latest = useRef({ text, json, wrap })
-	latest.current = { text, json, wrap }
-	const { theme } = useTimeTheme()
+	const {
+		element: surface,
+		editor,
+		status
+	} = useDatabaseEditor({
+		value: text,
+		language: json ? 'json' : 'plaintext',
+		options: {
+			readOnly: true,
+			ariaLabel: '单元格完整内容',
+			fontSize: 12,
+			lineHeight: 20,
+			wordWrap: wrap ? 'on' : 'off',
+			renderWhitespace: 'selection',
+			unicodeHighlight: { ambiguousCharacters: false },
+			scrollbar: { vertical: 'visible', horizontal: 'visible', verticalScrollbarSize: 10, horizontalScrollbarSize: 10 }
+		}
+	})
 	const chars = useMemo(() => {
 		let count = 0
 		for (const _ of raw) count++
@@ -38,67 +46,9 @@ export function ValueViewer({ value, column, row, onClose }: { value: CellValue;
 		match.current = -1
 	}, [value, column, row])
 	useEffect(() => {
-		let disposed = false
-		let cleanup: (() => void) | undefined
-		void loadWorkspaceMonaco()
-			.then(monaco => {
-				if (disposed || !surface.current) return
-				runtime.current = monaco
-				applyDatabaseEditorTheme(monaco, surface.current, document.documentElement.dataset.timeTheme === 'night')
-				const model = monaco.editor.createModel(
-					latest.current.text,
-					latest.current.json ? 'json' : 'plaintext',
-					monaco.Uri.parse(`inmemory://database-value/${crypto.randomUUID()}`)
-				)
-				const instance = monaco.editor.create(surface.current, {
-					model,
-					theme: 'database-sql',
-					readOnly: true,
-					automaticLayout: true,
-					minimap: { enabled: false },
-					fontSize: 12,
-					lineHeight: 20,
-					lineNumbersMinChars: 3,
-					wordWrap: latest.current.wrap ? 'on' : 'off',
-					scrollBeyondLastLine: false,
-					padding: { top: 10, bottom: 10 },
-					ariaLabel: '单元格完整内容',
-					renderWhitespace: 'selection',
-					unicodeHighlight: { ambiguousCharacters: false },
-					scrollbar: { vertical: 'visible', horizontal: 'visible', verticalScrollbarSize: 10, horizontalScrollbarSize: 10 }
-				})
-				editor.current = instance
-				cleanup = () => {
-					instance.dispose()
-					model.dispose()
-				}
-				setReady(true)
-			})
-			.catch(() => {
-				/* The read-only text area remains available without the CDN. */
-			})
-		return () => {
-			disposed = true
-			cleanup?.()
-			editor.current = null
-			runtime.current = null
-		}
-	}, [])
-	useEffect(() => {
-		const model = editor.current?.getModel()
-		if (model && runtime.current) {
-			model.setValue(text)
-			runtime.current.editor.setModelLanguage(model, json ? 'json' : 'plaintext')
-			editor.current?.setScrollTop(0)
-		}
+		editor.current?.setScrollTop(0)
 		match.current = -1
-	}, [text, json])
-	useEffect(() => {
-		editor.current?.updateOptions({ wordWrap: wrap ? 'on' : 'off' })
-	}, [wrap])
-	useEffect(() => {
-		if (runtime.current && surface.current) applyDatabaseEditorTheme(runtime.current, surface.current, theme.name === 'night')
-	}, [theme.name, ready])
+	}, [text])
 	async function copy() {
 		try {
 			await writeCellClipboard({ text: raw })
@@ -125,10 +75,10 @@ export function ValueViewer({ value, column, row, onClose }: { value: CellValue;
 		match.current = index + length
 		setMessage('已定位匹配内容')
 		const model = editor.current?.getModel()
-		if (model && runtime.current) {
+		if (model) {
 			const start = model.getPositionAt(index),
 				end = model.getPositionAt(index + length)
-			const range = new runtime.current.Range(start.lineNumber, start.column, end.lineNumber, end.column)
+			const range = { startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column }
 			editor.current!.setSelection(range)
 			editor.current!.revealRangeInCenter(range)
 			editor.current!.focus()
@@ -197,7 +147,7 @@ export function ValueViewer({ value, column, row, onClose }: { value: CellValue;
 			{isBlob(value) && <p className={styles.valueNote}>仅显示前 {Math.min(32, value.blobBytes)} 字节预览，未加载完整二进制内容。</p>}
 			<div className={styles.valueContent}>
 				<div ref={surface} className='absolute inset-0' />
-				{!ready && <textarea ref={fallback} readOnly aria-label='单元格完整内容' value={text} wrap={wrap ? 'soft' : 'off'} />}
+				{status !== 'ready' && <textarea ref={fallback} readOnly aria-label='单元格完整内容' value={text} wrap={wrap ? 'soft' : 'off'} />}
 			</div>
 			<div className={styles.valueStatus} role='status'>
 				{message || (pretty ? '格式化预览 · 复制保留原文' : '可选择文字片段复制')}

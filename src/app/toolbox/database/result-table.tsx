@@ -6,7 +6,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, Copy, PanelRightOpen } from 'lucide-react'
 import type { CellValue } from '@/lib/database/types'
 import styles from './database.module.css'
-import { cellText, isBlob, selectionBounds, selectionClipboard, writeCellClipboard, type CellPosition } from '@/lib/database/cells'
+import { cellText, isBlob, selectionClipboard, writeCellClipboard, type CellPosition } from '@/lib/database/cells'
 import { useCellSelection } from './use-cell-selection'
 import { ValueViewer } from './value-viewer'
 import { CellMenu } from './cell-menu'
@@ -36,7 +36,11 @@ export function ResultTable({
 	const [detailOpen, setDetailOpen] = useState(false)
 	const [gridRatio, setGridRatio] = useState(62)
 	const [copyStatus, setCopyStatus] = useState('')
-	const [menu, setMenu] = useState<{ point: CellPosition; x: number; y: number } | null>(null)
+	const [menu, setMenu] = useState<{ point: CellPosition; x: number; y: number; rows: CellValue[][]; columns: string[]; rowOffset: number } | null>(null)
+	const currentMenu = menu?.rows === rows && menu.columns === columns && menu.rowOffset === rowOffset ? menu : null
+	function openMenu(point: CellPosition, x: number, y: number) {
+		setMenu({ point, x, y, rows, columns, rowOffset })
+	}
 	const [scrollLeft, setScrollLeft] = useState(0)
 	useEffect(() => {
 		const observer = new ResizeObserver(entries => setViewportWidth(entries[0].contentRect.width))
@@ -66,11 +70,11 @@ export function ResultTable({
 		rowCount: rows.length,
 		widths: leaves.map(column => column.getSize()),
 		onOpen: () => setDetailOpen(true),
-		onMenu: (point, x, y) => setMenu({ point, x, y })
+		onMenu: openMenu
 	})
 	const active = cells.selection?.focus
 	const validActive = active && active.row < rows.length && active.column < columns.length ? active : null
-	const bounds = cells.selection ? selectionBounds(cells.selection) : null
+	const bounds = cells.bounds
 	const selectedCount = bounds ? (bounds.bottom - bounds.top + 1) * (bounds.right - bounds.left + 1) : 0
 	useEffect(() => setCopyStatus(''), [cells.selection])
 	function closeMenu() {
@@ -174,7 +178,7 @@ export function ResultTable({
 						if (payload.html) event.clipboardData.setData('text/html', payload.html)
 						setCopyStatus('已复制')
 					}}>
-					<div style={{ width: horizontal.getTotalSize(), minWidth: '100%' }}>
+					<div style={{ width: scrollWidth, minWidth: '100%' }}>
 						<div role='row' className={styles.gridHeader}>
 							<div className={styles.rowNumber} aria-hidden='true'>
 								#
@@ -243,7 +247,6 @@ export function ResultTable({
 										aria-colindex={1}
 										aria-label={`选择第 ${rowOffset + row.index + 1} 行`}
 										onPointerDown={event => {
-											setCopyStatus('')
 											cells.beginDrag(event, { row: row.index, column: 0 }, true)
 										}}>
 										{rowOffset + row.index + 1}
@@ -258,14 +261,13 @@ export function ResultTable({
 												aria-selected={cells.contains({ row: row.index, column: column.index })}
 												data-active={validActive?.row === row.index && validActive.column === column.index}
 												onPointerDown={event => {
-													setCopyStatus('')
 													cells.beginDrag(event, { row: row.index, column: column.index })
 												}}
 												onContextMenu={event => {
 													event.preventDefault()
 													const point = { row: row.index, column: column.index }
 													if (!cells.contains(point)) cells.select(point)
-													setMenu({ point, x: event.clientX, y: event.clientY })
+													openMenu(point, event.clientX, event.clientY)
 												}}
 												aria-colindex={column.index + 2}
 												key={column.key}
@@ -314,15 +316,15 @@ export function ResultTable({
 					/>
 				</>
 			)}
-			{menu && (
+			{currentMenu && (
 				<CellMenu
-					key={`${menu.x}-${menu.y}`}
-					x={menu.x}
-					y={menu.y}
-					preview={isBlob(rows[menu.point.row][menu.point.column])}
+					key={`${currentMenu.x}-${currentMenu.y}`}
+					x={currentMenu.x}
+					y={currentMenu.y}
+					preview={isBlob(rows[currentMenu.point.row][currentMenu.point.column])}
 					hasRange={selectedCount > 1}
 					onCopyValue={() => {
-						void copy({ anchor: menu.point, focus: menu.point })
+						void copy({ anchor: currentMenu.point, focus: currentMenu.point })
 						closeMenu()
 					}}
 					onCopyRange={() => {
@@ -330,10 +332,10 @@ export function ResultTable({
 						closeMenu()
 					}}
 					onCopyRow={() => {
-						void copy({ anchor: { row: menu.point.row, column: 0 }, focus: { row: menu.point.row, column: columns.length - 1 } })
+						void copy({ anchor: { row: currentMenu.point.row, column: 0 }, focus: { row: currentMenu.point.row, column: columns.length - 1 } })
 						closeMenu()
 					}}
-					onView={() => showValue(menu.point)}
+					onView={() => showValue(currentMenu.point)}
 					onClose={restoreFocus => {
 						setMenu(null)
 						if (restoreFocus) cells.focusGrid()

@@ -3,7 +3,6 @@ import { createFileVfs } from './file-vfs'
 import { installReadOnlyPolicy, QueryCursor } from './engine'
 import {
 	MAX_DATABASE_BYTES,
-	PAGE_ROWS,
 	quoteIdentifier,
 	tableSql,
 	countSql,
@@ -58,7 +57,7 @@ async function execute(request: DatabaseRequest) {
 			installReadOnlyPolicy(sqlite, db)
 			cursor = new QueryCursor(sqlite, db, () => ({ ...vfs!.stats, wasmBytes: sqlite.wasm.heap8u().buffer.byteLength }))
 			const objects = db.selectObjects(
-				"SELECT name, type, sql FROM sqlite_schema WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY type, name"
+				"SELECT name, type FROM sqlite_schema WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY type, name"
 			) as DatabaseObject[]
 			return { name: file.name, size: file.size, version: sqlite.capi.sqlite3_libversion(), objects }
 		} catch (error) {
@@ -92,7 +91,6 @@ async function execute(request: DatabaseRequest) {
 		result.stats = extra.stats
 	}
 	cursor.close()
-	result.rows = result.rows.slice(0, PAGE_ROWS)
 	return result
 }
 

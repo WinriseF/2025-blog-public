@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { createReadStream, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-const { chromium } = process.env.PLAYWRIGHT_MODULE ? await import(process.env.PLAYWRIGHT_MODULE) : createRequire(import.meta.url)('playwright')
+import { chromium, baseUrl } from './browser-helpers.mjs'
 const file = process.env.DATABASE_VIEW_FILE
 assert.ok(file, 'Set DATABASE_VIEW_FILE to a local SQLite database for this opt-in view regression test')
 const view = process.env.DATABASE_VIEW_NAME || 'image_coverage'
@@ -35,7 +34,7 @@ try {
 	page.on('worker', worker => {
 		if (!worker.url().startsWith('blob:')) workerUrl = worker.url()
 	})
-	await page.goto(`${process.env.DATABASE_TEST_URL || 'http://127.0.0.1:2025'}/toolbox/database`)
+	await page.goto(`${baseUrl}/toolbox/database`)
 	await page.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles(file)
 	const button = page.getByRole('button', { name: `打开视图 ${view}`, exact: true })
 	await button.click()

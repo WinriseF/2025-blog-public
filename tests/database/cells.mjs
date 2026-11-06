@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { spawnSync } from 'node:child_process'
-import path from 'node:path'
-const { chromium } = process.env.PLAYWRIGHT_MODULE ? await import(process.env.PLAYWRIGHT_MODULE) : createRequire(import.meta.url)('playwright')
+import { chromium, baseUrl, serveLocalMonaco } from './browser-helpers.mjs'
 const fixture = '.tmp/database/cells.sqlite'
 assert.equal(spawnSync('python3', ['tests/database/make-cells-fixture.py']).status, 0)
 const expected = JSON.parse(
@@ -16,18 +14,24 @@ const expected = JSON.parse(
 	).stdout
 )
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
-const base = process.env.DATABASE_TEST_URL || 'http://127.0.0.1:2025'
 try {
 	const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] })
 	const page = await context.newPage(),
 		errors = []
 	page.on('pageerror', error => errors.push(error.message))
-	await page.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', route => {
-		const asset = new URL(route.request().url()).pathname.split('/min/')[1]
-		return route.fulfill({ path: path.resolve('node_modules/monaco-editor/min', asset), headers: { 'access-control-allow-origin': '*' } })
+	await serveLocalMonaco(page)
+	// Hold one query request so the menu/result transition is deterministic.
+	await page.addInitScript(() => {
+		const post = Worker.prototype.postMessage
+		Worker.prototype.postMessage = function (message, ...args) {
+			if (message.type === 'query' && globalThis.holdDatabaseQuery) {
+				globalThis.holdDatabaseQuery = false
+				globalThis.releaseDatabaseQuery = () => post.call(this, message, ...args)
+			} else post.call(this, message, ...args)
+		}
 	})
 	await page.addInitScript(() => sessionStorage.setItem('blog-time-theme', 'noon'))
-	await page.goto(`${base}/toolbox/database`)
+	await page.goto(`${baseUrl}/toolbox/database`)
 	await page.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles(fixture)
 	const grid = page.getByRole('grid', { name: '查询结果' })
 	const cell = (row, column) => grid.locator(`[role=row][aria-rowindex="${row + 1}"] [role=gridcell][aria-colindex="${column + 1}"]`)
@@ -69,6 +73,21 @@ try {
 	await grid.evaluate(el => (el.scrollTop = 0))
 	await grid.getByRole('rowheader', { name: '选择第 1 行', exact: true }).click()
 	assert.equal(await grid.locator('[aria-selected=true]').count(), 8)
+	// Switching from a cell anchor to whole rows must include every column.
+	await cell(1, 2).click()
+	await grid.getByRole('rowheader', { name: '选择第 3 行', exact: true }).click({ modifiers: ['Shift'] })
+	assert.equal(await grid.locator('[aria-selected=true]').count(), 24)
+	assert.ok((await shortcutCopy()).startsWith('1\trow-1\t'))
+	await cell(3, 2).click()
+	await page.keyboard.down('Shift')
+	const rowHeader = await grid.getByRole('rowheader', { name: '选择第 2 行', exact: true }).boundingBox()
+	await page.mouse.move(rowHeader.x + 20, rowHeader.y + 14)
+	await page.mouse.down()
+	await page.mouse.move(rowHeader.x + 20, rowHeader.y - 14, { steps: 5 })
+	await page.mouse.up()
+	await page.keyboard.up('Shift')
+	assert.equal(await grid.locator('[aria-selected=true]').count(), 24)
+	assert.ok((await shortcutCopy()).startsWith('1\trow-1\t'))
 	await cell(1, 2).click({ button: 'right' })
 	await page.getByRole('menuitem', { name: '复制值', exact: true }).click()
 	assert.equal(await readClipboard(), 'row-1')
@@ -147,6 +166,63 @@ try {
 	assert.equal(await page.getByText('只读工作区', { exact: true }).count(), 0)
 	assert.equal(await page.getByText('本地只读', { exact: true }).count(), 1)
 	assert.equal(await page.getByRole('button', { name: '表结构', exact: true }).count(), 0)
+	// A failed metadata read must not leave the count action pointing at the previous table.
+	await page.getByRole('button', { name: '打开视图 broken_view', exact: true }).click()
+	const alert = page.getByRole('region', { name: '数据库工作台' }).getByRole('alert')
+	await alert.filter({ hasText: 'missing_table' }).waitFor()
+	await page.getByRole('button', { name: '统计行数', exact: true }).click()
+	await alert.filter({ hasText: 'missing_table' }).waitFor()
+	assert.equal(await page.getByLabel('行数统计结果', { exact: true }).count(), 0)
+	// SQL failures preserve visible rows but invalidate the old paging cursor.
+	await page.getByRole('button', { name: 'SQL 查询', exact: true }).click()
+	await page.waitForFunction(() => globalThis.monaco?.editor.getModels().some(model => model.uri.authority === 'database'))
+	const run = async sql => {
+		await page.evaluate(
+			sql =>
+				globalThis.monaco.editor
+					.getModels()
+					.find(model => model.uri.authority === 'database')
+					.setValue(sql),
+			sql
+		)
+		await page.getByRole('button', { name: '运行 SQL', exact: true }).click()
+	}
+	const idle = () => page.waitForFunction(() => document.querySelector('button[aria-label="取消"]').disabled)
+	const more = page.getByRole('button', { name: '加载更多', exact: true })
+	await run('SELECT id, name FROM cells')
+	await idle()
+	assert.equal(await more.isEnabled(), true)
+	await run('SELECT * FROM missing_table')
+	await alert.filter({ hasText: 'missing_table' }).waitFor()
+	assert.equal(await more.isEnabled(), false)
+	assert.equal(await grid.getAttribute('aria-rowcount'), '201')
+	await run('SELECT CASE WHEN id > 201 THEN abs(-9223372036854775808) ELSE id END AS id FROM cells')
+	await idle()
+	assert.equal(await more.isEnabled(), true)
+	await more.click()
+	await alert.filter({ hasText: 'integer overflow' }).waitFor()
+	assert.equal(await more.isEnabled(), false)
+	assert.equal(await grid.getAttribute('aria-rowcount'), '201')
+	await run('SELECT id, name FROM cells')
+	await idle()
+	await more.click()
+	await idle()
+	assert.equal(await grid.getAttribute('aria-rowcount'), '241')
+	assert.equal(await more.isEnabled(), false)
+	// Replace results while an old menu is open: same size, fewer rows, and empty.
+	for (const sql of ['SELECT id, name FROM cells ORDER BY id DESC', 'SELECT 42 AS answer', 'SELECT id FROM cells WHERE 0']) {
+		await run('SELECT id, name FROM cells')
+		await idle()
+		await page.evaluate(() => (globalThis.holdDatabaseQuery = true))
+		await run(sql)
+		await cell(3, 2).click({ button: 'right' })
+		await page.getByRole('menu', { name: '单元格操作' }).waitFor()
+		await page.evaluate(() => globalThis.releaseDatabaseQuery())
+		await idle()
+		assert.equal(await page.getByRole('menu', { name: '单元格操作' }).count(), 0)
+		assert.equal(await grid.count(), 1)
+		assert.deepEqual(errors, [])
+	}
 	// Load the dark palette through the real theme preference.
 	await page.addInitScript(() => sessionStorage.setItem('blog-time-theme', 'night'))
 	await page.reload()
@@ -161,7 +237,7 @@ try {
 		offlineErrors = []
 	offline.on('pageerror', error => offlineErrors.push(error.message))
 	await offline.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', route => route.abort())
-	await offline.goto(`${base}/toolbox/database`)
+	await offline.goto(`${baseUrl}/toolbox/database`)
 	await offline.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles(fixture)
 	await offline.locator('[role=row][aria-rowindex="2"] [role=gridcell][aria-colindex="4"]').dblclick()
 	const fallback = offline.getByRole('textbox', { name: '单元格完整内容', exact: true })
@@ -170,7 +246,7 @@ try {
 	assert.equal(await offline.evaluate(() => navigator.clipboard.readText()), expected[1])
 	assert.deepEqual(offlineErrors, [])
 	console.log(
-		'PASS: cell/row/range selection; native clipboard; long text and JSON fidelity; viewer/search/resize; virtual navigation; BLOB/NULL/empty/int64; compact toolbar; CDN fallback'
+		'PASS: cell/row/range selection; Shift whole-row click/drag; stale-menu result replacement; query/paging failure recovery; native clipboard; long text and JSON fidelity; viewer/search/resize; virtual navigation; BLOB/NULL/empty/int64; compact toolbar; CDN fallback'
 	)
 } catch (error) {
 	const page = browser.contexts()[0]?.pages()[0]

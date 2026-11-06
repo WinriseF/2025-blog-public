@@ -17,6 +17,7 @@ export function useCellSelection({
 	onMenu: (point: CellPosition, x: number, y: number) => void
 }) {
 	const [selection, setSelection] = useState<CellSelection | null>(null)
+	const bounds = selection ? selectionBounds(selection) : null
 	const drag = useRef<{
 		anchor: CellPosition
 		wholeRows: boolean
@@ -50,15 +51,20 @@ export function useCellSelection({
 		else if (left + widths[point.column] > el.scrollLeft + el.clientWidth) el.scrollLeft = left + widths[point.column] - el.clientWidth
 	}
 	function select(point: CellPosition, extend = false, wholeRows = false) {
-		const anchor = extend && selection ? selection.anchor : { ...point, column: wholeRows ? 0 : point.column }
+		const origin = extend && selection ? selection.anchor : point
+		const anchor = wholeRows ? { row: origin.row, column: 0 } : origin
 		setSelection({ anchor, focus: { ...point, column: wholeRows ? widths.length - 1 : point.column }, wholeRows })
 		focusGrid()
+		return anchor
 	}
 	function updateDrag() {
+		frame.current = null
 		const current = drag.current,
 			el = container.current
 		if (!current || !current.moved || !el) return
 		const { bounds, x, y, anchor, wholeRows } = current
+		const previousTop = el.scrollTop,
+			previousLeft = el.scrollLeft
 		const edge = 24
 		const dx = x < bounds.left + 44 + edge ? -16 : x > bounds.right - edge ? 16 : 0
 		const dy = y < bounds.top + 30 + edge ? -14 : y > bounds.bottom - edge ? 14 : 0
@@ -77,13 +83,13 @@ export function useCellSelection({
 		}
 		if (wholeRows) column = latest.current.widths.length - 1
 		setSelection(previous => (previous?.focus.row === row && previous.focus.column === column ? previous : { anchor, focus: { row, column }, wholeRows }))
+		if (el.scrollTop !== previousTop || el.scrollLeft !== previousLeft) frame.current = requestAnimationFrame(updateDrag)
 	}
 	function beginDrag(event: PointerEvent, point: CellPosition, wholeRows = false) {
 		if (event.button !== 0 || !container.current) return
 		event.preventDefault()
 		stopDrag()
-		const anchor = event.shiftKey && selection ? selection.anchor : { ...point, column: wholeRows ? 0 : point.column }
-		select(point, event.shiftKey, wholeRows)
+		const anchor = select(point, event.shiftKey, wholeRows)
 		drag.current = {
 			anchor,
 			wholeRows,
@@ -95,25 +101,16 @@ export function useCellSelection({
 			moved: false
 		}
 		container.current.setPointerCapture(event.pointerId)
-		const tick = () => {
-			if (drag.current) {
-				updateDrag()
-				frame.current = requestAnimationFrame(tick)
-			}
-		}
-		frame.current = requestAnimationFrame(tick)
 	}
 	function moveDrag(event: PointerEvent) {
 		if (!drag.current) return
 		drag.current.x = event.clientX
 		drag.current.y = event.clientY
 		drag.current.moved ||= Math.hypot(event.clientX - drag.current.startX, event.clientY - drag.current.startY) > 4
-		updateDrag()
+		if (frame.current === null) updateDrag()
 	}
 	function contains(point: CellPosition) {
-		if (!selection) return false
-		const b = selectionBounds(selection)
-		return point.row >= b.top && point.row <= b.bottom && point.column >= b.left && point.column <= b.right
+		return !!bounds && point.row >= bounds.top && point.row <= bounds.bottom && point.column >= bounds.left && point.column <= bounds.right
 	}
 	function keyDown(event: KeyboardEvent<HTMLDivElement>) {
 		if (event.target !== event.currentTarget || !rowCount || !widths.length) return
@@ -184,5 +181,5 @@ export function useCellSelection({
 		select(next, event.shiftKey && event.key !== 'Tab')
 		reveal(next)
 	}
-	return { selection, setSelection, select, contains, beginDrag, moveDrag, stopDrag, keyDown, focusGrid }
+	return { selection, bounds, setSelection, select, contains, beginDrag, moveDrag, stopDrag, keyDown, focusGrid }
 }
