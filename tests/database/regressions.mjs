@@ -15,12 +15,12 @@ try {
 	await page.route('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/**', route => route.abort())
 	await page.goto(`${baseUrl}/toolbox/database`)
 	await page.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles('.tmp/database/functional.sqlite')
-	await page.getByRole('button', { name: '打开 SQL 编辑器' }).click()
+	await page.getByRole('button', { name: 'SQL 查询' }).click()
 	await page.getByText('高级编辑器加载失败，已切换为基础编辑器，仍可输入和执行 SQL。', { exact: true }).waitFor()
 	const sql = `SELECT id AS first_column, ${Array.from({ length: 40 }, (_, i) => `'value-${i}' AS column_${i}`).join(', ')}, 'right-edge' AS last_column FROM records LIMIT 200;`
 	await page.getByRole('textbox', { name: 'SQL 查询', exact: true }).fill(sql)
 	await page.getByRole('button', { name: '运行 SQL', exact: true }).click()
-	const grid = page.getByRole('table', { name: '查询结果' })
+	const grid = page.getByRole('grid', { name: '查询结果' })
 	await grid.getByRole('columnheader').filter({ hasText: 'first_column' }).waitFor()
 	assert.ok(await page.locator('html').evaluate(el => el.classList.contains('windows')))
 	const geometry = await grid.evaluate(el => ({
@@ -44,11 +44,11 @@ try {
 	await page.mouse.move(scrollBox.x + scrollBox.width - 2, scrollBox.y + scrollBox.height / 2, { steps: 12 })
 	await page.mouse.up()
 	await page.waitForFunction(() => {
-		const grid = document.querySelector('[role=table][aria-label=查询结果]')
+		const grid = document.querySelector('[role=grid][aria-label=查询结果]')
 		return grid.scrollLeft >= grid.scrollWidth - grid.clientWidth - 2
 	})
 	const header = grid.getByRole('columnheader').filter({ hasText: 'last_column' })
-	const cell = grid.getByRole('cell', { name: 'right-edge', exact: true }).first()
+	const cell = grid.getByRole('gridcell', { name: 'right-edge', exact: true }).first()
 	await header.waitFor()
 	const headerBox = await header.boundingBox(),
 		cellBox = await cell.boundingBox()
@@ -60,7 +60,7 @@ try {
 	await page.getByRole('button', { name: 'SQL 查询', exact: true }).click()
 	await page.getByRole('textbox', { name: 'SQL 查询', exact: true }).fill('SELECT 42 AS answer')
 	await page.getByRole('button', { name: '运行 SQL', exact: true }).click()
-	await grid.getByRole('cell', { name: '42', exact: true }).waitFor()
+	await grid.getByRole('gridcell', { name: '42', exact: true }).waitFor()
 	assert.deepEqual(errors, [], 'failed editor loading and tab reopen must not raise an uncaught Event')
 	await page.close()
 	// The loader script may succeed while the editor module fails; this must also be handled.
@@ -74,11 +74,11 @@ try {
 	})
 	await modulePage.goto(`${baseUrl}/toolbox/database`)
 	await modulePage.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles('.tmp/database/functional.sqlite')
-	await modulePage.getByRole('button', { name: '打开 SQL 编辑器' }).click()
+	await modulePage.getByRole('button', { name: 'SQL 查询' }).click()
 	await modulePage.getByText('高级编辑器加载失败，已切换为基础编辑器，仍可输入和执行 SQL。', { exact: true }).waitFor()
 	await modulePage.getByRole('textbox', { name: 'SQL 查询', exact: true }).fill('SELECT 43 AS answer')
 	await modulePage.getByRole('button', { name: '运行 SQL', exact: true }).click()
-	await modulePage.getByRole('cell', { name: '43', exact: true }).waitFor()
+	await modulePage.getByRole('gridcell', { name: '43', exact: true }).waitFor()
 	assert.deepEqual(moduleErrors, [])
 	console.log('PASS: failed loader/module requests; SQL fallback and tab reopen; visible Windows scrollbar; drag to column 42; header alignment')
 } finally {

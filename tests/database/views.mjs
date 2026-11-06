@@ -46,7 +46,7 @@ try {
 	await page.getByText('查询已取消。', { exact: true }).waitFor()
 	const started = performance.now()
 	await button.click()
-	await page.getByRole('table', { name: '查询结果' }).getByRole('cell').first().waitFor({ timeout: 120_000 })
+	await page.getByRole('grid', { name: '查询结果' }).getByRole('gridcell').first().waitFor({ timeout: 120_000 })
 	const uiMs = performance.now() - started
 	assert.ok(uiMs < 60_000, 'the supplied view should no longer hit the old 120-second timeout')
 	// Compare the actual Worker result with native SQLite; do not expose data in the report.

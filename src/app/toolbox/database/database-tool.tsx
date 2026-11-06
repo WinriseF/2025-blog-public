@@ -5,7 +5,6 @@ import Link from 'next/link'
 import {
 	ArrowLeft,
 	ArrowRight,
-	Braces,
 	ChevronDown,
 	ChevronRight,
 	Database,
@@ -77,9 +76,6 @@ export function DatabaseTool() {
 				<div className={styles.paneHeading}>
 					<Table2 size={13} />
 					<strong>查询结果</strong>
-					{result && <span>{result.rows.length.toLocaleString()} 行</span>}
-					<span className={styles.spacer} />
-					{result && <span>{(result.elapsedMs / 1000).toFixed(3)} s</span>}
 				</div>
 			)}
 			{result ? (
@@ -203,38 +199,19 @@ export function DatabaseTool() {
 				</Link>
 				<Database size={16} />
 				<h1>数据库查看器</h1>
-				<span className={styles.muted}>/</span>
-				<span className={styles.filename}>{db.info?.name || '未打开数据库'}</span>
-				<span className={styles.readonly}>
-					<LockKeyhole size={11} />
-					只读工作区
-				</span>
-			</header>
-			<div className={styles.toolbar} role='toolbar' aria-label='数据库工具栏'>
-				<button className={`${styles.button} ${styles.primary}`} onClick={chooseFile}>
-					<FolderOpen size={15} />
-					{db.info ? '切换文件' : '打开文件'}
-				</button>
-				<span className={styles.divider} />
-				<button className={styles.button} disabled={!db.info || db.busy} onClick={db.showSql} aria-label='打开 SQL 编辑器'>
-					<FileCode2 size={15} />
-					SQL 查询
-				</button>
-				<button className={styles.button} disabled={!db.structure} onClick={() => switchTab('structure')}>
-					<Columns3 size={15} />
-					表结构
-				</button>
-				<button
-					className={styles.button}
-					disabled={!db.table || db.busy}
-					onClick={() => {
-						db.setTab('data')
-						db.browse(db.query)
-					}}>
-					<RefreshCw size={14} />
-					刷新
-				</button>
+				{!sidebar && (
+					<>
+						<span className={styles.muted}>/</span>
+						<span className={styles.filename}>{db.info?.name || '未打开数据库'}</span>
+					</>
+				)}
 				<span className={styles.spacer} />
+				{db.info && (
+					<button className={`${styles.button} ${styles.primary}`} onClick={chooseFile}>
+						<FolderOpen size={15} />
+						切换文件
+					</button>
+				)}
 				<button
 					className={styles.button}
 					onClick={() => setSidebar(!sidebar)}
@@ -246,16 +223,12 @@ export function DatabaseTool() {
 					<X size={14} />
 					关闭
 				</button>
-			</div>
+			</header>
 			<div className={styles.body}>
 				{sidebar && (
 					<>
 						<aside className={styles.sidebar} style={{ width: sidebarWidth }} aria-label='对象导航'>
-							<div className={styles.sidebarHeading}>
-								数据库对象
-								<span className={styles.spacer} />
-								<span>LOCAL</span>
-							</div>
+							<div className={styles.sidebarHeading}>数据库对象</div>
 							<div className={styles.search}>
 								<Search size={13} />
 								<input aria-label='搜索表' placeholder='搜索表 / 视图' value={search} onChange={event => setSearch(event.target.value)} />
@@ -302,7 +275,7 @@ export function DatabaseTool() {
 								))}
 							</div>
 							<footer className={styles.sidebarFooter}>
-								<span>{db.info ? `${tables.length} 张表 · ${views.length} 个视图` : '尚未打开文件'}</span>
+								<span>{db.info ? '文件大小' : '尚未打开文件'}</span>
 								{db.info && <span>{formatBytes(db.info.size)}</span>}
 							</footer>
 						</aside>
@@ -317,7 +290,7 @@ export function DatabaseTool() {
 						</button>
 						<button className={styles.tab} data-active={db.tab === 'sql'} disabled={!db.info || db.busy} onClick={() => switchTab('sql')} aria-label='SQL 查询'>
 							<FileCode2 size={13} />
-							<span>查询.sql</span>
+							<span>SQL 查询</span>
 						</button>
 					</nav>
 					{db.error && (
@@ -370,9 +343,17 @@ export function DatabaseTool() {
 											<Columns3 size={13} />
 											结构
 										</button>
-										<span className={styles.divider} />
-										<span className={styles.objectName}>main / {db.table}</span>
 										<span className={styles.spacer} />
+										<button
+											className={styles.button}
+											disabled={db.busy}
+											onClick={() => {
+												db.setTab('data')
+												db.browse(db.query)
+											}}>
+											<RefreshCw size={13} />
+											刷新
+										</button>
 										{db.tab === 'data' && (
 											<button
 												className={styles.button}
@@ -449,12 +430,6 @@ export function DatabaseTool() {
 							) : db.tab === 'sql' ? (
 								<div className={styles.sqlSplit} style={{ '--editor-ratio': `${editorRatio}%` } as CSSProperties}>
 									<div className={styles.editorPane}>
-										<div className={styles.paneHeading}>
-											<Braces size={13} />
-											<strong>SQL 编辑器</strong>
-											<span className={styles.spacer} />
-											<span>SQLite</span>
-										</div>
 										<SqlEditor value={db.sql} onChange={db.setSql} onRun={db.run} disabled={db.busy} />
 									</div>
 									<PaneDivider horizontal percent value={editorRatio} onChange={setEditorRatio} min={18} max={70} label='调整 SQL 编辑区高度' />
@@ -480,12 +455,10 @@ export function DatabaseTool() {
 				)}
 				<span className={styles.spacer} />
 				<span className={styles.optional}>{db.info ? `SQLite ${db.info.version}` : 'SQLite'}</span>
-				{db.info && <span className={styles.optional}>{formatBytes(db.info.size)}</span>}
 				<span>
 					<LockKeyhole size={10} />
-					只读
+					本地只读
 				</span>
-				<span className={styles.optional}>本地文件</span>
 			</footer>
 		</section>
 	)

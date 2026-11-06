@@ -63,6 +63,9 @@ importers:
       interactjs:
         specifier: ^1.10.27
         version: 1.10.28
+      jsonc-parser:
+        specifier: 3.3.1
+        version: 3.3.1
       lucide-react:
         specifier: ^0.553.0
         version: 0.553.0(react@19.2.1)
@@ -2436,6 +2439,9 @@ packages:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
     hasBin: true
+
+  jsonc-parser@3.3.1:
+    resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
 
   katex@0.18.2:
     resolution: {integrity: sha512-3snve4y0SXTMequLim1FMiPvLGElySam0blN5xQZBqEY3lOJz1TnuaaiugnBZBqHzlSAGmFTYL7MCQkORuLKCA==}
@@ -5701,6 +5707,8 @@ snapshots:
   json-parse-even-better-errors@2.3.0: {}
 
   json5@2.2.3: {}
+
+  jsonc-parser@3.3.1: {}
 
   katex@0.18.2:
     dependencies:

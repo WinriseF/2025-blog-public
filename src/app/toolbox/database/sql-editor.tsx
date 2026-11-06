@@ -5,6 +5,7 @@ import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { loadWorkspaceMonaco } from '@/lib/version-control/monaco-runtime'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import styles from './database.module.css'
+import { applyDatabaseEditorTheme } from './editor-theme'
 
 export function SqlEditor({
 	value,
@@ -79,26 +80,7 @@ export function SqlEditor({
 		if (ready)
 			void loadWorkspaceMonaco().then(monaco => {
 				if (!element.current) return
-				const css = getComputedStyle(element.current)
-				// CSS minification can shorten hex colors; Monaco's token map requires six digits.
-				const color = (name: string) =>
-					css
-						.getPropertyValue(name)
-						.trim()
-						.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3')
-				monaco.editor.defineTheme('database-sql', {
-					base: theme.name === 'night' ? 'vs-dark' : 'vs',
-					inherit: true,
-					rules: [],
-					colors: {
-						'editor.background': color('--db-bg'),
-						'editor.foreground': color('--db-text'),
-						'editorLineNumber.foreground': color('--db-muted'),
-						'editor.lineHighlightBackground': color('--db-panel'),
-						'editor.lineHighlightBorder': '#00000000'
-					}
-				})
-				monaco.editor.setTheme('database-sql')
+				applyDatabaseEditorTheme(monaco, element.current, theme.name === 'night')
 			})
 	}, [theme.name, ready])
 	return (

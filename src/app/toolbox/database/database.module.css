@@ -61,7 +61,7 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	height: 38px;
+	height: 44px;
 	flex-shrink: 0;
 	padding: 0 12px;
 	border-bottom: 1px solid var(--db-line);
@@ -91,25 +91,6 @@
 }
 .back:hover {
 	background: var(--db-hover);
-}
-.readonly {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	margin-left: auto;
-	flex-shrink: 0;
-	color: var(--db-muted);
-	font-size: 11px;
-}
-.toolbar {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	min-height: 42px;
-	padding: 5px 10px;
-	flex-shrink: 0;
-	border-bottom: 1px solid var(--db-line);
-	background: var(--db-toolbar);
 }
 .button {
 	display: inline-flex;
@@ -359,13 +340,6 @@
 .mode[data-active='true'] {
 	background: var(--db-selected);
 	color: var(--db-accent);
-}
-.objectName {
-	padding-left: 8px;
-	color: var(--db-muted);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 .filterBar {
 	display: flex;
@@ -631,12 +605,6 @@
 .gridRow:nth-child(even) {
 	background: var(--db-zebra);
 }
-.gridRow:hover {
-	background: var(--db-selected);
-}
-.gridRow[data-selected='true'] {
-	background: var(--db-selected);
-}
 .cell {
 	position: absolute;
 	top: 0;
@@ -655,10 +623,6 @@
 .cell[data-null='true'] {
 	font-style: italic;
 	color: var(--db-muted);
-}
-.cell:focus-visible {
-	outline: 2px solid var(--db-accent);
-	outline-offset: -2px;
 }
 .rowNumber {
 	position: sticky;
@@ -842,12 +806,8 @@
 		max-width: 170px;
 	}
 	.titlebar .filename,
-	.readonly,
 	.statusbar .optional {
 		display: none;
-	}
-	.toolbar {
-		overflow-x: auto;
 	}
 	.filterBar {
 		flex-wrap: wrap;
@@ -858,5 +818,221 @@
 	.tab {
 		min-width: 100px;
 		padding-inline: 10px;
+	}
+}
+
+/* Cell interaction and the optional value inspector share the existing result area. */
+.resultWorkspace {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	min-width: 0;
+	position: relative;
+	overflow: hidden;
+}
+.resultWorkspace[data-details='true'] {
+	display: grid;
+	grid-template-columns: minmax(180px, var(--grid-ratio)) 1px minmax(260px, 1fr);
+}
+.selectionBar {
+	height: 28px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 0 8px;
+	flex-shrink: 0;
+	background: var(--db-toolbar);
+	border-bottom: 1px solid var(--db-line);
+}
+.selectionBar .button {
+	height: 22px;
+	padding: 0 6px;
+	font-size: 11px;
+}
+.selectionStatus {
+	color: var(--db-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 11px;
+}
+.grid:focus {
+	outline: none;
+}
+.grid .cell {
+	user-select: none;
+	cursor: cell;
+}
+.grid .cell[aria-selected='true'] {
+	background: var(--db-selected);
+}
+.grid .cell[data-active='true'] {
+	box-shadow: inset 0 0 0 2px var(--db-accent);
+	z-index: 1;
+}
+.grid .cell[data-empty='true'] {
+	color: var(--db-muted);
+	font-style: italic;
+}
+.grid .rowNumber[role='rowheader'] {
+	cursor: pointer;
+	user-select: none;
+}
+.gridRow[data-row-selected='true'] .rowNumber {
+	color: var(--db-accent);
+	background: var(--db-selected);
+}
+.gridRow:hover {
+	background: var(--db-hover);
+}
+.valueViewer {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--db-bg);
+	overflow: hidden;
+}
+.valueHeading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+	padding: 0 8px 0 12px;
+	background: var(--db-panel);
+	border-bottom: 1px solid var(--db-line);
+}
+.valueHeading strong {
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.valueHeading > span:not(.spacer) {
+	font-size: 11px;
+	color: var(--db-muted);
+	white-space: nowrap;
+}
+.valueMeta {
+	padding: 7px 12px 3px;
+	color: var(--db-muted);
+	font-size: 11px;
+}
+.valueToolbar {
+	display: flex;
+	gap: 4px;
+	padding: 4px 8px;
+	flex-wrap: wrap;
+}
+.valueToolbar .button {
+	font-size: 11px;
+	padding: 0 6px;
+	height: 24px;
+}
+.valueToolbar .button[aria-pressed='true'] {
+	background: var(--db-selected);
+	color: var(--db-accent);
+}
+.valueSearch {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 10px 6px;
+	border: 1px solid var(--db-line);
+	padding-left: 6px;
+	color: var(--db-muted);
+}
+.valueSearch input {
+	min-width: 0;
+	flex: 1;
+	height: 26px;
+	outline: none;
+	color: var(--db-text);
+	font-size: 12px;
+}
+.valueSearch .button {
+	height: 24px;
+	font-size: 11px;
+}
+.valueContent {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	border-top: 1px solid var(--db-line);
+}
+.valueContent textarea {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	resize: none;
+	padding: 10px 12px;
+	color: var(--db-text);
+	background: var(--db-bg);
+	font:
+		12px/20px ui-monospace,
+		SFMono-Regular,
+		Menlo,
+		Consolas,
+		monospace;
+}
+.valueNote {
+	padding: 5px 12px;
+	color: var(--db-muted);
+	font-size: 11px;
+	background: var(--db-panel);
+}
+.valueStatus {
+	min-height: 24px;
+	flex-shrink: 0;
+	padding: 4px 10px;
+	font-size: 11px;
+	color: var(--db-muted);
+	border-top: 1px solid var(--db-line);
+}
+.cellMenu {
+	position: fixed;
+	width: 220px;
+	margin: 0;
+	padding: 4px;
+	border: 1px solid var(--db-line);
+	border-radius: 5px;
+	background: var(--db-bg);
+	color: var(--db-text);
+	box-shadow: 0 5px 18px #0003;
+}
+.cellMenu button {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 7px 9px;
+	text-align: left;
+	font-size: 12px;
+	border-radius: 3px;
+}
+.cellMenu button:hover:not(:disabled),
+.cellMenu button:focus-visible {
+	background: var(--db-selected);
+	outline: none;
+}
+.cellMenu button:disabled {
+	color: var(--db-muted);
+	opacity: 0.5;
+}
+@media (max-width: 850px) {
+	.resultWorkspace[data-details='true'] {
+		display: flex;
+	}
+	.resultWorkspace[data-details='true'] > [role='separator'] {
+		display: none;
+	}
+	.valueViewer {
+		position: absolute;
+		inset: 0 0 0 auto;
+		width: min(90%, 440px);
+		z-index: 6;
+		border-left: 1px solid var(--db-line);
+		box-shadow: -6px 0 20px #0002;
 	}
 }

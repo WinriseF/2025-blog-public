@@ -21,8 +21,8 @@ try {
 	const workspace = page.getByRole('region', { name: '数据库工作台' })
 	await page.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles(path.join(output, 'functional.sqlite'))
 	await page.getByRole('button', { name: '打开表 records', exact: true }).click()
-	await page.getByRole('cell', { name: '记录 1', exact: true }).waitFor()
-	const grid = page.getByRole('table', { name: '查询结果' })
+	await page.getByRole('gridcell', { name: '记录 1', exact: true }).waitFor()
+	const grid = page.getByRole('grid', { name: '查询结果' })
 	for (const size of [
 		{ width: 1366, height: 768 },
 		{ width: 1440, height: 900 },
@@ -36,7 +36,7 @@ try {
 		assert.ok(table.height > size.height * 0.7, 'data grid must use the available window height')
 		assert.equal(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight), false, 'the document must not scroll')
 		await page.waitForFunction(() => {
-			const el = document.querySelector('[role=table][aria-label=查询结果]')
+			const el = document.querySelector('[role=grid][aria-label=查询结果]')
 			return el.scrollWidth <= el.clientWidth
 		})
 		report.layouts.push({ ...size, grid: table })
@@ -84,7 +84,7 @@ try {
 	await drag(split, 0, -45)
 	assert.ok(Math.abs((await split.boundingBox()).y - beforeSplit + 45) < 2)
 	await page.getByRole('button', { name: '打开表 records', exact: true }).click()
-	await page.getByRole('cell', { name: '记录 1', exact: true }).waitFor()
+	await page.getByRole('gridcell', { name: '记录 1', exact: true }).waitFor()
 	await page.getByRole('button', { name: 'SQL 查询', exact: true }).click()
 	await page.waitForFunction(() => globalThis.monaco?.editor.getModels().some(model => model.uri.authority === 'database'))
 	assert.equal(
@@ -103,7 +103,7 @@ try {
 	await page.reload()
 	await page.getByLabel('选择 SQLite 文件', { exact: true }).setInputFiles(path.join(output, 'functional.sqlite'))
 	await page.getByRole('button', { name: '打开表 records', exact: true }).click()
-	await page.getByRole('cell', { name: '记录 1', exact: true }).waitFor()
+	await page.getByRole('gridcell', { name: '记录 1', exact: true }).waitFor()
 	assert.equal(await page.locator('html').getAttribute('data-time-theme'), 'night')
 	await page.screenshot({ path: path.join(output, 'workspace-data-dark.png') })
 	await page.getByRole('button', { name: 'SQL 查询', exact: true }).click()
@@ -119,7 +119,7 @@ try {
 	await page.getByRole('button', { name: '运行 SQL', exact: true }).click()
 	await grid.getByRole('columnheader').filter({ hasText: 'group_name' }).waitFor()
 	await page.waitForFunction(() => {
-		const grid = document.querySelector('[role=table][aria-label=查询结果]')
+		const grid = document.querySelector('[role=grid][aria-label=查询结果]')
 		const headers = grid.querySelectorAll('[role=columnheader]')
 		return Math.abs(headers[headers.length - 1].getBoundingClientRect().right - grid.getBoundingClientRect().right) < 2
 	})
