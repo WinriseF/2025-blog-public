@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTable, tableFeatures, columnSizingFeature, columnResizingFeature } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ArrowDown, ArrowUp, Copy, PanelRightOpen } from 'lucide-react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { CellValue } from '@/lib/database/types'
 import styles from './database.module.css'
 import { cellText, isBlob, selectionClipboard, writeCellClipboard, type CellPosition } from '@/lib/database/cells'
@@ -15,13 +15,17 @@ import { PaneDivider } from './pane-divider'
 const features = tableFeatures({ columnSizingFeature, columnResizingFeature })
 const textWidth = (text: string) => [...text.slice(0, 80)].reduce((width, character) => width + (character.charCodeAt(0) > 255 ? 13 : 7), 0)
 
+export type GridViewport = { top: number; left: number; rows?: CellValue[][] }
+
 export function ResultTable({
 	columns,
 	rows,
 	onSort,
 	sort,
 	disabled,
-	rowOffset = 0
+	rowOffset = 0,
+	viewport,
+	onSelectionStatusChange
 }: {
 	columns: string[]
 	rows: CellValue[][]
@@ -29,8 +33,11 @@ export function ResultTable({
 	sort?: { column: string; desc: boolean }
 	disabled?: boolean
 	rowOffset?: number
+	viewport?: GridViewport
+	onSelectionStatusChange: (status: string) => void
 }) {
 	const container = useRef<HTMLDivElement>(null)
+	const restoredRows = useRef<CellValue[][] | null>(null)
 	const [viewportWidth, setViewportWidth] = useState(0)
 	const gridId = useId()
 	const [detailOpen, setDetailOpen] = useState(false)
@@ -113,36 +120,35 @@ export function ResultTable({
 		horizontal.measure()
 	}, [horizontal, sizing, defs])
 	useEffect(() => {
-		if (container.current) container.current.scrollTop = 0
 		cells.setSelection(null)
 		cells.stopDrag()
 		setCopyStatus('')
 		setMenu(null)
 	}, [rowOffset, columns, rows])
+	useEffect(() => {
+		if (!container.current || !viewportWidth || restoredRows.current === rows) return
+		const saved = viewport?.rows === rows
+		container.current.scrollTop = saved ? viewport.top : 0
+		container.current.scrollLeft = saved ? viewport.left : 0
+		restoredRows.current = rows
+		setScrollLeft(container.current.scrollLeft)
+	}, [rows, viewportWidth, viewport])
+
+	const selectionStatus =
+		copyStatus ||
+		(validActive
+			? selectedCount > 1
+				? `已选择 ${selectedCount.toLocaleString()} 个单元格`
+				: `第 ${rowOffset + validActive.row + 1} 行 · ${columns[validActive.column]}`
+			: '')
+	useEffect(() => {
+		onSelectionStatusChange(selectionStatus)
+		return () => onSelectionStatusChange('')
+	}, [selectionStatus, onSelectionStatusChange])
+
 	return (
 		<div className={styles.resultWorkspace} data-details={detailOpen && !!validActive} style={{ '--grid-ratio': `${gridRatio}%` } as CSSProperties}>
 			<div className={styles.gridFrame}>
-				<div className={styles.selectionBar}>
-					<button className={styles.button} disabled={!validActive} onClick={() => void copy()} aria-label='复制选中内容'>
-						<Copy size={12} />
-						复制
-					</button>
-					<button className={styles.button} disabled={!validActive} onClick={() => showValue()} aria-label='查看单元格内容'>
-						<PanelRightOpen size={13} />
-						查看值
-					</button>
-					<span className={styles.spacer} />
-					<span role='status' className={styles.selectionStatus}>
-						{copyStatus ||
-							(validActive
-								? selectedCount > 1
-									? `已选择 ${selectedCount.toLocaleString()} 个单元格`
-									: detailOpen
-										? '方向键切换 · Shift 扩选'
-										: `第 ${rowOffset + validActive.row + 1} 行 · ${columns[validActive.column]}`
-								: '单击选择 · 双击查看 · Ctrl / ⌘ + C 复制')}
-					</span>
-				</div>
 				<div
 					ref={container}
 					role='grid'
@@ -161,7 +167,11 @@ export function ResultTable({
 					aria-rowcount={rows.length + 1}
 					aria-colcount={columns.length + 1}
 					className={styles.grid}
-					onScroll={event => setScrollLeft(event.currentTarget.scrollLeft)}
+					onScroll={event => {
+						setScrollLeft(event.currentTarget.scrollLeft)
+						if (viewport && restoredRows.current === rows)
+							Object.assign(viewport, { rows, top: event.currentTarget.scrollTop, left: event.currentTarget.scrollLeft })
+					}}
 					onKeyDown={cells.keyDown}
 					onPointerMove={cells.moveDrag}
 					onPointerUp={cells.stopDrag}

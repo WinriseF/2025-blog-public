@@ -67,7 +67,6 @@
 .gridRow:hover {
 	background: var(--db-hover);
 }
-.treeRoot span,
 .treeItem span,
 .tab span,
 .columnHeader button > span {
@@ -216,24 +215,13 @@
 	overflow: auto;
 	padding-bottom: 10px;
 }
-.treeRoot {
-	height: 31px;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 0 11px;
-	font-weight: 600;
-}
-.treeRoot svg:nth-child(2) {
-	color: #469c7b;
-}
 .treeGroup {
 	height: 28px;
 	width: 100%;
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 0 12px 0 23px;
+	padding: 0 12px;
 	color: var(--db-muted);
 	font-size: 11px;
 }
@@ -247,7 +235,7 @@
 	gap: 7px;
 	width: 100%;
 	height: 28px;
-	padding: 0 12px 0 45px;
+	padding: 0 12px 0 28px;
 	text-align: left;
 	border-left: 2px solid transparent;
 }
@@ -258,15 +246,6 @@
 	background: var(--db-selected);
 	border-left-color: var(--db-accent);
 	color: var(--db-accent);
-}
-.sidebarFooter {
-	padding: 10px 12px;
-	border-top: 1px solid var(--db-line);
-	color: var(--db-muted);
-	font-size: 11px;
-	display: flex;
-	justify-content: space-between;
-	gap: 8px;
 }
 .verticalDivider {
 	width: 5px;
@@ -309,16 +288,50 @@
 	border-bottom: 1px solid var(--db-line);
 	background: var(--db-panel);
 }
+.tabList {
+	display: flex;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+.tabs > .button {
+	align-self: center;
+	flex-shrink: 0;
+	margin-inline: 4px;
+}
 .tab {
 	display: flex;
 	align-items: center;
 	gap: 7px;
 	min-width: 126px;
 	max-width: 280px;
-	padding: 0 16px;
+	padding: 0 5px 0 12px;
+	flex-shrink: 0;
 	border-right: 1px solid var(--db-line);
 	border-top: 2px solid transparent;
 	font-size: 12px;
+}
+.tabLabel {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	min-width: 0;
+	height: 100%;
+	flex: 1;
+}
+.tabClose {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+	border-radius: 3px;
+	color: var(--db-muted);
+}
+.tabClose:hover {
+	background: var(--db-hover);
+	color: var(--db-text);
 }
 .tab[data-active='true'] {
 	background: var(--db-bg);
@@ -643,18 +656,7 @@
 	font-size: 11px;
 	line-height: 27px;
 }
-.gridFooter {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	height: 32px;
-	padding: 0 10px;
-	border-top: 1px solid var(--db-line);
-	background: var(--db-toolbar);
-	flex-shrink: 0;
-	font-size: 11px;
-}
-.gridFooter .button {
+.statusbar .button {
 	height: 23px;
 	padding: 0 5px;
 	font-size: 11px;
@@ -674,12 +676,14 @@
 	background: var(--db-bg);
 }
 .statusbar {
-	height: 25px;
+	height: 32px;
+	overflow-x: auto;
+	white-space: nowrap;
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
-	gap: 16px;
-	padding: 0 12px;
+	gap: 8px;
+	padding: 0 10px;
 	border-top: 1px solid var(--db-line);
 	background: var(--db-panel);
 	font-size: 11px;
@@ -692,6 +696,16 @@
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
+}
+.statusbar > :not(.selectionStatus):not(.spacer) {
+	flex-shrink: 0;
+}
+.statusbar .selectionStatus {
+	display: block;
+}
+.statusbar .divider {
+	height: 16px;
+	margin-inline: 2px;
 }
 .statusDot {
 	width: 6px;
@@ -836,22 +850,10 @@
 	display: grid;
 	grid-template-columns: minmax(180px, var(--grid-ratio)) 1px minmax(260px, 1fr);
 }
-.selectionBar {
-	height: 28px;
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	padding: 0 8px;
-	flex-shrink: 0;
-	background: var(--db-toolbar);
-	border-bottom: 1px solid var(--db-line);
-}
-.selectionBar .button {
-	height: 22px;
-	padding: 0 6px;
-	font-size: 11px;
-}
 .selectionStatus {
+	flex: 1;
+	min-width: 0;
+	text-align: right;
 	color: var(--db-muted);
 	overflow: hidden;
 	text-overflow: ellipsis;

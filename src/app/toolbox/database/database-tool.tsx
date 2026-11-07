@@ -24,7 +24,7 @@ import {
 	Columns3,
 	Rows3
 } from 'lucide-react'
-import { PAGE_ROWS, type TableQuery } from '@/lib/database/types'
+import { PAGE_ROWS } from '@/lib/database/types'
 import { ResultTable } from './result-table'
 import { SqlEditor } from './sql-editor'
 import { PaneDivider } from './pane-divider'
@@ -41,11 +41,17 @@ export function DatabaseTool() {
 	const [sidebarWidth, setSidebarWidth] = useState(232)
 	const [editorRatio, setEditorRatio] = useState(32)
 	const [search, setSearch] = useState('')
+	const [selectionStatus, setSelectionStatus] = useState('')
 	const [collapsed, setCollapsed] = useState({ table: false, view: false })
-	const [filterOpen, setFilterOpen] = useState(false)
-	const [filterColumn, setFilterColumn] = useState('')
-	const [operator, setOperator] = useState<NonNullable<TableQuery['filter']>['operator']>('contains')
-	const [filterValue, setFilterValue] = useState('')
+	const { open: filterOpen, column: filterColumn, operator, value: filterValue } = db.filter
+	const setFilterOpen = (open: boolean) => db.setFilter({ open })
+	const setFilterColumn = (column: string) => db.setFilter({ column })
+	const setOperator = (operator: typeof db.filter.operator) => db.setFilter({ operator })
+	const setFilterValue = (value: string) => db.setFilter({ value })
+	const tabs = useRef<HTMLDivElement>(null)
+	useEffect(() => {
+		tabs.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+	}, [db.activeId])
 	const [elapsedSeconds, setElapsedSeconds] = useState(0)
 	useEffect(() => {
 		setElapsedSeconds(0)
@@ -54,11 +60,6 @@ export function DatabaseTool() {
 		const timer = setInterval(() => setElapsedSeconds(Math.floor((performance.now() - started) / 1000)), 1000)
 		return () => clearInterval(timer)
 	}, [db.busy])
-	useEffect(() => {
-		setFilterColumn('')
-		setFilterValue('')
-		setFilterOpen(false)
-	}, [db.table, db.info])
 	const result = db.tab === 'sql' ? db.sqlResult : db.tableResult
 	const tables = db.info?.objects.filter(object => object.type === 'table') || []
 	const views = db.info?.objects.filter(object => object.type === 'view') || []
@@ -80,7 +81,9 @@ export function DatabaseTool() {
 			)}
 			{result ? (
 				<ResultTable
-					key={db.tab === 'sql' ? 'sql' : db.table}
+					key={db.activeId}
+					viewport={db.viewport}
+					onSelectionStatusChange={setSelectionStatus}
 					columns={result.columns}
 					rows={result.rows}
 					disabled={db.busy}
@@ -114,7 +117,11 @@ export function DatabaseTool() {
 					</div>
 				</div>
 			)}
-			<div className={styles.gridFooter}>
+		</div>
+	)
+	const resultFooter =
+		db.activeId && db.tab !== 'structure' ? (
+			<>
 				{db.tab === 'data' ? (
 					<>
 						<button
@@ -135,7 +142,7 @@ export function DatabaseTool() {
 							<ArrowRight size={13} />
 						</button>
 						<span className={styles.divider} />
-						<span className={styles.muted}>每页 {PAGE_ROWS} 行</span>
+						<span className={styles.optional}>{PAGE_ROWS} 行/页</span>
 						<span className={styles.divider} />
 						<button
 							className={styles.button}
@@ -156,20 +163,24 @@ export function DatabaseTool() {
 						加载更多 <ChevronDown size={12} />
 					</button>
 				)}
-				<span className={styles.spacer} />
+				<span role='status' className={styles.selectionStatus} title={selectionStatus}>
+					{selectionStatus}
+				</span>
 				{result?.truncated ? (
 					<span role='status'>已达到 10,000 行或 16 MB 显示上限</span>
 				) : (
 					<span className={styles.muted}>
 						{result
 							? `${result.rows.length ? (db.tab === 'data' ? db.query.offset + 1 : 1) : 0}–${(db.tab === 'data' ? db.query.offset : 0) + result.rows.length} 行`
-							: '就绪'}
+							: ''}
 					</span>
 				)}
 				{result && <span className={styles.muted}>{(result.elapsedMs / 1000).toFixed(3)} s</span>}
-			</div>
-		</div>
-	)
+			</>
+		) : (
+			<span className={styles.spacer} />
+		)
+
 	return (
 		<section
 			className={styles.workspace}
@@ -199,10 +210,12 @@ export function DatabaseTool() {
 				</Link>
 				<Database size={16} />
 				<h1>数据库查看器</h1>
-				{!sidebar && (
+				{db.info && (
 					<>
 						<span className={styles.muted}>/</span>
-						<span className={styles.filename}>{db.info?.name || '未打开数据库'}</span>
+						<span className={styles.filename} title={db.info.name}>
+							{db.info.name}
+						</span>
 					</>
 				)}
 				<span className={styles.spacer} />
@@ -234,11 +247,6 @@ export function DatabaseTool() {
 								<input aria-label='搜索表' placeholder='搜索表 / 视图' value={search} onChange={event => setSearch(event.target.value)} />
 							</div>
 							<div className={styles.tree}>
-								<div className={styles.treeRoot}>
-									<ChevronDown size={12} />
-									<Database size={14} />
-									<span title={db.info?.name}>{db.info?.name || '本地 SQLite'}</span>
-								</div>
 								{(
 									[
 										['table', '表', tables],
@@ -264,7 +272,7 @@ export function DatabaseTool() {
 														key={object.name}
 														aria-label={`打开${type === 'table' ? '表' : '视图'} ${object.name}`}
 														data-active={db.table === object.name}
-														disabled={db.busy}
+														disabled={db.busy && !db.documents.some(document => document.kind === 'table' && document.title === object.name)}
 														onClick={() => db.selectTable(object.name)}
 														title={object.name}>
 														{type === 'table' ? <Table2 size={13} /> : <Eye size={13} />}
@@ -274,23 +282,43 @@ export function DatabaseTool() {
 									</div>
 								))}
 							</div>
-							<footer className={styles.sidebarFooter}>
-								<span>{db.info ? '文件大小' : '尚未打开文件'}</span>
-								{db.info && <span>{formatBytes(db.info.size)}</span>}
-							</footer>
 						</aside>
 						<PaneDivider value={sidebarWidth} onChange={setSidebarWidth} min={180} max={400} label='调整对象导航宽度' />
 					</>
 				)}
 				<div className={styles.main}>
 					<nav className={styles.tabs} aria-label='数据库视图'>
-						<button className={styles.tab} data-active={db.tab !== 'sql'} disabled={!db.table} onClick={() => switchTab('data')}>
-							{selectedObject?.type === 'view' ? <Eye size={13} /> : <Table2 size={13} />}
-							<span>{db.table || '数据表'}</span>
-						</button>
-						<button className={styles.tab} data-active={db.tab === 'sql'} disabled={!db.info || db.busy} onClick={() => switchTab('sql')} aria-label='SQL 查询'>
-							<FileCode2 size={13} />
-							<span>SQL 查询</span>
+						<div ref={tabs} className={styles.tabList}>
+							{db.documents.map(document => (
+								<div key={document.id} className={styles.tab} data-active={db.activeId === document.id}>
+									<button
+										className={styles.tabLabel}
+										aria-label={document.kind === 'sql' ? document.title : `标签 ${document.title}`}
+										aria-pressed={db.activeId === document.id}
+										onClick={() => db.activate(document.id)}
+										title={document.title}>
+										{document.kind === 'sql' ? (
+											<FileCode2 size={13} />
+										) : db.info?.objects.find(object => object.name === document.title)?.type === 'view' ? (
+											<Eye size={13} />
+										) : (
+											<Table2 size={13} />
+										)}
+										<span>{document.title}</span>
+									</button>
+									<button className={styles.tabClose} onClick={() => db.closeDocument(document.id)} aria-label={`关闭标签 ${document.title}`} title='关闭标签'>
+										<X size={12} />
+									</button>
+								</div>
+							))}
+						</div>
+						<button
+							className={styles.button}
+							disabled={!db.info}
+							onClick={db.showSql}
+							aria-label={db.documents.some(document => document.kind === 'sql') ? '新建 SQL 查询' : 'SQL 查询'}
+							title='新建 SQL 查询'>
+							<FileCode2 size={13} /> SQL +
 						</button>
 					</nav>
 					{db.error && (
@@ -317,6 +345,8 @@ export function DatabaseTool() {
 								<p className={styles.hint}>最大 20 GB · 仅本地读取 · 支持完整、未加密的数据库文件</p>
 							</div>
 						</div>
+					) : !db.activeId ? (
+						<div className={styles.empty}>从左侧打开表或视图，或新建 SQL 查询。</div>
 					) : (
 						<div className={styles.view}>
 							<div className={styles.objectToolbar}>
@@ -326,7 +356,7 @@ export function DatabaseTool() {
 											<Play size={12} />
 											运行 SQL
 										</button>
-										<button className={styles.button} disabled={!db.busy} onClick={db.cancel} aria-label='取消'>
+										<button className={styles.button} disabled={!db.busy || db.operationOwner !== db.activeId} onClick={db.cancel} aria-label='取消'>
 											<Square size={12} />
 											停止
 										</button>
@@ -430,7 +460,7 @@ export function DatabaseTool() {
 							) : db.tab === 'sql' ? (
 								<div className={styles.sqlSplit} style={{ '--editor-ratio': `${editorRatio}%` } as CSSProperties}>
 									<div className={styles.editorPane}>
-										<SqlEditor value={db.sql} onChange={db.setSql} onRun={db.run} disabled={db.busy} />
+										<SqlEditor key={db.activeId} value={db.sql} onChange={db.setSql} onRun={db.run} disabled={db.busy} />
 									</div>
 									<PaneDivider horizontal percent value={editorRatio} onChange={setEditorRatio} min={18} max={70} label='调整 SQL 编辑区高度' />
 									{results}
@@ -442,20 +472,24 @@ export function DatabaseTool() {
 					)}
 				</div>
 			</div>
-			<footer className={styles.statusbar} role='status'>
-				<span>
+			<footer className={styles.statusbar} aria-label='数据库状态与分页'>
+				<span role='status'>
 					<i className={styles.statusDot} data-busy={db.busy} />
 					{db.busy ? `${readingLabel}… ${elapsedSeconds} 秒` : db.notice || (db.info ? '就绪' : '未连接')}
 				</span>
-				{db.busy && db.tab !== 'sql' && (
+				{db.busy && (db.tab !== 'sql' || db.operationOwner !== db.activeId) && (
 					<button className={styles.button} onClick={db.cancel} aria-label='取消'>
 						<Square size={11} />
 						停止
 					</button>
 				)}
-				<span className={styles.spacer} />
-				<span className={styles.optional}>{db.info ? `SQLite ${db.info.version}` : 'SQLite'}</span>
-				<span>
+				{resultFooter}
+				{db.info && (
+					<span className={styles.optional} title={`文件大小：${db.info.name}`}>
+						{formatBytes(db.info.size)}
+					</span>
+				)}
+				<span title={db.info ? `SQLite ${db.info.version} · 文件仅在本地读取` : '文件仅在本地读取'}>
 					<LockKeyhole size={10} />
 					本地只读
 				</span>

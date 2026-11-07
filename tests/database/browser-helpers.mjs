@@ -3,7 +3,7 @@ import path from 'node:path'
 
 // Playwright stays outside production dependencies.
 export const { chromium } = process.env.PLAYWRIGHT_MODULE ? await import(process.env.PLAYWRIGHT_MODULE) : createRequire(import.meta.url)('playwright')
-export const baseUrl = process.env.DATABASE_TEST_URL || 'http://127.0.0.1:2025'
+export const baseUrl = process.env.DATABASE_TEST_URL || 'http://localhost:2025'
 
 // Use the pinned, installed Monaco assets for deterministic UI checks. Failure
 // tests may deliberately block one module while the loader itself succeeds.

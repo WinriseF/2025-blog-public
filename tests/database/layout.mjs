@@ -30,6 +30,9 @@ try {
 		const table = await grid.boundingBox()
 		assert.deepEqual(bounds, { x: 0, y: 0, ...size })
 		assert.ok(table.height > size.height * 0.7, 'data grid must use the available window height')
+		assert.equal(table.y, 114, 'selection feedback must not reserve a row above the grid')
+		assert.equal((await page.getByLabel('数据库状态与分页').boundingBox()).height, 32)
+		assert.equal(await page.locator('footer').count(), 1, 'pagination and status must share one footer')
 		assert.equal(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight), false, 'the document must not scroll')
 		await page.waitForFunction(() => {
 			const el = document.querySelector('[role=grid][aria-label=查询结果]')
@@ -48,13 +51,15 @@ try {
 		await page.mouse.up()
 	}
 	const sidebar = page.getByRole('complementary', { name: '对象导航' })
+	assert.equal(await sidebar.getByText('functional.sqlite', { exact: true }).count(), 0)
+	assert.equal(await page.locator('header').getByText('functional.sqlite', { exact: true }).count(), 1)
 	const oldWidth = (await sidebar.boundingBox()).width
 	await drag(page.getByRole('separator', { name: '调整对象导航宽度' }), 48, 0)
 	assert.equal((await sidebar.boundingBox()).width, oldWidth + 48)
 	const column = grid.getByRole('columnheader').first()
 	const oldColumnWidth = (await column.boundingBox()).width
 	await drag(page.getByRole('separator', { name: '调整列 id 宽度', exact: true }), 50, 0)
-	assert.equal((await column.boundingBox()).width, oldColumnWidth + 50)
+	assert.ok(Math.abs((await column.boundingBox()).width - oldColumnWidth - 50) < 1, 'column dragging allows subpixel rounding')
 	await page.getByRole('separator', { name: '调整列 id 宽度', exact: true }).dblclick()
 	assert.equal(await page.locator('html').getAttribute('data-time-theme'), 'noon')
 	await page.screenshot({ path: path.join(output, 'workspace-data-light.png') })
@@ -80,6 +85,8 @@ try {
 	await drag(split, 0, -45)
 	assert.ok(Math.abs((await split.boundingBox()).y - beforeSplit + 45) < 2)
 	await page.getByRole('button', { name: '打开表 records', exact: true }).click()
+	await page.getByText('CREATE TABLE records', { exact: false }).waitFor()
+	await page.getByRole('button', { name: '数据', exact: true }).click()
 	await page.getByRole('gridcell', { name: '记录 1', exact: true }).waitFor()
 	await page.getByRole('button', { name: 'SQL 查询', exact: true }).click()
 	await page.waitForFunction(() => globalThis.monaco?.editor.getModels().some(model => model.uri.authority === 'database'))
@@ -94,6 +101,19 @@ try {
 	)
 	await grid.getByRole('columnheader').filter({ hasText: 'group_name' }).waitFor()
 	await page.screenshot({ path: path.join(output, 'workspace-sql-light.png') })
+	await page.getByRole('button', { name: '新建 SQL 查询', exact: true }).click()
+	await page.waitForFunction(() => globalThis.monaco?.editor.getModels().some(model => model.uri.authority === 'database'))
+	await page.evaluate(() =>
+		globalThis.monaco.editor
+			.getModels()
+			.find(model => model.uri.authority === 'database')
+			.setValue('SELECT 42 AS answer')
+	)
+	await page.getByRole('button', { name: '运行 SQL', exact: true }).click()
+	await grid.getByRole('gridcell', { name: '42', exact: true }).waitFor()
+	await page.getByRole('button', { name: 'SQL 查询', exact: true }).click()
+	await page.waitForFunction(sql => globalThis.monaco?.editor.getModels().some(model => model.uri.authority === 'database' && model.getValue() === sql), sql)
+	await grid.getByRole('columnheader').filter({ hasText: 'group_name' }).waitFor()
 	// Reload the existing explicit night-theme preference and verify the complete editor palette.
 	await page.addInitScript(() => sessionStorage.setItem('blog-time-theme', 'night'))
 	await page.reload()
