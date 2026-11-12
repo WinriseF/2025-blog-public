@@ -1,6 +1,7 @@
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
+import siteContent from '@/config/site-content.json'
 import { CARD_SPACING } from '@/consts'
 import { useRouter } from 'next/navigation'
 import { getAssetUrl } from '@/lib/asset-url'
@@ -8,7 +9,6 @@ import { OptimizedImage } from '@/components/optimized-image'
 
 export default function ArtCard() {
 	const center = useCenterStore()
-	const { cardStyles, siteContent } = useConfigStore()
 	const router = useRouter()
 	const styles = cardStyles.artCard
 	const hiCardStyles = cardStyles.hiCard

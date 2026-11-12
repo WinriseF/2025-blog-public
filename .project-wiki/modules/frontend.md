@@ -17,7 +17,7 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 | `src/app/(home)/quick-controls-card.tsx` | Homepage's animated theme, click-effect, and E/V/N deployment switcher. |
 | `src/config/site-content.json` | Site content plus the configured deployment-switcher targets. |
 | `src/lib/animation-loop.ts` | Visibility-aware frame loops. |
-| `src/app/(home)/` | Card homepage and configuration store. |
+| `src/app/(home)/` | Card homepage; components import static content and card layout JSON directly. |
 | `src/app/orbitalis/` | Full Orbitalis planet/station observatory and on-demand texture quality selection. |
 | `src/app/music/` + `src/components/music-player.tsx` | Music room, cover metadata, and shared playback across routes. |
 | `src/app/(home)/social-buttons.tsx` | Homepage links and the shared animated SVG brand entry to 墨栈. |
@@ -75,7 +75,8 @@ Owns the shared layout, time theme, navigation, atmosphere, homepage behavior, c
 - Keep the visible homepage art-card image eager and high priority because it is the LCP image; other `OptimizedImage` uses remain lazy by default.
 - Keep global click feedback capped, theme-aware, disabled for reduced motion, and inactive on game/world-clock or covered full-screen workbenches. Reuse at most three 192px-square canvases, sized for the maximum point radius plus glow; preserve chronological DOM order for overlapping effects. Clear only active local canvases, stop RAF when empty, and release canvases on cleanup. If particle reach grows, update the canvas bound to avoid clipping.
 - Keep game/world-clock exceptions: hidden or covered Canvas/WebGL work must stop/release resources.
-- Homepage card layout comes from JSON; do not introduce a browser editor by accident.
+- Homepage content and card layout are imported directly from `src/config/site-content.json` and `src/config/card-styles.json`, including navigation and music-page titles. There is no mutable homepage configuration store or background-regeneration action; atmosphere effects follow the existing theme and animation dependencies. Do not introduce a browser editor by accident.
+- Shared viewport state exposes only the consumed `init`, `maxSM`, and `maxXS` flags. Center coordinates are recalculated from the viewport; there is no manual center setter.
 - The former `/home` site-entry plane is now the InkStack auth and encrypted notes workspace. The brand entry and shared-shell exception remain here; auth, encryption, workspace behavior and delivery status are maintained in [InkStack](./inkstack.md). The route consumes the root TimeThemeProvider with no separate theme picker or clock.
 - Preserve compact navigation touch behavior and reduced-motion behavior.
 - Navigation uses one inline SVG per item (document, grid, smile, newspaper trend, globe) through `NavMark`; do not restore outline/filled asset swapping. The whole link triggers a single 650–750ms CSS animation on fine-pointer hover or keyboard focus, with staggered document lines and no mount/idle animation, timers, or React animation state. Keep the paper fold endpoints connected. `aria-current` retains the active theme color; reduced motion keeps static icons. Both full and compact navigation share the same marks. The ten former navigation SVG files and their preview-index entries are removed.

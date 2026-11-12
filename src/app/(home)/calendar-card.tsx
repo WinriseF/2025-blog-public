@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 import { CARD_SPACING } from '@/consts'
 import { cn } from '@/lib/utils'
 import { getCalendarFestival, isHolidayOffDay } from '@/lib/calendar/festivals'
@@ -17,7 +17,6 @@ const dates = ['一', '二', '三', '四', '五', '六', '日']
 export default function CalendarCard() {
 	const router = useRouter()
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const now = dayjs()
 	const currentDate = now.date()
 	const firstDayOfMonth = now.startOf('month')

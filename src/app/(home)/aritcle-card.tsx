@@ -1,7 +1,7 @@
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
 import { useLatestBlog } from '@/hooks/use-blog-index'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 import { CARD_SPACING } from '@/consts'
 import dayjs from 'dayjs'
 import Link from 'next/link'
@@ -10,7 +10,6 @@ import { OptimizedImage } from '@/components/optimized-image'
 
 export default function ArticleCard() {
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const { blog, loading } = useLatestBlog()
 	const styles = cardStyles.articleCard
 	const hiCardStyles = cardStyles.hiCard

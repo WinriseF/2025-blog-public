@@ -13,7 +13,8 @@ import clsx from 'clsx'
 import { cn } from '@/lib/utils'
 import { getAssetUrl } from '@/lib/asset-url'
 import { useSize } from '@/hooks/use-size'
-import { useConfigStore } from '@/app/(home)/stores/config-store'
+import siteContent from '@/config/site-content.json'
+import cardStyles from '@/config/card-styles.json'
 import { OptimizedImage } from '@/components/optimized-image'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import { AppearanceControl } from '@/components/appearance-control'
@@ -85,9 +86,9 @@ export default function NavCard() {
 	const isCurrentPath = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 	const activeIndex = list.findIndex(item => isCurrentPath(item.href))
 	const [hoveredIndex, setHoveredIndex] = useState(Math.max(activeIndex, form === 'icons' ? -1 : 0))
-	const siteTitle = useConfigStore(state => state.siteContent.meta.title)
-	const styles = useConfigStore(state => state.cardStyles.navCard)
-	const hiCardStyles = useConfigStore(state => state.cardStyles.hiCard)
+	const siteTitle = siteContent.meta.title
+	const styles = cardStyles.navCard
+	const hiCardStyles = cardStyles.hiCard
 
 	const itemHeight = form === 'full' ? 52 : 28
 

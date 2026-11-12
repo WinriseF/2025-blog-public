@@ -10,7 +10,6 @@ interface DialogModalProps {
 	onClose: () => void
 	children: ReactNode
 	className?: string
-	overlayClassName?: string
 	disableCloseOnOverlay?: boolean
 	lockScroll?: boolean
 	closeOnEsc?: boolean

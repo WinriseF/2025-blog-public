@@ -4,13 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 import { CARD_SPACING } from '@/consts'
 
 export default function ClockCard() {
 	const router = useRouter()
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const [time, setTime] = useState(new Date())
 	const styles = cardStyles.clockCard
 	const hiCardStyles = cardStyles.hiCard

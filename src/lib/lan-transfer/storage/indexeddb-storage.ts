@@ -75,13 +75,6 @@ function openDb() {
 	return dbPromise
 }
 
-export async function closeLanIndexedDb() {
-	if (!dbPromise) return
-	const db = await dbPromise.catch(() => null)
-	db?.close()
-	dbPromise = null
-}
-
 export class IndexedDbStorageEngine implements LanStorageEngine {
 	kind = 'indexeddb' as const
 

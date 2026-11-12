@@ -2,11 +2,10 @@ import LikeButton from '@/components/like-button'
 import { ANIMATION_DELAY, CARD_SPACING } from '@/consts'
 import { motion } from 'motion/react'
 import { useCenterStore } from '@/hooks/use-center'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 
 export default function LikePosition() {
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const styles = cardStyles.likePosition
 	const hiCardStyles = cardStyles.hiCard
 	const socialButtonsStyles = cardStyles.socialButtons

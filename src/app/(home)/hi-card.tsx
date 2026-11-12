@@ -1,6 +1,6 @@
 import { useCenterStore } from '@/hooks/use-center'
 import Card from '@/components/card'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 import AnimatedCore from './animated-core'
 import cardAppearance from './hi-card.module.css'
 import Starfield from './starfield'
@@ -21,7 +21,6 @@ function getGreeting() {
 
 export default function HiCard() {
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const greeting = getGreeting()
 	const styles = cardStyles.hiCard
 

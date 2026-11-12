@@ -5,14 +5,14 @@ import { LoaderCircle, Pause, Play } from 'lucide-react'
 import { useMusicPlayer } from '@/components/music-player'
 import { OptimizedImage } from '@/components/optimized-image'
 import { getAssetUrl } from '@/lib/asset-url'
-import { useConfigStore } from '@/app/(home)/stores/config-store'
+import siteContent from '@/config/site-content.json'
 import MusicControls from './music-controls'
 import { list } from './list'
 import styles from './music.module.css'
 
 export default function MusicClient() {
 	const { currentMusic, duration, hasMusic, isPlaying, isLoading, loadError, playMusic, togglePlayback } = useMusicPlayer()
-	const siteTitle = useConfigStore(state => state.siteContent.meta.title)
+	const siteTitle = siteContent.meta.title
 	const activeSong = currentMusic ?? list[0]
 	const controlsRef = useRef<HTMLDivElement>(null)
 	const [showMobileDock, setShowMobileDock] = useState(false)

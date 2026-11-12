@@ -1,4 +1,3 @@
-export const TRANSFER_CODE_LENGTH = 6
 export const TRANSFER_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/
 export const TRANSFER_UPLOAD_CONTENT_TYPE = 'application/octet-stream'
 

@@ -59,7 +59,7 @@ edge-functions/   EdgeOne transfer relay
 
 - **Article:** read `public/blogs/index.json`, then the target `config.json` and `index.md`; consult the image policy before touching images.
 - **About page:** edit `public/about.md` for rendered content and `src/app/about/list.json` for title/description metadata.
-- **Homepage:** read `src/app/(home)/page.tsx`, `src/config/site-content.json`, `src/config/card-styles.json`, and the homepage config store.
+- **Homepage:** read `src/app/(home)/page.tsx`, `src/config/site-content.json`, `src/config/card-styles.json`; components import these static configurations directly.
 - **Markdown rendering:** read `src/hooks/use-markdown-render.tsx`, `src/lib/markdown-renderer.ts`, `src/components/blog-preview.tsx`, then code/image components as needed.
 - **News:** read `src/lib/news.ts` and the matching page; read `src/app/api/newsnow/focus/route.ts` when changing live-focus loading.
 - **Likes:** read `src/components/like-button.tsx`, the Supabase function, and its migration before changing behavior.

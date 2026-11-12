@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 import { CARD_SPACING } from '@/consts'
 import PlaySVG from '@/svgs/play.svg'
 import { formatMusicTime, MusicProgress, useMusicPlayer } from '@/components/music-player'
@@ -15,7 +15,6 @@ import { OptimizedImage } from '@/components/optimized-image'
 export default function MusicCard() {
 	const router = useRouter()
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const playButtonRef = useRef<HTMLButtonElement | null>(null)
 	const { currentMusic, currentTime, duration, hasMusic, isPlaying, isLoading, loadError, togglePlaybackFrom } = useMusicPlayer()
 	const styles = cardStyles.musicCard

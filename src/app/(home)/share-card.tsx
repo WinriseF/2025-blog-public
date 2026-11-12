@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Card from '@/components/card'
 import { useCenterStore } from '@/hooks/use-center'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 import { CARD_SPACING } from '@/consts'
 import shareList from '@/app/share/list.json'
 import Link from 'next/link'
@@ -21,7 +21,6 @@ type ShareItem = {
 
 export default function ShareCard() {
 	const center = useCenterStore()
-	const { cardStyles } = useConfigStore()
 	const [randomItem, setRandomItem] = useState<ShareItem | null>(null)
 	const styles = cardStyles.shareCard
 	const hiCardStyles = cardStyles.hiCard

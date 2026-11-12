@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Globe2, Moon, SunMedium, Sunrise, Sunset } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ANIMATION_DELAY, CARD_SPACING } from '@/consts'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
+import siteContent from '@/config/site-content.json'
 import { useCenterStore } from '@/hooks/use-center'
 import { useSize } from '@/hooks/use-size'
 import { useClickEffectPreference } from '@/components/click-effect-preference'
@@ -41,7 +42,6 @@ function clamp(value: number, min: number, max: number) {
 
 export default function QuickControlsCard() {
 	const center = useCenterStore()
-	const { cardStyles, siteContent } = useConfigStore()
 	const { maxSM } = useSize()
 	const { theme, setThemeName } = useTimeTheme()
 	const clickEffect = useClickEffectPreference()

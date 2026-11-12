@@ -7,7 +7,6 @@ import NavCard from '@/components/nav-card'
 import { Toaster } from 'sonner'
 import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from 'lucide-react'
 import { useSize, useSizeInit } from '@/hooks/use-size'
-import { useConfigStore } from '@/app/(home)/stores/config-store'
 import { ScrollTopButton } from '@/components/scroll-top-button'
 import { MusicPlayerProvider } from '@/components/music-player'
 import { ClickEffectPreferenceProvider, useClickEffectPreference } from '@/components/click-effect-preference'
@@ -44,7 +43,6 @@ export default function Layout({ children }: PropsWithChildren) {
 function ThemedLayout({ children }: PropsWithChildren) {
 	useCenterInit()
 	useSizeInit()
-	const { regenerateKey } = useConfigStore()
 	const { maxSM, init } = useSize()
 	const { theme: timeTheme } = useTimeTheme()
 	const clickEffectPreference = useClickEffectPreference()
@@ -104,7 +102,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 				}
 			/>
 			{mounted && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute ? (
-				<TimeAtmosphereBackground animated={atmosphereAnimated} theme={timeTheme} regenerateKey={`${regenerateKey}-${timeTheme.name}`} />
+				<TimeAtmosphereBackground animated={atmosphereAnimated} theme={timeTheme} />
 			) : (
 				<div className='bg-bg pointer-events-none fixed inset-0 z-0' />
 			)}

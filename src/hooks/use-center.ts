@@ -10,7 +10,6 @@ type CenterState = {
 	centerY: number
 	width: number
 	height: number
-	setCenter: (x: number, y: number) => void
 	recalc: () => void
 }
 
@@ -34,7 +33,6 @@ export const useCenterStore = create<CenterState>(set => ({
 	centerY: 0,
 	width: 0,
 	height: 0,
-	setCenter: (x, y) => set({ x, y }),
 	recalc: () => {
 		const c = computeCenter()
 		set(current => {

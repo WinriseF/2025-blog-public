@@ -5,9 +5,6 @@ import { create } from 'zustand'
 
 type SizeState = {
 	init: boolean
-	maxXL: boolean
-	maxLG: boolean
-	maxMD: boolean
 	maxSM: boolean
 	maxXS: boolean
 	recalc: () => void
@@ -15,9 +12,6 @@ type SizeState = {
 
 const initState = {
 	init: false,
-	maxXL: false,
-	maxLG: false,
-	maxMD: false,
 	maxSM: false,
 	maxXS: false
 }
@@ -27,9 +21,6 @@ const computeSize = (): Omit<SizeState, 'recalc'> => {
 
 	return {
 		init: true,
-		maxXL: width < 1280,
-		maxLG: width < 1024,
-		maxMD: width < 768,
 		maxSM: width < 640,
 		maxXS: width < 360
 	}
@@ -42,9 +33,6 @@ export const useSizeStore = create<SizeState>(set => ({
 			const next = computeSize()
 			if (
 				current.init === next.init &&
-				current.maxXL === next.maxXL &&
-				current.maxLG === next.maxLG &&
-				current.maxMD === next.maxMD &&
 				current.maxSM === next.maxSM &&
 				current.maxXS === next.maxXS
 			) {

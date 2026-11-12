@@ -2,7 +2,8 @@ import { useCenterStore } from '@/hooks/use-center'
 import GithubSVG from '@/svgs/github.svg'
 import Link from 'next/link'
 import { ANIMATION_DELAY, CARD_SPACING } from '@/consts'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
+import siteContent from '@/config/site-content.json'
 import JuejinSVG from '@/svgs/juejin.svg'
 import EmailSVG from '@/svgs/email.svg'
 import { motion } from 'motion/react'
@@ -26,7 +27,6 @@ interface SocialButtonConfig {
 
 export default function SocialButtons() {
 	const center = useCenterStore()
-	const { cardStyles, siteContent } = useConfigStore()
 	const { maxSM, init } = useSize()
 	const styles = cardStyles.socialButtons
 	const hiCardStyles = cardStyles.hiCard

@@ -1,5 +1,5 @@
 import type { LanNativePeerBulkPort } from './ports'
-import type { LanNativeFileDirection, LanNativeTransferGrant } from './types'
+import type { LanNativeFileDirection } from './types'
 import { NATIVE_AGENT_FILE_VERSION } from './types'
 import { selectLocalNetworkAccessFileEndpoint } from './peer-lna-http'
 import { NativeFileStorageWriter, NATIVE_FILE_IO_BLOCK_BYTES } from './native-storage-writer'

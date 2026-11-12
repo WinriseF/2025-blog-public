@@ -9,7 +9,6 @@ import AmbientEffectLayer from './ambient-effect-layer'
 type TimeAtmosphereBackgroundProps = {
 	animated?: boolean
 	theme: TimeTheme
-	regenerateKey?: string | number
 }
 
 type Glow = {
@@ -78,7 +77,7 @@ function useReducedMotion() {
 	return reducedMotion
 }
 
-export default function TimeAtmosphereBackground({ animated = true, theme, regenerateKey = 0 }: TimeAtmosphereBackgroundProps) {
+export default function TimeAtmosphereBackground({ animated = true, theme }: TimeAtmosphereBackgroundProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null)
 	const starsRef = useRef<HTMLCanvasElement>(null)
 	const reducedMotion = useReducedMotion()
@@ -242,7 +241,7 @@ export default function TimeAtmosphereBackground({ animated = true, theme, regen
 			canvas.height = 1
 			if (starCanvas) starCanvas.width = starCanvas.height = 1
 		}
-	}, [animated, atmosphere, reducedMotion, regenerateKey, theme.name])
+	}, [animated, atmosphere, reducedMotion, theme.name])
 
 	return (
 		<div className='pointer-events-none fixed inset-0 z-0 overflow-hidden' data-time-atmosphere={theme.name}>

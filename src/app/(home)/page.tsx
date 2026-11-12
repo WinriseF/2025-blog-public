@@ -11,11 +11,10 @@ import AritcleCard from '@/app/(home)/aritcle-card'
 import QuickControlsCard from '@/app/(home)/quick-controls-card'
 import LikePosition from './like-position'
 import { useSize } from '@/hooks/use-size'
-import { useConfigStore } from './stores/config-store'
+import cardStyles from '@/config/card-styles.json'
 
 export default function Home() {
 	const { maxSM } = useSize()
-	const { cardStyles } = useConfigStore()
 
 	return (
 		<div className='max-sm:flex max-sm:flex-col max-sm:items-center max-sm:gap-6 max-sm:pt-28 max-sm:pb-20'>
