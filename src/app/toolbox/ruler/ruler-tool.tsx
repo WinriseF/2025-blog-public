@@ -37,7 +37,7 @@ export function RulerTool() {
 	const [positions, setPositions] = useState<[number, number]>([10, 50])
 	const [active, setActive] = useState<0 | 1>(1)
 	const [locked, setLocked] = useState(false)
-	const [calibrating, setCalibrating] = useState(false)
+	const [calibrating, setCalibrating] = useState<'reference' | 'device' | null>(null)
 	const [fullscreen, setFullscreen] = useState(false)
 	const [notice, setNotice] = useState('')
 	const drag = useRef<{ index: 0 | 1; pointerId: number; offset: number } | null>(null)
@@ -87,12 +87,12 @@ export function RulerTool() {
 		const next: RulerCalibration = { version: 2, ...result, ...screenStamp() }
 		setCalibration(next)
 		setStamp(screenStamp())
-		setCalibrating(false)
+		setCalibrating(null)
 		setLocked(false)
 		setPositions([0, 50])
 		try {
 			localStorage.setItem(RULER_STORAGE_KEY, JSON.stringify(next))
-			setNotice('校准已保存在当前浏览器')
+			setNotice(result.method === 'device' ? '手机型号已保存；当前为规格估算，未经实物复核' : '校准已保存在当前浏览器')
 		} catch {
 			setNotice('本次校准已生效；浏览器未允许保存，下次需要重新校准')
 		}
@@ -151,7 +151,11 @@ export function RulerTool() {
 			{stamp && <TimeAtmosphereBackground animated={false} theme={theme} />}
 			<div className={styles.boardWrap}>
 				<div ref={board.ref} className={styles.board} data-testid='ruler-board' data-vertical={vertical} data-calibrated={valid}>
-					<svg className={styles.scale} width={board.width} height={board.height} aria-label={valid ? '已校准的尺子刻度' : '未经校准的刻度预览'}>
+					<svg
+						className={styles.scale}
+						width={board.width}
+						height={board.height}
+						aria-label={valid ? (calibration?.method === 'device' ? '按手机型号估算的尺子刻度' : '已校准的尺子刻度') : '未经校准的刻度预览'}>
 						{ticks.map((tick, index) => (
 							<g key={index}>
 								{vertical ? (
@@ -246,9 +250,9 @@ export function RulerTool() {
 						<Ruler size={19} />
 						屏幕尺子
 					</h1>
-					<button className={styles.calibrateButton} onClick={() => setCalibrating(true)}>
+					<button className={styles.calibrateButton} onClick={() => setCalibrating('reference')}>
 						<span className={valid ? styles.statusReady : styles.statusPending} />
-						{valid ? '已校准' : calibration ? '重新校准' : '校准屏幕'}
+						{valid ? (calibration?.method === 'device' ? '型号估算' : '已校准') : calibration ? '重新校准' : '校准屏幕'}
 						<SlidersHorizontal size={15} />
 					</button>
 				</header>
@@ -261,7 +265,7 @@ export function RulerTool() {
 						</div>
 						<p className={styles.subValue}>
 							{valid
-								? `${length.toFixed(1)} mm · ${calibration?.method === 'ruler' ? '实体尺复核通过' : calibration?.method === 'connector' ? 'USB 校准 · 可能不够准确' : calibration?.method === 'custom' ? '自定义长度校准' : '实物校准'}`
+								? `${length.toFixed(1)} mm · ${calibration?.method === 'device' ? `${calibration.referenceName} · 型号估算` : calibration?.method === 'ruler' ? '实体尺复核通过' : calibration?.method === 'connector' ? 'USB 校准 · 可能不够准确' : calibration?.method === 'custom' ? '自定义长度校准' : '实物校准'}`
 								: '未校准的刻度仅供预览'}
 						</p>
 					</div>
@@ -314,10 +318,11 @@ export function RulerTool() {
 									? '请重新校准后继续测量。'
 									: '选择手边的实物校准，也可填写已知长度。'}
 						</p>
-						<button className={styles.primary} onClick={() => setCalibrating(true)}>
+						<button className={styles.primary} onClick={() => setCalibrating('reference')}>
 							开始校准
 							<ArrowLeftRight size={17} />
 						</button>
+						<button onClick={() => setCalibrating('device')}>选择当前手机型号</button>
 					</div>
 				)}
 				<footer className={styles.footer}>
@@ -352,7 +357,7 @@ export function RulerTool() {
 					</p>
 				</footer>
 			</div>
-			{calibrating && <CalibrationDialog initialScale={pxPerMm} onSave={saveCalibration} onClose={() => setCalibrating(false)} />}
+			{calibrating && <CalibrationDialog initialScale={pxPerMm} initialMode={calibrating} onSave={saveCalibration} onClose={() => setCalibrating(null)} />}
 		</div>
 	)
 }

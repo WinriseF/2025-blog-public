@@ -924,3 +924,19 @@
 	width: 100%;
 	text-align: center;
 }
+
+.deviceScreens {
+	margin: 8px 0;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+}
+.deviceScreens button[aria-pressed='true'] {
+	background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+	color: var(--color-brand);
+}
+.dialogButtons {
+	flex-wrap: wrap;
+}
+.dialogButtons .primary {
+	min-width: 180px;
+}

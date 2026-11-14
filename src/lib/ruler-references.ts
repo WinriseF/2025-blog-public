@@ -1,6 +1,23 @@
 import Fuse from 'fuse.js'
 import catalog from '@/data/ruler-references.json'
 
+export type PhoneScreen = {
+	kind: 'main' | 'inner' | 'cover' | 'rear' | 'folded' | 'unfolded' | 'triple'
+	diagonalInches?: number
+	/** Manufacturer-published millimetres, not a conversion of the rounded inch value. */
+	diagonalMm?: number
+	diagonalBasis?: 'rectangle' | 'unspecified'
+	/** Short/long edges, independent of the current screen orientation. */
+	resolutionWidthPx?: number
+	resolutionHeightPx?: number
+	resolutionBasis?: 'super-pixel'
+	/** Manufacturer-published density, not calculated from the diagonal. */
+	ppi?: number
+	sourceType: 'official'
+	sources: string[]
+	note?: string
+}
+
 export type RulerReference = {
 	id: string
 	category: 'phone' | 'identity' | 'card' | 'connector' | 'memory'
@@ -11,6 +28,7 @@ export type RulerReference = {
 	widthMm: number
 	note?: string
 	sources: string[]
+	screens?: PhoneScreen[]
 }
 
 export const referenceBrands = catalog.brands

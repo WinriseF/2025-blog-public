@@ -13,25 +13,31 @@ import {
 	type CalibrationSample
 } from '@/lib/screen-ruler'
 import { searchReferences, referenceBrands, referenceLengths, rulerReferences, type RulerReference } from '@/lib/ruler-references'
+import { PhoneCalibrationSession } from './phone-calibration-session'
 import { useElementSize } from './use-element-size'
 import styles from './ruler.module.css'
 
 type CalibrationDialogProps = {
 	initialScale: number
+	initialMode?: 'reference' | 'device'
 	onSave: (result: CalibrationResult) => void
 	onClose: () => void
 }
 
-export function CalibrationDialog({ initialScale, onSave, onClose }: CalibrationDialogProps) {
+export function CalibrationDialog({ initialScale, initialMode = 'reference', onSave, onClose }: CalibrationDialogProps) {
 	const dialog = useRef<HTMLDialogElement>(null)
 	const [selected, setSelected] = useState<RulerReference | 'ruler' | 'custom' | null>(null)
+	const [mode, setMode] = useState(initialMode)
 	const [query, setQuery] = useState('')
-	const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+	const [expanded, setExpanded] = useState<Record<string, boolean>>(initialMode === 'device' ? { phone: true } : {})
 	const [limits, setLimits] = useState<Record<string, number>>({})
 	const searching = Boolean(query.trim())
-	const { references: filtered, showRuler, showCustom } = useMemo(() => searchReferences(query), [query])
+	const results = useMemo(() => searchReferences(query), [query])
+	const filtered = mode === 'device' ? results.references.filter(item => item.category === 'phone') : results.references
+	const showRuler = mode === 'reference' && results.showRuler
+	const showCustom = mode === 'reference' && results.showCustom
 	const groups = [
-		{ id: 'phone', label: '手机', icon: Smartphone, hint: '按品牌选择机型' },
+		{ id: 'phone', label: '手机', icon: Smartphone, hint: mode === 'device' ? '按品牌选择当前手机' : '另一台手机的机身尺寸' },
 		{ id: 'identity', label: '身份证 / 证件', icon: IdCard, hint: '按国家和证件版本选择' },
 		{ id: 'card', label: '银行卡', icon: CreditCard, hint: '标准尺寸银行卡' },
 		{ id: 'memory', label: '存储卡', icon: MemoryStick, hint: 'SD 大卡 / microSD（TF）卡' },
@@ -39,6 +45,14 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 		{ id: 'custom', label: '自定义参照物', icon: FileText, hint: '拖动对齐实物，填写已知长度' },
 		{ id: 'ruler', label: '实体尺', icon: Ruler, hint: '使用带毫米刻度的尺子' }
 	]
+
+	function changeMode(next: 'reference' | 'device') {
+		setMode(next)
+		setSelected(null)
+		setQuery('')
+		setLimits({})
+		setExpanded(next === 'device' ? { phone: true } : {})
+	}
 
 	function toggleGroup(id: string) {
 		setExpanded(previous => ({ ...previous, [id]: !previous[id] }))
@@ -49,8 +63,9 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 				<span>
 					{item.name}
 					<small>
-						{item.region} · {item.category === 'phone' ? '长 × 宽' : item.category === 'connector' ? '金属壳高 × 宽' : '短边 × 长边'} {item.heightMm} ×{' '}
-						{item.widthMm} mm
+						{mode === 'device'
+							? `${item.region} · 按屏幕规格估算`
+							: `${item.region} · ${item.category === 'phone' ? '长 × 宽' : item.category === 'connector' ? '金属壳高 × 宽' : '短边 × 长边'} ${item.heightMm} × ${item.widthMm} mm`}
 					</small>
 				</span>
 				<ChevronRight size={18} aria-hidden='true' />
@@ -64,7 +79,7 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 
 	useEffect(() => {
 		dialog.current?.querySelector<HTMLElement>('[data-stage-focus]')?.focus()
-	}, [selected])
+	}, [selected, mode])
 
 	return (
 		<dialog
@@ -76,14 +91,29 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 			onClose={onClose}
 			aria-labelledby='calibration-title'>
 			{selected ? (
-				<CalibrationSession reference={selected} initialScale={initialScale} onSave={onSave} onClose={onClose} onBack={() => setSelected(null)} />
+				mode === 'device' && typeof selected !== 'string' ? (
+					<PhoneCalibrationSession
+						reference={selected}
+						onSave={onSave}
+						onClose={onClose}
+						onBack={() => setSelected(null)}
+						onManual={() => changeMode('reference')}
+					/>
+				) : (
+					<CalibrationSession reference={selected} initialScale={initialScale} onSave={onSave} onClose={onClose} onBack={() => setSelected(null)} />
+				)
 			) : (
 				<>
 					<div className={styles.dialogHeader}>
-						<div>
+						{mode === 'device' && (
+							<button aria-label='返回校准方式' onClick={() => changeMode('reference')}>
+								<ArrowLeft size={20} />
+							</button>
+						)}
+						<div className={styles.calibrationHeading}>
 							<p className={styles.eyebrow}>屏幕校准</p>
 							<h2 id='calibration-title' data-stage-focus tabIndex={-1}>
-								选择校准参照物
+								{mode === 'device' ? '选择当前手机型号' : '选择校准参照物'}
 							</h2>
 						</div>
 						<button aria-label='关闭校准' onClick={onClose}>
@@ -94,9 +124,9 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 						<label className={styles.catalogSearch}>
 							<Search size={18} aria-hidden='true' />
 							<input
-								aria-label='搜索校准参照物'
+								aria-label={mode === 'device' ? '搜索当前手机型号' : '搜索校准参照物'}
 								type='search'
-								placeholder='搜索参照物、型号或品牌'
+								placeholder={mode === 'device' ? '搜索型号或品牌' : '搜索参照物、型号或品牌'}
 								autoCapitalize='none'
 								autoCorrect='off'
 								spellCheck={false}
@@ -114,9 +144,22 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 						</label>
 					</div>
 					<p className={styles.calibrationHint}>
-						{searching ? `找到 ${filtered.length + Number(showRuler) + Number(showCustom)} 个参照物` : '选择手边的实物，或自定义已知长度'}
+						{mode === 'device'
+							? '选择正在使用的手机型号，包含地区版本。'
+							: searching
+								? `找到 ${filtered.length + Number(showRuler) + Number(showCustom)} 个参照物`
+								: '选择手边的实物，或自定义已知长度'}
 					</p>
 					<div className={styles.catalogList}>
+						{mode === 'reference' && !searching && (
+							<CatalogGroup
+								id='current-device'
+								label='使用当前手机型号'
+								hint='无需实物，按本机屏幕规格估算'
+								icon={<Smartphone size={22} aria-hidden='true' />}
+								onToggle={() => changeMode('device')}
+							/>
+						)}
 						{groups.map(({ id, label, icon: Icon, hint }) => {
 							const items = filtered.filter(item => item.category === id)
 							if (id === 'ruler' ? !showRuler : id === 'custom' ? !showCustom : !items.length) return null
@@ -163,7 +206,8 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 								</CatalogGroup>
 							)
 						})}
-						{!filtered.length && !showRuler && !showCustom && (
+						{!filtered.length && !showRuler && !showCustom && mode === 'device' && <p className={styles.smallNote}>没有找到这个型号，可返回使用实物校准。</p>}
+						{!filtered.length && !showRuler && !showCustom && mode === 'reference' && (
 							<>
 								<p className={styles.smallNote}>没有找到匹配的参照物，可换个关键词，或使用已知长度的实物校准。</p>
 								<div className={styles.referenceOptions}>

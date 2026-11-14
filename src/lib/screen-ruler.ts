@@ -5,9 +5,11 @@ export type RulerUnit = 'cm' | 'in'
 export type ScreenStamp = { dpr: number; width: number; height: number }
 export type CalibrationResult = {
 	pxPerMm: number
-	method: 'card' | 'phone' | 'connector' | 'ruler' | 'custom'
+	method: 'card' | 'phone' | 'connector' | 'ruler' | 'custom' | 'device'
 	checkErrorMm: number | null
 	referenceId?: string
+	referenceName?: string
+	screenKind?: 'main' | 'inner' | 'cover' | 'folded' | 'unfolded' | 'triple'
 }
 export type RulerCalibration = ScreenStamp & CalibrationResult & { version: 2 }
 
@@ -23,8 +25,14 @@ export function parseCalibration(value: string | null): RulerCalibration | null 
 	try {
 		const data = JSON.parse(value || 'null') as RulerCalibration | null
 		return data?.version === 2 &&
-			['card', 'phone', 'connector', 'ruler', 'custom'].includes(data.method) &&
-			(data.method === 'custom'
+			['card', 'phone', 'connector', 'ruler', 'custom', 'device'].includes(data.method) &&
+			(data.method !== 'device' ||
+				(typeof data.referenceId === 'string' &&
+					Boolean(data.referenceId) &&
+					typeof data.referenceName === 'string' &&
+					Boolean(data.referenceName) &&
+					['main', 'inner', 'cover', 'folded', 'unfolded', 'triple'].includes(data.screenKind || ''))) &&
+			(data.method === 'custom' || data.method === 'device'
 				? data.checkErrorMm === null
 				: typeof data.checkErrorMm === 'number' && Number.isFinite(data.checkErrorMm) && data.checkErrorMm >= 0) &&
 			[data.pxPerMm, data.dpr, data.width, data.height].every(n => typeof n === 'number' && Number.isFinite(n) && n > 0) &&

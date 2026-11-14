@@ -43,6 +43,77 @@ describe('official ruler reference catalog', () => {
 			)
 		).toEqual([85.6, 85.6, 53.98])
 	})
+	it('keeps screen specifications traceable and distinct from body measurements', () => {
+		const screenDomains = [
+			'apple.com',
+			'mi.com',
+			'vivo.com',
+			'vivo.com.cn',
+			'huawei.com',
+			'oppo.com',
+			'samsung.com',
+			'samsungmobilepress.com',
+			'honor.com',
+			'motorola.com',
+			'lenovo.com.cn'
+		]
+		for (const reference of rulerReferences) {
+			if (reference.category !== 'phone') {
+				expect(reference.screens).toBeUndefined()
+				continue
+			}
+			expect(reference.screens?.length).toBeGreaterThan(0)
+			expect(new Set(reference.screens!.map(screen => screen.kind)).size).toBe(reference.screens!.length)
+			for (const screen of reference.screens!) {
+				expect(screen.sourceType).toBe('official')
+				expect(screen.sources.length).toBeGreaterThan(0)
+				for (const source of screen.sources) {
+					const url = new URL(source)
+					expect(url.protocol).toBe('https:')
+					expect(screenDomains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`))).toBe(true)
+				}
+				expect(screen.resolutionWidthPx === undefined).toBe(screen.resolutionHeightPx === undefined)
+				if (screen.resolutionWidthPx !== undefined) {
+					expect(Number.isInteger(screen.resolutionWidthPx)).toBe(true)
+					expect(Number.isInteger(screen.resolutionHeightPx)).toBe(true)
+					expect(screen.resolutionWidthPx).toBeGreaterThan(0)
+					expect(screen.resolutionHeightPx).toBeGreaterThanOrEqual(screen.resolutionWidthPx)
+				}
+				if (screen.diagonalInches !== undefined) {
+					expect(screen.diagonalInches).toBeGreaterThan(1)
+					expect(screen.diagonalInches).toBeLessThan(12)
+					expect(['rectangle', 'unspecified']).toContain(screen.diagonalBasis)
+				}
+				if (screen.ppi && screen.diagonalInches && screen.resolutionWidthPx && screen.resolutionHeightPx) {
+					// Detect mismatched inner/cover values; this is not a ruler accuracy guarantee.
+					const calculated = Math.hypot(screen.resolutionWidthPx, screen.resolutionHeightPx) / screen.diagonalInches
+					expect(Math.abs(calculated / screen.ppi - 1)).toBeLessThan(0.03)
+				}
+			}
+		}
+	})
+	it('preserves precise official diagonals, incomplete records, and separate foldable screens', () => {
+		const iphone = rulerReferences.find(item => item.id === 'apple-iphone-14')!
+		expect(iphone.screens![0]).toMatchObject({ diagonalInches: 6.06, diagonalBasis: 'rectangle', resolutionWidthPx: 1170, resolutionHeightPx: 2532, ppi: 460 })
+		expect(referenceLengths(iphone, 'width')).toEqual([71.5, 71.5, 71.5])
+		const samsung = rulerReferences.find(item => item.name === 'Galaxy S25 Ultra')!
+		expect(samsung.screens![0]).toMatchObject({ diagonalInches: 6.9, diagonalMm: 174.2, resolutionWidthPx: 1440, resolutionHeightPx: 3120 })
+		const fold = rulerReferences.find(item => item.name === 'Galaxy Z TriFold')!
+		expect(fold.screens!.map(screen => [screen.kind, screen.diagonalInches])).toEqual([
+			['inner', 10],
+			['cover', 6.5]
+		])
+		const circular = rulerReferences.find(item => item.name === 'HUAWEI Pocket 2 优享版')!.screens!.find(screen => screen.kind === 'cover')!
+		expect(circular.diagonalInches).toBeUndefined()
+		expect(circular).toMatchObject({ resolutionWidthPx: 340, resolutionHeightPx: 340, ppi: 296 })
+		expect(circular.note).toContain('圆形')
+		const incomplete = rulerReferences.find(item => item.name === 'GALAXY A5')!.screens![0]
+		expect(incomplete.diagonalInches).toBe(5)
+		expect(incomplete.resolutionWidthPx).toBeUndefined()
+		expect(incomplete.note).toContain('未提供')
+		const superPixel = rulerReferences.find(item => item.name === 'Xiaomi 17 Pro Max')!.screens!.find(screen => screen.kind === 'main')!
+		expect(superPixel.resolutionBasis).toBe('super-pixel')
+	})
 	it('uses phone body width or height for all three independent alignments', () => {
 		const phone = rulerReferences.find(item => item.id === 'apple-iphone-14')!
 		expect(referenceLengths(phone, 'width')).toEqual([71.5, 71.5, 71.5])
