@@ -3,13 +3,12 @@
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react'
-import { ArrowLeft, ArrowLeftRight, LockKeyhole, Maximize, Minus, Plus, RotateCcw, Ruler, SlidersHorizontal, UnlockKeyhole } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, LockKeyhole, Maximize, Ruler, SlidersHorizontal, UnlockKeyhole } from 'lucide-react'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import TimeAtmosphereBackground from '@/layout/backgrounds/time-atmosphere-background'
 import {
 	calibrationMatches,
 	clampPosition,
-	lengthLabel,
 	parseCalibration,
 	PREVIEW_PX_PER_MM,
 	RULER_STORAGE_KEY,
@@ -92,9 +91,8 @@ export function RulerTool() {
 		setPositions([0, 50])
 		try {
 			localStorage.setItem(RULER_STORAGE_KEY, JSON.stringify(next))
-			setNotice(result.method === 'device' ? '手机型号已保存；当前为规格估算，未经实物复核' : '校准已保存在当前浏览器')
 		} catch {
-			setNotice('本次校准已生效；浏览器未允许保存，下次需要重新校准')
+			/* The current session still works if browser storage is unavailable. */
 		}
 	}
 	function move(index: 0 | 1, mm: number) {
@@ -256,106 +254,46 @@ export function RulerTool() {
 						<SlidersHorizontal size={15} />
 					</button>
 				</header>
-				<section className={styles.readout} aria-label='测量结果'>
-					<div>
-						<p className={styles.eyebrow}>{valid ? '标记间距' : '屏幕实物测量'}</p>
-						<div className={styles.value}>
-							<output data-testid='measurement'>{valid ? lengthLabel(length, unit) : '—'}</output>
-							<span>{unit}</span>
-						</div>
-						<p className={styles.subValue}>
-							{valid
-								? `${length.toFixed(1)} mm · ${calibration?.method === 'device' ? `${calibration.referenceName} · 型号估算` : calibration?.method === 'ruler' ? '实体尺复核通过' : calibration?.method === 'connector' ? 'USB 校准 · 可能不够准确' : calibration?.method === 'custom' ? '自定义长度校准' : '实物校准'}`
-								: '未校准的刻度仅供预览'}
-						</p>
+				<div className={styles.toolbar}>
+					<div className={styles.segment} aria-label='刻度单位'>
+						<button aria-pressed={unit === 'cm'} onClick={() => setUnit('cm')}>
+							厘米
+						</button>
+						<button aria-pressed={unit === 'in'} onClick={() => setUnit('in')}>
+							英寸
+						</button>
 					</div>
-					<div className={styles.toolbar}>
-						<div className={styles.segment} aria-label='刻度单位'>
-							<button aria-pressed={unit === 'cm'} onClick={() => setUnit('cm')}>
-								厘米
-							</button>
-							<button aria-pressed={unit === 'in'} onClick={() => setUnit('in')}>
-								英寸
-							</button>
-						</div>
-						<div className={styles.toolButtons}>
-							<button
-								onClick={() => {
-									setDirection(vertical ? 'horizontal' : 'vertical')
-									drag.current = null
-								}}
-								title='切换横竖方向'
-								aria-label='切换横竖方向'>
-								<ArrowLeftRight size={17} />
-								<span>转向</span>
-							</button>
-							<button
-								aria-label={locked ? '解锁标记' : '锁定标记'}
-								aria-pressed={locked}
-								disabled={!valid}
-								onClick={() => {
-									setLocked(!locked)
-									drag.current = null
-								}}>
-								{locked ? <LockKeyhole size={17} /> : <UnlockKeyhole size={17} />}
-								<span>{locked ? '解锁' : '锁定'}</span>
-							</button>
-							<button aria-label={fullscreen ? '退出全屏' : '全屏显示'} onClick={() => void toggleFullscreen()}>
-								<Maximize size={17} />
-								<span>全屏</span>
-							</button>
-						</div>
-					</div>
-				</section>
-				{!valid && (
-					<div className={styles.onboarding}>
-						<Ruler size={29} />
-						<h2>{Math.abs(pinchScale - 1) >= 0.01 ? '请恢复页面缩放' : calibration ? '屏幕比例发生变化' : '先校准，再测量'}</h2>
-						<p>
-							{Math.abs(pinchScale - 1) >= 0.01
-								? '双指缩放会改变尺子的实际大小，恢复后即可继续。'
-								: calibration
-									? '请重新校准后继续测量。'
-									: '选择手边的实物校准，也可填写已知长度。'}
-						</p>
-						<button className={styles.primary} onClick={() => setCalibrating('reference')}>
-							开始校准
+					<div className={styles.toolButtons}>
+						<button
+							onClick={() => {
+								setDirection(vertical ? 'horizontal' : 'vertical')
+								drag.current = null
+							}}
+							title='切换横竖方向'
+							aria-label='切换横竖方向'>
 							<ArrowLeftRight size={17} />
+							<span>转向</span>
 						</button>
-						<button onClick={() => setCalibrating('device')}>选择当前手机型号</button>
-					</div>
-				)}
-				<footer className={styles.footer}>
-					<div className={styles.fineControls}>
-						<div className={styles.segment}>
-							<button disabled={!valid} aria-pressed={active === 0} onClick={() => setActive(0)}>
-								A 起点
-							</button>
-							<button disabled={!valid} aria-pressed={active === 1} onClick={() => setActive(1)}>
-								B 终点
-							</button>
-						</div>
-						<button aria-label='标记后退 0.1 毫米' disabled={!valid || locked} onClick={() => move(active, ends[active] - 0.1)}>
-							<Minus size={18} />
+						<button
+							aria-label={locked ? '解锁标记' : '锁定标记'}
+							aria-pressed={locked}
+							disabled={!valid}
+							onClick={() => {
+								setLocked(!locked)
+								drag.current = null
+							}}>
+							{locked ? <LockKeyhole size={17} /> : <UnlockKeyhole size={17} />}
+							<span>{locked ? '解锁' : '锁定'}</span>
 						</button>
-						<span>0.1 mm</span>
-						<button aria-label='标记前进 0.1 毫米' disabled={!valid || locked} onClick={() => move(active, ends[active] + 0.1)}>
-							<Plus size={18} />
-						</button>
-						<button aria-label='重置测量标记' disabled={!valid || locked} onClick={() => setPositions([0, Math.min(50, capacity)])}>
-							<RotateCcw size={17} />
+						<button
+							title={notice || (fullscreen ? '退出全屏' : '全屏显示')}
+							aria-label={fullscreen ? '退出全屏' : '全屏显示'}
+							onClick={() => void toggleFullscreen()}>
+							<Maximize size={17} />
+							<span>全屏</span>
 						</button>
 					</div>
-					<p className={styles.footerNote} role='status'>
-						{notice && (
-							<span>
-								{notice}
-								<br />
-							</span>
-						)}
-						读数分辨率不代表精度。换显示器后请重新校准。
-					</p>
-				</footer>
+				</div>
 			</div>
 			{calibrating && <CalibrationDialog initialScale={pxPerMm} initialMode={calibrating} onSave={saveCalibration} onClose={() => setCalibrating(null)} />}
 		</div>

@@ -8,7 +8,8 @@ for (const [name, width, height] of [
 		const context = await browser.newContext({ ...devices['iPhone 13'], viewport: { width, height }, screen: { width, height } })
 		const page = await context.newPage()
 		await page.goto('/toolbox/ruler')
-		await page.getByRole('button', { name: '选择当前手机型号', exact: true }).click()
+		await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
+		await page.getByRole('button', { name: '使用当前手机型号', exact: true }).click()
 		await page.getByLabel('搜索当前手机型号').fill('IPHNE 14')
 		await page.getByRole('button', { name: /^iPhone 14 国际版/ }).click()
 		await expect(page.getByTestId('calibration-line')).toHaveCount(0)
@@ -22,7 +23,7 @@ for (const [name, width, height] of [
 		expect(saved).toMatchObject({ method: 'device', referenceId: 'apple-iphone-14', screenKind: 'main', checkErrorMm: null })
 		expect(saved.pxPerMm).toBeCloseTo(Math.hypot(390, 844) / (6.06 * 25.4), 6)
 		await page.reload()
-		await expect(page.getByTestId('measurement')).toHaveText('4.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		const client = await context.newCDPSession(page)
 		await client.send('Emulation.setDeviceMetricsOverride', {
 			width: height,
@@ -32,17 +33,17 @@ for (const [name, width, height] of [
 			deviceScaleFactor: 3,
 			mobile: true
 		})
-		await expect(page.getByTestId('measurement')).toHaveText('4.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('winrisef:screen-ruler:v2')!).pxPerMm)).toBe(saved.pxPerMm)
 		await client.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.5 })
-		await expect(page.getByTestId('measurement')).toHaveText('—')
+		await expect(page.getByTestId('ruler-board')).toHaveAttribute('data-calibrated', 'false')
 		await client.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1 })
-		await expect(page.getByTestId('measurement')).toHaveText('4.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		await page.evaluate(() => {
 			Object.defineProperty(window, 'devicePixelRatio', { value: 2 })
 			window.dispatchEvent(new Event('resize'))
 		})
-		await expect(page.getByTestId('measurement')).toHaveText('—')
+		await expect(page.getByTestId('ruler-board')).toHaveAttribute('data-calibrated', 'false')
 		await context.close()
 	})
 }
@@ -51,7 +52,8 @@ test('phone model: foldable requires a screen choice and rejects the wrong scree
 	const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 452, height: 1000 }, screen: { width: 452, height: 1158 } })
 	const page = await context.newPage()
 	await page.goto('/toolbox/ruler')
-	await page.getByRole('button', { name: '选择当前手机型号', exact: true }).click()
+	await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
+	await page.getByRole('button', { name: '使用当前手机型号', exact: true }).click()
 	await page.getByLabel('搜索当前手机型号').fill('Galaxy Z Fold5')
 	await page.getByRole('button', { name: /^Galaxy Z Fold5 / }).click()
 	const apply = page.getByRole('button', { name: '应用型号，开始测量' })
@@ -72,13 +74,13 @@ test('phone model: foldable requires a screen choice and rejects the wrong scree
 		deviceScaleFactor: 2,
 		mobile: true
 	})
-	await expect(page.getByTestId('measurement')).toHaveText('—')
+	await expect(page.getByTestId('ruler-board')).toHaveAttribute('data-calibrated', 'false')
 	await context.close()
 })
 
 test('phone model: desktop redirects to physical calibration instead of using phone scale', async ({ page }) => {
 	await page.goto('/toolbox/ruler')
-	await page.getByRole('button', { name: '开始校准', exact: true }).click()
+	await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 	await page.getByRole('button', { name: '使用当前手机型号', exact: true }).click()
 	await page.getByLabel('搜索当前手机型号').fill('iphone14')
 	await page.getByRole('button', { name: /^iPhone 14 国际版/ }).click()

@@ -34,7 +34,7 @@ async function setCardLength(page: Page, pixels: number) {
 }
 
 async function calibrateCard(page: Page, scale = 4) {
-	await page.getByRole('button', { name: '开始校准', exact: true }).click()
+	await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 	await expect(page.getByRole('heading', { name: '选择校准参照物' })).toBeVisible()
 	await expect(page.getByTestId('calibration-line')).toHaveCount(0)
 	await page.getByRole('button', { name: '银行卡', exact: true }).click()
@@ -44,7 +44,7 @@ async function calibrateCard(page: Page, scale = 4) {
 		await page.getByRole('button', { name: '已对齐，继续' }).click()
 	}
 	await page.getByRole('button', { name: '保存校准，开始测量' }).click()
-	await expect(page.getByTestId('measurement')).toHaveText('5.00')
+	await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 }
 
 for (const [name, width, height, mobile] of [
@@ -59,9 +59,9 @@ for (const [name, width, height, mobile] of [
 		const errors: string[] = []
 		page.on('pageerror', error => errors.push(error.message))
 		await page.goto('/toolbox/ruler')
-		await expect(page.getByTestId('measurement')).toHaveText('—')
+		await expect(page.getByTestId('ruler-board')).toHaveAttribute('data-calibrated', 'false')
 		if (name === 'small') {
-			await page.getByRole('button', { name: '开始校准', exact: true }).click()
+			await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 			await page.getByRole('button', { name: '实体尺', exact: true }).click()
 			for (let i = 0; i < 4; i++) {
 				const length = await page.getByTestId('calibration-line').evaluate(el => Math.max(el.getBoundingClientRect().width, el.getBoundingClientRect().height))
@@ -70,7 +70,7 @@ for (const [name, width, height, mobile] of [
 			}
 			await page.getByRole('button', { name: '保存校准，开始测量' }).click()
 		} else await calibrateCard(page)
-		await expect(page.getByTestId('measurement')).toHaveText('5.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		// Physical ticks must touch viewport edges, independent of the inner controls.
 		const board = page.getByTestId('ruler-board')
 		expect(await board.boundingBox()).toEqual({ x: 0, y: 0, width, height })
@@ -93,18 +93,18 @@ for (const [name, width, height, mobile] of [
 		const end = page.getByRole('slider', { name: '终点 B' })
 		await end.focus()
 		await page.keyboard.press('ArrowDown')
-		await expect(page.getByTestId('measurement')).toHaveText('5.10')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '51')
 		await page.getByRole('button', { name: '锁定标记' }).click()
 		await end.press('ArrowDown')
-		await expect(page.getByTestId('measurement')).toHaveText('5.10')
-		await expect(page.getByRole('button', { name: '标记前进 0.1 毫米' })).toBeDisabled()
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '51')
+		await expect(end).toHaveAttribute('aria-disabled', 'true')
 		await page.getByRole('button', { name: '解锁标记' }).click()
-		await page.getByRole('button', { name: '标记前进 0.1 毫米' }).click()
-		await expect(page.getByTestId('measurement')).toHaveText('5.11')
+		await end.press('Shift+ArrowRight')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '51.1')
 		await page.getByRole('button', { name: '英寸', exact: true }).click()
-		await expect(page.getByTestId('measurement')).toHaveText('2.012')
+		await expect(page.getByRole('button', { name: '英寸', exact: true })).toHaveAttribute('aria-pressed', 'true')
 		await page.reload()
-		await expect(page.getByTestId('measurement')).toHaveText('4.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		expect(errors).toEqual([])
 		await context.close()
 	})
@@ -112,7 +112,7 @@ for (const [name, width, height, mobile] of [
 
 test('rejects inconsistent card matching and independent ruler verification', async ({ page }) => {
 	await page.goto('/toolbox/ruler')
-	await page.getByRole('button', { name: '开始校准', exact: true }).click()
+	await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 	await page.getByRole('button', { name: '银行卡', exact: true }).click()
 	await setCardLength(page, 342.5)
 	await page.getByRole('button', { name: '已对齐，继续' }).click()
@@ -137,7 +137,7 @@ test('rejects inconsistent card matching and independent ruler verification', as
 	await page.getByLabel('实测长度').fill(String(length / 5))
 	await page.getByRole('button', { name: '确认读数，继续' }).click()
 	await page.getByRole('button', { name: '保存校准，开始测量' }).click()
-	await expect(page.getByTestId('measurement')).toHaveText('5.00')
+	await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 })
 
 test('touch drag, pinch zoom and changed DPR never silently change effective measurement', async ({ browser }) => {
@@ -152,16 +152,16 @@ test('touch drag, pinch zoom and changed DPR never silently change effective mea
 	await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
 	await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + 40 }] })
 	await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-	await expect(page.getByTestId('measurement')).toHaveText('6.00')
+	await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '60')
 	await client.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.5 })
-	await expect(page.getByTestId('measurement')).toHaveText('—')
+	await expect(page.getByTestId('ruler-board')).toHaveAttribute('data-calibrated', 'false')
 	await client.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1 })
-	await expect(page.getByTestId('measurement')).toHaveText('6.00')
+	await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '60')
 	await page.evaluate(() => {
 		Object.defineProperty(window, 'devicePixelRatio', { value: 2 })
 		window.dispatchEvent(new Event('resize'))
 	})
-	await expect(page.getByTestId('measurement')).toHaveText('—')
+	await expect(page.getByTestId('ruler-board')).toHaveAttribute('data-calibrated', 'false')
 	await context.close()
 })
 
@@ -175,7 +175,7 @@ for (const [name, width, height, mobile] of [
 		const context = await browser.newContext({ viewport: { width, height }, screen: { width, height }, isMobile: mobile, hasTouch: mobile })
 		const page = await context.newPage()
 		await page.goto('/toolbox/ruler')
-		await page.getByRole('button', { name: '开始校准', exact: true }).click()
+		await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 		await expect(page.getByRole('button', { name: '手机', exact: true })).toHaveAttribute('aria-expanded', 'false')
 		await expect(page.getByRole('button', { name: /^iPhone 14 国际版/ })).toHaveCount(0)
 		await page.getByRole('button', { name: '手机', exact: true }).click()
@@ -197,7 +197,7 @@ for (const [name, width, height, mobile] of [
 			await page.getByRole('button', { name: '已对齐，继续' }).click()
 		}
 		await page.getByRole('button', { name: '保存校准，开始测量' }).click()
-		await expect(page.getByTestId('measurement')).toHaveText('5.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('winrisef:screen-ruler:v2')!))
 		expect(saved).toMatchObject({ method: 'phone', referenceId: 'apple-iphone-14' })
 		expect(saved.pxPerMm).toBeCloseTo(4, 3)
@@ -208,7 +208,7 @@ for (const [name, width, height, mobile] of [
 
 test('selects a country-specific identity card and preserves expanded groups and search on return', async ({ page }) => {
 	await page.goto('/toolbox/ruler')
-	await page.getByRole('button', { name: '开始校准', exact: true }).click()
+	await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 	await page.getByRole('button', { name: '身份证 / 证件', exact: true }).click()
 	await page.getByLabel('搜索校准参照物').fill('中国居民')
 	await page.getByRole('button', { name: /^中国居民身份证/ }).click()
@@ -222,7 +222,7 @@ test('selects a country-specific identity card and preserves expanded groups and
 		await page.getByRole('button', { name: '已对齐，继续' }).click()
 	}
 	await page.getByRole('button', { name: '保存校准，开始测量' }).click()
-	await expect(page.getByTestId('measurement')).toHaveText('5.00')
+	await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 })
 
 for (const [device, width, height, mobile] of [
@@ -237,7 +237,7 @@ for (const [device, width, height, mobile] of [
 			const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile })
 			const page = await context.newPage()
 			await page.goto('/toolbox/ruler')
-			await page.getByRole('button', { name: '开始校准', exact: true }).click()
+			await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 			await expect(page.getByRole('button', { name: 'USB 插头', exact: true })).toHaveAttribute('aria-expanded', 'false')
 			await page.getByLabel('搜索校准参照物').fill(query)
 			await page.getByRole('button', { name: id === 'usb-a-plug' ? /^USB-A 插头/ : /^USB-C \/ Type-C 插头/ }).click()
@@ -249,10 +249,10 @@ for (const [device, width, height, mobile] of [
 			}
 			await expect(page.getByText('参照物较小，校准可能不够准确。', { exact: true })).toBeVisible()
 			await page.getByRole('button', { name: '保存校准，开始测量' }).click()
-			await expect(page.getByTestId('measurement')).toHaveText('5.00')
+			await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 			await page.reload()
-			await expect(page.getByTestId('measurement')).toHaveText('4.00')
-			await expect(page.getByText(/USB 校准 · 可能不够准确/)).toBeVisible()
+			await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
+			await expect(page.getByRole('button', { name: '已校准', exact: true })).toBeVisible()
 			const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('winrisef:screen-ruler:v2')!))
 			expect(saved).toMatchObject({ method: 'connector', referenceId: id })
 			// Browser layout rounds tiny reference lengths to subpixels.
@@ -272,7 +272,7 @@ for (const [device, width, height, mobile] of [
 		const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile })
 		const page = await context.newPage()
 		await page.goto('/toolbox/ruler')
-		await page.getByRole('button', { name: '开始校准', exact: true }).click()
+		await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 		await expect(page.getByRole('button', { name: '自定义参照物', exact: true })).not.toHaveAttribute('aria-expanded')
 		await page.getByLabel('搜索校准参照物').fill('纸张')
 		await page.getByRole('button', { name: '自定义参照物', exact: true }).click()
@@ -292,10 +292,10 @@ for (const [device, width, height, mobile] of [
 		await expect(page.getByLabel('实际长度')).toBeInViewport()
 		expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBe(true)
 		await save.click()
-		await expect(page.getByTestId('measurement')).toHaveText('5.00')
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 		await page.reload()
-		await expect(page.getByTestId('measurement')).toHaveText('4.00')
-		await expect(page.getByText(/mm · 自定义长度校准/)).toBeVisible()
+		await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
+		await expect(page.getByRole('button', { name: '已校准', exact: true })).toBeVisible()
 		const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('winrisef:screen-ruler:v2')!))
 		expect(saved).toMatchObject({ method: 'custom', checkErrorMm: null })
 		expect(saved.pxPerMm).toBeCloseTo(4, 3)
@@ -305,7 +305,7 @@ for (const [device, width, height, mobile] of [
 
 test('USB repeated alignment and independent check accept 1.5% but reject over 2%', async ({ page }) => {
 	await page.goto('/toolbox/ruler')
-	await page.getByRole('button', { name: '开始校准', exact: true }).click()
+	await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 	await page.getByLabel('搜索校准参照物').fill('type c')
 	await page.getByRole('button', { name: /^USB-C \/ Type-C 插头/ }).click()
 	await setCardLength(page, 33)
@@ -336,7 +336,7 @@ for (const [device, width, height, mobile] of [
 			const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile })
 			const page = await context.newPage()
 			await page.goto('/toolbox/ruler')
-			await page.getByRole('button', { name: '开始校准', exact: true }).click()
+			await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 			await page.getByRole('button', { name: '存储卡', exact: true }).click()
 			await page.getByRole('button', { name }).click()
 			if (id === 'memory-microsd') await expect(page.getByText(/使用 microSD（TF）卡片本体/)).toContainText('可能不够准确')
@@ -347,9 +347,9 @@ for (const [device, width, height, mobile] of [
 				await page.getByRole('button', { name: '已对齐，继续' }).click()
 			}
 			await page.getByRole('button', { name: '保存校准，开始测量' }).click()
-			await expect(page.getByTestId('measurement')).toHaveText('5.00')
+			await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 			await page.reload()
-			await expect(page.getByTestId('measurement')).toHaveText('4.00')
+			await expect(page.getByRole('slider', { name: '终点 B' })).toHaveAttribute('aria-valuenow', '50')
 			const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('winrisef:screen-ruler:v2')!))
 			expect(saved).toMatchObject({ method: 'card', referenceId: id })
 			expect(Math.abs(saved.pxPerMm - 2) * lengths[0]).toBeLessThan(1 / 32)
@@ -368,8 +368,11 @@ for (const [device, width, height] of [
 		const context = await browser.newContext({ viewport: { width, height }, isMobile: device !== 'desktop', hasTouch: device !== 'desktop' })
 		const page = await context.newPage()
 		await page.goto('/toolbox/ruler')
-		await expect(page.getByText('选择手边的实物校准，也可填写已知长度。')).toBeVisible()
-		await page.getByRole('button', { name: '开始校准', exact: true }).click()
+		await expect(page.getByRole('button', { name: '校准屏幕', exact: true })).toBeVisible()
+		await expect(page.getByTestId('measurement')).toHaveCount(0)
+		await expect(page.getByRole('button', { name: '开始校准', exact: true })).toHaveCount(0)
+		await expect(page.getByRole('button', { name: '标记前进 0.1 毫米' })).toHaveCount(0)
+		await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 		for (const [entry, title] of [
 			['银行卡', '银行卡校准'],
 			['实体尺', '实体尺校准'],
@@ -409,7 +412,7 @@ for (const [device, width, height, smallerWidth, smallerHeight, screenWidth, scr
 			const metrics = { width, height, screenWidth, screenHeight, deviceScaleFactor: 1, mobile }
 			await client.send('Emulation.setDeviceMetricsOverride', metrics)
 			await page.goto('/toolbox/ruler')
-			await page.getByRole('button', { name: '开始校准', exact: true }).click()
+			await page.getByRole('button', { name: '校准屏幕', exact: true }).click()
 			await page.getByRole('button', { name: '自定义参照物', exact: true }).click()
 			const pixels = Math.max(width, height) * 0.9
 			await setCardLength(page, pixels)

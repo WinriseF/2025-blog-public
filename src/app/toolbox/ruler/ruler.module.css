@@ -571,9 +571,6 @@
 	}
 }
 @media (max-height: 540px) and (min-width: 641px) {
-	.readout .eyebrow {
-		margin-bottom: 3px;
-	}
 	.dialog {
 		padding: 10px 18px;
 		width: min(960px, calc(100vw - 24px));
@@ -671,43 +668,13 @@
 .back > span {
 	display: none;
 }
-.readout {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 16px;
-	padding: 20px 0;
-	text-align: center;
-}
 .eyebrow {
 	font-size: 11px;
 	color: var(--color-secondary);
 	margin: 0 0 8px;
 }
-.value {
-	display: flex;
-	align-items: baseline;
-	justify-content: center;
-	gap: 8px;
-	font-variant-numeric: tabular-nums;
-}
-.value output {
-	font-size: 48px;
-	line-height: 1;
-	font-weight: 600;
-	letter-spacing: -0.025em;
-}
-.value > span {
-	font-size: 16px;
-	color: var(--color-secondary);
-}
-.subValue {
-	font-size: 11px;
-	color: var(--color-secondary);
-	margin: 8px 0 0;
-	line-height: 1.5;
-}
 .toolbar {
+	margin-top: 16px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -723,57 +690,6 @@
 }
 .root .toolButtons button {
 	padding: 8px 10px;
-}
-.onboarding {
-	display: flex;
-	align-items: center;
-	flex-direction: column;
-	text-align: center;
-	gap: 10px;
-	padding: 0 0 16px;
-}
-.onboarding > svg {
-	display: none;
-}
-.onboarding h2 {
-	font-size: 16px;
-	font-weight: 600;
-	margin: 0;
-}
-.onboarding p {
-	font-size: 12px;
-	line-height: 1.6;
-	color: var(--color-secondary);
-	margin: 0;
-}
-.footer {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 12px 0 0;
-	border-top: 1px solid var(--color-border);
-}
-.fineControls {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 4px;
-}
-.fineControls > span {
-	font-size: 11px;
-	color: var(--color-secondary);
-	white-space: nowrap;
-}
-.root .fineControls > button {
-	padding: 8px;
-}
-.footerNote {
-	font-size: 10px;
-	line-height: 1.6;
-	color: var(--color-secondary);
-	text-align: center;
-	margin: 0;
 }
 @media (max-width: 640px) {
 	.controls {
@@ -795,29 +711,8 @@
 	.root .calibrateButton {
 		width: 100%;
 	}
-	.readout {
-		gap: 10px;
-		padding: 12px 0;
-	}
-	.value output {
-		font-size: 40px;
-	}
-	.fineControls .segment {
-		flex-basis: 100%;
-		justify-content: center;
-	}
-	.root .fineControls > button {
-		padding: 6px;
-	}
 	.toolbar {
 		gap: 4px;
-	}
-	.onboarding h2 {
-		font-size: 14px;
-	}
-	.onboarding .primary {
-		padding: 10px 14px;
-		width: 100%;
 	}
 }
 @media (max-height: 540px) and (min-width: 641px) {
@@ -828,32 +723,6 @@
 	}
 	.header h1 {
 		font-size: 14px;
-	}
-	.readout {
-		flex-direction: row;
-		justify-content: space-between;
-		gap: 12px;
-		padding: 8px 0;
-	}
-	.value output {
-		font-size: 32px;
-	}
-	.readout .eyebrow {
-		display: none;
-	}
-	.subValue {
-		margin-top: 4px;
-	}
-	.footer {
-		padding-top: 6px;
-		gap: 4px;
-	}
-	.footerNote {
-		font-size: 9px;
-	}
-	.onboarding {
-		padding-bottom: 8px;
-		gap: 6px;
 	}
 }
 
