@@ -7,13 +7,6 @@ import { INIT_DELAY } from '@/consts'
 
 const tools = [
 	{
-		href: '/toolbox/ruler',
-		label: '屏幕尺子',
-		desc: '实物校准 / 毫米刻度 / 双点测量',
-		tone: 'from-emerald-400/20 via-amber-200/10 to-transparent',
-		icon: Ruler
-	},
-	{
 		href: '/t',
 		label: '快传',
 		desc: '公网中转 / 局域网互传',
@@ -82,6 +75,13 @@ const tools = [
 		desc: '本地 SQLite / 只读 SQL 查询',
 		tone: 'from-sky-400/20 via-teal-300/10 to-transparent',
 		icon: Database
+	},
+	{
+		href: '/toolbox/ruler',
+		label: '屏幕尺子',
+		desc: '实物校准 / 毫米刻度 / 双点测量',
+		tone: 'from-emerald-400/20 via-amber-200/10 to-transparent',
+		icon: Ruler
 	}
 ]
 
