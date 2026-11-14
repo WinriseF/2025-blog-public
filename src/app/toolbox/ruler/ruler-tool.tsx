@@ -312,7 +312,7 @@ export function RulerTool() {
 								? '双指缩放会改变尺子的实际大小，恢复后即可继续。'
 								: calibration
 									? '请重新校准后继续测量。'
-									: '用银行卡或实体尺对齐真实长度。'}
+									: '选择手边的实物校准，也可填写已知长度。'}
 						</p>
 						<button className={styles.primary} onClick={() => setCalibrating(true)}>
 							开始校准

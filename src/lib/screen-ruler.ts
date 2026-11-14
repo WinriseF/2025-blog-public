@@ -1,4 +1,5 @@
 export const RULER_STORAGE_KEY = 'winrisef:screen-ruler:v2'
+export const ALIGNMENT_TOLERANCE = 0.02
 export const PREVIEW_PX_PER_MM = 96 / 25.4
 export type RulerUnit = 'cm' | 'in'
 export type ScreenStamp = { dpr: number; width: number; height: number }
@@ -58,7 +59,7 @@ export function fitRulerCalibration(samples: CalibrationSample[]) {
 }
 
 export function compareCardSamples(first: number, second: number) {
-	return Math.abs(first - second) / ((first + second) / 2) <= 0.01
+	return Math.abs(first - second) / ((first + second) / 2) <= ALIGNMENT_TOLERANCE
 }
 
 export function lengthLabel(mm: number, unit: RulerUnit) {

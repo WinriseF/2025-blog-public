@@ -3,7 +3,7 @@ import catalog from '@/data/ruler-references.json'
 
 export type RulerReference = {
 	id: string
-	category: 'phone' | 'identity' | 'card' | 'connector'
+	category: 'phone' | 'identity' | 'card' | 'connector' | 'memory'
 	name: string
 	brand?: string
 	region: string

@@ -42,8 +42,11 @@ describe('physical screen ruler', () => {
 		expect(bad.residualMm).toBeGreaterThan(1)
 		expect(fitRulerCalibration([{ pixels: 100, mm: 0 }])).toBeNull()
 	})
-	it('rejects mismatched card repetitions', () => {
+	it('allows up to 2% repeated alignment difference', () => {
 		expect(compareCardSamples(428, 429)).toBe(true)
+		expect(compareCardSamples(428, 434)).toBe(true)
+		expect(compareCardSamples(99, 101)).toBe(true)
+		expect(compareCardSamples(99, 101.01)).toBe(false)
 		expect(compareCardSamples(428, 440)).toBe(false)
 	})
 	it('restores custom calibration without inventing an independent check result', () => {

@@ -2,9 +2,17 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react'
-import { ArrowLeft, Check, ChevronRight, CreditCard, FileText, IdCard, RotateCcw, Ruler, Search, Smartphone, Usb, X } from 'lucide-react'
-import { calibrationScale, compareCardSamples, fitRulerCalibration, screenStamp, type CalibrationResult, type CalibrationSample } from '@/lib/screen-ruler'
-import { searchReferences, referenceBrands, referenceLengths, type RulerReference } from '@/lib/ruler-references'
+import { ArrowLeft, Check, ChevronRight, CreditCard, FileText, IdCard, MemoryStick, RotateCcw, Ruler, Search, Smartphone, Usb, X } from 'lucide-react'
+import {
+	ALIGNMENT_TOLERANCE,
+	calibrationScale,
+	compareCardSamples,
+	fitRulerCalibration,
+	screenStamp,
+	type CalibrationResult,
+	type CalibrationSample
+} from '@/lib/screen-ruler'
+import { searchReferences, referenceBrands, referenceLengths, rulerReferences, type RulerReference } from '@/lib/ruler-references'
 import { useElementSize } from './use-element-size'
 import styles from './ruler.module.css'
 
@@ -26,6 +34,7 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 		{ id: 'phone', label: '手机', icon: Smartphone, hint: '按品牌选择机型' },
 		{ id: 'identity', label: '身份证 / 证件', icon: IdCard, hint: '按国家和证件版本选择' },
 		{ id: 'card', label: '银行卡', icon: CreditCard, hint: '标准尺寸银行卡' },
+		{ id: 'memory', label: '存储卡', icon: MemoryStick, hint: 'SD 大卡 / microSD（TF）卡' },
 		{ id: 'connector', label: 'USB 插头', icon: Usb, hint: 'U 盘 / 数据线 · 可能不够准确' },
 		{ id: 'custom', label: '自定义参照物', icon: FileText, hint: '拖动对齐实物，填写已知长度' },
 		{ id: 'ruler', label: '实体尺', icon: Ruler, hint: '使用带毫米刻度的尺子' }
@@ -62,6 +71,7 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 			ref={dialog}
 			className={styles.dialog}
 			data-stage={selected ? 'align' : 'select'}
+			data-custom={selected === 'custom'}
 			onCancel={onClose}
 			onClose={onClose}
 			aria-labelledby='calibration-title'>
@@ -86,7 +96,7 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 							<input
 								aria-label='搜索校准参照物'
 								type='search'
-								placeholder='搜索型号、品牌或国家'
+								placeholder='搜索参照物、型号或品牌'
 								autoCapitalize='none'
 								autoCorrect='off'
 								spellCheck={false}
@@ -104,12 +114,14 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 						</label>
 					</div>
 					<p className={styles.calibrationHint}>
-						{searching ? `找到 ${filtered.length + Number(showRuler) + Number(showCustom)} 个参照物` : '展开类别，选择手边的实物'}
+						{searching ? `找到 ${filtered.length + Number(showRuler) + Number(showCustom)} 个参照物` : '选择手边的实物，或自定义已知长度'}
 					</p>
 					<div className={styles.catalogList}>
 						{groups.map(({ id, label, icon: Icon, hint }) => {
 							const items = filtered.filter(item => item.category === id)
 							if (id === 'ruler' ? !showRuler : id === 'custom' ? !showCustom : !items.length) return null
+							const directReference =
+								id === 'custom' || id === 'ruler' ? id : rulerReferences.filter(item => item.category === id).length === 1 ? items[0] : null
 							return (
 								<CatalogGroup
 									key={id}
@@ -117,9 +129,9 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 									label={label}
 									hint={hint}
 									icon={<Icon size={22} aria-hidden='true' />}
-									expanded={Boolean(expanded[id])}
-									onToggle={() => toggleGroup(id)}>
-									{id === 'phone' ? (
+									expanded={directReference ? undefined : Boolean(expanded[id])}
+									onToggle={() => (directReference ? setSelected(directReference) : toggleGroup(id))}>
+									{directReference ? null : id === 'phone' ? (
 										[...referenceBrands]
 											.sort((a, b) => (searching ? filtered.findIndex(item => item.brand === a.id) - filtered.findIndex(item => item.brand === b.id) : 0))
 											.map(brand => {
@@ -146,30 +158,22 @@ export function CalibrationDialog({ initialScale, onSave, onClose }: Calibration
 												)
 											})
 									) : (
-										<div className={styles.referenceOptions}>
-											{id === 'custom' ? (
-												<button onClick={() => setSelected('custom')}>
-													<span>
-														自定义长度校准<small>使用纸张等已知长度的物品</small>
-													</span>
-													<ChevronRight size={18} aria-hidden='true' />
-												</button>
-											) : id === 'ruler' ? (
-												<button onClick={() => setSelected('ruler')}>
-													<span>
-														实体尺校准<small>三段测量 · 独立复核</small>
-													</span>
-													<ChevronRight size={18} aria-hidden='true' />
-												</button>
-											) : (
-												items.map(referenceButton)
-											)}
-										</div>
+										<div className={styles.referenceOptions}>{items.map(referenceButton)}</div>
 									)}
 								</CatalogGroup>
 							)
 						})}
-						{!filtered.length && !showRuler && !showCustom && <p className={styles.smallNote}>没有找到已核实尺寸的参照物，请换个关键词或使用实体尺。</p>}
+						{!filtered.length && !showRuler && !showCustom && (
+							<>
+								<p className={styles.smallNote}>没有找到匹配的参照物，可换个关键词，或使用已知长度的实物校准。</p>
+								<div className={styles.referenceOptions}>
+									<button onClick={() => setSelected('custom')}>
+										<span>使用自定义长度</span>
+										<ChevronRight size={18} aria-hidden='true' />
+									</button>
+								</div>
+							</>
+						)}
 					</div>
 				</>
 			)}
@@ -190,13 +194,18 @@ function CatalogGroup({
 	label: string
 	hint: string
 	icon?: ReactNode
-	expanded: boolean
+	expanded?: boolean
 	onToggle: () => void
-	children: ReactNode
+	children?: ReactNode
 }) {
 	return (
 		<section className={styles.catalogGroup} data-nested={!icon}>
-			<button className={styles.catalogGroupToggle} aria-label={label} aria-expanded={expanded} aria-controls={`reference-group-${id}`} onClick={onToggle}>
+			<button
+				className={styles.catalogGroupToggle}
+				aria-label={label}
+				aria-expanded={expanded}
+				aria-controls={expanded === undefined ? undefined : `reference-group-${id}`}
+				onClick={onToggle}>
 				{icon && <span className={styles.catalogGroupIcon}>{icon}</span>}
 				<span>
 					{label}
@@ -262,8 +271,10 @@ function CalibrationSession({
 	const maxPixels = Math.max(40, (vertical ? area.height : area.width) - (method === 'ruler' ? 16 : 0))
 	const referenceMm = lengths[Math.min(step, 2)]
 	const fit = samples.length === 3 ? fitRulerCalibration(samples) : null
-	const minPixels = method === 'connector' || method === 'custom' ? 4 : 40
+	const minPixels = method === 'connector' || method === 'custom' || object?.category === 'memory' ? 4 : 40
 	const linePixels = method !== 'ruler' ? Math.max(minPixels, Math.min(maxPixels, pixels)) : trialPixels[step] || 40
+	// Custom alignment stays in pixels; a smaller viewport must not save its clipped preview.
+	const lineDoesNotFit = (method === 'custom' ? pixels : method === 'ruler' ? linePixels : 0) > maxPixels
 	const steps =
 		method === 'custom'
 			? ['对齐并填写长度']
@@ -330,7 +341,7 @@ function CalibrationSession({
 		changePixels(drag.current.pixels + (vertical ? event.clientY : event.clientX) - drag.current.coordinate)
 	}
 	function submit() {
-		if (zoomed || displayChanged || (method === 'ruler' && linePixels > maxPixels)) return
+		if (zoomed || displayChanged || lineDoesNotFit) return
 		if (method === 'custom') {
 			const pxPerMm = calibrationScale(linePixels, Number(answer))
 			if (!pxPerMm) {
@@ -349,7 +360,7 @@ function CalibrationSession({
 				setStep(1)
 			} else if (step === 1) {
 				if (!compareCardSamples(samples[0].pixels, linePixels)) {
-					setError('两次对齐相差超过 1%，请重新校准并正对屏幕观察。')
+					setError('两次对齐相差超过 2%，请重新校准并正对屏幕观察。')
 					return
 				}
 				setSamples([...samples, { pixels: linePixels, mm: lengths[0] }])
@@ -358,7 +369,7 @@ function CalibrationSession({
 			} else {
 				const pxPerMm = (samples[0].pixels + samples[1].pixels) / (2 * lengths[0])
 				const checkErrorMm = Math.abs(linePixels / pxPerMm - lengths[2])
-				if (checkErrorMm > (method === 'connector' ? lengths[2] * 0.01 : 0.6)) {
+				if (checkErrorMm > (method === 'connector' || object?.category === 'memory' ? lengths[2] * ALIGNMENT_TOLERANCE : 0.6)) {
 					setError('复核与前两次校准不一致，请检查实物版本与对齐位置。')
 					return
 				}
@@ -393,7 +404,6 @@ function CalibrationSession({
 		}
 	}
 
-	const lineDoesNotFit = method === 'ruler' && linePixels > maxPixels
 	const blocked = zoomed || displayChanged || (!result && lineDoesNotFit)
 	return (
 		<>
@@ -535,7 +545,9 @@ function CalibrationSession({
 							: displayChanged
 								? '显示比例发生变化，请重新开始校准。'
 								: lineDoesNotFit
-									? '请收起键盘或恢复屏幕方向，让整段参照线可见。'
+									? method === 'custom'
+										? '当前空间不足，已保留对齐长度。请恢复窗口大小或收起键盘；也可点击重置后重新对齐。'
+										: '请收起键盘或恢复屏幕方向，让整段参照线可见。'
 									: error}
 					</p>
 				)}

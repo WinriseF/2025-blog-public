@@ -812,9 +812,6 @@
 	.toolbar {
 		gap: 4px;
 	}
-	.onboarding p {
-		display: none;
-	}
 	.onboarding h2 {
 		font-size: 14px;
 	}
@@ -858,7 +855,72 @@
 		padding-bottom: 8px;
 		gap: 6px;
 	}
-	.onboarding p {
-		display: none;
-	}
+}
+
+/* Custom references can span almost the entire viewport's longer edge. */
+.dialog[data-custom='true'] {
+	inset: 0;
+	width: 100vw;
+	height: 100dvh;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	padding: 24px;
+	border: 0;
+	border-radius: 0;
+}
+.dialog[data-custom='true'] > :not(.calibrationArea) {
+	position: relative;
+	z-index: 1;
+	width: 100%;
+	max-width: 600px;
+	margin-inline: auto;
+}
+.dialog[data-custom='true'] .calibrationArea {
+	position: absolute;
+	inset: 16px 32px;
+	width: auto;
+	height: auto;
+	min-height: 0;
+	background: transparent;
+	pointer-events: none;
+}
+.dialog[data-custom='true'] .referenceHandle {
+	pointer-events: auto;
+}
+.dialog[data-custom='true'] > .customLength {
+	margin-top: auto;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) {
+	justify-content: center;
+	padding: 16px 16px 16px 120px;
+}
+.dialog[data-custom='true'] .calibrationArea[data-vertical='true'] {
+	justify-content: flex-start;
+}
+.dialog[data-custom='true'] .calibrationArea[data-vertical='true'] .referenceHandle {
+	left: 28px;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) > .dialogHeader {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) .calibrationHeading {
+	grid-row: 2;
+	grid-column: 1 / -1;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) .dialogHeader > button {
+	grid-row: 1;
+	justify-self: start;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) .dialogHeader > button:last-child {
+	justify-self: end;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) > .customLength {
+	margin-top: 14px;
+	flex-wrap: wrap;
+}
+.dialog[data-custom='true']:has(.calibrationArea[data-vertical='true']) .customLength label {
+	width: 100%;
+	text-align: center;
 }

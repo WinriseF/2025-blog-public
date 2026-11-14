@@ -3,8 +3,8 @@
 	"unit": "mm",
 	"maintenanceNotes": [
 		"所有校准参照物及品牌集中维护于本文件；references 中新增或修改条目即可。id 必须唯一且保持稳定，旧校准会保存 referenceId。",
-		"category：phone（手机）、identity（证件）、card（银行卡）、connector（USB 插头）。brand 对应 brands 中的 id。",
-		"heightMm / widthMm：手机为机身长 / 宽，证件为短边 / 长边，USB 插头为金属壳端面高 / 宽；不包含手机壳、塑料护套或插座。USB 仅用宽度重复校准，不用过短的高度。",
+		"category：phone（手机）、identity（证件）、card（银行卡）、connector（USB 插头）、memory（存储卡）。brand 对应 brands 中的 id。",
+		"heightMm / widthMm：手机为机身长 / 宽，证件和存储卡为短边 / 长边，USB 插头为金属壳端面高 / 宽；不包含手机壳、塑料护套或插座。USB 仅用宽度重复校准，不用过短的高度。",
 		"每条记录的 sources 必须是支持对应尺寸的官方网站、政府网站或标准发布机构原始页面；核对型号、市场版本、单位和折叠状态，不用聚合站或推测值。",
 		"手机以 2022 年以来为目标，只收录官网仍可查到明确尺寸的记录；已下架、跳转产品列表、缺失或歧义规格不追补，不声称全机型覆盖。地区版本分开记录；容量或颜色长宽一致时共用。",
 		"折叠机均为合拢尺寸。Samsung 的 W×H×D 与 H×W×D 按机身方向归一；Apple 比较页按同一产品列配对长宽。",
@@ -77,6 +77,26 @@
 			"widthMm": 8.25,
 			"note": "仅对齐插入端金属壳最宽处的外侧边缘，不量塑料护套或手机插座。参照物较小，校准可能不够准确。",
 			"sources": ["https://www.usb.org/sites/default/files/USB%20Type-C%20Spec%20R2.0%20-%20August%202019.pdf#page=47"]
+		},
+		{
+			"id": "memory-sd",
+			"category": "memory",
+			"name": "SD 存储卡（标准大卡）",
+			"region": "SD Association",
+			"heightMm": 24,
+			"widthMm": 32,
+			"note": "适用于标准尺寸的 SD / SDHC / SDXC / SDUC 卡。取下保护套，按卡片完整长宽对齐，不沿缺角斜边测量，不把锁定拨片算入宽度。",
+			"sources": ["https://www.sdcard.org/developers/sd-standard-overview/capacity-sd-sdhc-sdxc-sduc/"]
+		},
+		{
+			"id": "memory-microsd",
+			"category": "memory",
+			"name": "microSD / TF 存储卡",
+			"region": "SD Association",
+			"heightMm": 11,
+			"widthMm": 15,
+			"note": "使用 microSD（TF）卡片本体，取下转接套，按完整长宽对齐，不沿缺口测量。参照物较小，校准可能不够准确。",
+			"sources": ["https://www.sdcard.org/developers/sd-standard-overview/capacity-sd-sdhc-sdxc-sduc/"]
 		},
 		{
 			"id": "id-cn",

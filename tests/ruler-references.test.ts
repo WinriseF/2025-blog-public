@@ -87,6 +87,18 @@ describe('official ruler reference catalog', () => {
 			expect(parseCalibration(JSON.stringify(calibration))).toEqual(calibration)
 		}
 	})
+	it('finds SD and TF cards with distinct long and short sides', () => {
+		for (const [query, id, lengths] of [
+			['SD', 'memory-sd', [32, 32, 24]],
+			['tf', 'memory-microsd', [15, 15, 11]]
+		] as const) {
+			const reference = searchReferences(query).references.find(item => item.id === id)!
+			expect(reference.category).toBe('memory')
+			expect(referenceLengths(reference, 'width')).toEqual(lengths)
+			expect(reference.sources[0]).toContain('sdcard.org')
+		}
+		expect(searchReferences('MICROSD').references.some(item => item.id === 'memory-microsd')).toBe(true)
+	})
 	it('persists the selected phone reference alongside the calibrated scale', () => {
 		const calibration = { version: 2, pxPerMm: 4, dpr: 2, width: 390, height: 844, method: 'phone', checkErrorMm: 0.1, referenceId: 'apple-iphone-14' }
 		expect(parseCalibration(JSON.stringify(calibration))).toEqual(calibration)
