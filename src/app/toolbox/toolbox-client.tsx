@@ -1,11 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, Database, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, ScanFace, ScanText, Send } from 'lucide-react'
+import { ArrowUpRight, Database, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, Ruler, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
 const tools = [
+	{
+		href: '/toolbox/ruler',
+		label: '屏幕尺子',
+		desc: '实物校准 / 毫米刻度 / 双点测量',
+		tone: 'from-emerald-400/20 via-amber-200/10 to-transparent',
+		icon: Ruler
+	},
 	{
 		href: '/t',
 		label: '快传',
@@ -83,9 +90,13 @@ export function ToolboxClient() {
 
 	return (
 		<main className='mx-auto max-w-[1180px] px-6 pt-28 pb-12 text-sm max-sm:px-4 max-sm:pt-24'>
-			<motion.header initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: INIT_DELAY }} className='max-w-2xl'>
+			<motion.header
+				initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ delay: INIT_DELAY }}
+				className='max-w-2xl'>
 				<p className='text-secondary text-xs tracking-[0.22em] uppercase'>Toolbox</p>
-				<h1 className='mt-2 text-3xl font-semibold tracking-normal text-primary max-sm:text-2xl'>客户端工具箱</h1>
+				<h1 className='text-primary mt-2 text-3xl font-semibold tracking-normal max-sm:text-2xl'>客户端工具箱</h1>
 			</motion.header>
 
 			<section className='mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
@@ -98,14 +109,14 @@ export function ToolboxClient() {
 						transition={{ delay: INIT_DELAY + index * 0.06 }}>
 						<Link
 							href={href}
-							className='group relative flex min-h-[170px] flex-col overflow-hidden rounded-lg border border-border bg-article p-5 shadow-[0_18px_60px_-42px_var(--color-primary)] transition duration-300 hover:-translate-y-1 hover:border-brand/45 hover:shadow-[0_24px_70px_-46px_var(--color-brand)]'>
+							className='group border-border bg-article hover:border-brand/45 relative flex min-h-[170px] flex-col overflow-hidden rounded-lg border p-5 shadow-[0_18px_60px_-42px_var(--color-primary)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_-46px_var(--color-brand)]'>
 							<span className={`pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-br ${tone}`} />
-							<span className='pointer-events-none absolute inset-x-5 top-16 h-px bg-linear-to-r from-transparent via-border to-transparent' />
+							<span className='via-border pointer-events-none absolute inset-x-5 top-16 h-px bg-linear-to-r from-transparent to-transparent' />
 							<span className='relative flex items-start justify-between gap-4'>
-								<span className='border-brand/25 bg-brand/5 text-brand flex size-12 items-center justify-center rounded-lg border transition duration-300 group-hover:border-brand/55 group-hover:bg-brand/10 group-hover:text-brand'>
+								<span className='border-brand/25 bg-brand/5 text-brand group-hover:border-brand/55 group-hover:bg-brand/10 group-hover:text-brand flex size-12 items-center justify-center rounded-lg border transition duration-300'>
 									<Icon size={22} />
 								</span>
-								<span className='text-secondary group-hover:text-primary flex size-9 items-center justify-center rounded-full border border-border bg-background/40 transition'>
+								<span className='text-secondary group-hover:text-primary border-border bg-background/40 flex size-9 items-center justify-center rounded-full border transition'>
 									<ArrowUpRight size={16} />
 								</span>
 							</span>

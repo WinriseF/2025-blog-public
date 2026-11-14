@@ -1,7 +1,7 @@
 import '@arraypress/waveform-player/styles.css'
 import '@/styles/globals.css'
 
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Layout from '@/layout'
 import Head from '@/layout/head'
 import siteContent from '@/config/site-content.json'
@@ -11,6 +11,8 @@ const {
 	meta: { title, description },
 	theme
 } = siteContent
+
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, maximumScale: 1, userScalable: false }
 
 export const metadata: Metadata = {
 	title,

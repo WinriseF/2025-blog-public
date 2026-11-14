@@ -48,12 +48,13 @@ function ThemedLayout({ children }: PropsWithChildren) {
 	const clickEffectPreference = useClickEffectPreference()
 	const pathname = usePathname()
 	const isOrbitalisRoute = pathname === '/orbitalis'
+	const isRulerRoute = pathname === '/toolbox/ruler'
 	const isDatabaseRoute = pathname === '/toolbox/database'
 	const isStackRoute = pathname === '/home' || pathname.startsWith('/home/')
 	const isVersionControlRoute = pathname.startsWith('/toolbox/version-control')
 	const isVersionControlCallback = pathname === '/toolbox/version-control/agent-return'
 	const versionControlWorkbenchOpen = useVersionControlStore(state => Boolean(state.browserDirectory || state.repository))
-	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock' && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute
+	const atmosphereAnimated = pathname !== '/game' && pathname !== '/world-clock' && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isRulerRoute
 	const clickEffectEnabled =
 		clickEffectPreference.ready && clickEffectPreference.enabled && atmosphereAnimated && !(isVersionControlRoute && versionControlWorkbenchOpen)
 	const homeFitActive = pathname === '/' && !maxSM
@@ -101,20 +102,23 @@ function ThemedLayout({ children }: PropsWithChildren) {
 					} as React.CSSProperties
 				}
 			/>
-			{mounted && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute ? (
+			{mounted && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isRulerRoute ? (
 				<TimeAtmosphereBackground animated={atmosphereAnimated} theme={timeTheme} />
 			) : (
 				<div className='bg-bg pointer-events-none fixed inset-0 z-0' />
 			)}
 			<main className='relative z-10 h-full' style={mainStyle}>
 				{children}
-				{!isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isVersionControlCallback && !(isVersionControlRoute && versionControlWorkbenchOpen) && (
-					<NavCard />
-				)}
+				{!isStackRoute &&
+					!isOrbitalisRoute &&
+					!isDatabaseRoute &&
+					!isRulerRoute &&
+					!isVersionControlCallback &&
+					!(isVersionControlRoute && versionControlWorkbenchOpen) && <NavCard />}
 			</main>
 			<ClickEffectLayer enabled={clickEffectEnabled} theme={timeTheme} />
 
-			{!isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isVersionControlRoute && pathname !== '/music' && maxSM && init && (
+			{!isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isRulerRoute && !isVersionControlRoute && pathname !== '/music' && maxSM && init && (
 				<ScrollTopButton className='bg-brand/20 fixed right-6 bottom-8 z-50 shadow-md' />
 			)}
 		</MusicPlayerProvider>

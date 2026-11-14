@@ -1,0 +1,864 @@
+.root button {
+	cursor: pointer;
+	touch-action: manipulation;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 44px;
+	border-radius: 8px;
+	font: inherit;
+	font-size: 13px;
+	padding: 8px 13px;
+	transition: background 0.15s;
+}
+.root button:hover {
+	background: color-mix(in srgb, var(--color-brand) 8%, transparent);
+}
+.root button:focus-visible,
+.root input:focus-visible {
+	outline: 2px solid var(--color-brand);
+	outline-offset: 4px;
+}
+.root button:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+.calibrateButton {
+	border: 1px solid var(--color-border);
+}
+.statusReady,
+.statusPending {
+	width: 7px;
+	height: 7px;
+	border-radius: 100%;
+	background: var(--color-brand);
+}
+.statusPending {
+	background: var(--color-secondary);
+}
+.segment {
+	display: inline-flex;
+	border: 1px solid var(--color-border);
+	padding: 3px;
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--color-bg) 30%, transparent);
+}
+.segment button {
+	min-height: 34px;
+}
+.segment button[aria-pressed='true'] {
+	background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+	color: var(--color-brand);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 45%, transparent);
+}
+.scale {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	color: var(--color-primary);
+}
+.scale line {
+	stroke: currentColor;
+	stroke-width: 1;
+}
+.scale text {
+	fill: currentColor;
+	font:
+		14px ui-monospace,
+		SFMono-Regular,
+		monospace;
+}
+.board[data-calibrated='false'] .scale {
+	opacity: 0.25;
+}
+.selection {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	background: color-mix(in srgb, var(--color-brand) 6%, transparent);
+	border-left: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
+	border-right: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
+	pointer-events: none;
+}
+.board[data-vertical='true'] .selection {
+	left: 0;
+	width: 100%;
+	border-left: 0;
+	border-right: 0;
+	border-top: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
+}
+.marker {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background: var(--color-brand);
+	z-index: 2;
+}
+.marker > button {
+	position: absolute;
+	left: 0;
+	top: 12px;
+	transform: translate(-50%, 0);
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: 1px solid var(--color-brand);
+	color: var(--color-brand);
+	background: var(--color-article);
+	touch-action: none;
+	cursor: ew-resize;
+	flex-direction: column;
+	gap: 5px;
+	box-shadow: 0 3px 10px color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+.marker[data-endpoint='1'] > button {
+	top: auto;
+	bottom: 12px;
+}
+.marker[data-active='true'] > button,
+.marker > button:hover {
+	background: var(--color-brand);
+	color: white;
+}
+.marker > button i {
+	width: 12px;
+	height: 6px;
+	border-top: 1px solid currentColor;
+	border-bottom: 1px solid currentColor;
+	opacity: 0.6;
+}
+.board[data-vertical='true'] .marker {
+	left: 0;
+	right: 0;
+	bottom: auto;
+	width: 100%;
+	height: 1px;
+}
+.board[data-vertical='true'] .marker > button {
+	left: 12px;
+	top: 0;
+	bottom: auto;
+	transform: translate(0, -50%);
+	cursor: ns-resize;
+}
+.board[data-vertical='true'] .marker[data-endpoint='1'] > button {
+	left: auto;
+	right: 12px;
+}
+.root .primary {
+	background: var(--color-brand);
+	color: white;
+	border-radius: 8px;
+	padding: 13px 24px;
+	min-height: 48px;
+	font-weight: 600;
+}
+.root .primary:hover {
+	background: color-mix(in srgb, var(--color-brand) 85%, var(--color-primary));
+}
+.dialog {
+	color: var(--color-primary);
+	background: var(--color-article);
+	width: min(600px, calc(100vw - 24px));
+	border: 1px solid var(--color-border);
+	border-radius: 12px;
+	padding: 24px;
+	max-height: calc(100dvh - 24px);
+	overflow: auto;
+	margin: auto;
+	box-shadow: 0 24px 100px #0004;
+	display: none;
+}
+.dialog::backdrop {
+	background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+	backdrop-filter: blur(4px);
+}
+.dialogHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 20px;
+}
+.dialogHeader h2 {
+	font-size: 24px;
+	font-weight: 500;
+	margin: 0;
+}
+.calibrationHeading {
+	flex: 1;
+}
+.referenceOptions {
+	display: flex;
+	flex-direction: column;
+}
+.root .referenceOptions button {
+	width: 100%;
+	padding: 12px;
+	border: 0;
+	border-radius: 6px;
+	gap: 12px;
+	text-align: left;
+	font-size: 14px;
+	line-height: 1.5;
+}
+.referenceOptions button + button {
+	border-top: 1px solid color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.referenceOptions button > span {
+	flex: 1;
+}
+.referenceOptions small {
+	display: block;
+	margin-top: 4px;
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--color-secondary);
+}
+.catalogFilters {
+	display: grid;
+	gap: 10px;
+	flex-shrink: 0;
+}
+.catalogSearch {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 0 12px;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	background: var(--color-bg);
+}
+.catalogSearch:focus-within {
+	border-color: var(--color-brand);
+	box-shadow: inset 0 0 0 1px var(--color-brand);
+}
+.root .catalogSearch input:focus {
+	outline: none;
+	outline-offset: 0;
+}
+.catalogSearch input {
+	width: 100%;
+	min-width: 0;
+	height: 44px;
+	font-size: 16px;
+	background: transparent;
+	color: var(--color-primary);
+}
+.dialog[data-stage='select'] {
+	overflow: hidden;
+}
+.catalogList {
+	min-height: 0;
+	flex: 1;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	padding: 4px;
+	margin: 0 -4px;
+}
+.catalogGroup + .catalogGroup {
+	border-top: 1px solid color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+.root .catalogGroupToggle {
+	width: 100%;
+	justify-content: flex-start;
+	padding: 16px 10px;
+	gap: 12px;
+	text-align: left;
+	font-size: 15px;
+	line-height: 1.5;
+	transition:
+		background 0.18s ease,
+		color 0.18s ease;
+}
+.catalogGroupToggle > span {
+	flex: 1;
+}
+.catalogGroupToggle > .catalogGroupIcon {
+	flex: 0 0 36px;
+	height: 36px;
+	display: grid;
+	place-items: center;
+	border-radius: 8px;
+	background: var(--color-bg);
+}
+.catalogGroupToggle small {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	font-weight: 400;
+	color: var(--color-secondary);
+}
+.catalogChevron {
+	color: var(--color-secondary);
+	transition:
+		transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+		color 0.18s ease;
+}
+.catalogGroupToggle[aria-expanded='true'] {
+	color: var(--color-brand);
+}
+.catalogGroupToggle[aria-expanded='true'] > .catalogChevron {
+	transform: rotate(90deg);
+	color: var(--color-brand);
+}
+.catalogGroupPanel {
+	overflow: hidden;
+}
+.catalogGroupContent {
+	padding: 0 0 8px 14px;
+}
+.catalogGroup[data-nested='true'] + .catalogGroup {
+	border-top: 0;
+}
+.root .catalogGroup[data-nested='true'] > .catalogGroupToggle {
+	padding: 12px 10px;
+	font-size: 14px;
+}
+.catalogGroup[data-nested='true'] .catalogGroupContent {
+	padding: 0 0 8px;
+}
+.catalogGroup[data-nested='true'] .referenceOptions {
+	margin-left: 10px;
+	border-left: 1px solid color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+@media (min-width: 641px) {
+	.dialog[data-stage='select'] {
+		height: min(640px, calc(100dvh - 32px));
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.catalogChevron,
+	.root .catalogGroupToggle {
+		transition: none;
+	}
+}
+.catalogList button > span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.catalogList button > svg {
+	flex-shrink: 0;
+}
+.referenceDetails {
+	font-size: 11px;
+	line-height: 1.6;
+	color: var(--color-secondary);
+	margin-bottom: 8px;
+	flex-shrink: 0;
+}
+.referenceDetails p {
+	margin: 0;
+}
+.referenceDetails a {
+	color: var(--color-brand);
+	text-decoration: underline;
+	margin-right: 12px;
+}
+.calibrationHeading {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.customLength {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	font-size: 13px;
+	margin: 14px 0;
+}
+.customLength input {
+	width: 90px;
+	height: 40px;
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+	padding: 6px 10px;
+	font-size: 16px;
+	background: var(--color-bg);
+	color: var(--color-primary);
+}
+.calibrationHint {
+	font-size: 12px;
+	line-height: 1.7;
+	color: var(--color-secondary);
+	margin: 10px 0;
+}
+.calibrationArea {
+	height: 180px;
+	background: color-mix(in srgb, var(--color-article) 90%, var(--color-bg));
+	border-radius: 8px;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1 0 220px;
+	min-height: 220px;
+}
+.referenceLine {
+	background: var(--color-brand);
+	position: relative;
+	flex-shrink: 0;
+	height: 1px;
+}
+.calibrationArea[data-adjustable='true'] {
+	justify-content: flex-start;
+}
+.calibrationArea[data-adjustable='true'][data-vertical='true'] {
+	justify-content: center;
+	align-items: flex-start;
+}
+.referenceLine i {
+	position: absolute;
+	height: 44px;
+	background: var(--color-brand);
+	top: -21px;
+	left: 0;
+	width: 1px;
+	transform: translateX(-50%);
+}
+.referenceLine span {
+	position: absolute;
+	top: 28px;
+	width: 100%;
+	text-align: center;
+	font-size: 12px;
+	white-space: nowrap;
+	color: var(--color-brand);
+}
+.calibrationArea[data-vertical='true'] .referenceLine {
+	width: 1px;
+}
+.calibrationArea[data-vertical='true'] .referenceLine i {
+	top: 0;
+	left: -21px;
+	width: 44px;
+	height: 1px;
+	transform: translateY(-50%);
+}
+.calibrationArea[data-vertical='true'] .referenceLine span {
+	left: 28px;
+	top: 50%;
+	width: auto;
+}
+.smallNote {
+	font-size: 11px;
+	line-height: 1.7;
+	color: var(--color-secondary);
+	margin: 4px 0 16px;
+}
+.dialog[open] {
+	display: flex;
+	flex-direction: column;
+}
+.dialogHeader,
+.referenceOptions,
+.calibrationHint,
+.customLength,
+.calibrationActions {
+	flex-shrink: 0;
+}
+.referenceLine i:last-of-type {
+	left: 100%;
+	right: auto;
+}
+.calibrationArea[data-vertical='true'] .referenceLine i:last-of-type {
+	left: -21px;
+	top: 100%;
+	bottom: auto;
+}
+.root .referenceHandle {
+	position: absolute;
+	left: 100%;
+	top: 54px;
+	transform: translateX(-100%);
+	width: 44px;
+	padding: 0;
+	touch-action: none;
+	background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+	color: var(--color-brand);
+	border: 1px solid color-mix(in srgb, var(--color-brand) 45%, transparent);
+	cursor: ew-resize;
+}
+.calibrationArea[data-vertical='true'] .referenceHandle {
+	top: 100%;
+	left: 65px;
+	cursor: ns-resize;
+	transform: translateY(-100%);
+}
+.dialogButtons {
+	display: flex;
+	gap: 8px;
+}
+.dialogButtons .primary {
+	flex: 1;
+}
+.calibrationResult {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	flex-direction: column;
+	gap: 20px;
+	padding: 32px 12px;
+	color: var(--color-brand);
+}
+.calibrationResult strong {
+	font-size: 22px;
+	font-variant-numeric: tabular-nums;
+}
+.error {
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--color-red-500);
+	margin: 8px 0;
+}
+.root .calibrateButton {
+	color: var(--color-brand);
+	background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+	border-color: color-mix(in srgb, var(--color-brand) 35%, transparent);
+}
+:global(html[data-time-theme='night']) .root {
+	color-scheme: dark;
+}
+@media (max-width: 640px) {
+	.root .calibrateButton {
+		font-size: 12px;
+		padding: 6px 10px;
+		gap: 6px;
+	}
+	.root .segment button {
+		padding: 6px 10px;
+		font-size: 12px;
+	}
+	.dialog {
+		width: 100%;
+		max-width: none;
+		max-height: 100dvh;
+		height: 100dvh;
+		border-radius: 0;
+		padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+	}
+	.dialogHeader {
+		margin-bottom: 8px;
+	}
+	.dialogHeader h2 {
+		font-size: 20px;
+	}
+	.catalogList {
+		max-height: none;
+		flex: 1;
+	}
+	.calibrationArea {
+		height: auto;
+		min-height: 240px;
+		flex: 1 0 240px;
+	}
+	.dialogHeader .eyebrow {
+		margin-bottom: 4px;
+	}
+	.smallNote {
+		margin: 4px 0 8px;
+	}
+	.calibrationResult {
+		flex: 1;
+	}
+	.calibrationArea[data-vertical='true'] .referenceLine span {
+		left: 24px;
+	}
+}
+@media (max-height: 540px) and (min-width: 641px) {
+	.readout .eyebrow {
+		margin-bottom: 3px;
+	}
+	.dialog {
+		padding: 10px 18px;
+		width: min(960px, calc(100vw - 24px));
+	}
+	.dialogHeader {
+		margin-bottom: 4px;
+	}
+	.dialogHeader h2 {
+		font-size: 18px;
+	}
+	.dialogHeader .eyebrow {
+		margin-bottom: 0;
+	}
+	.calibrationArea {
+		min-height: 70px;
+		flex: 1 0 70px;
+	}
+	.calibrationArea .referenceLine span {
+		top: 12px;
+	}
+	.root .referenceHandle {
+		top: 12px;
+	}
+	.calibrationHint {
+		margin: 4px 0;
+	}
+	.smallNote {
+		margin: 0 0 4px;
+	}
+	.calibrationResult {
+		padding: 8px;
+		gap: 8px;
+	}
+}
+
+/* Only the controls have inset padding. The measuring plane always reaches all viewport edges. */
+.root {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100dvh;
+	overflow: hidden;
+	background: var(--color-bg);
+	color: var(--color-primary);
+	font-family: var(--font-sans);
+	color-scheme: normal;
+}
+.boardWrap,
+.board {
+	position: absolute;
+	inset: 0;
+	padding: 0;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+}
+.board {
+	overflow: hidden;
+	isolation: isolate;
+}
+.controls {
+	position: absolute;
+	z-index: 3;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: min(480px, calc(100% - 144px));
+	max-height: calc(100dvh - 144px);
+	overflow: auto;
+	padding: 20px;
+	border-radius: 12px;
+	background: var(--color-article);
+}
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.header h1 {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 16px;
+	font-weight: 600;
+	margin: 0;
+}
+.back {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 8px;
+}
+.back > span {
+	display: none;
+}
+.readout {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+	padding: 20px 0;
+	text-align: center;
+}
+.eyebrow {
+	font-size: 11px;
+	color: var(--color-secondary);
+	margin: 0 0 8px;
+}
+.value {
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	gap: 8px;
+	font-variant-numeric: tabular-nums;
+}
+.value output {
+	font-size: 48px;
+	line-height: 1;
+	font-weight: 600;
+	letter-spacing: -0.025em;
+}
+.value > span {
+	font-size: 16px;
+	color: var(--color-secondary);
+}
+.subValue {
+	font-size: 11px;
+	color: var(--color-secondary);
+	margin: 8px 0 0;
+	line-height: 1.5;
+}
+.toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.toolButtons {
+	display: flex;
+	gap: 2px;
+}
+.toolButtons button > span {
+	display: none;
+}
+.root .toolButtons button {
+	padding: 8px 10px;
+}
+.onboarding {
+	display: flex;
+	align-items: center;
+	flex-direction: column;
+	text-align: center;
+	gap: 10px;
+	padding: 0 0 16px;
+}
+.onboarding > svg {
+	display: none;
+}
+.onboarding h2 {
+	font-size: 16px;
+	font-weight: 600;
+	margin: 0;
+}
+.onboarding p {
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--color-secondary);
+	margin: 0;
+}
+.footer {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px 0 0;
+	border-top: 1px solid var(--color-border);
+}
+.fineControls {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+.fineControls > span {
+	font-size: 11px;
+	color: var(--color-secondary);
+	white-space: nowrap;
+}
+.root .fineControls > button {
+	padding: 8px;
+}
+.footerNote {
+	font-size: 10px;
+	line-height: 1.6;
+	color: var(--color-secondary);
+	text-align: center;
+	margin: 0;
+}
+@media (max-width: 640px) {
+	.controls {
+		width: calc(100% - 128px);
+		max-height: calc(100dvh - 64px);
+		padding: 12px;
+	}
+	.header {
+		justify-content: center;
+		gap: 4px;
+	}
+	.header h1 {
+		font-size: 14px;
+		flex: 1;
+	}
+	.header h1 > svg {
+		display: none;
+	}
+	.root .calibrateButton {
+		width: 100%;
+	}
+	.readout {
+		gap: 10px;
+		padding: 12px 0;
+	}
+	.value output {
+		font-size: 40px;
+	}
+	.fineControls .segment {
+		flex-basis: 100%;
+		justify-content: center;
+	}
+	.root .fineControls > button {
+		padding: 6px;
+	}
+	.toolbar {
+		gap: 4px;
+	}
+	.onboarding p {
+		display: none;
+	}
+	.onboarding h2 {
+		font-size: 14px;
+	}
+	.onboarding .primary {
+		padding: 10px 14px;
+		width: 100%;
+	}
+}
+@media (max-height: 540px) and (min-width: 641px) {
+	.controls {
+		width: min(600px, calc(100% - 144px));
+		max-height: calc(100dvh - 128px);
+		padding: 10px 16px;
+	}
+	.header h1 {
+		font-size: 14px;
+	}
+	.readout {
+		flex-direction: row;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 8px 0;
+	}
+	.value output {
+		font-size: 32px;
+	}
+	.readout .eyebrow {
+		display: none;
+	}
+	.subValue {
+		margin-top: 4px;
+	}
+	.footer {
+		padding-top: 6px;
+		gap: 4px;
+	}
+	.footerNote {
+		font-size: 9px;
+	}
+	.onboarding {
+		padding-bottom: 8px;
+		gap: 6px;
+	}
+	.onboarding p {
+		display: none;
+	}
+}
