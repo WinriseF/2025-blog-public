@@ -24,19 +24,6 @@
 	opacity: 0.35;
 	cursor: default;
 }
-.calibrateButton {
-	border: 1px solid var(--color-border);
-}
-.statusReady,
-.statusPending {
-	width: 7px;
-	height: 7px;
-	border-radius: 100%;
-	background: var(--color-brand);
-}
-.statusPending {
-	background: var(--color-secondary);
-}
 .segment {
 	display: inline-flex;
 	border: 1px solid var(--color-border);
@@ -515,18 +502,21 @@
 	margin: 8px 0;
 }
 .root .calibrateButton {
+	justify-self: end;
+	min-height: 32px;
+	padding: 4px 6px;
+	font-size: 12px;
 	color: var(--color-brand);
 	background: color-mix(in srgb, var(--color-brand) 10%, transparent);
-	border-color: color-mix(in srgb, var(--color-brand) 35%, transparent);
+	border: 1px solid color-mix(in srgb, var(--color-brand) 35%, transparent);
 }
 :global(html[data-time-theme='night']) .root {
 	color-scheme: dark;
 }
 @media (max-width: 640px) {
 	.root .calibrateButton {
-		font-size: 12px;
-		padding: 6px 10px;
-		gap: 6px;
+		font-size: 11px;
+		padding: 4px 2px;
 	}
 	.root .segment button {
 		padding: 6px 10px;
@@ -643,10 +633,9 @@
 	background: var(--color-article);
 }
 .header {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	justify-content: space-between;
-	flex-wrap: wrap;
 	gap: 8px;
 }
 .header h1 {
@@ -659,6 +648,7 @@
 }
 .back {
 	display: flex;
+	justify-self: start;
 	align-items: center;
 	min-height: 44px;
 	padding: 8px;
@@ -703,18 +693,13 @@
 		padding: 12px;
 	}
 	.header {
-		justify-content: center;
 		gap: 4px;
 	}
 	.header h1 {
 		font-size: 14px;
-		flex: 1;
 	}
 	.header h1 > svg {
 		display: none;
-	}
-	.root .calibrateButton {
-		width: 100%;
 	}
 	.toolbar {
 		gap: 4px;

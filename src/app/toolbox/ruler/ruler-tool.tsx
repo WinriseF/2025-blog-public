@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react'
-import { ArrowLeft, ArrowLeftRight, LockKeyhole, Maximize, Ruler, SlidersHorizontal, UnlockKeyhole } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, LockKeyhole, Maximize, Ruler, UnlockKeyhole } from 'lucide-react'
 import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import TimeAtmosphereBackground from '@/layout/backgrounds/time-atmosphere-background'
@@ -257,9 +257,7 @@ export function RulerTool() {
 						屏幕尺子
 					</h1>
 					<button className={styles.calibrateButton} onClick={() => setCalibrating('reference')}>
-						<span className={valid ? styles.statusReady : styles.statusPending} />
 						{valid ? (calibration?.method === 'device' ? '型号估算' : '已校准') : calibration ? '重新校准' : '校准屏幕'}
-						<SlidersHorizontal size={15} />
 					</button>
 				</header>
 				<output className={styles.measurement} aria-label='A、B 间距'>
