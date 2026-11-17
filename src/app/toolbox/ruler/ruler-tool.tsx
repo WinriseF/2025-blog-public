@@ -4,11 +4,13 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react'
 import { ArrowLeft, ArrowLeftRight, LockKeyhole, Maximize, Ruler, SlidersHorizontal, UnlockKeyhole } from 'lucide-react'
+import { SelectMenu, type SelectMenuOption } from '@/components/select-menu'
 import { useTimeTheme } from '@/components/time-theme-provider'
 import TimeAtmosphereBackground from '@/layout/backgrounds/time-atmosphere-background'
 import {
 	calibrationMatches,
 	clampPosition,
+	lengthLabel,
 	parseCalibration,
 	PREVIEW_PX_PER_MM,
 	RULER_STORAGE_KEY,
@@ -23,6 +25,12 @@ import styles from './ruler.module.css'
 const CalibrationDialog = dynamic(() => import('./calibration-dialog').then(module => module.CalibrationDialog))
 import { useElementSize } from './use-element-size'
 
+const UNIT_OPTIONS: readonly SelectMenuOption<RulerUnit>[] = [
+	{ value: 'mm', label: '毫米' },
+	{ value: 'cm', label: '厘米' },
+	{ value: 'in', label: '英寸' }
+]
+
 export function RulerTool() {
 	const { theme } = useTimeTheme()
 	const root = useRef<HTMLDivElement>(null)
@@ -31,7 +39,7 @@ export function RulerTool() {
 	const [stamp, setStamp] = useState<ScreenStamp | null>(null)
 	const [pinchScale, setPinchScale] = useState(1)
 	const [portrait, setPortrait] = useState(false)
-	const [unit, setUnit] = useState<RulerUnit>('cm')
+	const [unit, setUnit] = useState<RulerUnit>('mm')
 	const [direction, setDirection] = useState<'auto' | 'horizontal' | 'vertical'>('auto')
 	const [positions, setPositions] = useState<[number, number]>([10, 50])
 	const [active, setActive] = useState<0 | 1>(1)
@@ -214,7 +222,7 @@ export function RulerTool() {
 										aria-valuemin={0}
 										aria-valuemax={Number(capacity.toFixed(1))}
 										aria-valuenow={Number(mm.toFixed(1))}
-										aria-valuetext={`${mm.toFixed(1)} 毫米`}
+										aria-valuetext={`${lengthLabel(mm, unit)} ${unit}`}
 										aria-disabled={locked}
 										onFocus={() => setActive(index as 0 | 1)}
 										onKeyDown={e => keyMove(e, index as 0 | 1)}
@@ -230,7 +238,7 @@ export function RulerTool() {
 											drag.current = null
 										}}>
 										<span>{index === 0 ? 'A' : 'B'}</span>
-										<i />
+										<small>{lengthLabel(mm, unit)}</small>
 									</button>
 								</div>
 							))}
@@ -254,15 +262,11 @@ export function RulerTool() {
 						<SlidersHorizontal size={15} />
 					</button>
 				</header>
+				<output className={styles.measurement} aria-label='A、B 间距'>
+					{valid ? lengthLabel(length, unit) : '—'} {unit}
+				</output>
 				<div className={styles.toolbar}>
-					<div className={styles.segment} aria-label='刻度单位'>
-						<button aria-pressed={unit === 'cm'} onClick={() => setUnit('cm')}>
-							厘米
-						</button>
-						<button aria-pressed={unit === 'in'} onClick={() => setUnit('in')}>
-							英寸
-						</button>
-					</div>
+					<SelectMenu value={unit} options={UNIT_OPTIONS} onChange={setUnit} ariaLabel='刻度单位' className='w-28' />
 					<div className={styles.toolButtons}>
 						<button
 							onClick={() => {

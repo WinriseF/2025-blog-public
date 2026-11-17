@@ -21,10 +21,13 @@ describe('physical screen ruler', () => {
 		// Independently placed ticks must not accumulate rounding error.
 		expect(rulerTicks(1000, 3.713, 'cm')[200].pixel).toBeCloseTo(742.6)
 	})
-	it('converts inches without changing physical distance', () => {
+	it('converts millimeters, centimeters and inches without changing physical distance', () => {
+		expect(lengthLabel(25.4, 'mm')).toBe('25.4')
 		expect(lengthLabel(25.4, 'in')).toBe('1.000')
 		expect(lengthLabel(25.4, 'cm')).toBe('2.54')
 		expect(rulerTicks(200, 5, 'in')[16].pixel).toBe(127)
+		expect(rulerTicks(200, 5, 'mm')[10]).toEqual({ pixel: 50, size: 34, label: '10' })
+		expect(rulerTicks(200, 5, 'cm')[10]).toEqual({ pixel: 50, size: 34, label: '1' })
 	})
 	it('fits noisy multi-length measurements and exposes inconsistent readings', () => {
 		const fit = fitRulerCalibration([

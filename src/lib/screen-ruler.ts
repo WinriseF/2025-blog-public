@@ -1,7 +1,7 @@
 export const RULER_STORAGE_KEY = 'winrisef:screen-ruler:v2'
 export const ALIGNMENT_TOLERANCE = 0.02
 export const PREVIEW_PX_PER_MM = 96 / 25.4
-export type RulerUnit = 'cm' | 'in'
+export type RulerUnit = 'mm' | 'cm' | 'in'
 export type ScreenStamp = { dpr: number; width: number; height: number }
 export type CalibrationResult = {
 	pxPerMm: number
@@ -71,16 +71,17 @@ export function compareCardSamples(first: number, second: number) {
 }
 
 export function lengthLabel(mm: number, unit: RulerUnit) {
+	if (unit === 'mm') return mm.toFixed(1)
 	return unit === 'cm' ? (mm / 10).toFixed(2) : (mm / 25.4).toFixed(3)
 }
 
 export function rulerTicks(lengthPx: number, pxPerMm: number, unit: RulerUnit) {
-	const stepMm = unit === 'cm' ? 1 : 25.4 / 16
-	const majorEvery = unit === 'cm' ? 10 : 16
+	const stepMm = unit === 'in' ? 25.4 / 16 : 1
+	const majorEvery = unit === 'in' ? 16 : 10
 	const halfEvery = majorEvery / 2
 	return Array.from({ length: Math.min(5000, Math.floor(lengthPx / (stepMm * pxPerMm)) + 1) }, (_, i) => ({
 		pixel: i * stepMm * pxPerMm,
 		size: i % majorEvery === 0 ? 34 : i % halfEvery === 0 ? 23 : 12,
-		label: i % majorEvery === 0 ? String(i / majorEvery) : null
+		label: i % majorEvery === 0 ? String(unit === 'mm' ? i : i / majorEvery) : null
 	}))
 }

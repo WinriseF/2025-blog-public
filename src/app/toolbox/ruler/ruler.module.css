@@ -1,4 +1,4 @@
-.root button {
+.root button:not(:where([role='combobox'], [role='option'])) {
 	cursor: pointer;
 	touch-action: manipulation;
 	display: inline-flex;
@@ -12,15 +12,15 @@
 	padding: 8px 13px;
 	transition: background 0.15s;
 }
-.root button:hover {
+.root button:not(:where([role='combobox'], [role='option'])):hover {
 	background: color-mix(in srgb, var(--color-brand) 8%, transparent);
 }
-.root button:focus-visible,
+.root button:not(:where([role='combobox'], [role='option'])):focus-visible,
 .root input:focus-visible {
 	outline: 2px solid var(--color-brand);
 	outline-offset: 4px;
 }
-.root button:disabled {
+.root button:not(:where([role='combobox'], [role='option'])):disabled {
 	opacity: 0.35;
 	cursor: default;
 }
@@ -123,12 +123,10 @@
 	background: var(--color-brand);
 	color: white;
 }
-.marker > button i {
-	width: 12px;
-	height: 6px;
-	border-top: 1px solid currentColor;
-	border-bottom: 1px solid currentColor;
-	opacity: 0.6;
+.marker > button small {
+	font-size: 11px;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
 }
 .board[data-vertical='true'] .marker {
 	left: 0;
@@ -673,8 +671,15 @@
 	color: var(--color-secondary);
 	margin: 0 0 8px;
 }
+.measurement {
+	display: block;
+	margin-top: 8px;
+	text-align: center;
+	font-size: 16px;
+	font-variant-numeric: tabular-nums;
+}
 .toolbar {
-	margin-top: 16px;
+	margin-top: 8px;
 	display: flex;
 	align-items: center;
 	justify-content: center;

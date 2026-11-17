@@ -181,7 +181,7 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 						</div>
 					</motion.div>
 				)}
-			</AnimatePresence>, document.body)}
+			</AnimatePresence>, document.fullscreenElement || document.body)}
 		</div>
 	)
 }
