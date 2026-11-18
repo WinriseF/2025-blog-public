@@ -2,31 +2,31 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronDown, ChevronRight, File, Folder, FolderOpen, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, ListTree, File, Folder, FolderOpen, Search } from 'lucide-react'
 import type { ZipNode, ZipScanResult, ZipSelectionState } from '@/lib/zip-packer'
 
 type TreeRow = { node: ZipNode; depth: number; searchResult: boolean }
 
 export function ZipFileTree({
 	scan,
-	selected,
+	title,
 	states,
 	loadingDirectoryIds,
 	onToggle,
 	onSelectAll,
 	onRestoreSuggestions,
 	onLoadDirectory,
-	onContinue
+	onSave
 }: {
-	scan: ZipScanResult
-	selected: Set<string>
+	scan: Pick<ZipScanResult, 'nodes' | 'rootId'>
+	title: string
 	states: Map<string, ZipSelectionState>
-	loadingDirectoryIds: Set<string>
-	onToggle: (id: string, checked: boolean) => void
-	onSelectAll: () => void
-	onRestoreSuggestions: () => void
-	onLoadDirectory: (id: string) => void
-	onContinue: () => void
+	loadingDirectoryIds?: Set<string>
+	onToggle?: (id: string, checked: boolean) => void
+	onSelectAll?: () => void
+	onRestoreSuggestions?: () => void
+	onLoadDirectory?: (id: string) => void
+	onSave?: (node: ZipNode) => void
 }) {
 	const [query, setQuery] = useState('')
 	const [expanded, setExpanded] = useState(() => new Set(scan.rootId ? [scan.rootId] : []))
@@ -75,7 +75,7 @@ export function ZipFileTree({
 			else next.add(node.id)
 			return next
 		})
-		if (shouldLoad) onLoadDirectory(node.id)
+		if (shouldLoad) onLoadDirectory?.(node.id)
 	}
 
 	return (
@@ -83,11 +83,11 @@ export function ZipFileTree({
 			<header className='border-border border-b p-4'>
 				<div className='flex flex-wrap items-center justify-between gap-3'>
 					<div>
-						<h2 className='font-semibold text-primary'>选择打包内容</h2>
+						<h2 className='flex items-center gap-2 font-semibold text-primary'><ListTree size={18} className='text-brand' />{title}</h2>
 					</div>
 					<div className='flex items-center gap-2 text-xs'>
-						<button type='button' onClick={onSelectAll} className='rounded-lg border border-border px-3 py-2 text-secondary transition hover:text-primary'>全选</button>
-						<button type='button' onClick={onRestoreSuggestions} className='rounded-lg border border-border px-3 py-2 text-secondary transition hover:text-primary'>恢复建议</button>
+						{onSelectAll && <button type='button' onClick={onSelectAll} className='rounded-lg border border-border px-3 py-2 text-secondary transition hover:text-primary'>全选</button>}
+						{onRestoreSuggestions && <button type='button' onClick={onRestoreSuggestions} className='rounded-lg border border-border px-3 py-2 text-secondary transition hover:text-primary'>恢复建议</button>}
 					</div>
 				</div>
 				<label className='mt-4 flex h-10 items-center gap-2 rounded-xl border border-border bg-background/35 px-3'>
@@ -96,14 +96,15 @@ export function ZipFileTree({
 				</label>
 			</header>
 
-			<div ref={scrollRef} className='h-[min(62dvh,680px)] min-h-72 overflow-auto overscroll-contain lg:h-[min(68dvh,720px)]'>
+			<div ref={scrollRef} className='max-h-[62dvh] min-h-36 sm:min-h-60 overflow-auto overscroll-contain'>
 				<div className='relative w-full' style={{ height: virtualizer.getTotalSize() }}>
+					{!rows.length && <p className='px-4 py-3 text-secondary'>{query ? '没有匹配的文件' : '压缩包为空'}</p>}
 					{virtualizer.getVirtualItems().map(virtualRow => {
 						const row = rows[virtualRow.index]
 						const node = row.node
 						const state = states.get(node.id) || 'unchecked'
 						const isExpanded = expanded.has(node.id)
-						const isLoading = loadingDirectoryIds.has(node.id)
+						const isLoading = loadingDirectoryIds?.has(node.id)
 						return (
 							<div
 								key={node.id}
@@ -112,10 +113,12 @@ export function ZipFileTree({
 								className='absolute top-0 left-0 w-full'
 								style={{ transform: `translateY(${virtualRow.start}px)` }}>
 								<div className='group flex h-10 items-center border-b border-border/45 pr-3 text-sm hover:bg-article/60' style={{ paddingLeft: row.searchResult ? 12 : row.depth * 18 + 10 }}>
-									<button type='button' onClick={() => node.kind === 'directory' && toggleExpanded(node)} className='flex size-7 shrink-0 items-center justify-center text-secondary' aria-label={isExpanded ? '收起目录' : '展开目录'}>
-										{node.kind === 'directory' ? isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
-									</button>
-									<TreeCheckbox state={state} onChange={checked => onToggle(node.id, checked)} />
+									{node.kind === 'directory' ? (
+										<button type='button' onClick={() => toggleExpanded(node)} className='flex size-7 shrink-0 items-center justify-center text-secondary' aria-label={isExpanded ? '收起目录' : '展开目录'}>
+											{isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+										</button>
+									) : <span className='w-7 shrink-0' />}
+									{onToggle && <TreeCheckbox label={node.path} state={state} onChange={checked => onToggle(node.id, checked)} />}
 									{node.kind === 'directory' ? (
 										<button type='button' onClick={() => toggleExpanded(node)} className='flex h-full min-w-0 flex-1 items-center text-left'>
 											{isExpanded ? <FolderOpen size={16} className='ml-2 shrink-0 text-blue-400' /> : <Folder size={16} className='ml-2 shrink-0 text-blue-400' />}
@@ -128,6 +131,7 @@ export function ZipFileTree({
 											<File size={15} className='ml-2 shrink-0 text-secondary' />
 											<span className='ml-2 min-w-0 flex-1 truncate text-primary' title={node.path}>{row.searchResult ? node.path : node.name}</span>
 											<span className='shrink-0 font-mono text-[10px] text-secondary'>{formatBytes(node.size)}</span>
+											{onSave && <button type='button' aria-label={`保存 ${node.path}`} title='保存文件' onClick={() => onSave(node)} className='ml-3 flex size-8 items-center justify-center rounded-lg border border-brand/20 bg-brand/5 text-brand transition hover:border-brand/50 hover:bg-brand/15'><Download size={16} /></button>}
 										</>
 									)}
 								</div>
@@ -137,20 +141,16 @@ export function ZipFileTree({
 				</div>
 			</div>
 
-			<footer className='flex items-center justify-between gap-3 border-t border-border p-4 lg:hidden'>
-				<span className='text-xs text-secondary'>已选择 {selected.size.toLocaleString('zh-CN')} 个条目</span>
-				<button type='button' onClick={onContinue} className='bg-brand rounded-xl px-5 py-3 font-semibold text-background'>下一步：压缩方案</button>
-			</footer>
 		</section>
 	)
 }
 
-function TreeCheckbox({ state, onChange }: { state: ZipSelectionState; onChange: (checked: boolean) => void }) {
+function TreeCheckbox({ label, state, onChange }: { label: string; state: ZipSelectionState; onChange: (checked: boolean) => void }) {
 	const ref = useRef<HTMLInputElement | null>(null)
 	useEffect(() => {
 		if (ref.current) ref.current.indeterminate = state === 'mixed'
 	}, [state])
-	return <input ref={ref} type='checkbox' checked={state === 'checked'} onChange={event => onChange(event.currentTarget.checked)} className='size-4 shrink-0 accent-[var(--color-brand)]' />
+	return <input ref={ref} aria-label={label} type='checkbox' checked={state === 'checked'} onChange={event => onChange(event.currentTarget.checked)} className='size-4 shrink-0 accent-[var(--color-brand)]' />
 }
 
 function formatBytes(bytes: number) {

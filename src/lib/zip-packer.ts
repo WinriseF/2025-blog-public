@@ -1,5 +1,7 @@
 import { loadZipModule } from './zip-runtime'
 
+export const ZIP_DOWNLOAD_LIMIT = 64 * 1024 ** 2
+
 export type ZipSelectionState = 'checked' | 'mixed' | 'unchecked'
 
 export type ZipCompressionOptions = {
@@ -77,12 +79,13 @@ type ZipWriter = {
 		signal?: AbortSignal
 		onprogress?: (current: number) => void
 	}): Promise<void>
-	close(): Promise<void>
+	close(): Promise<Blob | void>
 }
 
 type ZipRuntime = {
 	BlobReader: new (blob: Blob) => unknown
-	ZipWriter: new (writer: WritableStream<Uint8Array>, options: { keepOrder: boolean; useWebWorkers: boolean }) => ZipWriter
+	BlobWriter: new (mime: string) => unknown
+	ZipWriter: new (writer: unknown, options: { keepOrder: boolean; useWebWorkers: boolean }) => ZipWriter
 	terminateWorkers(): void
 }
 
@@ -194,7 +197,7 @@ export async function writeZipArchive(options: {
 	selectedIds: Set<string>
 	compression: ZipCompressionOptions
 	includeRoot: boolean
-	outputHandle: ZipOutputFileHandle
+	outputHandle?: ZipOutputFileHandle
 	signal: AbortSignal
 	onProgress: (progress: ZipWriteProgress) => void
 }) {
@@ -202,12 +205,13 @@ export async function writeZipArchive(options: {
 	if (scan.nodes.some(node => node.kind === 'directory' && !node.loaded && selectedIds.has(node.id))) throw new Error('仍有已选目录尚未读取完成')
 	const selectedFiles = scan.nodes.filter(node => node.kind === 'file' && selectedIds.has(node.id))
 	const totalBytes = selectedFiles.reduce((total, node) => total + node.size, 0)
-	if (scan.rootHandle) {
+	if (scan.rootHandle && outputHandle) {
 		const outputPath = await scan.rootHandle.resolve(outputHandle)
 		if (outputPath && selectedIds.has(`${scan.rootName}/${outputPath.join('/')}`)) throw new Error('输出 ZIP 不能同时作为输入文件，请更换文件名或保存位置')
 	}
-	const { BlobReader, ZipWriter, terminateWorkers } = await loadZipRuntime()
-	const output = await outputHandle.createWritable()
+	if (!outputHandle && totalBytes > ZIP_DOWNLOAD_LIMIT) throw new Error('普通下载最多支持 64 MiB，请减少所选文件或使用支持直接写盘的浏览器。')
+	const { BlobReader, BlobWriter, ZipWriter, terminateWorkers } = await loadZipRuntime()
+	const output = await outputHandle?.createWritable()
 	const startedAt = performance.now()
 	let processedBytes = 0
 	let processedFiles = 0
@@ -224,11 +228,11 @@ export async function writeZipArchive(options: {
 	}
 
 	try {
-		const writer = new ZipWriter(output, { keepOrder: true, useWebWorkers: true })
+		const writer = new ZipWriter(output ?? new BlobWriter('application/zip'), { keepOrder: true, useWebWorkers: true })
 		for (const node of scan.nodes) {
 			if (!selectedIds.has(node.id)) continue
 			assertActive(signal)
-			const entryPath = archiveEntryPath(node.path, scan.rootName, includeRoot)
+			const entryPath = archiveEntryPath(node.path, scan.rootId, includeRoot)
 			if (!entryPath) continue
 			if (node.kind === 'directory') {
 				await writer.add(`${entryPath}/`, undefined, { directory: true, signal })
@@ -269,12 +273,13 @@ export async function writeZipArchive(options: {
 			processedFiles += 1
 			report(node.path, true)
 		}
-		await writer.close()
-		const result = await outputHandle.getFile()
-		return { outputBytes: result.size, elapsedMs: performance.now() - startedAt, skippedEntries }
+		const blob = await writer.close()
+		const result = outputHandle ? await outputHandle.getFile() : blob
+		if (!result) throw new Error('未生成 ZIP 文件')
+		return { blob: outputHandle ? undefined : result, outputBytes: result.size, elapsedMs: performance.now() - startedAt, skippedEntries }
 	} catch (error) {
 		try {
-			await output.abort(error)
+			await output?.abort(error)
 		} catch {
 			// The stream may already be closed or aborted.
 		}

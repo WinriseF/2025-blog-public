@@ -1,3 +1,4 @@
+import { downloadBlob } from '../download-blob'
 import { normalizeOutputFileName, outputFileName } from './presets'
 import { loadZipModule } from '../zip-runtime'
 import type { ImageFormat } from './types'
@@ -33,17 +34,6 @@ export type ImageArchiveEntry = {
 
 async function loadZip() {
 	return loadZipModule<ZipRuntime>()
-}
-
-function downloadBlob(blob: Blob, name: string) {
-	const url = URL.createObjectURL(blob)
-	const link = document.createElement('a')
-	link.href = url
-	link.download = name
-	document.body.appendChild(link)
-	link.click()
-	link.remove()
-	window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 function uniqueNames(entries: ImageArchiveEntry[]) {

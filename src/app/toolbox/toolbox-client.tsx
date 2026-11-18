@@ -22,8 +22,8 @@ const tools = [
 	},
 	{
 		href: '/toolbox/zip',
-		label: 'ZIP 打包',
-		desc: '目录筛选 / 本地流式打包',
+		label: '压缩包工具',
+		desc: '本地 ZIP 打包 / 解压',
 		tone: 'from-amber-400/20 via-orange-300/10 to-transparent',
 		icon: FileArchive
 	},
