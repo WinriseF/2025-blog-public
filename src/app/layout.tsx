@@ -2,6 +2,7 @@ import '@arraypress/waveform-player/styles.css'
 import '@/styles/globals.css'
 
 import type { Metadata, Viewport } from 'next'
+import { PageView } from '@/components/page-view'
 import Layout from '@/layout'
 import Head from '@/layout/head'
 import siteContent from '@/config/site-content.json'
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 					}}
 				/>
 
+				<PageView />
 				<Layout>{children}</Layout>
 			</body>
 		</html>

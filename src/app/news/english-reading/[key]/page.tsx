@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { PageView } from '@/components/page-view'
 import { BlogPreview } from '@/components/blog-preview'
 import { getAssetUrl } from '@/lib/asset-url'
 import { getEnglishReadingArticle } from '@/lib/english-reading'
@@ -32,6 +33,7 @@ export default async function EnglishReadingDetailPage({ params }: EnglishReadin
 	const article = result.data
 	return (
 		<>
+			<PageView articlePath={`/news/english-reading/${article.key}`} />
 			<BlogPreview
 				enableTranslation
 				markdown={article.markdown}

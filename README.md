@@ -55,5 +55,6 @@ ENABLE_EXPERIMENTAL_COREPACK=1
 
 - 首页欢迎卡片显示名来自 `site-content.json` 的 `meta.title`
 - 点赞功能默认关闭；如需启用，配置 `NEXT_PUBLIC_LIKE_ENDPOINT`
+- 正式站点（`siteSwitcher.sites`）按北京时间将页面浏览量累计到 Supabase 的 `page_views_daily` 表。刷新和再次进入均计数；取件和房间链接只保存路由模板。运营查询可按 `day`、`page_key` 汇总 `views`。
 - 消息中转站只调用 EdgeOne Edge Functions；如需启用，配置 `NEXT_PUBLIC_TRANSFER_API_BASE`
 - 站点内容替换中，空列表页面属于正常状态

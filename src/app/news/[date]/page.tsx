@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { PageView } from '@/components/page-view'
 import { BlogPreview } from '@/components/blog-preview'
 import { getAssetUrl } from '@/lib/asset-url'
 import { formatNewsDate, getNewsArticle, isValidNewsDate } from '@/lib/news'
@@ -37,6 +38,7 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
 	const article = result.data
 	return (
 		<>
+			<PageView articlePath={`/news/${article.date}`} />
 			<BlogPreview
 				markdown={article.markdown}
 				title={article.title}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import dayjs from 'dayjs'
+import { PageView } from '@/components/page-view'
 import { BlogPreview } from '@/components/blog-preview'
 import { loadBlog, type LoadedBlog } from '@/lib/load-blog'
 import { useReadArticles } from '@/hooks/use-read-articles'
@@ -54,5 +55,10 @@ export default function Page() {
 	const { title, tags, summary } = blog.config
 	const date = dayjs(blog.config.date).format('YYYY年 M月 D日')
 
-	return <BlogPreview markdown={blog.markdown} title={title} tags={tags} date={date} summary={summary} cover={blog.cover} slug={slug} />
+	return (
+		<>
+			<PageView articlePath={`/blog/${blog.slug}`} />
+			<BlogPreview markdown={blog.markdown} title={title} tags={tags} date={date} summary={summary} cover={blog.cover} slug={slug} />
+		</>
+	)
 }
