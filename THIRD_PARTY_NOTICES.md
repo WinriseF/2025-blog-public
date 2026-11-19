@@ -16,7 +16,7 @@ The image-compression toolbox loads the following pinned browser modules from js
 | `exifr` | 7.1.3 | EXIF and ICC inspection | MIT |
 | `libimagequant-wasm` | 0.3.0 | Browser bindings for lossy palette quantization | MIT wrapper |
 | `libimagequant` / `imagequant` | 4.x dependency of the wrapper | Lossy 24/32-bit to indexed PNG quantization (up to 256 colors) | GPL-3.0-or-later or commercial license |
-| `@zip.js/zip.js` | 2.8.59 | Batch result packaging | BSD-3-Clause |
+| `@zip.js/zip.js` | 2.25.0 | Batch result packaging | BSD-3-Clause |
 
 The `libimagequant-wasm` wrapper explicitly depends on the separately licensed `libimagequant` project. Deployments must comply with GPL-3.0-or-later or obtain an appropriate commercial license from the libimagequant author. This notice does not relicense the project or replace the upstream license texts.
 

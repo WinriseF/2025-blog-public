@@ -1,4 +1,4 @@
-const ZIP_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.59/index.min.js'
+const ZIP_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.25.0/index.min.js'
 let pending: Promise<unknown> | undefined
 
 export function loadZipModule<T>(): Promise<T> {

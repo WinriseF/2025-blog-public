@@ -3,8 +3,8 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "22"
-  PNPM_FLAGS = "--shamefully-hoist"
+  NODE_VERSION = "24"
+  pnpm_config_shamefully_hoist = "true"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

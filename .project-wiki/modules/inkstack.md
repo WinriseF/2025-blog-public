@@ -251,7 +251,7 @@ Do not replace Docker with a host toolchain or modify personal Docker data when
 Desktop startup reports an inaccessible local data mount.
 
 Production builds explicitly keep TypeScript checking enabled. Next is now pinned
-to `16.3.8` and TypeScript to `5.9.3`. The compiler upgrade exposed native buffer
+to `16.4.6` and TypeScript to `5.9.3`. The compiler upgrade exposed native buffer
 and file-stream typing issues, corrected without disabling checks or adding
 unsafe casts. Production and development use Turbopack with React Compiler enabled.
 The Linux build panic was isolated to the compression Worker library references;

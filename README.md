@@ -22,7 +22,7 @@ WinriseF 的个人站点仓库。
 
 ## Deployment
 
-当前提交的部署配置是 [netlify.toml](./netlify.toml)，使用 Netlify Next plugin、Node 22 和 `pnpm run build`。
+当前提交的部署配置是 [netlify.toml](./netlify.toml)，使用 Netlify Next plugin、Node 24 和 `pnpm run build`。
 
 如果单独部署到 Vercel，需要启用：
 
