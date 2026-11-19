@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import useSWR from 'swr'
+import { pageViewEndpoint } from '@/components/page-view'
 import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
@@ -16,6 +18,11 @@ type AboutData = {
 
 export default function Page() {
 	const data = initialData as AboutData
+	const { data: views } = useSWR<number>(pageViewEndpoint, async (url: string) => {
+		const response = await fetch(url)
+		if (!response.ok) throw new Error('访问量读取失败')
+		return response.json()
+	})
 	const [markdown, setMarkdown] = useState('')
 	const [contentLoading, setContentLoading] = useState(true)
 	const [contentError, setContentError] = useState(false)
@@ -50,7 +57,7 @@ export default function Page() {
 	return (
 		<div className='flex flex-col items-center justify-center px-6 pt-32 pb-12 max-sm:px-0'>
 			<div className='w-full max-w-[800px]'>
-				<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className='mb-12 text-center'>
+				<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className='mb-6 text-center'>
 					<h1 className='mb-4 text-4xl font-bold'>{data.title}</h1>
 					<p className='text-secondary text-lg'>{data.description}</p>
 					<Link
@@ -59,6 +66,9 @@ export default function Page() {
 						更新日志
 						<ArrowRight aria-hidden='true' className='size-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0' />
 					</Link>
+					<p className='text-secondary mt-2 min-h-5 text-sm tabular-nums'>
+						{typeof views === 'number' && `全站累计访问 ${views.toLocaleString('zh-CN')} 次`}
+					</p>
 				</motion.div>
 
 				{loading ? (

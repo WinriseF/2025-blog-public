@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import siteContent from '@/config/site-content.json'
 import { isArticleKey, pageKeyForPath } from '../../supabase/functions/_shared/page-key'
 
-const endpoint = 'https://dcoxphfgchrbgqbxzyic.supabase.co/functions/v1/page-view'
+export const pageViewEndpoint = 'https://dcoxphfgchrbgqbxzyic.supabase.co/functions/v1/page-view'
 
 export function PageView({ articlePath }: { articlePath?: string }) {
 	const pathname = usePathname()
@@ -17,7 +17,7 @@ export function PageView({ articlePath }: { articlePath?: string }) {
 		if (!key || (isArticleKey(key) ? articlePath !== key : articlePath !== undefined)) return
 
 		const report = () => {
-			void fetch(endpoint, { method: 'POST', body: key, keepalive: true, referrerPolicy: 'no-referrer' }).catch(() => {})
+			void fetch(pageViewEndpoint, { method: 'POST', body: key, keepalive: true, referrerPolicy: 'no-referrer' }).catch(() => {})
 		}
 		report()
 		const onPageShow = (event: PageTransitionEvent) => {
