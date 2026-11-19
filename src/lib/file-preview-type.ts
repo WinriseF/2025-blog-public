@@ -10,7 +10,22 @@ const imageTypes: Record<string, string> = {
 	svg: 'image/svg+xml',
 	webp: 'image/webp'
 }
-const mediaTypes: Record<string, string> = {
+const zipTypes: Record<string, string> = {
+	jfif: 'image/jpeg',
+	jpe: 'image/jpeg',
+	jif: 'image/jpeg',
+	pjpeg: 'image/jpeg',
+	pjp: 'image/jpeg',
+	cur: 'image/x-icon',
+	heic: 'image/heic',
+	tif: 'image/tiff',
+	tiff: 'image/tiff',
+	jxl: 'image/jxl',
+	ttf: 'font/ttf',
+	otf: 'font/otf',
+	woff: 'font/woff',
+	woff2: 'font/woff2',
+	pdf: 'application/pdf',
 	mp4: 'video/mp4',
 	m4v: 'video/mp4',
 	webm: 'video/webm',
@@ -20,6 +35,7 @@ const mediaTypes: Record<string, string> = {
 	mp3: 'audio/mpeg',
 	wav: 'audio/wav',
 	m4a: 'audio/mp4',
+	m4b: 'audio/mp4',
 	aac: 'audio/aac',
 	flac: 'audio/flac',
 	ogg: 'audio/ogg',
@@ -41,9 +57,9 @@ export function filePreviewType(path: string) {
 	const image = imageMimeType(path)
 	if (image) return image
 	const ext = extension(path)
-	if (Object.hasOwn(mediaTypes, ext)) return mediaTypes[ext]
+	if (Object.hasOwn(zipTypes, ext)) return zipTypes[ext]
 	if (
-		/^(?:txt|md|markdown|log|csv|tsv|json|jsonl|xml|html?|css|scss|js|jsx|mjs|cjs|ts|tsx|vue|py|rb|go|rs|java|kt|c|cc|cpp|h|hpp|cs|php|sh|sql|ya?ml|toml|ini|conf|properties|env|gitignore)$/i.test(
+		/^(?:txt|srt|vtt|diff|patch|jsonc|ndjson|md|markdown|log|csv|tsv|json|jsonl|xml|html?|css|scss|js|jsx|mjs|cjs|ts|tsx|vue|py|rb|go|rs|java|kt|c|cc|cpp|h|hpp|cs|php|sh|sql|ya?ml|toml|ini|conf|properties|env|gitignore)$/i.test(
 			ext
 		) ||
 		/(?:^|\/)(?:readme|license|dockerfile|makefile)$/i.test(path)

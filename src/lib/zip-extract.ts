@@ -1,9 +1,30 @@
 import { loadZipModule, type Entry, type Zip } from './zip-runtime'
 import type { ZipNode } from './zip-packer'
 
+const utf8 = new TextDecoder('utf-8', { fatal: true })
+const gb18030 = new TextDecoder('gb18030', { fatal: true })
+
+// Returning undefined keeps zip.js's normal decoding, including its CP437 fallback.
+export function decodeZipFilename(bytes: Uint8Array, encoding: string, type: string) {
+	if (type !== 'filename' || encoding !== 'cp437' || !bytes.some(byte => byte >= 0x80)) return
+	try {
+		return utf8.decode(bytes)
+	} catch {
+		// Older Chinese ZIP tools often store GBK without an encoding flag.
+	}
+	// An isolated CP437 accent followed by a Latin letter can also be a valid GBK pair.
+	if (!bytes.some((byte, i) => byte >= 0x80 && bytes[i + 1] >= 0x80)) return
+	try {
+		const name = gb18030.decode(bytes)
+		if (/\p{Script=Han}/u.test(name)) return name
+	} catch {
+		return undefined
+	}
+}
+
 export async function openZip(file: File, signal: AbortSignal) {
 	const zip = await loadZipModule<Zip>()
-	const reader = new zip.ZipReader(new zip.BlobReader(file))
+	const reader = new zip.ZipReader(new zip.BlobReader(file), { decodeText: decodeZipFilename })
 	const nodes = new Map<string, ZipNode>()
 	const files = new Map<string, Entry>()
 	try {
@@ -67,34 +88,51 @@ export async function extractToDirectory(
 	onProgress: (path: string, completed: number, fraction: number) => void
 ) {
 	const directories = new Map<string | null, FileSystemDirectoryHandle>([[null, target]])
-	let saved = 0
-	let skipped = 0
+	const files: ZipNode[] = []
+	const paths = new Set<string>()
+	let concurrency = 4
 	for (const node of archive.nodes) {
 		if (!ids.has(node.id)) continue
 		signal.throwIfAborted()
-		const parent = directories.get(node.parentId)!
 		if (node.kind === 'directory') {
+			const parent = directories.get(node.parentId)!
 			directories.set(node.id, await parent.getDirectoryHandle(node.name, { create: true }))
-			continue
+		} else {
+			// Some volumes map case or Unicode variants to the same file. Preserve archive order there.
+			const path = node.path.normalize().toLowerCase()
+			if (paths.has(path)) concurrency = 1
+			paths.add(path)
+			files.push(node)
 		}
-		onProgress(node.path, saved + skipped, 0)
-		try {
-			await parent.getFileHandle(node.name)
-			skipped++
-			continue
-		} catch (error) {
-			if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error
-		}
-		const handle = await parent.getFileHandle(node.name, { create: true })
-		try {
-			await writeZipEntry(archive.files.get(node.id)!, handle, signal, password, (current, total) => {
-				if (total) onProgress(node.path, saved + skipped, current / total)
-			})
-		} catch (error) {
-			await parent.removeEntry(node.name)
-			throw error
-		}
-		saved++
 	}
-	return { saved, skipped }
+
+	const stop = new AbortController()
+	const active = AbortSignal.any([signal, stop.signal])
+	const pending = files.values()
+	const fractions = Array<number>(Math.min(concurrency, files.length)).fill(0)
+	let saved = 0
+	await Promise.all(fractions.map(async (_, slot) => {
+		try {
+			for (const node of pending) {
+				active.throwIfAborted()
+				const report = () => onProgress(node.path, saved, fractions.reduce((sum, n) => sum + n, 0))
+				report()
+				const handle = await directories.get(node.parentId)!.getFileHandle(node.name, { create: true })
+				active.throwIfAborted()
+				await writeZipEntry(archive.files.get(node.id)!, handle, active, password, (current, total) => {
+					if (total && !active.aborted) {
+						fractions[slot] = current / total
+						report()
+					}
+				})
+				fractions[slot] = 0
+				saved++
+				if (!active.aborted) report()
+			}
+		} catch (error) {
+			stop.abort(error)
+		}
+	}))
+	active.throwIfAborted()
+	return saved
 }

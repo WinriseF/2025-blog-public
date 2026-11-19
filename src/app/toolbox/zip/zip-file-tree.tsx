@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronDown, ChevronRight, Download, Eye, ListTree, File, Folder, FolderOpen, Search } from 'lucide-react'
-import { filePreviewType, imageMimeType } from '@/lib/file-preview-type'
+import { ChevronDown, ChevronRight, Download, Eye, ListTree, FileArchive, File, Folder, FolderOpen, Search } from 'lucide-react'
+import { filePreviewType } from '@/lib/file-preview-type'
 import type { ZipNode, ZipScanResult, ZipSelectionState } from '@/lib/zip-packer'
 
 type TreeRow = { node: ZipNode; depth: number; searchResult: boolean }
@@ -18,6 +18,7 @@ export function ZipFileTree({
 	onRestoreSuggestions,
 	onLoadDirectory,
 	onSave,
+	onOpenArchive,
 	onPreview
 }: {
 	scan: Pick<ZipScanResult, 'nodes' | 'rootId'>
@@ -29,6 +30,7 @@ export function ZipFileTree({
 	onRestoreSuggestions?: () => void
 	onLoadDirectory?: (id: string) => void
 	onSave?: (node: ZipNode) => void
+	onOpenArchive?: (node: ZipNode) => void
 	onPreview?: (paths: string[], index: number) => void
 }) {
 	const [query, setQuery] = useState('')
@@ -62,7 +64,7 @@ export function ZipFileTree({
 	}, [expanded, nodesById, normalizedQuery, scan.nodes, scan.rootId])
 
 	function preview(node: ZipNode) {
-		const paths = imageMimeType(node.path) ? rows.filter(row => row.node.kind === 'file' && imageMimeType(row.node.path)).map(row => row.node.path) : [node.path]
+		const paths = filePreviewType(node.path)?.startsWith('image/') ? rows.filter(row => row.node.kind === 'file' && filePreviewType(row.node.path)?.startsWith('image/')).map(row => row.node.path) : [node.path]
 		onPreview?.(paths, paths.indexOf(node.path))
 	}
 
@@ -108,6 +110,7 @@ export function ZipFileTree({
 					{virtualizer.getVirtualItems().map(virtualRow => {
 						const row = rows[virtualRow.index]
 						const node = row.node
+						const nestedZip = onOpenArchive && node.kind === 'file' && /\.zip$/i.test(node.name)
 						const state = states.get(node.id) || 'unchecked'
 						const isExpanded = expanded.has(node.id)
 						const isLoading = loadingDirectoryIds?.has(node.id)
@@ -118,11 +121,15 @@ export function ZipFileTree({
 								ref={virtualizer.measureElement}
 								className='absolute top-0 left-0 w-full'
 								style={{ transform: `translateY(${virtualRow.start}px)` }}>
-								<div className='group flex h-10 items-center border-b border-border/45 pr-3 text-sm hover:bg-article/60' style={{ paddingLeft: row.searchResult ? 12 : row.depth * 18 + 10 }}>
+								<div onDoubleClick={nestedZip ? event => {
+									if (!(event.target as Element).closest('button,input')) onOpenArchive(node)
+								} : undefined} className='group flex h-10 items-center border-b border-border/45 pr-3 text-sm hover:bg-article/60' style={{ paddingLeft: row.searchResult ? 12 : row.depth * 18 + 10 }}>
 									{node.kind === 'directory' ? (
 										<button type='button' onClick={() => toggleExpanded(node)} className='flex size-7 shrink-0 items-center justify-center text-secondary' aria-label={isExpanded ? '收起目录' : '展开目录'}>
 											{isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
 										</button>
+									) : nestedZip ? (
+										<button type='button' onClick={() => onOpenArchive(node)} title='打开压缩包' aria-label={`打开 ${node.path}`} className='grid size-7 shrink-0 place-items-center rounded-lg text-brand hover:bg-brand/10'><ChevronRight size={16} /></button>
 									) : <span className='w-7 shrink-0' />}
 									{onToggle && <TreeCheckbox label={node.path} state={state} onChange={checked => onToggle(node.id, checked)} />}
 									{node.kind === 'directory' ? (
@@ -134,8 +141,8 @@ export function ZipFileTree({
 										</button>
 									) : (
 										<>
-											<File size={15} className='ml-2 shrink-0 text-secondary' />
-											<span className='ml-2 min-w-0 flex-1 truncate text-primary' title={node.path}>{row.searchResult ? node.path : node.name}</span>
+											{nestedZip ? <FileArchive size={15} className='ml-2 shrink-0 text-brand' /> : <File size={15} className='ml-2 shrink-0 text-secondary' />}
+											<span className={'ml-2 min-w-0 flex-1 truncate text-primary' + (nestedZip ? ' cursor-pointer select-none' : '')} title={nestedZip ? `双击打开 ${node.path}` : node.path}>{row.searchResult ? node.path : node.name}</span>
 											<span className='shrink-0 font-mono text-[10px] text-secondary'>{formatBytes(node.size)}</span>
 											{onPreview && filePreviewType(node.path) && <button type='button' aria-label={`预览 ${node.path}`} title='预览文件' onClick={() => preview(node)} className='ml-2 grid size-8 shrink-0 place-items-center rounded-lg border border-border text-secondary hover:border-brand/50 hover:text-brand'><Eye size={16} /></button>}
 											{onSave && <button type='button' aria-label={`保存 ${node.path}`} title='保存文件' onClick={() => onSave(node)} className='ml-1 flex size-8 shrink-0 items-center justify-center rounded-lg border border-brand/20 bg-brand/5 text-brand transition hover:border-brand/50 hover:bg-brand/15'><Download size={16} /></button>}

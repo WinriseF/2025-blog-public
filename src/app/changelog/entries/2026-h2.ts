@@ -2,6 +2,26 @@ import type { ChangelogEntry } from '../types'
 
 // Commit references stay in source; public entries contain only dates and changes.
 export const entries2026H2: ChangelogEntry[] = [
+	// 791751d
+	{
+		date: '2026-11-19',
+		title: 'ZIP 支持文件预览和嵌套压缩包',
+		changes: [
+			{ type: '新增', text: '可在压缩包内看图、阅读 PDF 和文本、播放音视频、查看字体样张。图片可按当前列表顺序翻页。' },
+			{ type: '新增', text: '双击内层 ZIP 或点文件旁的箭头即可打开；返回上一级后保留原来的搜索和勾选。内层 ZIP 最大支持 64 MiB。' },
+			{ type: '优化', text: '批量解压最多同时写入 4 个文件。目标目录已有同名文件时，写入成功后会覆盖原文件。' },
+			{ type: '修复', text: '修复部分旧 ZIP 未标记编码时中文文件名显示乱码的问题，搜索和解压使用同一名称。' }
+		]
+	},
+	// 6e685fc
+	{
+		date: '2026-11-18',
+		title: 'ZIP 打包器加入本地解压',
+		changes: [
+			{ type: '新增', text: '拖入 ZIP 即可浏览和搜索文件、单独保存；支持写入目录的浏览器还可以解压所选内容或整个压缩包。' },
+			{ type: '改进', text: '打包支持拖入多个文件，打包和解压进度直接显示在操作按钮上。' }
+		]
+	},
 	// 46c24e2 3ef12f6
 	{
 		date: '2026-11-17',

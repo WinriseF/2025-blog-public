@@ -30,6 +30,7 @@ export function ZipPreview({
 	const mime = filePreviewType(path)!
 	const isText = mime === 'text/plain'
 	const isAudio = mime.startsWith('audio/')
+	const isFont = mime.startsWith('font/')
 	const { theme } = useTimeTheme()
 	const [content, setContent] = useState<string | null>(null)
 	const [error, setError] = useState('')
@@ -37,13 +38,22 @@ export function ZipPreview({
 		const controller = new AbortController()
 		const { signal } = controller
 		let url: string | undefined
+		let font: FontFace | undefined
 		async function load() {
+			if (mime === 'application/pdf' && navigator.pdfViewerEnabled === false) throw new Error('当前浏览器无法预览 PDF，可返回列表保存。')
 			const limit = isText ? TEXT_LIMIT : ZIP_DOWNLOAD_LIMIT
 			if (entry.uncompressedSize > limit) throw new Error(`文件超过 ${limit / 1024 ** 2} MiB 预览上限，可返回列表保存。`)
 			const blob = await readZipBlob(entry, signal, limit, password)
 			if (isText) {
 				const { content } = await decodeText(blob)
 				if (!signal.aborted) setContent(content)
+			} else if (isFont) {
+				font = new FontFace('ZipSpecimen', await blob.arrayBuffer())
+				await font.load()
+				if (!signal.aborted) {
+					document.fonts.add(font)
+					setContent(font.family)
+				}
 			} else if (!signal.aborted) {
 				url = URL.createObjectURL(blob.slice(0, blob.size, mime))
 				setContent(url)
@@ -54,13 +64,15 @@ export function ZipPreview({
 			const reason = cause instanceof Error ? cause.message : ''
 			if (/password/i.test(reason)) setError('请返回列表输入正确的解压密码。')
 			else if (isText && /encoding|UTF-8|二进制/i.test(reason)) setError('仅支持预览 UTF-8 文本文件。')
+			else if (isFont && font?.status === 'error') setError('浏览器无法加载此字体，可返回列表保存。')
 			else setError(reason || '无法读取文件。')
 		})
 		return () => {
 			controller.abort()
 			if (url) URL.revokeObjectURL(url)
+			if (font) document.fonts.delete(font)
 		}
-	}, [entry, isText, mime, password])
+	}, [entry, isFont, isText, mime, password])
 
 	if (mime.startsWith('image/'))
 		return (
@@ -96,6 +108,17 @@ export function ZipPreview({
 					</p>
 				) : isText ? (
 					<FileTextView file={{ name: path, contents: content }} theme={diffThemes[theme.name]} />
+				) : isFont ? (
+					<div aria-label='字体样张' className='flex min-h-0 flex-1 flex-col justify-center gap-5 overflow-auto break-words px-6 text-primary sm:px-16' style={{ fontFamily: content }}>
+						<p className='text-6xl sm:text-8xl'>Aa 字形</p>
+						<p className='text-2xl leading-relaxed sm:text-4xl'>The quick brown fox jumps over the lazy dog.</p>
+						<p className='text-2xl'>山川湖海，日月星辰。</p>
+						<p className='text-2xl'>0123456789 !? &amp; @</p>
+					</div>
+				) : mime === 'application/pdf' ? (
+					<object data={content} type={mime} aria-label={path} className='min-h-0 w-full flex-1'>
+						<p className='p-4 text-sm text-secondary'>当前浏览器无法预览 PDF，可返回列表保存。</p>
+					</object>
 				) : isAudio ? (
 					<audio src={content} controls preload='metadata' aria-label={path} className='my-4 w-full px-4'
 						onError={() => setError('浏览器无法播放此音频，可返回列表保存。')} />
