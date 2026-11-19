@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import useSWR from 'swr'
-import { pageViewEndpoint } from '@/components/page-view'
+import { PageViewCount } from '@/components/page-view-count'
 import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useMarkdownRender } from '@/hooks/use-markdown-render'
@@ -18,11 +17,6 @@ type AboutData = {
 
 export default function Page() {
 	const data = initialData as AboutData
-	const { data: views } = useSWR<number>(pageViewEndpoint, async (url: string) => {
-		const response = await fetch(url)
-		if (!response.ok) throw new Error('访问量读取失败')
-		return response.json()
-	})
 	const [markdown, setMarkdown] = useState('')
 	const [contentLoading, setContentLoading] = useState(true)
 	const [contentError, setContentError] = useState(false)
@@ -66,9 +60,7 @@ export default function Page() {
 						更新日志
 						<ArrowRight aria-hidden='true' className='size-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0' />
 					</Link>
-					<p className='text-secondary mt-2 min-h-5 text-sm tabular-nums'>
-						{typeof views === 'number' && `全站累计访问 ${views.toLocaleString('zh-CN')} 次`}
-					</p>
+					<PageViewCount scope='site' />
 				</motion.div>
 
 				{loading ? (

@@ -16,7 +16,8 @@ Deno.serve(async request => {
 	if (!reading && !isPageKey(key)) return reply(400)
 
 	const secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-	const result = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/${reading ? 'total_page_views' : 'increment_page_view'}`, {
+	const totalFunction = new URL(request.url).searchParams.get('scope') === 'toolbox' ? 'toolbox_page_views' : 'total_page_views'
+	const result = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/${reading ? totalFunction : 'increment_page_view'}`, {
 		method: 'POST',
 		headers: { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify(reading ? {} : { p_page_key: key })

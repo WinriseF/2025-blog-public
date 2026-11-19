@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { PageViewCount } from '@/components/page-view-count'
 import { ArrowUpRight, Database, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, Ruler, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
@@ -97,6 +98,7 @@ export function ToolboxClient() {
 				className='max-w-2xl'>
 				<p className='text-secondary text-xs tracking-[0.22em] uppercase'>Toolbox</p>
 				<h1 className='text-primary mt-2 text-3xl font-semibold tracking-normal max-sm:text-2xl'>客户端工具箱</h1>
+				<PageViewCount scope='toolbox' />
 			</motion.header>
 
 			<section className='mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
