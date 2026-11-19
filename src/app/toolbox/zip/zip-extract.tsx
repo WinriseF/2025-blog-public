@@ -5,6 +5,7 @@ import { openZip, writeZipEntry, extractToDirectory } from '@/lib/zip-extract'
 import { ZIP_DOWNLOAD_LIMIT, analyzeZipSelection, selectedZipEntries, toggleZipSubtree, type ZipNode } from '@/lib/zip-packer'
 import { readZipBlob } from '@/lib/zip-runtime'
 import { ZipAction, type ZipFeedback } from './zip-action'
+import { ZipPreview } from './zip-preview'
 import { ZipFileTree } from './zip-file-tree'
 import { ZipInput, type ZipPickers } from './zip-input'
 
@@ -14,6 +15,8 @@ export function ZipExtract({ canPickDirectory, busy, setBusy }: { canPickDirecto
 	const [password, setPassword] = useState('')
 	const [feedback, setFeedback] = useState<ZipFeedback | null>(null)
 	const [activeAction, setActiveAction] = useState<'open' | 'save' | 'all' | 'selected'>('open')
+	const [preview, setPreview] = useState<{ paths: string[]; index: number } | null>(null)
+	const previewTrigger = useRef<HTMLElement | null>(null)
 	const task = useRef<AbortController | null>(null)
 	useEffect(() => () => task.current?.abort(), [])
 	useEffect(
@@ -95,6 +98,11 @@ export function ZipExtract({ canPickDirectory, busy, setBusy }: { canPickDirecto
 		}, '选择解压位置')
 	}
 
+	function closePreview() {
+		setPreview(null)
+		requestAnimationFrame(() => previewTrigger.current?.focus({ preventScroll: true }))
+	}
+
 	const cancel = busy && <button type='button' onClick={() => task.current?.abort()} className='w-full rounded-xl border border-border px-4 py-2 text-secondary hover:text-primary'>取消</button>
 	const message = feedback && <p role='status' className='break-words text-xs text-secondary'>{feedback.title}{feedback.state === 'working' && feedback.percent !== undefined && ` · ${Math.min(99, Math.floor(feedback.percent))}%`}</p>
 	return !archive ? (
@@ -104,16 +112,19 @@ export function ZipExtract({ canPickDirectory, busy, setBusy }: { canPickDirecto
 		</div>
 	) : (
 					<div className='grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]'>
-						<fieldset disabled={busy} className='min-w-0'>
+						<fieldset inert={!!preview} disabled={busy} className='min-w-0'>
 						<ZipFileTree
 							scan={archive}
-							title='压缩包内容'
 							states={states}
 							onSave={save}
+							onPreview={(paths, index) => {
+								previewTrigger.current = document.activeElement as HTMLElement
+								setPreview({ paths, index })
+							}}
 							onToggle={canPickDirectory ? (id, checked) => setSelected(current => toggleZipSubtree(byId, current, id, checked)) : undefined}
 						/>
 						</fieldset>
-						<aside className='min-w-0 rounded-2xl border border-border bg-background/20 p-5'>
+						<aside inert={!!preview} className='min-w-0 rounded-2xl border border-border bg-background/20 p-5'>
 							<div className='flex items-center gap-3'>
 								<span className='flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand'><FileArchive size={22} /></span>
 								<div className='min-w-0'>
@@ -135,6 +146,8 @@ export function ZipExtract({ canPickDirectory, busy, setBusy }: { canPickDirecto
 									className='flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-secondary transition hover:text-primary'><RotateCcw size={15} />换一个文件</button>}
 							</div>
 						</aside>
+						{preview && <ZipPreview key={preview.paths[preview.index]} path={preview.paths[preview.index]} entry={archive.files.get(preview.paths[preview.index])!}
+							password={password} gallery={{ index: preview.index, length: preview.paths.length, onChange: index => setPreview({ ...preview, index }) }} onClose={closePreview} />}
 					</div>
 	)
 }

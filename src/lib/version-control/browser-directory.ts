@@ -9,7 +9,7 @@ type WritableFile = FileSystemFileHandle & {
 	createWritable(): Promise<{ write(data: Uint8Array): Promise<void>; close(): Promise<void>; abort(): Promise<void> }>
 }
 export type TextSnapshot = { content: string; raw: string; bom: boolean; newline: '\n' | '\r\n' }
-const TEXT_LIMIT = 2 * 1024 * 1024
+export const TEXT_LIMIT = 2 * 1024 * 1024
 const hiddenEntry = (name: string) => name === '.git' || name === '.svn'
 
 export class BrowserDirectory implements WorkspaceFileSource {

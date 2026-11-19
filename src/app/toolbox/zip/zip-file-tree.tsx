@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronDown, ChevronRight, Download, ListTree, File, Folder, FolderOpen, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, Eye, ListTree, File, Folder, FolderOpen, Search } from 'lucide-react'
+import { filePreviewType, imageMimeType } from '@/lib/file-preview-type'
 import type { ZipNode, ZipScanResult, ZipSelectionState } from '@/lib/zip-packer'
 
 type TreeRow = { node: ZipNode; depth: number; searchResult: boolean }
@@ -16,10 +17,11 @@ export function ZipFileTree({
 	onSelectAll,
 	onRestoreSuggestions,
 	onLoadDirectory,
-	onSave
+	onSave,
+	onPreview
 }: {
 	scan: Pick<ZipScanResult, 'nodes' | 'rootId'>
-	title: string
+	title?: string
 	states: Map<string, ZipSelectionState>
 	loadingDirectoryIds?: Set<string>
 	onToggle?: (id: string, checked: boolean) => void
@@ -27,6 +29,7 @@ export function ZipFileTree({
 	onRestoreSuggestions?: () => void
 	onLoadDirectory?: (id: string) => void
 	onSave?: (node: ZipNode) => void
+	onPreview?: (paths: string[], index: number) => void
 }) {
 	const [query, setQuery] = useState('')
 	const [expanded, setExpanded] = useState(() => new Set(scan.rootId ? [scan.rootId] : []))
@@ -58,6 +61,11 @@ export function ZipFileTree({
 		return result
 	}, [expanded, nodesById, normalizedQuery, scan.nodes, scan.rootId])
 
+	function preview(node: ZipNode) {
+		const paths = imageMimeType(node.path) ? rows.filter(row => row.node.kind === 'file' && imageMimeType(row.node.path)).map(row => row.node.path) : [node.path]
+		onPreview?.(paths, paths.indexOf(node.path))
+	}
+
 	const virtualizer = useVirtualizer({
 		count: rows.length,
 		getScrollElement: () => scrollRef.current,
@@ -81,16 +89,14 @@ export function ZipFileTree({
 	return (
 		<section className='flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-background/20'>
 			<header className='border-border border-b p-4'>
-				<div className='flex flex-wrap items-center justify-between gap-3'>
-					<div>
-						<h2 className='flex items-center gap-2 font-semibold text-primary'><ListTree size={18} className='text-brand' />{title}</h2>
-					</div>
+				{(title || onSelectAll || onRestoreSuggestions) && <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+					{title && <h2 className='flex items-center gap-2 font-semibold text-primary'><ListTree size={18} className='text-brand' />{title}</h2>}
 					<div className='flex items-center gap-2 text-xs'>
 						{onSelectAll && <button type='button' onClick={onSelectAll} className='rounded-lg border border-border px-3 py-2 text-secondary transition hover:text-primary'>全选</button>}
 						{onRestoreSuggestions && <button type='button' onClick={onRestoreSuggestions} className='rounded-lg border border-border px-3 py-2 text-secondary transition hover:text-primary'>恢复建议</button>}
 					</div>
-				</div>
-				<label className='mt-4 flex h-10 items-center gap-2 rounded-xl border border-border bg-background/35 px-3'>
+				</div>}
+				<label className='flex h-10 items-center gap-2 rounded-xl border border-border bg-background/35 px-3'>
 					<Search size={15} className='text-secondary' />
 					<input value={query} onChange={event => setQuery(event.target.value)} placeholder='搜索文件名或路径' className='min-w-0 flex-1 bg-transparent text-sm text-primary outline-none placeholder:text-secondary/65' />
 				</label>
@@ -131,7 +137,8 @@ export function ZipFileTree({
 											<File size={15} className='ml-2 shrink-0 text-secondary' />
 											<span className='ml-2 min-w-0 flex-1 truncate text-primary' title={node.path}>{row.searchResult ? node.path : node.name}</span>
 											<span className='shrink-0 font-mono text-[10px] text-secondary'>{formatBytes(node.size)}</span>
-											{onSave && <button type='button' aria-label={`保存 ${node.path}`} title='保存文件' onClick={() => onSave(node)} className='ml-3 flex size-8 items-center justify-center rounded-lg border border-brand/20 bg-brand/5 text-brand transition hover:border-brand/50 hover:bg-brand/15'><Download size={16} /></button>}
+											{onPreview && filePreviewType(node.path) && <button type='button' aria-label={`预览 ${node.path}`} title='预览文件' onClick={() => preview(node)} className='ml-2 grid size-8 shrink-0 place-items-center rounded-lg border border-border text-secondary hover:border-brand/50 hover:text-brand'><Eye size={16} /></button>}
+											{onSave && <button type='button' aria-label={`保存 ${node.path}`} title='保存文件' onClick={() => onSave(node)} className='ml-1 flex size-8 shrink-0 items-center justify-center rounded-lg border border-brand/20 bg-brand/5 text-brand transition hover:border-brand/50 hover:bg-brand/15'><Download size={16} /></button>}
 										</>
 									)}
 								</div>

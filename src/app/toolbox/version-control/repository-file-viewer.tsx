@@ -1,6 +1,7 @@
 'use client'
 
-import { File as PierreFile, Virtualizer } from '@pierre/diffs/react'
+import { FileTextView } from '@/components/file-text-view'
+import { imageMimeType } from '@/lib/file-preview-type'
 import type { FileContents } from '@pierre/diffs'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Check, Clipboard, FileCode2, FileWarning, Loader2, RotateCcw } from 'lucide-react'
@@ -27,7 +28,7 @@ export function RepositoryFileViewer({ entry, renderHeader }: { entry: Repositor
 	const [reload, setReload] = useState(0)
 	const [copied, setCopied] = useState(false)
 	const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
-	const imagePath = entry?.kind === 'file' && isImagePath(entry.path)
+	const imagePath = entry?.kind === 'file' && !!imageMimeType(entry.path)
 	const remoteImageUrl = imagePath ? repository?.getRepositoryImageUrl?.(entry.path) || null : null
 	const imageUrl = remoteImageUrl || (state.status === 'image' && state.path === entry?.path ? state.url : null)
 
@@ -97,18 +98,6 @@ export function RepositoryFileViewer({ entry, renderHeader }: { entry: Repositor
 			cacheKey: `${repository?.key}:${state.file.path}:${contentInfo?.key}`
 		}
 	}, [contentInfo?.key, entry?.path, repository?.key, state])
-	const fileOptions = useMemo(
-		() => ({
-			theme: diffTheme.shiki,
-			themeType: diffTheme.type,
-			overflow: 'wrap' as const,
-			disableFileHeader: true,
-			stickyHeader: false,
-			// Single-theme Pierre output sets a literal host background as well as variables.
-			unsafeCSS: ':host { background-color: transparent; --diffs-bg: transparent; --diffs-light-bg: transparent; --diffs-dark-bg: transparent; }'
-		}),
-		[diffTheme.shiki, diffTheme.type]
-	)
 	const sourceLabel = repository?.source === 'github-rest' ? overview?.currentBranch || 'HEAD' : overview?.isBare ? 'HEAD' : '工作区'
 
 	if (!entry)
@@ -161,9 +150,7 @@ export function RepositoryFileViewer({ entry, renderHeader }: { entry: Repositor
 				</ViewerState>
 			) : state.status === 'ready' ? (
 				source ? (
-					<Virtualizer className='min-h-0 flex-1 overflow-auto [background-color:var(--diff-background)]' contentClassName='min-h-full'>
-						<PierreFile file={source} options={fileOptions} />
-					</Virtualizer>
+					<FileTextView file={source} theme={diffTheme} />
 				) : null
 			) : null}
 			<footer className='flex h-6 shrink-0 items-center justify-end gap-3 border-t px-3 text-[10px] [border-color:var(--diff-border)] [color:var(--diff-muted)]'>
@@ -203,8 +190,4 @@ function analyzeContent(content: string) {
 		if (code === 10) lines += 1
 	}
 	return { key: `${content.length}:${hash >>> 0}`, lines }
-}
-
-function isImagePath(path: string) {
-	return /\.(?:apng|avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(path)
 }
