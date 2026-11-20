@@ -3,7 +3,7 @@ import { isPageKey, pageKeyForPath } from '../../supabase/functions/_shared/page
 
 describe('page view keys', () => {
 	it.each([
-		['/', '/'], ['/toolbox/zip/', '/toolbox/zip'], ['/blog/db2026', '/blog/db2026'],
+		['/', '/'], ['/toolbox/zip/', '/toolbox/zip'], ['/toolbox/protractor', '/toolbox/protractor'], ['/blog/db2026', '/blog/db2026'],
 		['/news/2026-11-19', '/news/2026-11-19'], ['/news/english-reading/a.b', '/news/english-reading/a.b'],
 		['/t/ABCD23', '/t/[code]'], ['/t/STATUS', '/t/[code]'], ['/t/lan/1234abcd', '/t/lan/[roomId]']
 	])('groups %s as %s', (path, key) => {

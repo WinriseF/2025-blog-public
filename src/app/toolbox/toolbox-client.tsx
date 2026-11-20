@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { PageViewCount } from '@/components/page-view-count'
-import { ArrowUpRight, Database, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, Ruler, ScanFace, ScanText, Send } from 'lucide-react'
+import { ArrowUpRight, Database, DraftingCompass, FileArchive, FileJson2, FileText, GitCompareArrows, ImageIcon, KeyRound, Ruler, ScanFace, ScanText, Send } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { INIT_DELAY } from '@/consts'
 
@@ -83,6 +83,13 @@ const tools = [
 		desc: '实物校准 / 毫米刻度 / 双点测量',
 		tone: 'from-emerald-400/20 via-amber-200/10 to-transparent',
 		icon: Ruler
+	},
+	{
+		href: '/toolbox/protractor',
+		label: '量角器',
+		desc: '桌面悬浮测角 / 相机取景',
+		tone: 'from-cyan-400/20 via-amber-200/10 to-transparent',
+		icon: DraftingCompass
 	}
 ]
 

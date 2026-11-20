@@ -3,7 +3,7 @@ const pages = new Set([
 	'/', '/about', '/blog', '/bloggers', '/calendar', '/changelog', '/game', '/home', '/music', '/news',
 	'/news/english-reading', '/orbitalis', '/pictures', '/projects', '/share', '/svgs', '/t', '/toolbox',
 	'/toolbox/agent', '/toolbox/codex-session', '/toolbox/compress', '/toolbox/database', '/toolbox/face-mask',
-	'/toolbox/markdown', '/toolbox/ocr', '/toolbox/password', '/toolbox/ruler', '/toolbox/version-control',
+	'/toolbox/markdown', '/toolbox/ocr', '/toolbox/password', '/toolbox/protractor', '/toolbox/ruler', '/toolbox/version-control',
 	'/toolbox/zip', '/world-clock'
 ])
 

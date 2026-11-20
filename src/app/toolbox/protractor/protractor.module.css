@@ -1,0 +1,217 @@
+.controls {
+	z-index: 2;
+	left: 50%;
+	bottom: max(5dvh, env(safe-area-inset-bottom));
+	transform: translateX(-50%);
+	width: min(420px, calc(100% - 32px));
+	padding: 14px 18px 12px;
+	border-radius: 16px;
+	border: 1px solid var(--color-border);
+	background: var(--color-article);
+}
+.reading,
+.controls nav,
+.controls h1,
+.controls button,
+.back {
+	display: flex;
+	align-items: center;
+}
+.reading {
+	gap: 10px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--color-border);
+}
+.controls h1 {
+	gap: 7px;
+	font-size: 16px;
+	font-weight: 650;
+}
+.controls h1 svg {
+	color: var(--color-brand);
+}
+.controls output {
+	min-width: 5.8ch;
+	text-align: center;
+	font:
+		600 26px/1.2 ui-monospace,
+		monospace;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-primary);
+}
+.controls nav {
+	justify-content: center;
+	gap: 6px;
+	white-space: nowrap;
+	margin-top: 10px;
+}
+.controls button,
+.back {
+	justify-content: center;
+	gap: 6px;
+	min-height: 40px;
+	border-radius: 8px;
+	color: var(--color-secondary);
+	cursor: pointer;
+}
+.back {
+	width: 36px;
+}
+.controls button {
+	border: 1px solid var(--color-border);
+	padding: 0 12px;
+	background: transparent;
+	font-size: 13px;
+	font-weight: 550;
+}
+.controls button svg {
+	height: 16px;
+	width: 16px;
+}
+.controls nav > button:first-child,
+.controls button:hover,
+.back:hover {
+	color: var(--color-brand);
+	background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+}
+.controls nav > button:first-child {
+	border-color: color-mix(in srgb, var(--color-brand) 40%, transparent);
+}
+.controls p {
+	text-align: center;
+	font-size: 12px;
+	color: var(--color-secondary);
+	margin-top: 8px;
+}
+@media (max-height: 540px) {
+	.controls {
+		bottom: max(8px, env(safe-area-inset-bottom));
+		width: max-content;
+		max-width: calc(100% - 28px);
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: center;
+		gap: 5px 14px;
+		padding: 7px 12px;
+	}
+	.reading {
+		border: 0;
+		padding: 0;
+	}
+	.controls nav,
+	.controls p {
+		margin: 0;
+	}
+	.controls p {
+		width: 100%;
+	}
+	.controls output {
+		font-size: 20px;
+	}
+	.controls button {
+		min-height: 34px;
+	}
+}
+@media (pointer: coarse) {
+	.controls button,
+	.back {
+		min-height: 44px;
+	}
+}
+.face {
+	fill: color-mix(in srgb, var(--color-brand) 8%, transparent);
+	stroke: var(--color-secondary);
+	stroke-width: 1.5;
+}
+.tickLabel {
+	font:
+		500 12px var(--font-sans),
+		sans-serif;
+	text-anchor: middle;
+	dominant-baseline: central;
+	paint-order: stroke;
+	stroke: var(--color-bg);
+	stroke-width: 2px;
+}
+.marker {
+	position: absolute;
+	top: 0;
+	width: 12px;
+	height: 12px;
+	pointer-events: none;
+}
+.left {
+	left: 0;
+	background: linear-gradient(90deg, #ff00bf 50%, #00ff28 50%);
+}
+.right {
+	right: 0;
+	background: linear-gradient(90deg, #00ff28 50%, #ff00bf 50%);
+}
+.bottomLeft,
+.bottomRight {
+	top: auto;
+	bottom: 14px;
+}
+.bottomLeft {
+	left: 0;
+	background: linear-gradient(90deg, #ff00bf 50%, #00cfff 50%);
+}
+.bottomRight {
+	right: 0;
+	background: linear-gradient(90deg, #00cfff 50%, #ff00bf 50%);
+}
+
+[data-capture='true'] .face ~ g path,
+[data-capture='true'] .face {
+	stroke: var(--color-primary);
+	filter: drop-shadow(0 0 1px var(--color-bg));
+}
+
+.controls nav [role='group'] button {
+	border: 0;
+	padding-inline: 9px;
+}
+.controls nav [role='group'] button + button {
+	border-inline-start: 1px solid var(--color-border);
+	border-start-start-radius: 0;
+	border-end-start-radius: 0;
+}
+.controls button:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.reading button {
+	touch-action: none;
+	user-select: none;
+	width: 32px;
+	padding: 0;
+	border: 0;
+}
+
+@media (max-width: 420px) {
+	.controls {
+		width: calc(100% - 24px);
+		padding-inline: 10px;
+	}
+	.controls nav {
+		gap: 4px;
+	}
+	.controls nav button {
+		min-width: 44px;
+		padding-inline: 6px;
+	}
+	.reading {
+		gap: 4px;
+	}
+	.controls output {
+		font-size: 23px;
+	}
+}
+@media (max-width: 350px) {
+	.controls nav .modeLabel {
+		display: none;
+	}
+}

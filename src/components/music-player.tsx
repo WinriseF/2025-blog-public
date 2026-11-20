@@ -296,6 +296,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 					pathname !== '/orbitalis' &&
 					pathname !== '/toolbox/database' &&
 					pathname !== '/toolbox/ruler' &&
+					pathname !== '/toolbox/protractor' &&
 					hasStarted &&
 					showFloatingPlayer
 				}
