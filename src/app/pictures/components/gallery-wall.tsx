@@ -1,6 +1,7 @@
 'use client'
 
 import { useLayoutEffect, useMemo, useState } from 'react'
+import { Clapperboard, Gamepad2, LayoutGrid, Mountain, Paintbrush, Shapes, type LucideIcon } from 'lucide-react'
 import { ImagePreviewDialog } from '@/components/image-preview-dialog'
 import { OptimizedImage } from '@/components/optimized-image'
 import { getAssetUrl } from '@/lib/asset-url'
@@ -20,6 +21,7 @@ type Picture = {
 const mounts = ['rail', 'pin', 'clips', 'paper', 'tape', 'frame'] as const
 type Mount = (typeof mounts)[number]
 const worksPerSheet = 5
+const categoryIcons: Record<string, LucideIcon> = { 全部: LayoutGrid, 风景: Mountain, 绘画: Paintbrush, 游戏: Gamepad2, 电影: Clapperboard }
 const categoryOf = (picture: Picture) => picture.category || '其他'
 const titleOf = (picture: Picture) => picture.title || picture.description || '未命名作品'
 
@@ -65,11 +67,14 @@ export function GalleryWall({ pictures }: { pictures: Picture[] }) {
 		<section className={styles.wall} aria-label='画廊'>
 			<h1 className='sr-only'>画廊</h1>
 			<nav className={styles.filters} aria-label='画廊分类'>
-				{categories.map(name => (
-					<button type='button' key={name} aria-pressed={category === name} onClick={() => setCategory(name)}>
-						{name}
-					</button>
-				))}
+				{categories.map(name => {
+					const Icon = categoryIcons[name] ?? Shapes
+					return (
+						<button type='button' key={name} aria-label={name} aria-pressed={category === name} onClick={() => setCategory(name)}>
+							<Icon size={22} strokeWidth={1.75} aria-hidden='true' />
+						</button>
+					)
+				})}
 			</nav>
 			<div className={styles.exhibit}>
 				{sheets.map((sheet, row) => (
@@ -85,8 +90,8 @@ export function GalleryWall({ pictures }: { pictures: Picture[] }) {
 									data-mount={mount}
 									aria-label={picture.images.length > 1 ? title + '，共 ' + picture.images.length + ' 张' : title}
 									onClick={event => {
-									event.currentTarget.focus({ preventScroll: true })
-									openPreview(picture)
+										event.currentTarget.focus({ preventScroll: true })
+										openPreview(picture)
 									}}>
 									<span className={styles.print}>
 										{mount === 'rail' && (
