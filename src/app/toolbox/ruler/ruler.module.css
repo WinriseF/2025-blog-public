@@ -705,6 +705,12 @@
 		gap: 4px;
 	}
 }
+@media (max-width: 640px) and (orientation: portrait) {
+	.controls {
+		width: min(480px, calc(100dvh - 144px));
+		transform: translate(-50%, -50%) rotate(90deg);
+	}
+}
 @media (max-height: 540px) and (min-width: 641px) {
 	.controls {
 		width: min(600px, calc(100% - 144px));

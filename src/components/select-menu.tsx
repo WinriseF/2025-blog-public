@@ -65,7 +65,7 @@ export function SelectMenu<Value extends string>({ value, options, onChange, ari
 		const below = Math.max(0, window.innerHeight - rect.bottom - 16)
 		const above = Math.max(0, rect.top - 16)
 		const upwards = below < Math.min(302, options.length * 48 + 10) && above > below
-		const width = Math.min(rect.width, window.innerWidth - 16)
+		const width = Math.min(Math.max(rect.width, triggerRef.current.offsetWidth), window.innerWidth - 16)
 		setMenuStyle({
 			width,
 			left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
