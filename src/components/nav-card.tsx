@@ -97,7 +97,7 @@ export default function NavCard() {
 			? { width: compactIconNav ? (isExpanded ? getExpandedWidth(iconGap) : 64) : 340, height: 64 }
 			: { width: styles.width, height: styles.height }
 	const position = maxSM
-		? { x: centerX - size.width / 2, y: 16 }
+		? { x: pathname === '/pictures' ? Math.max(0, Math.min(16, 2 * centerX - size.width)) : centerX - size.width / 2, y: 16 }
 		: form === 'full'
 			? {
 				x: styles.offsetX !== null ? centerX + styles.offsetX : centerX - hiCardStyles.width / 2 - styles.width - CARD_SPACING,

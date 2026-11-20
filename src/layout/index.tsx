@@ -102,7 +102,7 @@ function ThemedLayout({ children }: PropsWithChildren) {
 					} as React.CSSProperties
 				}
 			/>
-			{mounted && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isMeasuringTool ? (
+			{mounted && pathname !== '/pictures' && !isStackRoute && !isOrbitalisRoute && !isDatabaseRoute && !isMeasuringTool ? (
 				<TimeAtmosphereBackground animated={atmosphereAnimated} theme={timeTheme} />
 			) : (
 				<div className='bg-bg pointer-events-none fixed inset-0 z-0' />

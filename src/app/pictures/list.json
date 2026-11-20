@@ -4,7 +4,11 @@
 		"uploadedAt": "2026-04-29T22:29:55.000+08:00",
 		"images": [
 			"/images/pictures/top.webp"
-		]
+		],
+		"title": "山脊之下",
+		"category": "风景",
+		"width": 1448,
+		"height": 1086
 	},
 	{
 		"id": "1777629157072-9972f3579434f",
@@ -12,7 +16,11 @@
 		"description": "湖泊与山",
 		"images": [
 			"/images/pictures/80185feb3584ac41.webp"
-		]
+		],
+		"title": "山湖晨光",
+		"category": "风景",
+		"width": 1448,
+		"height": 1086
 	},
 	{
 		"id": "1777631366879-5be59040ad91a8",
@@ -20,20 +28,32 @@
 		"description": "海和房子",
 		"images": [
 			"/images/pictures/43c9f7e9f29bb2be.webp"
-		]
+		],
+		"title": "海岸小屋",
+		"category": "风景",
+		"width": 1448,
+		"height": 1086
 	},
 	{
 		"id": "1777631955098-1fef299c3c90c",
 		"uploadedAt": "2026-05-01T10:39:15.098Z",
 		"images": [
 			"/images/pictures/be492de067e5effe.webp"
-		]
+		],
+		"title": "临海的街巷",
+		"category": "风景",
+		"width": 1448,
+		"height": 1086
 	},
 	{
 		"id": "1777631959626-88141891828368",
 		"uploadedAt": "2026-05-01T10:39:19.626Z",
 		"images": [
 			"/images/pictures/a2159fc0ab95a5ab.webp"
-		]
+		],
+		"title": "山间星夜",
+		"category": "绘画",
+		"width": 1448,
+		"height": 1086
 	}
 ]

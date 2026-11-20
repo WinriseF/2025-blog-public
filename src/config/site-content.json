@@ -39,12 +39,6 @@
 		"colorCard": "#ffffff66",
 		"colorArticle": "#ffffffcc"
 	},
-	"backgroundColors": [
-		"#334E0F",
-		"#CEDB2C",
-		"#B3AC83",
-		"#9E23D3"
-	],
 	"artImages": [
 		{
 			"id": "winrisef-avatar",
